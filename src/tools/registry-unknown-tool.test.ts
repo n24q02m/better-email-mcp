@@ -1,6 +1,6 @@
+import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js'
 import { describe, expect, it, vi } from 'vitest'
 import { registerTools } from './registry.js'
-import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js'
 
 // Mock the composite tools to isolate the test
 vi.mock('./composite/attachments.js', () => ({ attachments: vi.fn() }))
@@ -9,7 +9,7 @@ vi.mock('./composite/messages.js', () => ({ messages: vi.fn() }))
 vi.mock('./composite/send.js', () => ({ send: vi.fn() }))
 
 // Mock account config (minimal)
-const mockAccounts = []
+const mockAccounts: any[] = []
 
 describe('registerTools', () => {
   it('should handle unknown tool execution gracefully', async () => {
@@ -19,11 +19,11 @@ describe('registerTools', () => {
     }
 
     // Call the function under test
-    registerTools(mockServer as any, mockAccounts as any)
+    registerTools(mockServer as any, mockAccounts)
 
     // Find the handler for CallToolRequestSchema
     // The first argument to setRequestHandler is the schema, the second is the handler
-    const call = mockServer.setRequestHandler.mock.calls.find(call => call[0] === CallToolRequestSchema)
+    const call = mockServer.setRequestHandler.mock.calls.find((call) => call[0] === CallToolRequestSchema)
     expect(call).toBeDefined()
 
     const handler = call![1]
