@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { htmlToCleanText } from './html-utils.js'
+import { htmlToCleanText, escapeHtml } from './html-utils.js'
 
 describe('htmlToCleanText', () => {
   it('returns empty string for empty input', () => {
@@ -112,5 +112,17 @@ describe('htmlToCleanText', () => {
     expect(result).not.toContain('font-family')
     expect(result).not.toContain('tracking')
     expect(result).not.toContain('banner.jpg')
+  })
+})
+
+describe('escapeHtml', () => {
+  it('escapes special characters', () => {
+    expect(escapeHtml('<script>alert("XSS")</script>')).toBe('&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;')
+    expect(escapeHtml('Hello & World')).toBe('Hello &amp; World')
+    expect(escapeHtml("It's me")).toBe('It&#039;s me')
+  })
+
+  it('handles empty string', () => {
+    expect(escapeHtml('')).toBe('')
   })
 })
