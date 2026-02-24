@@ -37,6 +37,24 @@ yarn-error.log*
 coverage/
 .nyc_output/
 
+# Test files in build directory
+build/**/*.test.js
+build/**/*.test.js.map
+build/**/*.test.d.ts
+build/**/*.test.d.ts.map
+
+# Build info
+build/tsconfig.tsbuildinfo
+
+# Dev config
+.mise.toml
+.pre-commit-config.yaml
+biome.json
+semantic-release.toml
+vitest.config.ts
+AGENTS.md
+CHANGELOG.md
+
 # Misc
 .DS_Store
 *.swp
