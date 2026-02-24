@@ -1,0 +1,83 @@
+# Pre-commit Hooks Configuration
+# Installation: https://pre-commit.com/
+#
+# Quick start:
+#   1. Install pre-commit: uv pip install pre-commit
+#   2. Install hooks: pre-commit install
+#   3. Run manually: pre-commit run --all-files
+#
+# Bypass checks: git commit --no-verify (use only in emergency)
+
+repos:
+  # ============================================================================
+  # TypeScript/JavaScript
+  # ============================================================================
+
+  # Biome: Fast formatter and linter for JavaScript/TypeScript
+  - repo: local
+    hooks:
+      - id: biome-check
+        name: biome check
+        entry: mise exec -- pnpm exec biome check --write
+        language: system
+        types_or: [javascript, ts, tsx, jsx, json, css]
+        pass_filenames: true
+
+  # TypeScript: Type checker
+  - repo: local
+    hooks:
+      - id: typescript-check
+        name: typescript type check
+        entry: mise exec -- pnpm exec tsc --noEmit
+        language: system
+        types: [ts]
+        pass_filenames: false
+
+  # Test: Run tests
+  - repo: local
+    hooks:
+      - id: test
+        name: test (TypeScript)
+        entry: mise exec -- pnpm test
+        language: system
+        types: [ts]
+        pass_filenames: false
+
+  # Commit message: Enforce feat/fix prefix
+  - repo: local
+    hooks:
+      - id: enforce-commit
+        name: Enforce feat and fix commit prefixes
+        entry: bash scripts/enforce-commit.sh
+        language: system
+        stages: [commit-msg]
+
+  # ============================================================================
+  # Common Checks
+  # ============================================================================
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        name: trim trailing whitespace
+        exclude_types: [image]
+
+      - id: check-merge-conflict
+        name: check for merge conflicts
+
+      - id: check-json
+        name: check JSON files
+        types: [json]
+
+      - id: check-yaml
+        name: check YAML files
+        types: [yaml]
+
+      - id: check-toml
+        name: check TOML files
+        types: [toml]
+
+      - id: end-of-file-fixer
+        name: fix end of files
+        exclude_types: [image]

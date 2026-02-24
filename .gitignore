@@ -1,0 +1,17 @@
+node_modules/
+build/
+dist
+bin/
+
+.cache
+.yarn/cache
+.eslintcache
+
+.cursor
+
+.DS_Store
+.env
+logs_*/
+*.log
+.jules/
+.venv/

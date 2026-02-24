@@ -1,0 +1,44 @@
+# Mise configuration for Better Email MCP
+# https://mise.jdx.dev/
+#
+# Setup: mise run setup
+
+[tools]
+node = "24"
+pnpm = "latest"
+uv = "latest"
+python = "3.13"
+
+[settings]
+trusted_config_paths = ["."]
+
+[env]
+UV_LINK_MODE = "copy"
+
+[tasks.setup]
+description = "Setup development environment"
+run = [
+  "mise install",
+  "pnpm install",
+  "node scripts/clean-venv.mjs",
+  "uv pip install pre-commit",
+  "uv run pre-commit install",
+  "uv run pre-commit install --hook-type commit-msg",
+  "echo 'Setup complete!'"
+]
+
+[tasks.lint]
+description = "Run all quality checks (biome + tsc)"
+run = "pnpm check"
+
+[tasks.test]
+description = "Run tests"
+run = "pnpm test"
+
+[tasks.fix]
+description = "Auto-fix formatting and linting issues"
+run = "pnpm check:fix"
+
+[tasks.dev]
+description = "Run MCP server locally"
+run = "pnpm dev"

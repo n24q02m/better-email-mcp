@@ -1,0 +1,11 @@
+node_modules
+build
+bin
+Dockerfile
+docker-compose.yml
+.git
+.github
+.vscode
+coverage
+*.md
+!README.md
