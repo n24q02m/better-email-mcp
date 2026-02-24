@@ -1,12 +1,12 @@
+import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js'
 import { describe, expect, it, vi } from 'vitest'
 import { registerTools } from './registry.js'
-import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js'
 
 describe('registerTools', () => {
   it('should return error when no arguments are provided', async () => {
     // Mock server
     const server = {
-      setRequestHandler: vi.fn(),
+      setRequestHandler: vi.fn()
     } as any
 
     // Mock accounts
@@ -27,7 +27,7 @@ describe('registerTools', () => {
       params: {
         name: 'messages',
         arguments: undefined
-      },
+      }
     }
 
     const result = await callToolHandler(request)
@@ -36,10 +36,10 @@ describe('registerTools', () => {
       content: [
         {
           type: 'text',
-          text: 'Error: No arguments provided',
-        },
+          text: 'Error: No arguments provided'
+        }
       ],
-      isError: true,
+      isError: true
     })
   })
 })
