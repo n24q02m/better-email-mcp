@@ -30,7 +30,7 @@
 
 Create App Passwords (NOT your regular password):
 - **Gmail**: Enable 2FA, then <https://myaccount.google.com/apppasswords>
-- **Outlook**: Enable 2FA, then <https://account.live.com/proofs/manage/additional> > App passwords
+- **Outlook**: Enable 2FA, then go to <https://account.microsoft.com/security> > Advanced security options > App passwords
 
 ### Option 1: npx (Recommended)
 
