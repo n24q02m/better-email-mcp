@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { loadConfig, parseCredentials } from './config.js'
+import { loadConfig, parseCredentials, resolveAccount, resolveAccounts, AccountConfig } from './config.js'
 
 describe('parseCredentials', () => {
   it('returns empty array for empty string', () => {
@@ -158,5 +158,95 @@ describe('loadConfig', () => {
     } else {
       delete process.env.EMAIL_CREDENTIALS
     }
+  })
+})
+
+const mockAccounts: AccountConfig[] = [
+  {
+    id: 'user1_gmail_com',
+    email: 'user1@gmail.com',
+    password: 'pass1',
+    imap: { host: 'imap.gmail.com', port: 993, secure: true },
+    smtp: { host: 'smtp.gmail.com', port: 465, secure: true }
+  },
+  {
+    id: 'user2_outlook_com',
+    email: 'user2@outlook.com',
+    password: 'pass2',
+    imap: { host: 'outlook.office365.com', port: 993, secure: true },
+    smtp: { host: 'smtp.office365.com', port: 587, secure: false }
+  },
+  {
+    id: 'other_user_gmail_com',
+    email: 'other.user@gmail.com',
+    password: 'pass3',
+    imap: { host: 'imap.gmail.com', port: 993, secure: true },
+    smtp: { host: 'smtp.gmail.com', port: 465, secure: true }
+  }
+]
+
+describe('resolveAccount', () => {
+  it('resolves account by exact email match', () => {
+    const result = resolveAccount(mockAccounts, 'user1@gmail.com')
+    expect(result).toBe(mockAccounts[0])
+  })
+
+  it('resolves account by exact ID match', () => {
+    const result = resolveAccount(mockAccounts, 'user2_outlook_com')
+    expect(result).toBe(mockAccounts[1])
+  })
+
+  it('resolves account by partial email match', () => {
+    const result = resolveAccount(mockAccounts, 'user2')
+    expect(result).toBe(mockAccounts[1])
+  })
+
+  it('is case insensitive', () => {
+    const result = resolveAccount(mockAccounts, 'USER1@GMAIL.COM')
+    expect(result).toBe(mockAccounts[0])
+  })
+
+  it('throws error when account not found', () => {
+    expect(() => resolveAccount(mockAccounts, 'nonexistent')).toThrow(/not found/)
+  })
+
+  it('throws error when multiple accounts match', () => {
+    expect(() => resolveAccount(mockAccounts, 'gmail.com')).toThrow(/Multiple accounts matched/)
+  })
+})
+
+describe('resolveAccounts', () => {
+  it('returns all accounts when query is empty', () => {
+    expect(resolveAccounts(mockAccounts)).toHaveLength(3)
+    expect(resolveAccounts(mockAccounts, '')).toHaveLength(3)
+  })
+
+  it('returns specific account by exact email', () => {
+    const result = resolveAccounts(mockAccounts, 'user1@gmail.com')
+    expect(result).toHaveLength(1)
+    expect(result[0]).toBe(mockAccounts[0])
+  })
+
+  it('returns matching accounts by partial email', () => {
+    const result = resolveAccounts(mockAccounts, 'gmail.com')
+    expect(result).toHaveLength(2)
+    expect(result.map(a => a.id)).toContain('user1_gmail_com')
+    expect(result.map(a => a.id)).toContain('other_user_gmail_com')
+  })
+
+  it('is case insensitive', () => {
+    const result = resolveAccounts(mockAccounts, 'USER1')
+    expect(result).toHaveLength(1)
+    expect(result[0]).toBe(mockAccounts[0])
+  })
+
+  it('throws error when no accounts match', () => {
+    expect(() => resolveAccounts(mockAccounts, 'nonexistent')).toThrow(/not found/)
+  })
+
+  it('returns match by ID', () => {
+    const result = resolveAccounts(mockAccounts, 'user2_outlook_com')
+    expect(result).toHaveLength(1)
+    expect(result[0]).toBe(mockAccounts[1])
   })
 })
