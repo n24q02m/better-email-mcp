@@ -37,7 +37,9 @@ export async function initServer() {
     console.error('  EMAIL_CREDENTIALS=user1@gmail.com:pass1,user2@outlook.com:pass2')
     console.error('')
     console.error('For Gmail: Enable 2FA, then create App Password at https://myaccount.google.com/apppasswords')
-    console.error('For Outlook: Enable 2FA, then create App Password in security settings')
+    console.error(
+      'For Outlook: Enable 2FA, then create App Password at https://account.live.com/proofs/manage/additional'
+    )
     process.exit(1)
   }
 
