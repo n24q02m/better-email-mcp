@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { registerTools } from './registry.js'
-import { EmailMCPError } from './helpers/errors.js'
 import {
   CallToolRequestSchema,
   ListResourcesRequestSchema,
   ListToolsRequestSchema,
   ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { EmailMCPError } from './helpers/errors.js'
+import { registerTools } from './registry.js'
 
 // Mock dependencies
 vi.mock('node:fs', () => ({
@@ -28,9 +28,9 @@ vi.mock('./composite/send.js', () => ({
 
 // Import mocks to configure them in tests
 import { readFileSync } from 'node:fs'
-import { messages } from './composite/messages.js'
-import { folders } from './composite/folders.js'
 import { attachments } from './composite/attachments.js'
+import { folders } from './composite/folders.js'
+import { messages } from './composite/messages.js'
 import { send } from './composite/send.js'
 
 describe('registerTools', () => {
@@ -82,19 +82,16 @@ describe('registerTools', () => {
       expect(result).toHaveProperty('resources')
       expect(result.resources).toHaveLength(4)
       const resourceNames = result.resources.map((r: any) => r.name)
-      expect(resourceNames).toEqual(expect.arrayContaining([
-        'Messages Tool Docs',
-        'Folders Tool Docs',
-        'Attachments Tool Docs',
-        'Send Tool Docs'
-      ]))
+      expect(resourceNames).toEqual(
+        expect.arrayContaining(['Messages Tool Docs', 'Folders Tool Docs', 'Attachments Tool Docs', 'Send Tool Docs'])
+      )
     })
   })
 
   describe('ReadResourceRequestSchema handler', () => {
     it('reads a valid resource', async () => {
-      registerTools(serverMock, accounts);
-      (readFileSync as any).mockReturnValue('Mocked Content')
+      registerTools(serverMock, accounts)
+      ;(readFileSync as any).mockReturnValue('Mocked Content')
 
       const handler = getHandler(ReadResourceRequestSchema)
       const result = await handler({ params: { uri: 'email://docs/messages' } })
@@ -108,15 +105,14 @@ describe('registerTools', () => {
       registerTools(serverMock, accounts)
       const handler = getHandler(ReadResourceRequestSchema)
 
-      await expect(handler({ params: { uri: 'email://docs/invalid' } }))
-        .rejects.toThrow(EmailMCPError)
+      await expect(handler({ params: { uri: 'email://docs/invalid' } })).rejects.toThrow(EmailMCPError)
     })
   })
 
   describe('CallToolRequestSchema handler', () => {
     it('calls messages tool', async () => {
-      registerTools(serverMock, accounts);
-      (messages as any).mockResolvedValue({ some: 'result' })
+      registerTools(serverMock, accounts)
+      ;(messages as any).mockResolvedValue({ some: 'result' })
 
       const handler = getHandler(CallToolRequestSchema)
       const result = await handler({ params: { name: 'messages', arguments: { action: 'search' } } })
@@ -126,8 +122,8 @@ describe('registerTools', () => {
     })
 
     it('calls folders tool', async () => {
-      registerTools(serverMock, accounts);
-      (folders as any).mockResolvedValue(['folder1'])
+      registerTools(serverMock, accounts)
+      ;(folders as any).mockResolvedValue(['folder1'])
 
       const handler = getHandler(CallToolRequestSchema)
       const result = await handler({ params: { name: 'folders', arguments: { action: 'list' } } })
@@ -137,30 +133,34 @@ describe('registerTools', () => {
     })
 
     it('calls attachments tool', async () => {
-      registerTools(serverMock, accounts);
-      (attachments as any).mockResolvedValue({ file: 'data' })
+      registerTools(serverMock, accounts)
+      ;(attachments as any).mockResolvedValue({ file: 'data' })
 
       const handler = getHandler(CallToolRequestSchema)
-      const result = await handler({ params: { name: 'attachments', arguments: { action: 'list', account: 'test', uid: 123 } } })
+      const result = await handler({
+        params: { name: 'attachments', arguments: { action: 'list', account: 'test', uid: 123 } }
+      })
 
       expect(attachments).toHaveBeenCalledWith(accounts, { action: 'list', account: 'test', uid: 123 })
       expect(JSON.parse(result.content[0].text)).toEqual({ file: 'data' })
     })
 
     it('calls send tool', async () => {
-      registerTools(serverMock, accounts);
-      (send as any).mockResolvedValue({ sent: true })
+      registerTools(serverMock, accounts)
+      ;(send as any).mockResolvedValue({ sent: true })
 
       const handler = getHandler(CallToolRequestSchema)
-      const result = await handler({ params: { name: 'send', arguments: { action: 'new', to: 'test@test.com', body: 'hi' } } })
+      const result = await handler({
+        params: { name: 'send', arguments: { action: 'new', to: 'test@test.com', body: 'hi' } }
+      })
 
       expect(send).toHaveBeenCalledWith(accounts, { action: 'new', to: 'test@test.com', body: 'hi' })
       expect(JSON.parse(result.content[0].text)).toEqual({ sent: true })
     })
 
     it('calls help tool', async () => {
-      registerTools(serverMock, accounts);
-      (readFileSync as any).mockReturnValue('Help Content')
+      registerTools(serverMock, accounts)
+      ;(readFileSync as any).mockReturnValue('Help Content')
 
       const handler = getHandler(CallToolRequestSchema)
       const result = await handler({ params: { name: 'help', arguments: { tool_name: 'messages' } } })
@@ -170,8 +170,10 @@ describe('registerTools', () => {
     })
 
     it('handles help tool with invalid tool name (fs error)', async () => {
-      registerTools(serverMock, accounts);
-      (readFileSync as any).mockImplementation(() => { throw new Error('File not found') })
+      registerTools(serverMock, accounts)
+      ;(readFileSync as any).mockImplementation(() => {
+        throw new Error('File not found')
+      })
 
       const handler = getHandler(CallToolRequestSchema)
       const result = await handler({ params: { name: 'help', arguments: { tool_name: 'invalid' } } })
@@ -201,8 +203,8 @@ describe('registerTools', () => {
     })
 
     it('handles tool execution errors', async () => {
-      registerTools(serverMock, accounts);
-      (messages as any).mockRejectedValue(new Error('Tool failed'))
+      registerTools(serverMock, accounts)
+      ;(messages as any).mockRejectedValue(new Error('Tool failed'))
 
       const handler = getHandler(CallToolRequestSchema)
       const result = await handler({ params: { name: 'messages', arguments: { action: 'search' } } })
