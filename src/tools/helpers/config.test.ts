@@ -160,3 +160,18 @@ describe('loadConfig', () => {
     }
   })
 })
+
+it('vulnerability reproduction: exposes sensitive data in logs', () => {
+  const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  const sensitivePart = 'SecretPassword'
+  // malformed entry: short email concatenated with password, no colon
+  const input = `me@x.com${sensitivePart}`
+  // "me@x.comSecretPassword"
+  // substring(0, 20) -> "me@x.comSecretPasswo"
+
+  parseCredentials(input)
+
+  // The vulnerability is that it logs the substring which contains the password
+  expect(spy).not.toHaveBeenCalledWith(expect.stringContaining('SecretPasswo'))
+  spy.mockRestore()
+})

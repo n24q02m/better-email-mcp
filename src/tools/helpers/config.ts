@@ -115,7 +115,7 @@ export function parseCredentials(envValue: string): AccountConfig[] {
 
     const parts = trimmed.split(':')
     if (parts.length < 2) {
-      console.error(`Skipping invalid credential entry (expected email:password): ${trimmed.substring(0, 20)}...`)
+      console.error('Skipping invalid credential entry (expected email:password)')
       continue
     }
 
