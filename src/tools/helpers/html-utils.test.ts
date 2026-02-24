@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { htmlToCleanText, escapeHtml } from './html-utils.js'
+import { escapeHtml, htmlToCleanText } from './html-utils.js'
 
 describe('htmlToCleanText', () => {
   it('returns empty string for empty input', () => {
