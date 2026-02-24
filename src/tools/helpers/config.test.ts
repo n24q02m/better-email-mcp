@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { loadConfig, parseCredentials, resolveAccount, resolveAccounts, AccountConfig } from './config.js'
+import { type AccountConfig, loadConfig, parseCredentials, resolveAccount, resolveAccounts } from './config.js'
 
 describe('parseCredentials', () => {
   it('returns empty array for empty string', () => {
@@ -230,8 +230,8 @@ describe('resolveAccounts', () => {
   it('returns matching accounts by partial email', () => {
     const result = resolveAccounts(mockAccounts, 'gmail.com')
     expect(result).toHaveLength(2)
-    expect(result.map(a => a.id)).toContain('user1_gmail_com')
-    expect(result.map(a => a.id)).toContain('other_user_gmail_com')
+    expect(result.map((a) => a.id)).toContain('user1_gmail_com')
+    expect(result.map((a) => a.id)).toContain('other_user_gmail_com')
   })
 
   it('is case insensitive', () => {
