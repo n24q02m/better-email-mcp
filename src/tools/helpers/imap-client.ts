@@ -205,17 +205,19 @@ export async function searchEmails(
       })
     } catch (error: any) {
       // Include error info but continue with other accounts
-      return [{
-        account_id: account.id,
-        account_email: account.email,
-        uid: 0,
-        subject: `[ERROR] ${error.message}`,
-        from: '',
-        to: '',
-        date: '',
-        flags: [],
-        snippet: `Failed to search ${account.email}: ${error.message}`
-      }]
+      return [
+        {
+          account_id: account.id,
+          account_email: account.email,
+          uid: 0,
+          subject: `[ERROR] ${error.message}`,
+          from: '',
+          to: '',
+          date: '',
+          flags: [],
+          snippet: `Failed to search ${account.email}: ${error.message}`
+        }
+      ]
     }
   })
 
