@@ -34,10 +34,10 @@ const DOCS_DIR = __dirname.endsWith('bin')
  * Documentation resources for full tool details
  */
 const RESOURCES = [
-  { uri: 'email://docs/messages', name: 'Messages Tool Docs', file: 'messages.md' },
-  { uri: 'email://docs/folders', name: 'Folders Tool Docs', file: 'folders.md' },
-  { uri: 'email://docs/attachments', name: 'Attachments Tool Docs', file: 'attachments.md' },
-  { uri: 'email://docs/send', name: 'Send Tool Docs', file: 'send.md' }
+  { tool: 'messages', uri: 'email://docs/messages', name: 'Messages Tool Docs', file: 'messages.md' },
+  { tool: 'folders', uri: 'email://docs/folders', name: 'Folders Tool Docs', file: 'folders.md' },
+  { tool: 'attachments', uri: 'email://docs/attachments', name: 'Attachments Tool Docs', file: 'attachments.md' },
+  { tool: 'send', uri: 'email://docs/send', name: 'Send Tool Docs', file: 'send.md' }
 ]
 
 /**
@@ -252,12 +252,21 @@ export function registerTools(server: Server, accounts: AccountConfig[]) {
           break
         case 'help': {
           const toolName = (args as { tool_name: string }).tool_name
-          const docFile = `${toolName}.md`
+          const resource = RESOURCES.find((r) => r.tool === toolName)
+
+          if (!resource) {
+            throw new EmailMCPError(`Documentation not found for: ${toolName}`, 'DOC_NOT_FOUND', 'Check tool_name')
+          }
+
           try {
-            const content = readFileSync(join(DOCS_DIR, docFile), 'utf-8')
+            const content = readFileSync(join(DOCS_DIR, resource.file), 'utf-8')
             result = { tool: toolName, documentation: content }
           } catch {
-            throw new EmailMCPError(`Documentation not found for: ${toolName}`, 'DOC_NOT_FOUND', 'Check tool_name')
+            throw new EmailMCPError(
+              `Documentation file not found: ${resource.file}`,
+              'DOC_FILE_NOT_FOUND',
+              'Check installation'
+            )
           }
           break
         }

@@ -107,10 +107,10 @@ describe('TOOLS structure', () => {
 
 describe('RESOURCES structure', () => {
   const EXPECTED_RESOURCES = [
-    { uri: 'email://docs/messages', name: 'Messages Tool Docs', file: 'messages.md' },
-    { uri: 'email://docs/folders', name: 'Folders Tool Docs', file: 'folders.md' },
-    { uri: 'email://docs/attachments', name: 'Attachments Tool Docs', file: 'attachments.md' },
-    { uri: 'email://docs/send', name: 'Send Tool Docs', file: 'send.md' }
+    { tool: 'messages', uri: 'email://docs/messages', name: 'Messages Tool Docs', file: 'messages.md' },
+    { tool: 'folders', uri: 'email://docs/folders', name: 'Folders Tool Docs', file: 'folders.md' },
+    { tool: 'attachments', uri: 'email://docs/attachments', name: 'Attachments Tool Docs', file: 'attachments.md' },
+    { tool: 'send', uri: 'email://docs/send', name: 'Send Tool Docs', file: 'send.md' }
   ]
 
   it('has exactly 4 resources', () => {
