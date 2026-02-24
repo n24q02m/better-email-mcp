@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.2 (2026-02-24)
+
+### Bug Fixes
+
+- Account resolution should use exact match for email before fallback
+  ([`b30cb30`](https://github.com/n24q02m/better-email-mcp/commit/b30cb30f8421273dfafab0e5333e8c99b55c9bf2))
+
+
 ## v1.0.1 (2026-02-24)
 
 ### Bug Fixes
