@@ -52,7 +52,6 @@ export interface FolderInfo {
   path: string
   flags: string[]
   delimiter: string
-  children?: FolderInfo[]
 }
 
 /**
@@ -354,15 +353,7 @@ export async function listFolders(account: AccountConfig): Promise<FolderInfo[]>
       name: mb.name,
       path: mb.path,
       flags: Array.from(mb.flags || []),
-      delimiter: mb.delimiter || '/',
-      children: (mb as any).folders
-        ? (Array.from((mb as any).folders) as [any, any][]).map(([, child]) => ({
-            name: child.name,
-            path: child.path,
-            flags: Array.from(child.flags || []),
-            delimiter: child.delimiter || '/'
-          }))
-        : undefined
+      delimiter: mb.delimiter || '/'
     }))
   })
 }
