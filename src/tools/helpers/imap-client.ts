@@ -232,11 +232,14 @@ export async function readEmail(account: AccountConfig, uid: number, folder: str
   return withConnection(account, async (client) => {
     const lock = await client.getMailboxLock(folder)
     try {
-      const fetchResult = await client.fetchOne(`${uid}`, {
-        uid: true,
-        flags: true,
-        source: true
-      })
+      const fetchResult = await client.fetchOne(
+        `${uid}`,
+        {
+          flags: true,
+          source: true
+        },
+        { uid: true }
+      )
 
       if (!fetchResult || !fetchResult.source) {
         throw new EmailMCPError(`Email UID ${uid} not found in ${folder}`, 'NOT_FOUND', 'Check the UID and folder')
@@ -376,7 +379,7 @@ export async function getAttachment(
   return withConnection(account, async (client) => {
     const lock = await client.getMailboxLock(folder)
     try {
-      const fetchResult = await client.fetchOne(`${uid}`, { uid: true, source: true })
+      const fetchResult = await client.fetchOne(`${uid}`, { source: true }, { uid: true })
       if (!fetchResult || !fetchResult.source) {
         throw new EmailMCPError(`Email UID ${uid} not found`, 'NOT_FOUND', 'Check the UID and folder')
       }
