@@ -160,69 +160,72 @@ export async function searchEmails(
   folder: string,
   limit: number
 ): Promise<EmailSummary[]> {
-  const results: EmailSummary[] = []
   const criteria = buildSearchCriteria(query)
 
-  for (const account of accounts) {
-    try {
-      const emails = await withConnection(account, async (client) => {
-        const lock = await client.getMailboxLock(folder)
-        try {
-          const summaries: EmailSummary[] = []
-          let count = 0
+  // Execute searches in parallel across all accounts
+  const results = await Promise.all(
+    accounts.map(async (account) => {
+      try {
+        const emails = await withConnection(account, async (client) => {
+          const lock = await client.getMailboxLock(folder)
+          try {
+            const summaries: EmailSummary[] = []
+            let count = 0
 
-          for await (const msg of client.fetch(criteria, {
-            uid: true,
-            flags: true,
-            envelope: true,
-            bodyStructure: true,
-            source: { start: 0, maxLength: 500 }
-          })) {
-            if (count >= limit) break
+            for await (const msg of client.fetch(criteria, {
+              uid: true,
+              flags: true,
+              envelope: true,
+              bodyStructure: true,
+              source: { start: 0, maxLength: 500 }
+            })) {
+              if (count >= limit) break
 
-            const snippet = msg.source ? extractSnippet(msg.source.toString('utf-8')) : ''
+              const snippet = msg.source ? extractSnippet(msg.source.toString('utf-8')) : ''
 
-            summaries.push({
-              account_id: account.id,
-              account_email: account.email,
-              uid: msg.uid,
-              message_id: msg.envelope?.messageId,
-              subject: msg.envelope?.subject || '(No subject)',
-              from: msg.envelope?.from?.[0]
-                ? `${msg.envelope.from[0].name || ''} <${msg.envelope.from[0].address || ''}>`.trim()
-                : '',
-              to: msg.envelope?.to?.map((a: any) => a.address).join(', ') || '',
-              date: msg.envelope?.date?.toISOString() || '',
-              flags: Array.from(msg.flags || []),
-              snippet
-            })
-            count++
+              summaries.push({
+                account_id: account.id,
+                account_email: account.email,
+                uid: msg.uid,
+                message_id: msg.envelope?.messageId,
+                subject: msg.envelope?.subject || '(No subject)',
+                from: msg.envelope?.from?.[0]
+                  ? `${msg.envelope.from[0].name || ''} <${msg.envelope.from[0].address || ''}>`.trim()
+                  : '',
+                to: msg.envelope?.to?.map((a: any) => a.address).join(', ') || '',
+                date: msg.envelope?.date?.toISOString() || '',
+                flags: Array.from(msg.flags || []),
+                snippet
+              })
+              count++
+            }
+
+            return summaries
+          } finally {
+            lock.release()
           }
+        })
+        return emails
+      } catch (error: any) {
+        // Include error info but continue with other accounts
+        return [
+          {
+            account_id: account.id,
+            account_email: account.email,
+            uid: 0,
+            subject: `[ERROR] ${error.message}`,
+            from: '',
+            to: '',
+            date: '',
+            flags: [],
+            snippet: `Failed to search ${account.email}: ${error.message}`
+          }
+        ]
+      }
+    })
+  )
 
-          return summaries
-        } finally {
-          lock.release()
-        }
-      })
-
-      results.push(...emails)
-    } catch (error: any) {
-      // Include error info but continue with other accounts
-      results.push({
-        account_id: account.id,
-        account_email: account.email,
-        uid: 0,
-        subject: `[ERROR] ${error.message}`,
-        from: '',
-        to: '',
-        date: '',
-        flags: [],
-        snippet: `Failed to search ${account.email}: ${error.message}`
-      })
-    }
-  }
-
-  return results
+  return results.flat()
 }
 
 /**
