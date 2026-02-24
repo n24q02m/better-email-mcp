@@ -188,3 +188,27 @@ export function loadConfig(): AccountConfig[] {
   }
   return parseCredentials(credentials)
 }
+
+export function resolveAccount(accounts: AccountConfig[], query: string): AccountConfig {
+  const lower = query.toLowerCase().trim()
+  const exact = accounts.filter((a) => a.email.toLowerCase() === lower || a.id === lower)
+  if (exact.length === 1) return exact[0]!
+  const partial = accounts.filter((a) => a.email.toLowerCase().includes(lower))
+  if (partial.length === 0)
+    throw new Error(`Account "${query}" not found. Available: ${accounts.map((a) => a.email).join(', ')}`)
+  if (partial.length > 1)
+    throw new Error(
+      `Multiple accounts matched: ${partial.map((a) => a.email).join(', ')}. Specify exact account email.`
+    )
+  return partial[0]!
+}
+export function resolveAccounts(accounts: AccountConfig[], query?: string): AccountConfig[] {
+  if (!query) return accounts
+  const lower = query.toLowerCase().trim()
+  const exact = accounts.filter((a) => a.email.toLowerCase() === lower || a.id === lower)
+  if (exact.length > 0) return exact
+  const partial = accounts.filter((a) => a.email.toLowerCase().includes(lower))
+  if (partial.length === 0)
+    throw new Error(`Account "${query}" not found. Available: ${accounts.map((a) => a.email).join(', ')}`)
+  return partial
+}
