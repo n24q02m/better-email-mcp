@@ -87,6 +87,7 @@ beforeEach(() => {
 
 describe('searchEmails', () => {
   it('searches with default UNSEEN criteria', async () => {
+    mockSimpleParser.mockResolvedValue({ text: 'Preview text here' } as any)
     const msgs = [
       {
         uid: 1,
@@ -115,6 +116,7 @@ describe('searchEmails', () => {
   })
 
   it('respects the limit parameter', async () => {
+    mockSimpleParser.mockResolvedValue({ text: 'text' } as any)
     const msgs = Array.from({ length: 5 }, (_, i) => ({
       uid: i + 1,
       flags: new Set(),
@@ -135,6 +137,7 @@ describe('searchEmails', () => {
   })
 
   it('searches across multiple accounts', async () => {
+    mockSimpleParser.mockResolvedValue({ text: 'text' } as any)
     const account2: AccountConfig = {
       ...account,
       id: 'user2_gmail_com',
@@ -180,7 +183,27 @@ describe('searchEmails', () => {
     expect(results).toHaveLength(0)
   })
 
+  it('uses source for snippet extraction', async () => {
+    mockSimpleParser.mockResolvedValue({ text: 'Body content here' } as any)
+    mockClient.fetch.mockReturnValue(
+      toAsyncIterable([
+        {
+          uid: 1,
+          flags: new Set(),
+          envelope: { subject: 'Test Subject' },
+          source: Buffer.from('Body content here')
+        }
+      ])
+    )
+
+    const results = await searchEmails([account], 'ALL', 'INBOX', 10)
+
+    expect(results).toHaveLength(1)
+    expect(results[0]!.snippet).toBe('Body content here')
+  })
+
   it('handles missing envelope fields gracefully', async () => {
+    mockSimpleParser.mockResolvedValue({ text: '' } as any)
     mockClient.fetch.mockReturnValue(
       toAsyncIterable([
         {
