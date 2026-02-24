@@ -13,7 +13,7 @@ vi.mock('nodemailer', () => ({
 }))
 
 import { createTransport } from 'nodemailer'
-import { forwardEmail, replyToEmail, sendNewEmail } from './smtp-client.js'
+import { forwardEmail, replyToEmail, sendNewEmail, textToHtml } from './smtp-client.js'
 
 const account: AccountConfig = {
   id: 'test_gmail_com',
@@ -100,7 +100,7 @@ describe('sendNewEmail', () => {
     })
 
     const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.html).toContain('<b>Important</b>')
+    expect(callArgs.html).toContain('<strong>Important</strong>')
   })
 
   it('converts empty lines to br tags', async () => {
@@ -111,7 +111,7 @@ describe('sendNewEmail', () => {
     })
 
     const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.html).toContain('<br>')
+    expect(callArgs.html).toContain('<p>Line 2</p>')
   })
 
   it('always closes transport', async () => {
@@ -255,5 +255,31 @@ describe('forwardEmail', () => {
     const callArgs = mockSendMail.mock.calls[0]![0]
     expect(callArgs.cc).toBe('cc@test.com')
     expect(callArgs.bcc).toBe('bcc@test.com')
+  })
+})
+
+// ============================================================================
+// textToHtml (Direct tests)
+// ============================================================================
+
+describe('textToHtml', () => {
+  it('converts basic markdown list to valid HTML list (with ul)', () => {
+    const input = `Here is a list:
+- Item 1
+- Item 2
+- Item 3`
+
+    const output = textToHtml(input)
+    expect(output).toContain('<ul>')
+    expect(output).toContain('<li>Item 1</li>')
+    expect(output).toContain('<li>Item 2</li>')
+    expect(output).toContain('<li>Item 3</li>')
+    expect(output).toContain('</ul>')
+  })
+
+  it('handles single newlines with <br> (breaks: true)', () => {
+    const input = 'Line 1\nLine 2'
+    const output = textToHtml(input)
+    expect(output).toContain('<br>')
   })
 })
