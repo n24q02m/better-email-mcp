@@ -6,6 +6,7 @@
 import { createTransport } from 'nodemailer'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
+import { escapeHtml } from './html-utils.js'
 
 export interface SendEmailOptions {
   to: string
@@ -35,17 +36,17 @@ function createSmtpTransport(account: AccountConfig) {
 /**
  * Convert markdown-like text to simple HTML for email
  */
-function textToHtml(text: string): string {
+export function textToHtml(text: string): string {
   return text
     .split('\n')
     .map((line) => {
-      if (line.startsWith('# ')) return `<h1>${line.substring(2)}</h1>`
-      if (line.startsWith('## ')) return `<h2>${line.substring(3)}</h2>`
-      if (line.startsWith('### ')) return `<h3>${line.substring(4)}</h3>`
-      if (line.startsWith('- ')) return `<li>${line.substring(2)}</li>`
-      if (line.startsWith('**') && line.endsWith('**')) return `<b>${line.slice(2, -2)}</b>`
+      if (line.startsWith('# ')) return `<h1>${escapeHtml(line.substring(2))}</h1>`
+      if (line.startsWith('## ')) return `<h2>${escapeHtml(line.substring(3))}</h2>`
+      if (line.startsWith('### ')) return `<h3>${escapeHtml(line.substring(4))}</h3>`
+      if (line.startsWith('- ')) return `<li>${escapeHtml(line.substring(2))}</li>`
+      if (line.startsWith('**') && line.endsWith('**')) return `<b>${escapeHtml(line.slice(2, -2))}</b>`
       if (line.trim() === '') return '<br>'
-      return `<p>${line}</p>`
+      return `<p>${escapeHtml(line)}</p>`
     })
     .join('\n')
 }

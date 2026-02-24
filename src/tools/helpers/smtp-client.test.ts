@@ -114,6 +114,18 @@ describe('sendNewEmail', () => {
     expect(callArgs.html).toContain('<br>')
   })
 
+  it('escapes HTML special characters to prevent XSS', async () => {
+    await sendNewEmail(account, {
+      to: 'r@test.com',
+      subject: 'Test',
+      body: '<script>alert("xss")</script>'
+    })
+
+    const callArgs = mockSendMail.mock.calls[0]![0]
+    expect(callArgs.html).not.toContain('<script>')
+    expect(callArgs.html).toContain('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;')
+  })
+
   it('always closes transport', async () => {
     await sendNewEmail(account, { to: 'r@test.com', subject: 'T', body: 'B' })
 
