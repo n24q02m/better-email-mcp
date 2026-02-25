@@ -28,3 +28,15 @@ export function htmlToCleanText(html: string): string {
     ]
   }).trim()
 }
+
+/**
+ * Escapes HTML characters in a string to prevent XSS
+ */
+export function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
