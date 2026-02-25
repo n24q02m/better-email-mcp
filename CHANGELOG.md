@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.1.0 (2026-02-25)
+
+### Features
+
+- Add data encapsulation against indirect prompt injection (XPIA)
+  ([`dffa1e1`](https://github.com/n24q02m/better-email-mcp/commit/dffa1e1ef3735cb590dc1165b7a2cadeabc2b73a))
+
+
 ## v1.0.2 (2026-02-24)
 
 ### Bug Fixes
