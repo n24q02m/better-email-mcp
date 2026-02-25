@@ -29,17 +29,22 @@ export async function initServer() {
   const accounts = loadConfig()
 
   if (accounts.length === 0) {
-    console.error('EMAIL_CREDENTIALS environment variable is required')
-    console.error('Format: email1:password1,email2:password2')
+    console.error('No email accounts configured. Use one of the following methods:')
     console.error('')
-    console.error('Examples:')
+    console.error('Method 1: App Password (EMAIL_CREDENTIALS env var)')
     console.error('  EMAIL_CREDENTIALS=user@gmail.com:abcd-efgh-ijkl-mnop')
     console.error('  EMAIL_CREDENTIALS=user1@gmail.com:pass1,user2@outlook.com:pass2')
     console.error('')
-    console.error('For Gmail: Enable 2FA, then create App Password at https://myaccount.google.com/apppasswords')
+    console.error('  Gmail: Enable 2FA, then create App Password at https://myaccount.google.com/apppasswords')
     console.error(
-      'For Outlook: Enable 2FA, then go to https://account.microsoft.com/security > Advanced security options > App passwords'
+      '  Outlook: Enable 2FA, then go to https://account.microsoft.com/security > Advanced security options > App passwords'
     )
+    console.error('')
+    console.error('Method 2: OAuth (interactive browser login)')
+    console.error('  npx @n24q02m/better-email-mcp auth setup google     # Configure Google OAuth client')
+    console.error('  npx @n24q02m/better-email-mcp auth setup microsoft  # Configure Microsoft OAuth client')
+    console.error('  npx @n24q02m/better-email-mcp auth user@gmail.com   # Authenticate an account')
+    console.error('  npx @n24q02m/better-email-mcp auth --list           # List authenticated accounts')
     process.exit(1)
   }
 

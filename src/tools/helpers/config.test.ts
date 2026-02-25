@@ -16,6 +16,7 @@ describe('parseCredentials', () => {
     expect(result[0]).toMatchObject({
       id: 'user_gmail_com',
       email: 'user@gmail.com',
+      authType: 'password',
       password: 'mypassword',
       imap: { host: 'imap.gmail.com', port: 993, secure: true },
       smtp: { host: 'smtp.gmail.com', port: 465, secure: true }

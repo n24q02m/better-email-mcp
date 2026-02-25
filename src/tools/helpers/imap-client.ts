@@ -1,6 +1,7 @@
 /**
  * IMAP Client Manager
  * Manages connections to multiple IMAP servers with connection pooling
+ * Supports both App Password and OAuth XOAUTH2 authentication
  */
 
 import { ImapFlow } from 'imapflow'
@@ -8,6 +9,7 @@ import { simpleParser } from 'mailparser'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
 import { htmlToCleanText } from './html-utils.js'
+import { ensureFreshToken } from './oauth/refresh.js'
 
 export interface EmailSummary {
   account_id: string
@@ -57,25 +59,44 @@ export interface FolderInfo {
 
 /**
  * Create an ImapFlow client for the given account
+ * Supports both App Password (pass) and OAuth XOAUTH2 (accessToken)
  */
 function createClient(account: AccountConfig): ImapFlow {
+  const auth =
+    account.authType === 'oauth' && account.accessToken
+      ? { user: account.email, accessToken: account.accessToken }
+      : { user: account.email, pass: account.password! }
+
   return new ImapFlow({
     host: account.imap.host,
     port: account.imap.port,
     secure: account.imap.secure,
-    auth: {
-      user: account.email,
-      pass: account.password
-    },
+    auth,
     logger: false
   })
 }
 
 /**
  * Execute an operation with an IMAP connection (auto-connect/disconnect)
+ * For OAuth accounts, automatically refreshes expired tokens before connecting
  */
 async function withConnection<T>(account: AccountConfig, fn: (client: ImapFlow) => Promise<T>): Promise<T> {
-  const client = createClient(account)
+  // Refresh OAuth token if needed
+  let effectiveAccount = account
+  if (account.authType === 'oauth') {
+    try {
+      const freshToken = await ensureFreshToken(account.email)
+      effectiveAccount = { ...account, accessToken: freshToken }
+    } catch (err: any) {
+      throw new EmailMCPError(
+        `OAuth token refresh failed for ${account.email}: ${err.message}`,
+        'AUTH_ERROR',
+        `Re-authenticate with: npx @n24q02m/better-email-mcp auth ${account.email}`
+      )
+    }
+  }
+
+  const client = createClient(effectiveAccount)
   try {
     await client.connect()
     return await fn(client)

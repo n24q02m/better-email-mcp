@@ -25,6 +25,7 @@ const accounts: AccountConfig[] = [
   {
     id: 'user1_gmail_com',
     email: 'user1@gmail.com',
+    authType: 'password',
     password: 'pass1',
     imap: { host: 'imap.gmail.com', port: 993, secure: true },
     smtp: { host: 'smtp.gmail.com', port: 465, secure: true }
@@ -32,6 +33,7 @@ const accounts: AccountConfig[] = [
   {
     id: 'user2_outlook_com',
     email: 'user2@outlook.com',
+    authType: 'password',
     password: 'pass2',
     imap: { host: 'outlook.office365.com', port: 993, secure: true },
     smtp: { host: 'smtp.office365.com', port: 587, secure: false }

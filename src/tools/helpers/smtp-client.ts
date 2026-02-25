@@ -1,11 +1,13 @@
 /**
  * SMTP Client
  * Send, reply, and forward emails via SMTP using Nodemailer
+ * Supports both App Password and OAuth XOAUTH2 authentication
  */
 
 import { createTransport } from 'nodemailer'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
+import { ensureFreshToken } from './oauth/refresh.js'
 
 export interface SendEmailOptions {
   to: string
@@ -19,17 +21,38 @@ export interface SendEmailOptions {
 
 /**
  * Create a Nodemailer transporter for the given account
+ * Supports both App Password (pass) and OAuth XOAUTH2 (accessToken)
  */
 function createSmtpTransport(account: AccountConfig) {
+  const auth =
+    account.authType === 'oauth' && account.accessToken
+      ? ({ type: 'OAuth2', user: account.email, accessToken: account.accessToken } as any)
+      : { user: account.email, pass: account.password! }
+
   return createTransport({
     host: account.smtp.host,
     port: account.smtp.port,
     secure: account.smtp.secure,
-    auth: {
-      user: account.email,
-      pass: account.password
-    }
+    auth
   })
+}
+
+/**
+ * Get an account with a fresh OAuth token (if applicable)
+ */
+async function withFreshAuth(account: AccountConfig): Promise<AccountConfig> {
+  if (account.authType !== 'oauth') return account
+
+  try {
+    const freshToken = await ensureFreshToken(account.email)
+    return { ...account, accessToken: freshToken }
+  } catch (err: any) {
+    throw new EmailMCPError(
+      `OAuth token refresh failed for ${account.email}: ${err.message}`,
+      'AUTH_ERROR',
+      `Re-authenticate with: npx @n24q02m/better-email-mcp auth ${account.email}`
+    )
+  }
 }
 
 /**
@@ -57,7 +80,8 @@ export async function sendNewEmail(
   account: AccountConfig,
   options: SendEmailOptions
 ): Promise<{ success: boolean; message_id: string }> {
-  const transport = createSmtpTransport(account)
+  const freshAccount = await withFreshAuth(account)
+  const transport = createSmtpTransport(freshAccount)
 
   try {
     const result = await transport.sendMail({
@@ -94,7 +118,8 @@ export async function replyToEmail(
     )
   }
 
-  const transport = createSmtpTransport(account)
+  const freshAccount = await withFreshAuth(account)
+  const transport = createSmtpTransport(freshAccount)
 
   try {
     const subject = options.subject.startsWith('Re:') ? options.subject : `Re: ${options.subject}`
@@ -127,7 +152,8 @@ export async function forwardEmail(
   account: AccountConfig,
   options: SendEmailOptions & { original_body: string }
 ): Promise<{ success: boolean; message_id: string }> {
-  const transport = createSmtpTransport(account)
+  const freshAccount = await withFreshAuth(account)
+  const transport = createSmtpTransport(freshAccount)
 
   try {
     const subject = options.subject.startsWith('Fwd:') ? options.subject : `Fwd: ${options.subject}`
