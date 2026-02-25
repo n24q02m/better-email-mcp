@@ -18,7 +18,7 @@ async function build() {
     banner: {
       js: "#!/usr/bin/env node\nimport { createRequire } from 'module';const require = createRequire(import.meta.url);"
     },
-    external: ['util', 'imapflow', 'mailparser', 'nodemailer', 'html-to-text', '@modelcontextprotocol/sdk', 'open']
+    external: ['util', 'imapflow', 'mailparser', 'nodemailer', 'html-to-text', '@modelcontextprotocol/sdk']
   })
 
   // Make the output file executable

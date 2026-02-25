@@ -1,9 +1,7 @@
 /**
  * Configuration Parser
- * Parses EMAIL_CREDENTIALS env var, loads OAuth accounts, and auto-discovers IMAP/SMTP settings
+ * Parses EMAIL_CREDENTIALS env var and auto-discovers IMAP/SMTP settings
  */
-
-import { listStoredAccounts, loadTokens } from './oauth/store.js'
 
 /** Well-known email provider settings */
 const PROVIDER_MAP: Record<string, { imap: ServerConfig; smtp: ServerConfig }> = {
@@ -58,12 +56,7 @@ export interface ServerConfig {
 export interface AccountConfig {
   id: string
   email: string
-  /** Authentication type: 'password' for App Password, 'oauth' for OAuth XOAUTH2 */
-  authType: 'password' | 'oauth'
-  /** App Password (when authType is 'password') */
-  password?: string
-  /** OAuth access token (when authType is 'oauth', managed automatically) */
-  accessToken?: string
+  password: string
   imap: ServerConfig
   smtp: ServerConfig
 }
@@ -176,7 +169,6 @@ export function parseCredentials(envValue: string): AccountConfig[] {
     accounts.push({
       id: emailToId(email),
       email,
-      authType: 'password',
       password,
       imap,
       smtp
@@ -187,50 +179,14 @@ export function parseCredentials(envValue: string): AccountConfig[] {
 }
 
 /**
- * Load OAuth accounts from stored tokens
- */
-function loadOAuthAccounts(): AccountConfig[] {
-  const accounts: AccountConfig[] = []
-
-  try {
-    const storedEmails = listStoredAccounts()
-    for (const email of storedEmails) {
-      const tokens = loadTokens(email)
-      if (!tokens) continue
-
-      const settings = discoverSettings(email)
-      if (!settings) continue
-
-      accounts.push({
-        id: emailToId(email),
-        email,
-        authType: 'oauth',
-        accessToken: tokens.accessToken,
-        imap: settings.imap,
-        smtp: settings.smtp
-      })
-    }
-  } catch {
-    // OAuth storage not available, skip
-  }
-
-  return accounts
-}
-
-/**
- * Load and validate configuration from environment and OAuth storage
- *
- * Priority: ENV var accounts first, then OAuth accounts (skip duplicates)
+ * Load and validate configuration from environment
  */
 export function loadConfig(): AccountConfig[] {
-  const envAccounts = parseCredentials(process.env.EMAIL_CREDENTIALS || '')
-  const oauthAccounts = loadOAuthAccounts()
-
-  // Merge: env var accounts take priority over OAuth for same email
-  const envEmails = new Set(envAccounts.map((a) => a.email.toLowerCase()))
-  const uniqueOAuth = oauthAccounts.filter((a) => !envEmails.has(a.email.toLowerCase()))
-
-  return [...envAccounts, ...uniqueOAuth]
+  const credentials = process.env.EMAIL_CREDENTIALS
+  if (!credentials) {
+    return []
+  }
+  return parseCredentials(credentials)
 }
 
 export function resolveAccount(accounts: AccountConfig[], query: string): AccountConfig {

@@ -50,7 +50,6 @@ const mockSimpleParser = vi.mocked(simpleParser)
 const account: AccountConfig = {
   id: 'test_gmail_com',
   email: 'test@gmail.com',
-  authType: 'password',
   password: 'testpass',
   imap: { host: 'imap.gmail.com', port: 993, secure: true },
   smtp: { host: 'smtp.gmail.com', port: 465, secure: true }

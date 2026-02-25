@@ -1,20 +1,11 @@
 /**
  * Better Email MCP Server Starter
- * Dispatches to auth CLI or MCP server based on arguments
+ * Simplified to use composite tools only
  */
 
 import { initServer } from '../src/init-server.js'
-import { runAuthCli } from './auth-cli.js'
 
-async function main() {
-  // Check if first arg is 'auth' - dispatch to OAuth CLI
-  const args = process.argv.slice(2)
-  if (args[0] === 'auth') {
-    await runAuthCli(args.slice(1))
-    return
-  }
-
-  // Default: start MCP server
+async function startServer() {
   try {
     await initServer()
 
@@ -29,4 +20,4 @@ async function main() {
   }
 }
 
-main()
+startServer()

@@ -9,15 +9,14 @@
 
 ## Why "Better"?
 
-**5 composite tools** that provide full email operations (search, read, send, reply, forward, organize) across multiple accounts using IMAP/SMTP with App Passwords or OAuth.
+**5 composite tools** that provide full email operations (search, read, send, reply, forward, organize) across multiple accounts using IMAP/SMTP with App Passwords.
 
 ### Key Features
 
 | Feature | Description |
 |---------|-------------|
 | **Multi-Account** | Manage 6+ email accounts simultaneously |
-| **App Passwords** | No OAuth setup required - clone and run in 1 minute |
-| **OAuth XOAUTH2** | Optional browser-based login for Gmail and Outlook |
+| **App Passwords** | No OAuth2 setup required - clone and run in 1 minute |
 | **Auto-Discovery** | Gmail, Outlook, Yahoo, iCloud, Zoho, ProtonMail auto-configured |
 | **Clean Text** | HTML stripped for LLM token savings |
 | **Thread Support** | Reply/forward maintains In-Reply-To and References headers |
@@ -80,40 +79,6 @@ EMAIL_CREDENTIALS=user1@gmail.com:pass1,user2@outlook.com:pass2,user3@yahoo.com:
 
 ```bash
 EMAIL_CREDENTIALS=user@custom.com:password:imap.custom.com
-```
-
-### Option 3: OAuth (Gmail/Outlook)
-
-Instead of App Passwords, you can use OAuth for Gmail and Outlook accounts:
-
-```bash
-# 1. Configure your OAuth client (one-time setup)
-npx @n24q02m/better-email-mcp auth setup google      # For Gmail
-npx @n24q02m/better-email-mcp auth setup microsoft   # For Outlook
-
-# 2. Authenticate your account (opens browser)
-npx @n24q02m/better-email-mcp auth user@gmail.com
-
-# 3. Use without EMAIL_CREDENTIALS - tokens are stored locally
-```
-
-```jsonc
-{
-  "mcpServers": {
-    "better-email": {
-      "command": "npx",
-      "args": ["-y", "@n24q02m/better-email-mcp@latest"]
-      // No EMAIL_CREDENTIALS needed for OAuth accounts
-    }
-  }
-}
-```
-
-OAuth and App Password accounts can coexist. Manage OAuth accounts with:
-
-```bash
-npx @n24q02m/better-email-mcp auth --list             # List authenticated accounts
-npx @n24q02m/better-email-mcp auth --revoke user@gmail.com  # Remove OAuth tokens
 ```
 
 ---

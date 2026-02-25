@@ -33,7 +33,7 @@ mise run fix                # pnpm check:fix
 ## Environment Variables
 
 ```bash
-# Method 1: App Passwords (EMAIL_CREDENTIALS env var)
+# Required: email credentials (App Passwords, NOT regular passwords)
 EMAIL_CREDENTIALS=user@gmail.com:abcd-efgh-ijkl-mnop
 
 # Multiple accounts
@@ -42,33 +42,6 @@ EMAIL_CREDENTIALS=user1@gmail.com:pass1,user2@outlook.com:pass2
 # Custom IMAP host
 EMAIL_CREDENTIALS=user@custom.com:password:imap.custom.com
 ```
-
-## OAuth Authentication (Alternative to App Passwords)
-
-OAuth XOAUTH2 is supported for Gmail and Outlook. Tokens are stored encrypted at
-`~/.config/better-email-mcp/`. Both auth methods can coexist (env var accounts take priority).
-
-```bash
-# Setup OAuth client credentials (one-time per provider)
-npx @n24q02m/better-email-mcp auth setup google
-npx @n24q02m/better-email-mcp auth setup microsoft
-
-# Authenticate an email account (opens browser)
-npx @n24q02m/better-email-mcp auth user@gmail.com
-
-# List/revoke OAuth accounts
-npx @n24q02m/better-email-mcp auth --list
-npx @n24q02m/better-email-mcp auth --revoke user@gmail.com
-```
-
-### OAuth Architecture
-
-- `AccountConfig.authType`: `'password'` or `'oauth'`
-- `config.ts` `loadConfig()` merges env var accounts + OAuth file-based accounts
-- Tokens auto-refresh before every IMAP/SMTP connection via `ensureFreshToken()`
-- Encryption: AES-256-GCM with machine-specific key derivation (scrypt)
-- ImapFlow XOAUTH2: `auth: { user, accessToken }` (built-in)
-- Nodemailer XOAUTH2: `auth: { type: 'OAuth2', user, accessToken }` (built-in)
 
 ## Code Style
 
@@ -146,15 +119,6 @@ src/
     registry.ts               # Tool registration + routing
     composite/                 # One file per domain (messages, folders, attachments, send)
     helpers/                   # errors, config, html-utils, imap-client, smtp-client
-      oauth/                  # OAuth XOAUTH2 authentication
-        providers.ts           # Google/Microsoft OAuth endpoint configs
-        store.ts               # AES-256-GCM encrypted token storage
-        flow.ts                # Authorization Code + PKCE flow
-        refresh.ts             # Auto-refresh expired tokens
-scripts/
-  start-server.ts             # Entry point: dispatches to auth CLI or MCP server
-  auth-cli.ts                 # Interactive OAuth setup CLI
-  build-cli.js                # esbuild CLI bundler
 ```
 
 ### Documentation
