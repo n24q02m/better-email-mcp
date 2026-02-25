@@ -20,6 +20,7 @@ import { send } from './composite/send.js'
 // Import mega tools
 import type { AccountConfig } from './helpers/config.js'
 import { aiReadableMessage, EmailMCPError, enhanceError } from './helpers/errors.js'
+import { wrapToolResult } from './helpers/security.js'
 
 // Get docs directory path - works for both bundled CLI and unbundled code
 const __filename = fileURLToPath(import.meta.url)
@@ -269,11 +270,12 @@ export function registerTools(server: Server, accounts: AccountConfig[]) {
           )
       }
 
+      const jsonText = JSON.stringify(result, null, 2)
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify(result, null, 2)
+            text: wrapToolResult(name, jsonText)
           }
         ]
       }
