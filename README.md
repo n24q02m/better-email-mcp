@@ -164,6 +164,10 @@ pnpm build
 
 **Requirements:** Node.js 24+, pnpm
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md)
+
 ## License
 
 MIT - See [LICENSE](LICENSE)
