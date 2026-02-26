@@ -3,9 +3,16 @@
 **IMAP/SMTP MCP Server for Email - Optimized for AI Agents**
 
 [![CI](https://github.com/n24q02m/better-email-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/n24q02m/better-email-mcp/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/@n24q02m/better-email-mcp)](https://www.npmjs.com/package/@n24q02m/better-email-mcp)
-[![Docker](https://img.shields.io/docker/v/n24q02m/better-email-mcp?label=docker)](https://hub.docker.com/r/n24q02m/better-email-mcp)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Codecov](https://img.shields.io/codecov/c/github/n24q02m/better-email-mcp?logo=codecov&logoColor=white)](https://codecov.io/gh/n24q02m/better-email-mcp)
+[![npm](https://img.shields.io/npm/v/@n24q02m/better-email-mcp?logo=npm&logoColor=white)](https://www.npmjs.com/package/@n24q02m/better-email-mcp)
+[![Docker](https://img.shields.io/docker/v/n24q02m/better-email-mcp?label=docker&logo=docker&logoColor=white&sort=semver)](https://hub.docker.com/r/n24q02m/better-email-mcp)
+[![License: MIT](https://img.shields.io/github/license/n24q02m/better-email-mcp)](LICENSE)
+
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](#)
+[![Node.js](https://img.shields.io/badge/Node.js-5FA04E?logo=nodedotjs&logoColor=white)](#)
+[![IMAP/SMTP](https://img.shields.io/badge/IMAP%2FSMTP-005FF9?logo=maildotru&logoColor=white)](#)
+[![semantic-release](https://img.shields.io/badge/semantic--release-e10079?logo=semantic-release&logoColor=white)](https://github.com/python-semantic-release/python-semantic-release)
+[![Renovate](https://img.shields.io/badge/renovate-enabled-1A1F6C?logo=renovatebot&logoColor=white)](https://developer.mend.io/)
 
 ## Why "Better"?
 
