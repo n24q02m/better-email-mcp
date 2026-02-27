@@ -9,6 +9,19 @@ import { convert } from 'html-to-text'
  * Convert HTML email body to clean plain text
  * Removes CSS, scripts, images, and formatting noise to save LLM tokens
  */
+/**
+ * Escapes HTML characters to prevent XSS
+ */
+export function escapeHtml(unsafe: string): string {
+  if (!unsafe) return ''
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 export function htmlToCleanText(html: string): string {
   if (!html) return ''
 
