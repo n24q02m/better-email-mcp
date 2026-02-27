@@ -160,10 +160,9 @@ export async function searchEmails(
   folder: string,
   limit: number
 ): Promise<EmailSummary[]> {
-  const results: EmailSummary[] = []
   const criteria = buildSearchCriteria(query)
 
-  for (const account of accounts) {
+  const accountPromises = accounts.map(async (account) => {
     try {
       const emails = await withConnection(account, async (client) => {
         const lock = await client.getMailboxLock(folder)
@@ -204,25 +203,27 @@ export async function searchEmails(
           lock.release()
         }
       })
-
-      results.push(...emails)
+      return emails
     } catch (error: any) {
       // Include error info but continue with other accounts
-      results.push({
-        account_id: account.id,
-        account_email: account.email,
-        uid: 0,
-        subject: `[ERROR] ${error.message}`,
-        from: '',
-        to: '',
-        date: '',
-        flags: [],
-        snippet: `Failed to search ${account.email}: ${error.message}`
-      })
+      return [
+        {
+          account_id: account.id,
+          account_email: account.email,
+          uid: 0,
+          subject: `[ERROR] ${error.message}`,
+          from: '',
+          to: '',
+          date: '',
+          flags: [],
+          snippet: `Failed to search ${account.email}: ${error.message}`
+        }
+      ] as EmailSummary[]
     }
-  }
+  })
 
-  return results
+  const resultsArrays = await Promise.all(accountPromises)
+  return resultsArrays.flat()
 }
 
 /**
