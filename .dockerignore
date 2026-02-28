@@ -9,4 +9,3 @@ docker-compose.yml
 coverage
 *.md
 !README.md
-bun.lock
