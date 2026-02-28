@@ -20,7 +20,7 @@ COPY . .
 RUN bun run build
 
 # Minimal image for runtime
-FROM node:24-alpine
+FROM node:24.14.0-alpine
 
 # Copy built package from builder stage
 COPY --from=builder /app/build /usr/local/lib/node_modules/@n24q02m/better-email-mcp/build
