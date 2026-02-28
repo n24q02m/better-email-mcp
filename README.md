@@ -45,8 +45,8 @@ Create App Passwords (NOT your regular password):
 {
   "mcpServers": {
     "better-email": {
-      "command": "bunx",
-      "args": ["@n24q02m/better-email-mcp@latest"],
+      "command": "bun",
+      "args": ["x", "@n24q02m/better-email-mcp@latest"],
       "env": {
         "EMAIL_CREDENTIALS": "user@gmail.com:abcd-efgh-ijkl-mnop"
       }
