@@ -1,26 +1,23 @@
 # Better Email MCP - Optimized for AI Agents
 # syntax=docker/dockerfile:1
 
-# Use Node.js 24 as the base image
-FROM node:24-alpine AS builder
-
-# Enable corepack for pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Use Bun as the builder
+FROM oven/bun:1 AS builder
 
 # Set working directory
 WORKDIR /app
 
 # Copy package files
-COPY package.json pnpm-lock.yaml ./
+COPY package.json bun.lock ./
 
 # Install dependencies
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
+RUN bun install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
 # Build the package
-RUN pnpm build
+RUN bun run build
 
 # Minimal image for runtime
 FROM node:24-alpine

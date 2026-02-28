@@ -39,14 +39,14 @@ Create App Passwords (NOT your regular password):
 - **Gmail**: Enable 2FA, then <https://myaccount.google.com/apppasswords>
 - **Outlook**: Enable 2FA, then go to <https://account.microsoft.com/security> > Advanced security options > App passwords
 
-### Option 1: npx (Recommended)
+### Option 1: Package Manager (Recommended)
 
 ```jsonc
 {
   "mcpServers": {
     "better-email": {
-      "command": "npx",
-      "args": ["-y", "@n24q02m/better-email-mcp@latest"],
+      "command": "bunx",
+      "args": ["@n24q02m/better-email-mcp@latest"],
       "env": {
         "EMAIL_CREDENTIALS": "user@gmail.com:abcd-efgh-ijkl-mnop"
       }
@@ -54,6 +54,14 @@ Create App Passwords (NOT your regular password):
   }
 }
 ```
+
+Alternatively, you can use `npx`, `pnpm dlx`, or `yarn dlx`:
+
+| Runner | `command` | `args` |
+|--------|-----------|--------|
+| npx | `npx` | `["-y", "@n24q02m/better-email-mcp@latest"]` |
+| pnpm | `pnpm` | `["dlx", "@n24q02m/better-email-mcp@latest"]` |
+| yarn | `yarn` | `["dlx", "@n24q02m/better-email-mcp@latest"]` |
 
 ### Option 2: Docker
 
@@ -159,10 +167,10 @@ EMAIL_CREDENTIALS=user@custom.com:password:imap.custom.com
 git clone https://github.com/n24q02m/better-email-mcp
 cd better-email-mcp
 mise run setup
-pnpm build
+bun run build
 ```
 
-**Requirements:** Node.js 24+, pnpm
+**Requirements:** Node.js 24+, [Bun](https://bun.sh/)
 
 ## Contributing
 

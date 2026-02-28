@@ -4,8 +4,6 @@ dist
 bin/
 
 .cache
-.yarn/cache
-.eslintcache
 
 .cursor
 

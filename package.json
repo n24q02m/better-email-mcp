@@ -14,7 +14,6 @@
 	"version": "1.1.0",
 	"license": "MIT",
 	"type": "module",
-	"packageManager": "pnpm@9.15.4",
 	"publishConfig": {
 		"access": "public"
 	},
@@ -24,14 +23,14 @@
 		"test": "vitest --passWithNoTests",
 		"test:watch": "vitest watch",
 		"test:coverage": "vitest --coverage",
-		"lint": "biome lint src",
-		"lint:fix": "biome lint --write src",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
 		"format": "biome format --write .",
 		"format:check": "biome format .",
 		"type-check": "tsc --noEmit",
-		"check": "biome check . && pnpm type-check",
-		"check:fix": "biome check --write . && pnpm type-check",
-		"prepublishOnly": "pnpm build",
+		"check": "biome check . && bun run type-check",
+		"check:fix": "biome check --write . && bun run type-check",
+		"prepublishOnly": "bun run build",
 		"docker:build": "docker build -t n24q02m/better-email-mcp:latest .",
 		"docker:push": "docker push n24q02m/better-email-mcp:latest",
 		"docker:run": "docker run --rm -i -e EMAIL_CREDENTIALS n24q02m/better-email-mcp:latest"
@@ -40,8 +39,7 @@
 		"better-email-mcp": "bin/cli.mjs"
 	},
 	"engines": {
-		"node": ">=24.0.0",
-		"pnpm": ">=9.0.0"
+		"node": ">=24.0.0"
 	},
 	"files": [
 		"build/",
