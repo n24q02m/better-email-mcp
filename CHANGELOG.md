@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.2.1 (2026-02-28)
+
+### Bug Fixes
+
+- **docker**: Remove bun.lock from .dockerignore to fix COPY in Dockerfile
+  ([`90cb1d4`](https://github.com/n24q02m/better-email-mcp/commit/90cb1d445d569d346c37b60541140403c484757f))
+
+
 ## v1.2.0 (2026-02-28)
 
 ### Bug Fixes
