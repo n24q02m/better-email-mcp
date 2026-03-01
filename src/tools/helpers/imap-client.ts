@@ -139,9 +139,9 @@ function fastExtractHtmlSnippet(html: string, maxLength: number): string {
 
   // Clean up hidden blocks BEFORE stripping tags, otherwise we expose raw CSS/JS
   const withoutScripts = scanned
-    .replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '')
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<head\b[^>]*>[\s\S]*?(?:<\/head\s*>|$)/gi, '')
+    .replace(/<style\b[^>]*>[\s\S]*?(?:<\/style\s*>|$)/gi, '')
+    .replace(/<script\b[^>]*>[\s\S]*?(?:<\/script\s*>|$)/gi, '')
 
   // Now we can safely take a smaller slice of the cleaned HTML
   const sliceLength = Math.max(maxLength * 10, 2000)
