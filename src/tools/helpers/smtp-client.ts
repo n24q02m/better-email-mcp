@@ -3,6 +3,7 @@
  * Send, reply, and forward emails via SMTP using Nodemailer
  */
 
+import { marked } from 'marked'
 import { createTransport } from 'nodemailer'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
@@ -34,21 +35,14 @@ function createSmtpTransport(account: AccountConfig) {
 }
 
 /**
- * Convert markdown-like text to simple HTML for email
+ * Convert markdown text to simple HTML for email
  */
 function textToHtml(text: string): string {
-  return text
-    .split('\n')
-    .map((line) => {
-      if (line.startsWith('# ')) return `<h1>${escapeHtml(line.substring(2))}</h1>`
-      if (line.startsWith('## ')) return `<h2>${escapeHtml(line.substring(3))}</h2>`
-      if (line.startsWith('### ')) return `<h3>${escapeHtml(line.substring(4))}</h3>`
-      if (line.startsWith('- ')) return `<li>${escapeHtml(line.substring(2))}</li>`
-      if (line.startsWith('**') && line.endsWith('**')) return `<b>${escapeHtml(line.slice(2, -2))}</b>`
-      if (line.trim() === '') return '<br>'
-      return `<p>${escapeHtml(line)}</p>`
-    })
-    .join('\n')
+  // 1. Escape any HTML in the user input to prevent XSS
+  const safeText = escapeHtml(text)
+
+  // 2. Parse markdown securely using marked library
+  return marked.parse(safeText, { async: false, breaks: true }) as string
 }
 
 /**

@@ -100,7 +100,7 @@ describe('sendNewEmail', () => {
     })
 
     const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.html).toContain('<b>Important</b>')
+    expect(callArgs.html).toContain('<strong>Important</strong>')
   })
 
   it('converts empty lines to br tags', async () => {
@@ -111,7 +111,8 @@ describe('sendNewEmail', () => {
     })
 
     const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.html).toContain('<br>')
+    expect(callArgs.html).toContain('<p>Line 1</p>')
+    expect(callArgs.html).toContain('<p>Line 2</p>')
   })
 
   it('escapes HTML entities in body to prevent XSS', async () => {

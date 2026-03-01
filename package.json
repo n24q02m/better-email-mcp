@@ -52,6 +52,7 @@
 		"html-to-text": "^9.0.5",
 		"imapflow": "^1.0.172",
 		"mailparser": "^3.7.2",
+		"marked": "^17.0.3",
 		"nodemailer": "^7.0.5",
 		"zod": "^4.1.13"
 	},
@@ -59,6 +60,7 @@
 		"@biomejs/biome": "^2.3.8",
 		"@types/html-to-text": "^9.0.4",
 		"@types/mailparser": "^3.4.5",
+		"@types/marked": "^6.0.0",
 		"@types/node": "^24.10.1",
 		"@types/nodemailer": "^6.4.17",
 		"@vitest/coverage-v8": "^4.0.15",
