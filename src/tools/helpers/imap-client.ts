@@ -127,10 +127,17 @@ function buildSearchCriteria(query: string): any {
 /**
  * Extract a short snippet from email body
  */
-function extractSnippet(text: string, maxLength = 200): string {
-  const cleaned = text.replace(/\s+/g, ' ').trim()
-  if (cleaned.length <= maxLength) return cleaned
-  return `${cleaned.substring(0, maxLength)}...`
+async function extractSnippet(source: string | Buffer, maxLength = 200): Promise<string> {
+  try {
+    const parsed = await simpleParser(source)
+    const text = parsed.text || (parsed.html ? htmlToCleanText(parsed.html as string) : '')
+    if (!text) return ''
+    const cleaned = text.replace(/\s+/g, ' ').trim()
+    if (cleaned.length <= maxLength) return cleaned
+    return `${cleaned.substring(0, maxLength)}...`
+  } catch {
+    return ''
+  }
 }
 
 /**
@@ -174,11 +181,11 @@ export async function searchEmails(
             flags: true,
             envelope: true,
             bodyStructure: true,
-            source: { start: 0, maxLength: 500 }
+            source: { start: 0, maxLength: 4096 }
           })) {
             if (count >= limit) break
 
-            const snippet = msg.source ? extractSnippet(msg.source.toString('utf-8')) : ''
+            const snippet = msg.source ? await extractSnippet(msg.source) : ''
 
             summaries.push({
               account_id: account.id,
