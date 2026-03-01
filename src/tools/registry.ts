@@ -38,7 +38,8 @@ const RESOURCES = [
   { uri: 'email://docs/messages', name: 'Messages Tool Docs', file: 'messages.md' },
   { uri: 'email://docs/folders', name: 'Folders Tool Docs', file: 'folders.md' },
   { uri: 'email://docs/attachments', name: 'Attachments Tool Docs', file: 'attachments.md' },
-  { uri: 'email://docs/send', name: 'Send Tool Docs', file: 'send.md' }
+  { uri: 'email://docs/send', name: 'Send Tool Docs', file: 'send.md' },
+  { uri: 'email://docs/help', name: 'Help Tool Docs', file: 'help.md' }
 ]
 
 /**
@@ -176,7 +177,7 @@ const TOOLS = [
       properties: {
         tool_name: {
           type: 'string',
-          enum: ['messages', 'folders', 'attachments', 'send'],
+          enum: ['messages', 'folders', 'attachments', 'send', 'help'],
           description: 'Tool to get documentation for'
         }
       },
