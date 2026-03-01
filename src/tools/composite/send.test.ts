@@ -290,4 +290,33 @@ describe('send - validation', () => {
       })
     ).rejects.toThrow()
   })
+
+  it('throws when multiple accounts match', async () => {
+    const ambiguousAccounts: AccountConfig[] = [
+      {
+        id: 'user1_gmail_com',
+        email: 'user1@gmail.com',
+        password: 'p1',
+        imap: { host: 'imap.gmail.com', port: 993, secure: true },
+        smtp: { host: 'smtp.gmail.com', port: 465, secure: true }
+      },
+      {
+        id: 'user2_gmail_com',
+        email: 'user2@gmail.com',
+        password: 'p2',
+        imap: { host: 'imap.gmail.com', port: 993, secure: true },
+        smtp: { host: 'smtp.gmail.com', port: 465, secure: true }
+      }
+    ]
+
+    await expect(
+      send(ambiguousAccounts, {
+        action: 'new',
+        account: 'gmail.com',
+        to: 'r@test.com',
+        subject: 'T',
+        body: 'B'
+      })
+    ).rejects.toThrow('Multiple accounts matched')
+  })
 })
