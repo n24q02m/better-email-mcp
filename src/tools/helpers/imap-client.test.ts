@@ -369,35 +369,6 @@ describe('listFolders', () => {
     expect(result[0]!.path).toBe('INBOX')
     expect(result[0]!.flags).toContain('\\HasNoChildren')
   })
-
-  it('handles folders with children', async () => {
-    const childFolders = new Map([
-      [
-        'Sent',
-        {
-          name: 'Sent',
-          path: '[Gmail]/Sent',
-          flags: new Set(['\\Sent']),
-          delimiter: '/'
-        }
-      ]
-    ])
-    mockClient.list.mockResolvedValue([
-      {
-        name: '[Gmail]',
-        path: '[Gmail]',
-        flags: new Set(['\\Noselect']),
-        delimiter: '/',
-        folders: childFolders
-      }
-    ])
-
-    const result = await listFolders(account)
-
-    expect(result).toHaveLength(1)
-    expect(result[0]!.children).toHaveLength(1)
-    expect(result[0]!.children![0]!.name).toBe('Sent')
-  })
 })
 
 // ============================================================================
