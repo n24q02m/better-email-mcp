@@ -1,5 +1,27 @@
 import { describe, expect, it } from 'vitest'
-import { htmlToCleanText } from './html-utils.js'
+import { escapeHtml, htmlToCleanText } from './html-utils.js'
+
+describe('escapeHtml', () => {
+  it('escapes &, <, >, ", and \'', () => {
+    expect(escapeHtml('Tom & Jerry')).toBe('Tom &amp; Jerry')
+    expect(escapeHtml('<script>alert(1)</script>')).toBe('&lt;script&gt;alert(1)&lt;/script&gt;')
+    expect(escapeHtml('He said "Hello"')).toBe('He said &quot;Hello&quot;')
+    expect(escapeHtml("It's a sunny day")).toBe('It&#039;s a sunny day')
+  })
+
+  it('escapes multiple occurrences of the same character', () => {
+    expect(escapeHtml('<<<>>>')).toBe('&lt;&lt;&lt;&gt;&gt;&gt;')
+    expect(escapeHtml('&&&')).toBe('&amp;&amp;&amp;')
+  })
+
+  it('returns an empty string if input is empty', () => {
+    expect(escapeHtml('')).toBe('')
+  })
+
+  it('does not modify strings without special characters', () => {
+    expect(escapeHtml('Just a normal string')).toBe('Just a normal string')
+  })
+})
 
 describe('htmlToCleanText', () => {
   it('returns empty string for empty input', () => {

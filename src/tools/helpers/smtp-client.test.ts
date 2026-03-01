@@ -114,6 +114,20 @@ describe('sendNewEmail', () => {
     expect(callArgs.html).toContain('<br>')
   })
 
+  it('escapes HTML entities in body to prevent XSS', async () => {
+    await sendNewEmail(account, {
+      to: 'r@test.com',
+      subject: 'Test',
+      body: '<script>alert("xss")</script>\n# <img src=x onerror=alert(1)>'
+    })
+
+    const callArgs = mockSendMail.mock.calls[0]![0]
+    expect(callArgs.html).toContain('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;')
+    expect(callArgs.html).toContain('&lt;img src=x onerror=alert(1)&gt;')
+    expect(callArgs.html).not.toContain('<script>')
+    expect(callArgs.html).not.toContain('<img')
+  })
+
   it('always closes transport', async () => {
     await sendNewEmail(account, { to: 'r@test.com', subject: 'T', body: 'B' })
 
