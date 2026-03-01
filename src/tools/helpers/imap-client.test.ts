@@ -8,7 +8,9 @@ const { mockClient, mockRelease } = vi.hoisted(() => {
     connect: vi.fn().mockResolvedValue(undefined),
     logout: vi.fn().mockResolvedValue(undefined),
     getMailboxLock: vi.fn().mockResolvedValue({ release: mockRelease }),
+    search: vi.fn().mockResolvedValue([1]),
     fetch: vi.fn(),
+    fetchAll: vi.fn(),
     fetchOne: vi.fn(),
     messageFlagsAdd: vi.fn().mockResolvedValue(undefined),
     messageFlagsRemove: vi.fn().mockResolvedValue(undefined),
@@ -75,6 +77,7 @@ beforeEach(() => {
   mockClient.connect.mockResolvedValue(undefined)
   mockClient.logout.mockResolvedValue(undefined)
   mockClient.getMailboxLock.mockResolvedValue({ release: mockRelease })
+  mockClient.search.mockResolvedValue([1])
   mockClient.messageFlagsAdd.mockResolvedValue(undefined)
   mockClient.messageFlagsRemove.mockResolvedValue(undefined)
   mockClient.messageMove.mockResolvedValue(undefined)
@@ -102,7 +105,7 @@ describe('searchEmails', () => {
         source: Buffer.from('Preview text here')
       }
     ]
-    mockClient.fetch.mockReturnValue(toAsyncIterable(msgs))
+    mockClient.fetchAll.mockResolvedValue(msgs)
 
     const results = await searchEmails([account], 'UNSEEN', 'INBOX', 20)
 
@@ -129,7 +132,8 @@ describe('searchEmails', () => {
       },
       source: Buffer.from('text')
     }))
-    mockClient.fetch.mockReturnValue(toAsyncIterable(msgs))
+    mockClient.search.mockResolvedValue([1, 2, 3, 4, 5])
+    mockClient.fetchAll.mockResolvedValue(msgs.slice(2))
 
     const results = await searchEmails([account], 'ALL', 'INBOX', 3)
 
@@ -154,7 +158,7 @@ describe('searchEmails', () => {
       },
       source: Buffer.from('text')
     }
-    mockClient.fetch.mockReturnValue(toAsyncIterable([msg]))
+    mockClient.fetchAll.mockResolvedValue([msg])
 
     const results = await searchEmails([account, account2], 'ALL', 'INBOX', 10)
 
@@ -176,7 +180,8 @@ describe('searchEmails', () => {
   })
 
   it('handles empty search results', async () => {
-    mockClient.fetch.mockReturnValue(toAsyncIterable([]))
+    mockClient.search.mockResolvedValue([])
+    mockClient.fetchAll.mockResolvedValue([])
 
     const results = await searchEmails([account], 'UNSEEN', 'INBOX', 20)
 
@@ -185,16 +190,15 @@ describe('searchEmails', () => {
 
   it('uses source for snippet extraction', async () => {
     mockSimpleParser.mockResolvedValue({ text: 'Body content here' } as any)
-    mockClient.fetch.mockReturnValue(
-      toAsyncIterable([
-        {
-          uid: 1,
-          flags: new Set(),
-          envelope: { subject: 'Test Subject' },
-          source: Buffer.from('Body content here')
-        }
-      ])
-    )
+    mockClient.search.mockResolvedValue([1])
+    mockClient.fetchAll.mockResolvedValue([
+      {
+        uid: 1,
+        flags: new Set(),
+        envelope: { subject: 'Test Subject' },
+        source: Buffer.from('Body content here')
+      }
+    ])
 
     const results = await searchEmails([account], 'ALL', 'INBOX', 10)
 
@@ -204,16 +208,15 @@ describe('searchEmails', () => {
 
   it('handles missing envelope fields gracefully', async () => {
     mockSimpleParser.mockResolvedValue({ text: '' } as any)
-    mockClient.fetch.mockReturnValue(
-      toAsyncIterable([
-        {
-          uid: 1,
-          flags: new Set(),
-          envelope: {},
-          source: null
-        }
-      ])
-    )
+    mockClient.search.mockResolvedValue([1])
+    mockClient.fetchAll.mockResolvedValue([
+      {
+        uid: 1,
+        flags: new Set(),
+        envelope: {},
+        source: null
+      }
+    ])
 
     const results = await searchEmails([account], 'ALL', 'INBOX', 10)
 

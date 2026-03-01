@@ -13,9 +13,13 @@ export interface SendInput {
 
   // Required for all
   account: string
-  to: string
-  subject: string
   body: string
+
+  // Required for new/forward; optional for reply (auto-derived from original sender)
+  to?: string
+
+  // Required for new; optional for reply/forward (auto-derived from original subject)
+  subject?: string
 
   // Optional
   cc?: string
@@ -67,10 +71,6 @@ export async function send(accounts: AccountConfig[], input: SendInput): Promise
       )
     }
 
-    if (!input.to) {
-      throw new EmailMCPError('to is required', 'VALIDATION_ERROR', 'Provide recipient email address')
-    }
-
     if (!input.body) {
       throw new EmailMCPError('body is required', 'VALIDATION_ERROR', 'Provide the email body text')
     }
@@ -99,6 +99,10 @@ export async function send(accounts: AccountConfig[], input: SendInput): Promise
  * Send a new email
  */
 async function handleNew(accounts: AccountConfig[], input: SendInput): Promise<any> {
+  if (!input.to) {
+    throw new EmailMCPError('to is required for new email', 'VALIDATION_ERROR', 'Provide the recipient email address')
+  }
+
   if (!input.subject) {
     throw new EmailMCPError('subject is required for new email', 'VALIDATION_ERROR', 'Provide the email subject')
   }
@@ -124,6 +128,7 @@ async function handleNew(accounts: AccountConfig[], input: SendInput): Promise<a
 
 /**
  * Reply to an email (maintains thread headers)
+ * `to` is optional — defaults to the original sender's address
  */
 async function handleReply(accounts: AccountConfig[], input: SendInput): Promise<any> {
   if (!input.uid) {
@@ -137,11 +142,22 @@ async function handleReply(accounts: AccountConfig[], input: SendInput): Promise
   const account = resolveSingleAccount(accounts, input.account)
   const folder = input.folder || 'INBOX'
 
-  // Read original email to get threading headers
+  // Read original email to get threading headers + auto-derive `to`
   const original = await readEmail(account, input.uid, folder)
 
+  // Auto-derive `to` from original sender if not provided
+  const replyTo = input.to || original.from
+
+  if (!replyTo) {
+    throw new EmailMCPError(
+      'Could not determine reply-to address',
+      'VALIDATION_ERROR',
+      'Provide the `to` field explicitly, or ensure the original email has a From address'
+    )
+  }
+
   const result = await replyToEmail(account, {
-    to: input.to,
+    to: replyTo,
     subject: input.subject || original.subject,
     body: input.body,
     cc: input.cc,
@@ -153,7 +169,7 @@ async function handleReply(accounts: AccountConfig[], input: SendInput): Promise
   return {
     action: 'reply',
     from: account.email,
-    to: input.to,
+    to: replyTo,
     subject: input.subject || `Re: ${original.subject}`,
     in_reply_to: original.message_id,
     ...result
@@ -169,6 +185,14 @@ async function handleForward(accounts: AccountConfig[], input: SendInput): Promi
       'uid is required for forward action',
       'VALIDATION_ERROR',
       'Provide the UID of the email to forward (from search/read)'
+    )
+  }
+
+  if (!input.to) {
+    throw new EmailMCPError(
+      'to is required for forward action',
+      'VALIDATION_ERROR',
+      'Provide the recipient email address'
     )
   }
 

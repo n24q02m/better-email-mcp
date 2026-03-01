@@ -159,7 +159,7 @@ const TOOLS = [
         uid: { type: 'number', description: 'Original email UID (required for reply/forward)' },
         folder: { type: 'string', description: 'Folder of original email (default: INBOX)' }
       },
-      required: ['action', 'account', 'to', 'body']
+      required: ['action', 'account', 'body']
     }
   },
   {

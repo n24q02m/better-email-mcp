@@ -104,13 +104,13 @@ function buildSearchCriteria(query: string): any {
   const sinceMatch = query.match(/^SINCE\s+(\d{4}-\d{2}-\d{2})$/i)
   if (sinceMatch) return { since: new Date(sinceMatch[1]!) }
 
-  // From filter: FROM email@example.com
+  // From filter: FROM email@example.com (strip optional surrounding quotes)
   const fromMatch = query.match(/^FROM\s+(.+)$/i)
-  if (fromMatch) return { from: fromMatch[1] }
+  if (fromMatch) return { from: fromMatch[1]!.trim().replace(/^["']|["']$/g, '') }
 
-  // Subject filter: SUBJECT keyword
+  // Subject filter: SUBJECT keyword (strip optional surrounding quotes)
   const subjectMatch = query.match(/^SUBJECT\s+(.+)$/i)
-  if (subjectMatch) return { subject: subjectMatch[1] }
+  if (subjectMatch) return { subject: subjectMatch[1]!.trim().replace(/^["']|["']$/g, '') }
 
   // Compound: UNREAD SINCE 2024-01-01
   const compoundUnreadSince = query.match(/^UNREAD\s+SINCE\s+(\d{4}-\d{2}-\d{2})$/i)
@@ -118,7 +118,7 @@ function buildSearchCriteria(query: string): any {
 
   // Compound: UNREAD FROM x
   const compoundUnreadFrom = query.match(/^UNREAD\s+FROM\s+(.+)$/i)
-  if (compoundUnreadFrom) return { seen: false, from: compoundUnreadFrom[1] }
+  if (compoundUnreadFrom) return { seen: false, from: compoundUnreadFrom[1]!.trim().replace(/^["']|["']$/g, '') }
 
   // Default: treat as subject search
   return { subject: query }
@@ -173,18 +173,29 @@ export async function searchEmails(
       const emails = await withConnection(account, async (client) => {
         const lock = await client.getMailboxLock(folder)
         try {
+          // Step 1: search to get UIDs (fast — server-side filtering)
+          const allUids = await client.search(criteria, { uid: true })
+
+          if (!allUids || allUids.length === 0) return []
+
+          // Step 2: take the most recent `limit` UIDs (highest UIDs = most recent)
+          const selectedUids = (allUids as number[]).slice(-limit)
+
+          // Step 3: fetch only those specific UIDs
+          const messages = await client.fetchAll(
+            selectedUids,
+            {
+              uid: true,
+              flags: true,
+              envelope: true,
+              bodyStructure: true,
+              source: { start: 0, maxLength: 512 }
+            },
+            { uid: true }
+          )
+
           const summaries: EmailSummary[] = []
-          let count = 0
-
-          for await (const msg of client.fetch(criteria, {
-            uid: true,
-            flags: true,
-            envelope: true,
-            bodyStructure: true,
-            source: { start: 0, maxLength: 4096 }
-          })) {
-            if (count >= limit) break
-
+          for (const msg of messages) {
             const snippet = msg.source ? await extractSnippet(msg.source) : ''
 
             summaries.push({
@@ -201,7 +212,6 @@ export async function searchEmails(
               flags: Array.from(msg.flags || []),
               snippet
             })
-            count++
           }
 
           return summaries
