@@ -2,6 +2,68 @@
 
 <!-- version list -->
 
+## v1.2.2 (2026-03-01)
+
+### Bug Fixes
+
+- **ci**: Add coverage/ to gitignore to prevent biome linting generated files
+  ([`bb3431f`](https://github.com/n24q02m/better-email-mcp/commit/bb3431f0ae8d3e54f31055cc60be67d502df636a))
+
+- **help**: Add help.md doc and add help to tool_name enum
+  ([`22a0549`](https://github.com/n24q02m/better-email-mcp/commit/22a0549e6d36bb5f6e402345eaaedc4b33eb9708))
+
+- **imap**: Remove dead code for recursive folder listing
+  ([`eca4233`](https://github.com/n24q02m/better-email-mcp/commit/eca4233a61ea8c928c276af3036ea2bb16057dcd))
+
+- **security**: Prevent sensitive data exposure in config logs
+  ([`9f055e6`](https://github.com/n24q02m/better-email-mcp/commit/9f055e65a2b8c1098ce8ad65d9408ba4f3cd5fb4))
+
+- **send**: Remove 'to' from required schema parameters to support replies
+  ([`8329045`](https://github.com/n24q02m/better-email-mcp/commit/8329045901c0e0d29e47df9f57082fde4c71de75))
+
+- **windows**: Replace bunx with bun x for cross-platform compatibility
+  ([`8232f08`](https://github.com/n24q02m/better-email-mcp/commit/8232f0889e2297a47198681e52d5986f1e2067e3))
+
+### Chores
+
+- Apply manual fixes and resolve all pending issues and PRs
+  ([`df5df5d`](https://github.com/n24q02m/better-email-mcp/commit/df5df5d0d86d85ff8bc65297de9784a36ab77fd0))
+
+- **deps**: Update actions/checkout action to v6
+  ([`bf95360`](https://github.com/n24q02m/better-email-mcp/commit/bf95360b6f6021d7607a0af2b3422a980101d20f))
+
+### Performance Improvements
+
+- Cache archive folder lookup to avoid repeated IMAP calls
+  ([`200d1cd`](https://github.com/n24q02m/better-email-mcp/commit/200d1cdfdd717139e157e2cf911c7e0797781a5b))
+
+### Testing
+
+- Add integration test for missing documentation in help tool
+  ([`0a175bf`](https://github.com/n24q02m/better-email-mcp/commit/0a175bf3223e2dc8c7e7746fca781a26a39a19f0))
+
+- Add test case for ambiguous account in send tool
+  ([`9f713c6`](https://github.com/n24q02m/better-email-mcp/commit/9f713c649df0f86a1647af146de5bc04370abc3b))
+
+- Add test for missing arguments in tool registry
+  ([`61b42e8`](https://github.com/n24q02m/better-email-mcp/commit/61b42e849ba07502baf29c9f014a764d976d3557))
+
+- Add test for missing arguments in tool registry
+  ([`615ff39`](https://github.com/n24q02m/better-email-mcp/commit/615ff397bb7fc3d01d1abbdfb7d85d339af3326d))
+
+- **imap**: Fix unit test mocks for search and fetchAll to reflect new optimization logic
+  ([`8329045`](https://github.com/n24q02m/better-email-mcp/commit/8329045901c0e0d29e47df9f57082fde4c71de75))
+
+- **init-server**: Add tests for initServer
+  ([`c94e843`](https://github.com/n24q02m/better-email-mcp/commit/c94e8430dc78d4ada37a83107c68d70d7b88c22c))
+
+- **registry**: Add test case for unknown tool execution
+  ([`59e3e0d`](https://github.com/n24q02m/better-email-mcp/commit/59e3e0de87d00664311527e948003d8a8d448ff1))
+
+- **registry**: Add test case for unknown tool execution
+  ([`6dcb97d`](https://github.com/n24q02m/better-email-mcp/commit/6dcb97d55fa3cf9f7baef042736bb66bc88c4c25))
+
+
 ## v1.2.1 (2026-02-28)
 
 ### Bug Fixes
