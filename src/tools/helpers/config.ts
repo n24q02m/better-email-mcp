@@ -18,48 +18,48 @@ export interface AccountConfig {
 }
 
 /** Well-known email provider settings */
-const GMAIL_SETTINGS = {
-  imap: { host: 'imap.gmail.com', port: 993, secure: true },
-  smtp: { host: 'smtp.gmail.com', port: 465, secure: true }
-}
+const PROVIDERS = [
+  {
+    domains: ['gmail.com', 'googlemail.com'],
+    imap: { host: 'imap.gmail.com', port: 993, secure: true },
+    smtp: { host: 'smtp.gmail.com', port: 465, secure: true }
+  },
+  {
+    domains: ['outlook.com', 'hotmail.com', 'live.com'],
+    imap: { host: 'outlook.office365.com', port: 993, secure: true },
+    smtp: { host: 'smtp.office365.com', port: 587, secure: false }
+  },
+  {
+    domains: ['yahoo.com'],
+    imap: { host: 'imap.mail.yahoo.com', port: 993, secure: true },
+    smtp: { host: 'smtp.mail.yahoo.com', port: 465, secure: true }
+  },
+  {
+    domains: ['icloud.com', 'me.com'],
+    imap: { host: 'imap.mail.me.com', port: 993, secure: true },
+    smtp: { host: 'smtp.mail.me.com', port: 587, secure: false }
+  },
+  {
+    domains: ['zoho.com'],
+    imap: { host: 'imap.zoho.com', port: 993, secure: true },
+    smtp: { host: 'smtp.zoho.com', port: 465, secure: true }
+  },
+  {
+    domains: ['protonmail.com'],
+    imap: { host: 'imap.protonmail.ch', port: 993, secure: true },
+    smtp: { host: 'smtp.protonmail.ch', port: 465, secure: true }
+  }
+]
 
-const OUTLOOK_SETTINGS = {
-  imap: { host: 'outlook.office365.com', port: 993, secure: true },
-  smtp: { host: 'smtp.office365.com', port: 587, secure: false }
-}
-
-const YAHOO_SETTINGS = {
-  imap: { host: 'imap.mail.yahoo.com', port: 993, secure: true },
-  smtp: { host: 'smtp.mail.yahoo.com', port: 465, secure: true }
-}
-
-const ICLOUD_SETTINGS = {
-  imap: { host: 'imap.mail.me.com', port: 993, secure: true },
-  smtp: { host: 'smtp.mail.me.com', port: 587, secure: false }
-}
-
-const ZOHO_SETTINGS = {
-  imap: { host: 'imap.zoho.com', port: 993, secure: true },
-  smtp: { host: 'smtp.zoho.com', port: 465, secure: true }
-}
-
-const PROTONMAIL_SETTINGS = {
-  imap: { host: 'imap.protonmail.ch', port: 993, secure: true },
-  smtp: { host: 'smtp.protonmail.ch', port: 465, secure: true }
-}
-
-const PROVIDER_MAP: Record<string, { imap: ServerConfig; smtp: ServerConfig }> = {
-  'gmail.com': GMAIL_SETTINGS,
-  'googlemail.com': GMAIL_SETTINGS,
-  'outlook.com': OUTLOOK_SETTINGS,
-  'hotmail.com': OUTLOOK_SETTINGS,
-  'live.com': OUTLOOK_SETTINGS,
-  'yahoo.com': YAHOO_SETTINGS,
-  'icloud.com': ICLOUD_SETTINGS,
-  'me.com': ICLOUD_SETTINGS,
-  'zoho.com': ZOHO_SETTINGS,
-  'protonmail.com': PROTONMAIL_SETTINGS
-}
+const PROVIDER_MAP: Record<string, { imap: ServerConfig; smtp: ServerConfig }> = PROVIDERS.reduce(
+  (map, provider) => {
+    for (const domain of provider.domains) {
+      map[domain] = { imap: provider.imap, smtp: provider.smtp }
+    }
+    return map
+  },
+  {} as Record<string, { imap: ServerConfig; smtp: ServerConfig }>
+)
 
 /**
  * Auto-discover IMAP/SMTP settings from email domain
