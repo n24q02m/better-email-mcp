@@ -3,11 +3,17 @@
  * Send, reply, and forward emails via SMTP using Nodemailer
  */
 
+import DOMPurify from 'dompurify'
+import { JSDOM } from 'jsdom'
 import { marked } from 'marked'
 import { createTransport } from 'nodemailer'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
 import { escapeHtml } from './html-utils.js'
+
+// Initialize DOMPurify for server-side environment
+const window = new JSDOM('').window
+const purify = DOMPurify(window)
 
 export interface SendEmailOptions {
   to: string
@@ -42,7 +48,10 @@ function textToHtml(text: string): string {
   const safeText = escapeHtml(text)
 
   // 2. Parse markdown securely using marked library
-  return marked.parse(safeText, { async: false, breaks: true }) as string
+  const rawHtml = marked.parse(safeText, { async: false, breaks: true }) as string
+
+  // 3. Sanitize the resulting HTML (marked can still produce unsafe HTML from markdown like javascript: links)
+  return purify.sanitize(rawHtml)
 }
 
 /**
