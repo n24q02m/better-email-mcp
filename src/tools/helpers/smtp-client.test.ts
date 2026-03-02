@@ -20,7 +20,7 @@ const account: AccountConfig = {
   email: 'test@gmail.com',
   password: 'testpass',
   imap: { host: 'imap.gmail.com', port: 993, secure: true },
-  smtp: { host: 'smtp.gmail.com', port: 465, secure: true }
+  smtp: { host: 'smtp.gmail.com', port: 465, secure: true, requireTLS: true }
 }
 
 beforeEach(() => {
@@ -150,6 +150,7 @@ describe('sendNewEmail', () => {
       host: 'smtp.gmail.com',
       port: 465,
       secure: true,
+      requireTLS: true,
       auth: { user: 'test@gmail.com', pass: 'testpass' }
     })
   })
