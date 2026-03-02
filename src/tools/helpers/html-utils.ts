@@ -28,24 +28,27 @@ export function fastExtractHtmlSnippet(html: string, maxLength = 200): string {
   // Strip style and script tags (and their contents) FIRST from the entire string.
   // If we truncate before stripping, a large <style> block might be cut off,
   // leaving the closing </style> tag missing, causing the regex to fail and leaking CSS as text.
-  let chunk = html.replace(/<(style|script)[^>]*>[\s\S]*?<\/\1>/gi, '')
+  // We use [\s\S]*? to match contents, and allow optional whitespace in the closing tag.
+  let chunk = html.replace(/<(style|script)[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
 
   // Now extract a chunk much larger than the desired snippet to ensure we have enough content
   // after stripping remaining tags, but small enough to avoid processing the whole large document.
   const chunkLength = maxLength * 20
   chunk = chunk.substring(0, chunkLength)
 
-  // Strip all other HTML tags
-  chunk = chunk.replace(/<[^>]+>/g, ' ')
+  // Strip all other HTML tags, including malformed ones without a closing bracket (e.g. `<script`)
+  chunk = chunk.replace(/<[^>]*>?/g, ' ')
 
-  // Decode common HTML entities
+  // Decode common HTML entities.
+  // Note: We MUST replace &amp; last to prevent double-unescaping vulnerabilities
+  // (e.g., &amp;lt; -> &lt; -> <).
   chunk = chunk
     .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#0?39;/g, "'")
+    .replace(/&amp;/g, '&')
 
   // Clean up whitespace
   const cleaned = chunk.replace(/\s+/g, ' ').trim()

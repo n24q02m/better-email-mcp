@@ -29,6 +29,16 @@ describe('fastExtractHtmlSnippet', () => {
     expect(result).toBe('Tom & Jerry < > "Hello" \'world\' space')
   })
 
+  it('prevents double-unescaping of HTML entities', () => {
+    const result = fastExtractHtmlSnippet('&amp;lt;script&amp;gt;')
+    expect(result).toBe('&lt;script&gt;')
+  })
+
+  it('strips malformed unclosed HTML tags', () => {
+    const result = fastExtractHtmlSnippet('Safe<script src="evil.js"')
+    expect(result).toBe('Safe')
+  })
+
   it('truncates text that exceeds maxLength and adds ellipsis', () => {
     const longHtml = `<p>${'A'.repeat(300)}</p>`
     const result = fastExtractHtmlSnippet(longHtml, 200)
