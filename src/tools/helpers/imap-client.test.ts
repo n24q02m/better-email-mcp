@@ -58,7 +58,7 @@ const account: AccountConfig = {
 }
 
 /** Create async iterable from array (for ImapFlow.fetch) */
-function toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
+function _toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
   return {
     [Symbol.asyncIterator]() {
       let i = 0
