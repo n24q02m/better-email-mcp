@@ -27,6 +27,7 @@ function createSmtpTransport(account: AccountConfig) {
     host: account.smtp.host,
     port: account.smtp.port,
     secure: account.smtp.secure,
+    requireTLS: account.smtp.requireTLS,
     auth: {
       user: account.email,
       pass: account.password
