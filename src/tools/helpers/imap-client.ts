@@ -322,6 +322,58 @@ export async function modifyFlags(
 }
 
 /**
+ * Archive emails (finds archive folder and moves in one connection)
+ */
+export async function archiveEmails(
+  account: AccountConfig,
+  uids: number[],
+  fromFolder: string,
+  predefinedArchiveFolder?: string
+): Promise<{ success: boolean; moved: number; archiveFolder: string }> {
+  return withConnection(account, async (client) => {
+    let archiveFolder = predefinedArchiveFolder
+
+    if (!archiveFolder) {
+      try {
+        const mailboxes = await client.list()
+        const folders = mailboxes.map((mb: any) => ({
+          name: mb.name,
+          path: mb.path,
+          flags: Array.from(mb.flags || [])
+        }))
+        const found = folders.find(
+          (f) =>
+            f.path.toLowerCase().includes('archive') ||
+            f.path.toLowerCase().includes('all mail') ||
+            f.flags.some(
+              (flag: unknown) =>
+                String(flag).toLowerCase().includes('archive') || String(flag).toLowerCase().includes('all')
+            )
+        )
+        if (found) {
+          archiveFolder = found.path
+        }
+      } catch {
+        // Use default if folder listing fails
+      }
+    }
+
+    if (!archiveFolder) {
+      archiveFolder = 'Archive' // Fallback
+    }
+
+    const lock = await client.getMailboxLock(fromFolder)
+    try {
+      const uidStr = uids.join(',')
+      await client.messageMove({ uid: uidStr }, archiveFolder)
+      return { success: true, moved: uids.length, archiveFolder }
+    } finally {
+      lock.release()
+    }
+  })
+}
+
+/**
  * Move emails to another folder
  */
 export async function moveEmails(
