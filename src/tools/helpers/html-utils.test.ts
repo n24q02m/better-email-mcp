@@ -1,5 +1,46 @@
 import { describe, expect, it } from 'vitest'
-import { escapeHtml, htmlToCleanText } from './html-utils.js'
+import { escapeHtml, fastExtractHtmlSnippet, htmlToCleanText } from './html-utils.js'
+
+describe('fastExtractHtmlSnippet', () => {
+  it('returns empty string for empty input', () => {
+    expect(fastExtractHtmlSnippet('')).toBe('')
+  })
+
+  it('strips HTML tags completely', () => {
+    const result = fastExtractHtmlSnippet('<p>Hello <b>World</b></p>')
+    expect(result).toBe('Hello World')
+  })
+
+  it('removes style tags and their contents', () => {
+    const result = fastExtractHtmlSnippet('<style>.red { color: red; }</style><p>Content</p>')
+    expect(result).not.toContain('color')
+    expect(result).toBe('Content')
+  })
+
+  it('removes script tags and their contents', () => {
+    const result = fastExtractHtmlSnippet('<script>alert("xss")</script><p>Safe</p>')
+    expect(result).not.toContain('alert')
+    expect(result).not.toContain('xss')
+    expect(result).toBe('Safe')
+  })
+
+  it('decodes common HTML entities', () => {
+    const result = fastExtractHtmlSnippet('Tom &amp; Jerry &lt; &gt; &quot;Hello&quot; &#39;world&#39; &nbsp;space')
+    expect(result).toBe('Tom & Jerry < > "Hello" \'world\' space')
+  })
+
+  it('truncates text that exceeds maxLength and adds ellipsis', () => {
+    const longHtml = `<p>${'A'.repeat(300)}</p>`
+    const result = fastExtractHtmlSnippet(longHtml, 200)
+    expect(result.length).toBe(203) // 200 + '...'
+    expect(result.endsWith('...')).toBe(true)
+  })
+
+  it('cleans up extra whitespace', () => {
+    const result = fastExtractHtmlSnippet('  <p>  Much   spacing  \n  here  </p>  ')
+    expect(result).toBe('Much spacing here')
+  })
+})
 
 describe('escapeHtml', () => {
   it('escapes &, <, >, ", and \'', () => {
