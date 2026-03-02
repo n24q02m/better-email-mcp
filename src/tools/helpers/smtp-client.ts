@@ -3,6 +3,8 @@
  * Send, reply, and forward emails via SMTP using Nodemailer
  */
 
+import DOMPurify from 'dompurify'
+import { JSDOM } from 'jsdom'
 import { marked } from 'marked'
 import { createTransport } from 'nodemailer'
 import type { AccountConfig } from './config.js'
@@ -18,6 +20,9 @@ export interface SendEmailOptions {
   in_reply_to?: string
   references?: string
 }
+
+const window = new JSDOM('').window
+const purify = DOMPurify(window)
 
 /**
  * Create a Nodemailer transporter for the given account
@@ -41,8 +46,11 @@ function textToHtml(text: string): string {
   // 1. Escape any HTML in the user input to prevent XSS
   const safeText = escapeHtml(text)
 
-  // 2. Parse markdown securely using marked library
-  return marked.parse(safeText, { async: false, breaks: true }) as string
+  // 2. Parse markdown securely using marked library (this can generate insecure hrefs like javascript:)
+  const rawHtml = marked.parse(safeText, { async: false, breaks: true }) as string
+
+  // 3. Sanitize the output HTML to prevent XSS via javascript:/data: URIs in markdown links
+  return purify.sanitize(rawHtml)
 }
 
 /**
