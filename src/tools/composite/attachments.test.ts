@@ -167,4 +167,27 @@ describe('attachments - validation', () => {
       })
     ).rejects.toThrow()
   })
+
+  it('throws when multiple accounts match (ambiguous account)', async () => {
+    const multiAccounts: AccountConfig[] = [
+      ...accounts,
+      {
+        id: 'user1_alias_gmail_com',
+        email: 'user1-alias@gmail.com',
+        password: 'pass2',
+        imap: { host: 'imap.gmail.com', port: 993, secure: true },
+        smtp: { host: 'smtp.gmail.com', port: 465, secure: true }
+      }
+    ]
+
+    const error = await attachments(multiAccounts, {
+      action: 'list',
+      account: 'user1',
+      uid: 10
+    }).catch((e) => e)
+
+    // The error is currently wrapped by withErrorHandling, which turns custom error codes that it doesn't know into 'UNKNOWN_ERROR'.
+    // We want to test that the original error has 'Multiple accounts matched', which indicates the check ran.
+    expect(error.message).toContain('Multiple accounts matched')
+  })
 })
