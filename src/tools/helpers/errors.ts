@@ -47,6 +47,9 @@ function sanitizeErrorDetails(error: any): any {
  * Enhance email-related errors with helpful context
  */
 export function enhanceError(error: any): EmailMCPError {
+  if (error instanceof EmailMCPError && error.code !== 'UNKNOWN_ERROR') {
+    return error
+  }
   const message = error.message || 'Unknown error occurred'
 
   // IMAP authentication errors
