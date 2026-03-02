@@ -2,6 +2,12 @@ import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js'
 import { describe, expect, it, vi } from 'vitest'
 import { registerTools } from './registry.js'
 
+// Mock the composite tools to isolate the test
+vi.mock('./composite/attachments.js', () => ({ attachments: vi.fn() }))
+vi.mock('./composite/folders.js', () => ({ folders: vi.fn() }))
+vi.mock('./composite/messages.js', () => ({ messages: vi.fn() }))
+vi.mock('./composite/send.js', () => ({ send: vi.fn() }))
+
 describe('registerTools', () => {
   it('should return error when no arguments are provided', async () => {
     // Mock server
@@ -41,5 +47,42 @@ describe('registerTools', () => {
       ],
       isError: true
     })
+  })
+
+  it('should handle unknown tool execution gracefully', async () => {
+    // Mock server
+    const server = {
+      setRequestHandler: vi.fn()
+    } as any
+
+    // Mock accounts
+    const accounts = [] as any
+
+    // Call registerTools
+    registerTools(server, accounts)
+
+    // Find the handler for CallToolRequestSchema
+    const callToolHandler = server.setRequestHandler.mock.calls.find(
+      (call: any) => call[0] === CallToolRequestSchema
+    )?.[1]
+
+    expect(callToolHandler).toBeDefined()
+
+    // Simulate request with an unknown tool name
+    const request = {
+      params: {
+        name: 'unknown_tool_name',
+        arguments: {}
+      }
+    }
+
+    const result = await callToolHandler(request)
+
+    // Verify the result is an error response
+    expect(result.isError).toBe(true)
+    expect(result.content).toHaveLength(1)
+    expect(result.content[0].text).toContain('Unknown tool: unknown_tool_name')
+    // Verify it lists available tools
+    expect(result.content[0].text).toContain('Available tools: messages, folders, attachments, send, help')
   })
 })
