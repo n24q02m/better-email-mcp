@@ -1,5 +1,6 @@
-import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js'
+import { CallToolRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js'
 import { describe, expect, it, vi } from 'vitest'
+import { EmailMCPError } from './helpers/errors.js'
 import { registerTools } from './registry.js'
 
 describe('registerTools', () => {
@@ -40,6 +41,32 @@ describe('registerTools', () => {
         }
       ],
       isError: true
+    })
+  })
+
+  it('should throw RESOURCE_NOT_FOUND when requesting an invalid URI', async () => {
+    // Mock server
+    const server = {
+      setRequestHandler: vi.fn()
+    } as any
+
+    // Call registerTools
+    registerTools(server, [])
+
+    // Find the handler for ReadResourceRequestSchema
+    const readResourceHandler = server.setRequestHandler.mock.calls.find(
+      (call: any) => call[0] === ReadResourceRequestSchema
+    )?.[1]
+
+    expect(readResourceHandler).toBeDefined()
+
+    // Simulate request with invalid URI
+    await expect(readResourceHandler({ params: { uri: 'email://docs/nonexistent' } })).rejects.toThrow(EmailMCPError)
+    await expect(readResourceHandler({ params: { uri: 'email://docs/nonexistent' } })).rejects.toThrow(
+      /Resource not found/
+    )
+    await expect(readResourceHandler({ params: { uri: 'email://docs/nonexistent' } })).rejects.toMatchObject({
+      code: 'RESOURCE_NOT_FOUND'
     })
   })
 })
