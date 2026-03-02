@@ -343,6 +343,57 @@ export async function moveEmails(
 }
 
 /**
+ * Archive emails (find archive folder and move)
+ */
+export async function archiveEmails(
+  account: AccountConfig,
+  uids: number[],
+  fromFolder: string,
+  cachedArchiveFolder?: string
+): Promise<{ success: boolean; moved: number; archiveFolder: string }> {
+  return withConnection(account, async (client) => {
+    let archiveFolder = cachedArchiveFolder
+
+    if (!archiveFolder) {
+      archiveFolder = '[Gmail]/All Mail'
+      if (account.imap.host.includes('office365') || account.imap.host.includes('outlook')) {
+        archiveFolder = 'Archive'
+      } else if (account.imap.host.includes('yahoo')) {
+        archiveFolder = 'Archive'
+      }
+
+      try {
+        const mailboxes = await client.list()
+        for await (const mb of mailboxes) {
+          const path = mb.path
+          const flags = Array.from(mb.flags || []) as string[]
+
+          if (
+            path.toLowerCase().includes('archive') ||
+            path.toLowerCase().includes('all mail') ||
+            flags.some((flag: string) => flag.toLowerCase().includes('archive') || flag.toLowerCase().includes('all'))
+          ) {
+            archiveFolder = path
+            break
+          }
+        }
+      } catch {
+        // Use default if folder listing fails
+      }
+    }
+
+    const lock = await client.getMailboxLock(fromFolder)
+    try {
+      const uidStr = uids.join(',')
+      await client.messageMove({ uid: uidStr }, archiveFolder)
+      return { success: true, moved: uids.length, archiveFolder }
+    } finally {
+      lock.release()
+    }
+  })
+}
+
+/**
  * Delete (trash) emails
  */
 export async function trashEmails(
@@ -368,12 +419,16 @@ export async function trashEmails(
 export async function listFolders(account: AccountConfig): Promise<FolderInfo[]> {
   return withConnection(account, async (client) => {
     const mailboxes = await client.list()
-    return mailboxes.map((mb: any) => ({
-      name: mb.name,
-      path: mb.path,
-      flags: Array.from(mb.flags || []),
-      delimiter: mb.delimiter || '/'
-    }))
+    const folders: FolderInfo[] = []
+    for await (const mb of mailboxes) {
+      folders.push({
+        name: mb.name,
+        path: mb.path,
+        flags: Array.from(mb.flags || []),
+        delimiter: mb.delimiter || '/'
+      })
+    }
+    return folders
   })
 }
 
