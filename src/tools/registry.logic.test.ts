@@ -13,12 +13,10 @@ vi.mock('./composite/send.js', () => ({ send: vi.fn() }))
 vi.mock('node:fs/promises', () => ({ readFile: vi.fn() }))
 
 import { readFile } from 'node:fs/promises'
-import { attachments } from './composite/attachments.js'
 import { folders } from './composite/folders.js'
 import { messages } from './composite/messages.js'
-import { send } from './composite/send.js'
-import { EmailMCPError } from './helpers/errors.js'
 import type { AccountConfig } from './helpers/config.js'
+import { EmailMCPError } from './helpers/errors.js'
 import { registerTools } from './registry.js'
 
 describe('registerTools', () => {
