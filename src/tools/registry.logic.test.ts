@@ -42,4 +42,38 @@ describe('registerTools', () => {
       isError: true
     })
   })
+
+  it('should return error when an unknown tool is called', async () => {
+    // Mock server
+    const server = {
+      setRequestHandler: vi.fn()
+    } as any
+
+    // Mock accounts
+    const accounts = [] as any
+
+    // Call registerTools
+    registerTools(server, accounts)
+
+    // Find the handler for CallToolRequestSchema
+    const callToolHandler = server.setRequestHandler.mock.calls.find(
+      (call: any) => call[0] === CallToolRequestSchema
+    )?.[1]
+
+    expect(callToolHandler).toBeDefined()
+
+    // Simulate request with unknown tool name
+    const request = {
+      params: {
+        name: 'unknown_tool',
+        arguments: {}
+      }
+    }
+
+    const result = await callToolHandler(request)
+
+    expect(result.isError).toBe(true)
+    expect(result.content[0].type).toBe('text')
+    expect(result.content[0].text).toContain('Unknown tool: unknown_tool')
+  })
 })
