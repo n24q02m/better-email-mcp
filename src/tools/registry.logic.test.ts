@@ -38,14 +38,11 @@ describe('registerTools', () => {
     handlers = new Map()
     mockAccounts = [
       {
+        id: 'test',
         email: 'test@example.com',
-        type: 'imap',
-        username: 'test',
-        name: 'Test',
         password: 'password',
-        host: 'imap.example.com',
-        port: 993,
-        tls: true
+        imap: { host: 'imap.example.com', port: 993, secure: true },
+        smtp: { host: 'smtp.example.com', port: 465, secure: true }
       }
     ]
 
