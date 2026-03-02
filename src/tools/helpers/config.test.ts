@@ -175,3 +175,15 @@ it('vulnerability reproduction: exposes sensitive data in logs', () => {
   expect(spy).not.toHaveBeenCalledWith(expect.stringContaining('SecretPasswo'))
   spy.mockRestore()
 })
+
+it('vulnerability reproduction: exposes sensitive data in auto-discover logs', () => {
+  const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  const sensitivePart = 'SecretPassword'
+  // malformed entry: email concatenated with password, then colon and some random string
+  const input = `me@x.com${sensitivePart}:otherstuff`
+
+  parseCredentials(input)
+
+  expect(spy).not.toHaveBeenCalledWith(expect.stringContaining(sensitivePart))
+  spy.mockRestore()
+})
