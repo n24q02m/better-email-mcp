@@ -3,7 +3,7 @@
  * Consolidated registration for maximum coverage with minimal tools
  */
 
-import { readFile } from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js'
@@ -20,7 +20,6 @@ import { send } from './composite/send.js'
 // Import mega tools
 import type { AccountConfig } from './helpers/config.js'
 import { aiReadableMessage, EmailMCPError, enhanceError } from './helpers/errors.js'
-import { wrapToolResult } from './helpers/security.js'
 
 // Get docs directory path - works for both bundled CLI and unbundled code
 const __filename = fileURLToPath(import.meta.url)
@@ -38,8 +37,7 @@ const RESOURCES = [
   { uri: 'email://docs/messages', name: 'Messages Tool Docs', file: 'messages.md' },
   { uri: 'email://docs/folders', name: 'Folders Tool Docs', file: 'folders.md' },
   { uri: 'email://docs/attachments', name: 'Attachments Tool Docs', file: 'attachments.md' },
-  { uri: 'email://docs/send', name: 'Send Tool Docs', file: 'send.md' },
-  { uri: 'email://docs/help', name: 'Help Tool Docs', file: 'help.md' }
+  { uri: 'email://docs/send', name: 'Send Tool Docs', file: 'send.md' }
 ]
 
 /**
@@ -159,7 +157,7 @@ const TOOLS = [
         uid: { type: 'number', description: 'Original email UID (required for reply/forward)' },
         folder: { type: 'string', description: 'Folder of original email (default: INBOX)' }
       },
-      required: ['action', 'account', 'body']
+      required: ['action', 'account', 'to', 'body']
     }
   },
   {
@@ -177,7 +175,7 @@ const TOOLS = [
       properties: {
         tool_name: {
           type: 'string',
-          enum: ['messages', 'folders', 'attachments', 'send', 'help'],
+          enum: ['messages', 'folders', 'attachments', 'send'],
           description: 'Tool to get documentation for'
         }
       },
@@ -215,7 +213,7 @@ export function registerTools(server: Server, accounts: AccountConfig[]) {
       )
     }
 
-    const content = await readFile(join(DOCS_DIR, resource.file), 'utf-8')
+    const content = readFileSync(join(DOCS_DIR, resource.file), 'utf-8')
     return {
       contents: [{ uri, mimeType: 'text/markdown', text: content }]
     }
@@ -256,7 +254,7 @@ export function registerTools(server: Server, accounts: AccountConfig[]) {
           const toolName = (args as { tool_name: string }).tool_name
           const docFile = `${toolName}.md`
           try {
-            const content = await readFile(join(DOCS_DIR, docFile), 'utf-8')
+            const content = readFileSync(join(DOCS_DIR, docFile), 'utf-8')
             result = { tool: toolName, documentation: content }
           } catch {
             throw new EmailMCPError(`Documentation not found for: ${toolName}`, 'DOC_NOT_FOUND', 'Check tool_name')
@@ -271,12 +269,11 @@ export function registerTools(server: Server, accounts: AccountConfig[]) {
           )
       }
 
-      const jsonText = JSON.stringify(result, null, 2)
       return {
         content: [
           {
             type: 'text',
-            text: wrapToolResult(name, jsonText)
+            text: JSON.stringify(result, null, 2)
           }
         ]
       }
