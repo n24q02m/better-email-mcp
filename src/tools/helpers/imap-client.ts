@@ -194,27 +194,30 @@ export async function searchEmails(
             { uid: true }
           )
 
-          const summaries: EmailSummary[] = []
-          for (const msg of messages) {
-            const snippet = msg.source ? await extractSnippet(msg.source) : ''
-
-            summaries.push({
-              account_id: account.id,
-              account_email: account.email,
-              uid: msg.uid,
-              message_id: msg.envelope?.messageId,
-              subject: msg.envelope?.subject || '(No subject)',
-              from: msg.envelope?.from?.[0]
-                ? `${msg.envelope.from[0].name || ''} <${msg.envelope.from[0].address || ''}>`.trim()
-                : '',
-              to: msg.envelope?.to?.map((a: any) => a.address).join(', ') || '',
-              date: msg.envelope?.date?.toISOString() || '',
-              flags: Array.from(msg.flags || []),
-              snippet
-            })
+          const summaryPromises: Promise<EmailSummary>[] = []
+          for await (const msg of messages) {
+            summaryPromises.push(
+              (async () => {
+                const snippet = msg.source ? await extractSnippet(msg.source) : ''
+                return {
+                  account_id: account.id,
+                  account_email: account.email,
+                  uid: msg.uid,
+                  message_id: msg.envelope?.messageId,
+                  subject: msg.envelope?.subject || '(No subject)',
+                  from: msg.envelope?.from?.[0]
+                    ? `${msg.envelope.from[0].name || ''} <${msg.envelope.from[0].address || ''}>`.trim()
+                    : '',
+                  to: msg.envelope?.to?.map((a: any) => a.address).join(', ') || '',
+                  date: msg.envelope?.date?.toISOString() || '',
+                  flags: Array.from(msg.flags || []),
+                  snippet
+                }
+              })()
+            )
           }
 
-          return summaries
+          return await Promise.all(summaryPromises)
         } finally {
           lock.release()
         }
