@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
@@ -6,6 +7,9 @@ import { loadConfig } from './tools/helpers/config.js'
 import { registerTools } from './tools/registry.js'
 
 // Mock dependencies
+vi.mock('node:fs', () => ({
+  readFileSync: vi.fn()
+}))
 vi.mock('./tools/helpers/config.js', () => ({
   loadConfig: vi.fn(),
   resolveAccount: vi.fn(),
@@ -53,6 +57,7 @@ describe('initServer', () => {
   })
 
   afterEach(() => {
+    vi.mocked(readFileSync).mockRestore()
     vi.restoreAllMocks()
   })
 
@@ -75,6 +80,63 @@ describe('initServer', () => {
     expect(registerTools).toHaveBeenCalledWith(server, mockAccounts)
     expect(StdioServerTransport).toHaveBeenCalled()
     expect(server.connect).toHaveBeenCalledWith(expect.anything())
+  })
+
+  it('uses version from package.json', async () => {
+    // Setup mocks
+    const mockAccounts = [{ email: 'test@example.com' }]
+    vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
+    vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ version: '1.2.3' }))
+
+    // Execute
+    await initServer()
+
+    // Verify
+    expect(readFileSync).toHaveBeenCalled()
+    expect(Server).toHaveBeenCalledWith(
+      expect.objectContaining({
+        version: '1.2.3'
+      }),
+      expect.any(Object)
+    )
+  })
+
+  it('falls back to 0.0.0 if package.json has no version', async () => {
+    // Setup mocks
+    const mockAccounts = [{ email: 'test@example.com' }]
+    vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
+    vi.mocked(readFileSync).mockReturnValue(JSON.stringify({}))
+
+    // Execute
+    await initServer()
+
+    // Verify
+    expect(Server).toHaveBeenCalledWith(
+      expect.objectContaining({
+        version: '0.0.0'
+      }),
+      expect.any(Object)
+    )
+  })
+
+  it('falls back to 0.0.0 if package.json cannot be read', async () => {
+    // Setup mocks
+    const mockAccounts = [{ email: 'test@example.com' }]
+    vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
+    vi.mocked(readFileSync).mockImplementation(() => {
+      throw new Error('File not found')
+    })
+
+    // Execute
+    await initServer()
+
+    // Verify
+    expect(Server).toHaveBeenCalledWith(
+      expect.objectContaining({
+        version: '0.0.0'
+      }),
+      expect.any(Object)
+    )
   })
 
   it('exits process if no accounts are loaded', async () => {
