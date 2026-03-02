@@ -73,7 +73,7 @@ function createClient(account: AccountConfig): ImapFlow {
 /**
  * Execute an operation with an IMAP connection (auto-connect/disconnect)
  */
-async function withConnection<T>(account: AccountConfig, fn: (client: ImapFlow) => Promise<T>): Promise<T> {
+export async function withConnection<T>(account: AccountConfig, fn: (client: ImapFlow) => Promise<T>): Promise<T> {
   const client = createClient(account)
   try {
     await client.connect()
@@ -325,11 +325,23 @@ export async function modifyFlags(
  * Move emails to another folder
  */
 export async function moveEmails(
-  account: AccountConfig,
+  accountOrClient: AccountConfig | ImapFlow,
   uids: number[],
   fromFolder: string,
   toFolder: string
 ): Promise<{ success: boolean; moved: number }> {
+  if ('logout' in accountOrClient) {
+    const client = accountOrClient as ImapFlow
+    const lock = await client.getMailboxLock(fromFolder)
+    try {
+      const uidStr = uids.join(',')
+      await client.messageMove({ uid: uidStr }, toFolder)
+      return { success: true, moved: uids.length }
+    } finally {
+      lock.release()
+    }
+  }
+  const account = accountOrClient as AccountConfig
   return withConnection(account, async (client) => {
     const lock = await client.getMailboxLock(fromFolder)
     try {
@@ -365,7 +377,18 @@ export async function trashEmails(
 /**
  * List mailbox folders
  */
-export async function listFolders(account: AccountConfig): Promise<FolderInfo[]> {
+export async function listFolders(accountOrClient: AccountConfig | ImapFlow): Promise<FolderInfo[]> {
+  if ('logout' in accountOrClient) {
+    const client = accountOrClient as ImapFlow
+    const mailboxes = await client.list()
+    return mailboxes.map((mb: any) => ({
+      name: mb.name,
+      path: mb.path,
+      flags: Array.from(mb.flags || []),
+      delimiter: mb.delimiter || '/'
+    }))
+  }
+  const account = accountOrClient as AccountConfig
   return withConnection(account, async (client) => {
     const mailboxes = await client.list()
     return mailboxes.map((mb: any) => ({

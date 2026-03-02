@@ -8,7 +8,8 @@ vi.mock('../helpers/imap-client.js', () => ({
   modifyFlags: vi.fn(),
   moveEmails: vi.fn(),
   trashEmails: vi.fn(),
-  listFolders: vi.fn()
+  listFolders: vi.fn(),
+  withConnection: vi.fn(async (account, fn) => fn({} as any))
 }))
 
 import { listFolders, modifyFlags, moveEmails, readEmail, searchEmails, trashEmails } from '../helpers/imap-client.js'
