@@ -38,6 +38,7 @@ vi.mock('./html-utils.js', () => ({
 
 import { simpleParser } from 'mailparser'
 import {
+  archiveEmails,
   getAttachment,
   listFolders,
   modifyFlags,
@@ -346,6 +347,47 @@ describe('modifyFlags', () => {
     await expect(modifyFlags(account, [1], 'INBOX', ['\\Seen'], 'add')).rejects.toThrow()
 
     expect(mockRelease).toHaveBeenCalled()
+  })
+})
+
+// ============================================================================
+// archiveEmails
+// ============================================================================
+
+describe('archiveEmails', () => {
+  it('moves emails to predefined archive folder without listing folders', async () => {
+    const result = await archiveEmails(account, [1, 2], 'INBOX', 'Archive')
+
+    expect(mockClient.list).not.toHaveBeenCalled()
+    expect(mockClient.getMailboxLock).toHaveBeenCalledWith('INBOX')
+    expect(mockClient.messageMove).toHaveBeenCalledWith({ uid: '1,2' }, 'Archive')
+    expect(result.success).toBe(true)
+    expect(result.moved).toBe(2)
+    expect(result.archiveFolder).toBe('Archive')
+  })
+
+  it('finds archive folder using client.list if no predefined folder is provided', async () => {
+    mockClient.list.mockResolvedValue([
+      { name: 'INBOX', path: 'INBOX', flags: new Set(['\\HasNoChildren']) },
+      { name: 'Some Folder', path: 'Some Folder', flags: new Set(['\\HasNoChildren']) },
+      { name: 'All Mail', path: '[Gmail]/All Mail', flags: new Set(['\\All']) }
+    ])
+
+    const result = await archiveEmails(account, [3], 'INBOX')
+
+    expect(mockClient.list).toHaveBeenCalled()
+    expect(mockClient.messageMove).toHaveBeenCalledWith({ uid: '3' }, '[Gmail]/All Mail')
+    expect(result.archiveFolder).toBe('[Gmail]/All Mail')
+  })
+
+  it('uses default Archive folder if list fails or no archive folder is found', async () => {
+    mockClient.list.mockRejectedValue(new Error('List failed'))
+
+    const result = await archiveEmails(account, [4], 'INBOX')
+
+    expect(mockClient.list).toHaveBeenCalled()
+    expect(mockClient.messageMove).toHaveBeenCalledWith({ uid: '4' }, 'Archive')
+    expect(result.archiveFolder).toBe('Archive')
   })
 })
 
