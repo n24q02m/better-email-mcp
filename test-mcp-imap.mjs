@@ -13,16 +13,15 @@ const transport = new StdioClientTransport({
 const client = new Client({ name: 'test-client', version: '1.0.0' })
 await client.connect(transport)
 
-const pass = (label) => console.log('[PASS] ' + label)
-const fail = (label, e) => console.log('[FAIL] ' + label + ': ' + e.message)
+const pass = (label) => console.log(`[PASS] ${label}`)
+const fail = (label, e) => console.log(`[FAIL] ${label}: ${e.message}`)
 
 // Test 1: folders - list (single account)
 try {
   const r = await client.callTool({ name: 'folders', arguments: { action: 'list', account_id: 'nqm2402@gmail.com' } })
   const parsed = JSON.parse(r.content[0].text)
-  const count =
-    parsed.accounts && parsed.accounts[0] && parsed.accounts[0].folders ? parsed.accounts[0].folders.length : 0
-  pass('folders list (' + count + ' folders)')
+  const count = parsed.accounts?.[0]?.folders ? parsed.accounts[0].folders.length : 0
+  pass(`folders list (${count} folders)`)
 } catch (e) {
   fail('folders list', e)
 }
@@ -34,7 +33,7 @@ try {
     arguments: { action: 'search', query: 'UNSEEN', account_id: 'nqm2402@gmail.com', limit: 2 }
   })
   const parsed = JSON.parse(r.content[0].text)
-  pass('messages search (' + (parsed.total_results || 0) + ' results)')
+  pass(`messages search (${parsed.total_results || 0} results)`)
 } catch (e) {
   fail('messages search', e)
 }
@@ -46,7 +45,7 @@ try {
     arguments: { action: 'list', account_id: 'nqm2402@gmail.com', folder: 'INBOX', limit: 2 }
   })
   const parsed = JSON.parse(r.content[0].text)
-  pass('attachments list (' + (parsed.total_emails_scanned || 0) + ' scanned)')
+  pass(`attachments list (${parsed.total_emails_scanned || 0} scanned)`)
 } catch (e) {
   fail('attachments list', e)
 }
