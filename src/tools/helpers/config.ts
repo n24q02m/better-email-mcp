@@ -18,34 +18,37 @@ export interface AccountConfig {
 }
 
 /** Well-known email provider settings */
+const DEFAULT_IMAP = { port: 993, secure: true }
+const DEFAULT_SMTP = { port: 465, secure: true }
+
 const GMAIL_SETTINGS = {
-  imap: { host: 'imap.gmail.com', port: 993, secure: true },
-  smtp: { host: 'smtp.gmail.com', port: 465, secure: true }
+  imap: { host: 'imap.gmail.com', ...DEFAULT_IMAP },
+  smtp: { host: 'smtp.gmail.com', ...DEFAULT_SMTP }
 }
 
 const OUTLOOK_SETTINGS = {
-  imap: { host: 'outlook.office365.com', port: 993, secure: true },
+  imap: { host: 'outlook.office365.com', ...DEFAULT_IMAP },
   smtp: { host: 'smtp.office365.com', port: 587, secure: false }
 }
 
 const YAHOO_SETTINGS = {
-  imap: { host: 'imap.mail.yahoo.com', port: 993, secure: true },
-  smtp: { host: 'smtp.mail.yahoo.com', port: 465, secure: true }
+  imap: { host: 'imap.mail.yahoo.com', ...DEFAULT_IMAP },
+  smtp: { host: 'smtp.mail.yahoo.com', ...DEFAULT_SMTP }
 }
 
 const ICLOUD_SETTINGS = {
-  imap: { host: 'imap.mail.me.com', port: 993, secure: true },
+  imap: { host: 'imap.mail.me.com', ...DEFAULT_IMAP },
   smtp: { host: 'smtp.mail.me.com', port: 587, secure: false }
 }
 
 const ZOHO_SETTINGS = {
-  imap: { host: 'imap.zoho.com', port: 993, secure: true },
-  smtp: { host: 'smtp.zoho.com', port: 465, secure: true }
+  imap: { host: 'imap.zoho.com', ...DEFAULT_IMAP },
+  smtp: { host: 'smtp.zoho.com', ...DEFAULT_SMTP }
 }
 
 const PROTONMAIL_SETTINGS = {
-  imap: { host: 'imap.protonmail.ch', port: 993, secure: true },
-  smtp: { host: 'smtp.protonmail.ch', port: 465, secure: true }
+  imap: { host: 'imap.protonmail.ch', ...DEFAULT_IMAP },
+  smtp: { host: 'smtp.protonmail.ch', ...DEFAULT_SMTP }
 }
 
 const PROVIDER_MAP: Record<string, { imap: ServerConfig; smtp: ServerConfig }> = {
