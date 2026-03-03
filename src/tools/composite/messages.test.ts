@@ -6,20 +6,30 @@ vi.mock('../helpers/imap-client.js', () => ({
   searchEmails: vi.fn(),
   readEmail: vi.fn(),
   modifyFlags: vi.fn(),
+  archiveEmails: vi.fn(),
   moveEmails: vi.fn(),
   trashEmails: vi.fn(),
   listFolders: vi.fn()
 }))
 
-import { listFolders, modifyFlags, moveEmails, readEmail, searchEmails, trashEmails } from '../helpers/imap-client.js'
+import {
+  archiveEmails,
+  listFolders,
+  modifyFlags,
+  moveEmails,
+  readEmail,
+  searchEmails,
+  trashEmails
+} from '../helpers/imap-client.js'
 import { messages } from './messages.js'
 
 const mockSearchEmails = vi.mocked(searchEmails)
 const mockReadEmail = vi.mocked(readEmail)
 const mockModifyFlags = vi.mocked(modifyFlags)
+const mockArchiveEmails = vi.mocked(archiveEmails)
 const mockMoveEmails = vi.mocked(moveEmails)
 const mockTrashEmails = vi.mocked(trashEmails)
-const mockListFolders = vi.mocked(listFolders)
+const _mockListFolders = vi.mocked(listFolders)
 
 const accounts: AccountConfig[] = [
   {
@@ -219,34 +229,26 @@ describe('messages - move', () => {
 // ============================================================================
 
 describe('messages - archive', () => {
-  it('moves to Gmail archive folder', async () => {
-    mockListFolders.mockResolvedValue([
-      { name: 'All Mail', path: '[Gmail]/All Mail', flags: ['\\All'], delimiter: '/' }
-    ])
-    mockMoveEmails.mockResolvedValue({ success: true, moved: 1 })
+  it('calls archiveEmails and returns detected folder', async () => {
+    mockArchiveEmails.mockResolvedValue({ success: true, moved: 1, archiveFolder: '[Gmail]/All Mail' })
 
     const result = await messages(accounts, { action: 'archive', uid: 1, account: 'user1@gmail.com' })
 
     expect(result.action).toBe('archive')
     expect(result.archive_folder).toBe('[Gmail]/All Mail')
+    expect(mockArchiveEmails).toHaveBeenCalledWith(accounts[0], [1], 'INBOX', undefined)
   })
 
-  it('falls back to default archive folder if listing fails', async () => {
-    mockListFolders.mockRejectedValue(new Error('fail'))
-    mockMoveEmails.mockResolvedValue({ success: true, moved: 1 })
+  it('uses cached folder on subsequent calls', async () => {
+    mockArchiveEmails.mockResolvedValue({ success: true, moved: 1, archiveFolder: '[Gmail]/All Mail' })
 
-    const result = await messages(accounts, { action: 'archive', uid: 1, account: 'user1@gmail.com' })
+    // First call caches the folder
+    await messages(accounts, { action: 'archive', uid: 1, account: 'user1@gmail.com' })
 
-    expect(result.archive_folder).toBe('[Gmail]/All Mail')
-  })
+    // Second call should pass the cached folder
+    await messages(accounts, { action: 'archive', uid: 2, account: 'user1@gmail.com' })
 
-  it('uses Archive for Outlook accounts', async () => {
-    mockListFolders.mockResolvedValue([{ name: 'Archive', path: 'Archive', flags: ['\\Archive'], delimiter: '/' }])
-    mockMoveEmails.mockResolvedValue({ success: true, moved: 1 })
-
-    const result = await messages(accounts, { action: 'archive', uid: 1, account: 'user2@outlook.com' })
-
-    expect(result.archive_folder).toBe('Archive')
+    expect(mockArchiveEmails).toHaveBeenLastCalledWith(accounts[0], [2], 'INBOX', '[Gmail]/All Mail')
   })
 })
 
