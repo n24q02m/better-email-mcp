@@ -50,25 +50,25 @@ async function handleList(accounts: AccountConfig[], input: FoldersInput): Promi
     }
   }
 
-  const accountPromises = targetAccounts.map(async (account) => {
+  const results: any[] = []
+
+  for (const account of targetAccounts) {
     try {
       const folderList = await listFolders(account)
-      return {
+      results.push({
         account_id: account.id,
         account_email: account.email,
         folders: folderList
-      }
+      })
     } catch (error: any) {
-      return {
+      results.push({
         account_id: account.id,
         account_email: account.email,
         error: error.message,
         folders: []
-      }
+      })
     }
-  })
-
-  const results = await Promise.all(accountPromises)
+  }
 
   return {
     action: 'list',

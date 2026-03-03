@@ -11,9 +11,10 @@
 		"gmail",
 		"outlook"
 	],
-	"version": "1.2.2",
+	"version": "1.0.2",
 	"license": "MIT",
 	"type": "module",
+	"packageManager": "pnpm@9.15.4",
 	"publishConfig": {
 		"access": "public"
 	},
@@ -23,14 +24,14 @@
 		"test": "vitest --passWithNoTests",
 		"test:watch": "vitest watch",
 		"test:coverage": "vitest --coverage",
-		"lint": "biome check .",
-		"lint:fix": "biome check --write .",
+		"lint": "biome lint src",
+		"lint:fix": "biome lint --write src",
 		"format": "biome format --write .",
 		"format:check": "biome format .",
 		"type-check": "tsc --noEmit",
-		"check": "biome check . && bun run type-check",
-		"check:fix": "biome check --write . && bun run type-check",
-		"prepublishOnly": "bun run build",
+		"check": "biome check . && pnpm type-check",
+		"check:fix": "biome check --write . && pnpm type-check",
+		"prepublishOnly": "pnpm build",
 		"docker:build": "docker build -t n24q02m/better-email-mcp:latest .",
 		"docker:push": "docker push n24q02m/better-email-mcp:latest",
 		"docker:run": "docker run --rm -i -e EMAIL_CREDENTIALS n24q02m/better-email-mcp:latest"
@@ -39,7 +40,8 @@
 		"better-email-mcp": "bin/cli.mjs"
 	},
 	"engines": {
-		"node": ">=24.0.0"
+		"node": ">=24.0.0",
+		"pnpm": ">=9.0.0"
 	},
 	"files": [
 		"build/",
@@ -48,11 +50,10 @@
 		"LICENSE"
 	],
 	"dependencies": {
-		"@modelcontextprotocol/sdk": "^1.27.1",
+		"@modelcontextprotocol/sdk": "^1.26.0",
 		"html-to-text": "^9.0.5",
 		"imapflow": "^1.0.172",
 		"mailparser": "^3.7.2",
-		"marked": "^17.0.3",
 		"nodemailer": "^7.0.5",
 		"zod": "^4.1.13"
 	},
@@ -60,7 +61,6 @@
 		"@biomejs/biome": "^2.3.8",
 		"@types/html-to-text": "^9.0.4",
 		"@types/mailparser": "^3.4.5",
-		"@types/marked": "^6.0.0",
 		"@types/node": "^24.10.1",
 		"@types/nodemailer": "^6.4.17",
 		"@vitest/coverage-v8": "^4.0.15",

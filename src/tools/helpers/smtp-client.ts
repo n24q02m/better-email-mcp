@@ -3,11 +3,9 @@
  * Send, reply, and forward emails via SMTP using Nodemailer
  */
 
-import { marked } from 'marked'
 import { createTransport } from 'nodemailer'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
-import { escapeHtml } from './html-utils.js'
 
 export interface SendEmailOptions {
   to: string
@@ -35,14 +33,21 @@ function createSmtpTransport(account: AccountConfig) {
 }
 
 /**
- * Convert markdown text to simple HTML for email
+ * Convert markdown-like text to simple HTML for email
  */
 function textToHtml(text: string): string {
-  // 1. Escape any HTML in the user input to prevent XSS
-  const safeText = escapeHtml(text)
-
-  // 2. Parse markdown securely using marked library
-  return marked.parse(safeText, { async: false, breaks: true }) as string
+  return text
+    .split('\n')
+    .map((line) => {
+      if (line.startsWith('# ')) return `<h1>${line.substring(2)}</h1>`
+      if (line.startsWith('## ')) return `<h2>${line.substring(3)}</h2>`
+      if (line.startsWith('### ')) return `<h3>${line.substring(4)}</h3>`
+      if (line.startsWith('- ')) return `<li>${line.substring(2)}</li>`
+      if (line.startsWith('**') && line.endsWith('**')) return `<b>${line.slice(2, -2)}</b>`
+      if (line.trim() === '') return '<br>'
+      return `<p>${line}</p>`
+    })
+    .join('\n')
 }
 
 /**

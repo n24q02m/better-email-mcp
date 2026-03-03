@@ -100,7 +100,7 @@ describe('sendNewEmail', () => {
     })
 
     const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.html).toContain('<strong>Important</strong>')
+    expect(callArgs.html).toContain('<b>Important</b>')
   })
 
   it('converts empty lines to br tags', async () => {
@@ -111,22 +111,7 @@ describe('sendNewEmail', () => {
     })
 
     const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.html).toContain('<p>Line 1</p>')
-    expect(callArgs.html).toContain('<p>Line 2</p>')
-  })
-
-  it('escapes HTML entities in body to prevent XSS', async () => {
-    await sendNewEmail(account, {
-      to: 'r@test.com',
-      subject: 'Test',
-      body: '<script>alert("xss")</script>\n# <img src=x onerror=alert(1)>'
-    })
-
-    const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.html).toContain('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;')
-    expect(callArgs.html).toContain('&lt;img src=x onerror=alert(1)&gt;')
-    expect(callArgs.html).not.toContain('<script>')
-    expect(callArgs.html).not.toContain('<img')
+    expect(callArgs.html).toContain('<br>')
   })
 
   it('always closes transport', async () => {

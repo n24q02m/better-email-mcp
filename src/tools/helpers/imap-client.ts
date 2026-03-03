@@ -52,6 +52,7 @@ export interface FolderInfo {
   path: string
   flags: string[]
   delimiter: string
+  children?: FolderInfo[]
 }
 
 /**
@@ -104,13 +105,13 @@ function buildSearchCriteria(query: string): any {
   const sinceMatch = query.match(/^SINCE\s+(\d{4}-\d{2}-\d{2})$/i)
   if (sinceMatch) return { since: new Date(sinceMatch[1]!) }
 
-  // From filter: FROM email@example.com (strip optional surrounding quotes)
+  // From filter: FROM email@example.com
   const fromMatch = query.match(/^FROM\s+(.+)$/i)
-  if (fromMatch) return { from: fromMatch[1]!.trim().replace(/^["']|["']$/g, '') }
+  if (fromMatch) return { from: fromMatch[1] }
 
-  // Subject filter: SUBJECT keyword (strip optional surrounding quotes)
+  // Subject filter: SUBJECT keyword
   const subjectMatch = query.match(/^SUBJECT\s+(.+)$/i)
-  if (subjectMatch) return { subject: subjectMatch[1]!.trim().replace(/^["']|["']$/g, '') }
+  if (subjectMatch) return { subject: subjectMatch[1] }
 
   // Compound: UNREAD SINCE 2024-01-01
   const compoundUnreadSince = query.match(/^UNREAD\s+SINCE\s+(\d{4}-\d{2}-\d{2})$/i)
@@ -118,7 +119,7 @@ function buildSearchCriteria(query: string): any {
 
   // Compound: UNREAD FROM x
   const compoundUnreadFrom = query.match(/^UNREAD\s+FROM\s+(.+)$/i)
-  if (compoundUnreadFrom) return { seen: false, from: compoundUnreadFrom[1]!.trim().replace(/^["']|["']$/g, '') }
+  if (compoundUnreadFrom) return { seen: false, from: compoundUnreadFrom[1] }
 
   // Default: treat as subject search
   return { subject: query }
@@ -127,17 +128,10 @@ function buildSearchCriteria(query: string): any {
 /**
  * Extract a short snippet from email body
  */
-async function extractSnippet(source: string | Buffer, maxLength = 200): Promise<string> {
-  try {
-    const parsed = await simpleParser(source)
-    const text = parsed.text || (parsed.html ? htmlToCleanText(parsed.html as string) : '')
-    if (!text) return ''
-    const cleaned = text.replace(/\s+/g, ' ').trim()
-    if (cleaned.length <= maxLength) return cleaned
-    return `${cleaned.substring(0, maxLength)}...`
-  } catch {
-    return ''
-  }
+function extractSnippet(text: string, maxLength = 200): string {
+  const cleaned = text.replace(/\s+/g, ' ').trim()
+  if (cleaned.length <= maxLength) return cleaned
+  return `${cleaned.substring(0, maxLength)}...`
 }
 
 /**
@@ -166,37 +160,27 @@ export async function searchEmails(
   folder: string,
   limit: number
 ): Promise<EmailSummary[]> {
+  const results: EmailSummary[] = []
   const criteria = buildSearchCriteria(query)
 
-  const accountPromises = accounts.map(async (account) => {
+  for (const account of accounts) {
     try {
       const emails = await withConnection(account, async (client) => {
         const lock = await client.getMailboxLock(folder)
         try {
-          // Step 1: search to get UIDs (fast — server-side filtering)
-          const allUids = await client.search(criteria, { uid: true })
-
-          if (!allUids || allUids.length === 0) return []
-
-          // Step 2: take the most recent `limit` UIDs (highest UIDs = most recent)
-          const selectedUids = (allUids as number[]).slice(-limit)
-
-          // Step 3: fetch only those specific UIDs
-          const messages = await client.fetchAll(
-            selectedUids,
-            {
-              uid: true,
-              flags: true,
-              envelope: true,
-              bodyStructure: true,
-              source: { start: 0, maxLength: 512 }
-            },
-            { uid: true }
-          )
-
           const summaries: EmailSummary[] = []
-          for (const msg of messages) {
-            const snippet = msg.source ? await extractSnippet(msg.source) : ''
+          let count = 0
+
+          for await (const msg of client.fetch(criteria, {
+            uid: true,
+            flags: true,
+            envelope: true,
+            bodyStructure: true,
+            source: { start: 0, maxLength: 500 }
+          })) {
+            if (count >= limit) break
+
+            const snippet = msg.source ? extractSnippet(msg.source.toString('utf-8')) : ''
 
             summaries.push({
               account_id: account.id,
@@ -212,6 +196,7 @@ export async function searchEmails(
               flags: Array.from(msg.flags || []),
               snippet
             })
+            count++
           }
 
           return summaries
@@ -220,27 +205,24 @@ export async function searchEmails(
         }
       })
 
-      return emails
+      results.push(...emails)
     } catch (error: any) {
       // Include error info but continue with other accounts
-      return [
-        {
-          account_id: account.id,
-          account_email: account.email,
-          uid: 0,
-          subject: `[ERROR] ${error.message}`,
-          from: '',
-          to: '',
-          date: '',
-          flags: [],
-          snippet: `Failed to search ${account.email}: ${error.message}`
-        }
-      ]
+      results.push({
+        account_id: account.id,
+        account_email: account.email,
+        uid: 0,
+        subject: `[ERROR] ${error.message}`,
+        from: '',
+        to: '',
+        date: '',
+        flags: [],
+        snippet: `Failed to search ${account.email}: ${error.message}`
+      })
     }
-  })
+  }
 
-  const resultsArrays = await Promise.all(accountPromises)
-  return resultsArrays.flat()
+  return results
 }
 
 /**
@@ -372,7 +354,15 @@ export async function listFolders(account: AccountConfig): Promise<FolderInfo[]>
       name: mb.name,
       path: mb.path,
       flags: Array.from(mb.flags || []),
-      delimiter: mb.delimiter || '/'
+      delimiter: mb.delimiter || '/',
+      children: (mb as any).folders
+        ? (Array.from((mb as any).folders) as [any, any][]).map(([, child]) => ({
+            name: child.name,
+            path: child.path,
+            flags: Array.from(child.flags || []),
+            delimiter: child.delimiter || '/'
+          }))
+        : undefined
     }))
   })
 }
