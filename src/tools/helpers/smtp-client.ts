@@ -20,13 +20,19 @@ export interface SendEmailOptions {
 }
 
 /**
- * Create a Nodemailer transporter for the given account
+ * Create a Nodemailer transporter for the given account.
+ * Enforces TLS for all connections to prevent STARTTLS downgrade attacks.
+ * - Port 465: implicit TLS (secure: true)
+ * - Port 587: STARTTLS with requireTLS to enforce upgrade
  */
 function createSmtpTransport(account: AccountConfig) {
+  const isImplicitTls = account.smtp.secure || account.smtp.port === 465
+
   return createTransport({
     host: account.smtp.host,
     port: account.smtp.port,
-    secure: account.smtp.secure,
+    secure: isImplicitTls,
+    requireTLS: !isImplicitTls,
     auth: {
       user: account.email,
       pass: account.password
@@ -35,14 +41,17 @@ function createSmtpTransport(account: AccountConfig) {
 }
 
 /**
- * Convert markdown text to simple HTML for email
+ * Convert markdown text to simple HTML for email.
+ * Uses marked with a custom renderer that escapes raw HTML tokens,
+ * preventing XSS while preserving full markdown features (blockquotes, etc.).
  */
 function textToHtml(text: string): string {
-  // 1. Escape any HTML in the user input to prevent XSS
-  const safeText = escapeHtml(text)
+  const renderer = new marked.Renderer()
 
-  // 2. Parse markdown securely using marked library
-  return marked.parse(safeText, { async: false, breaks: true }) as string
+  // Override html token handler to escape raw HTML instead of passing it through
+  renderer.html = ({ text: rawHtml }: { text: string }) => escapeHtml(rawHtml)
+
+  return marked.parse(text, { async: false, breaks: true, renderer }) as string
 }
 
 /**

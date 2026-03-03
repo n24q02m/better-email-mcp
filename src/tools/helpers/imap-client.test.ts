@@ -58,7 +58,7 @@ const account: AccountConfig = {
 }
 
 /** Create async iterable from array (for ImapFlow.fetch) */
-function toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
+function _toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
   return {
     [Symbol.asyncIterator]() {
       let i = 0
@@ -484,5 +484,267 @@ describe('connection lifecycle', () => {
     const result = await readEmail(account, 1, 'INBOX')
 
     expect(result.subject).toBe('Test')
+  })
+})
+
+// ============================================================================
+// extractSnippet edge cases (tested via searchEmails)
+// ============================================================================
+
+describe('extractSnippet edge cases', () => {
+  function makeSearchMsg(source: Buffer | null = Buffer.from('raw')) {
+    return {
+      uid: 1,
+      flags: new Set(),
+      envelope: {
+        messageId: '<msg@test>',
+        subject: 'Test',
+        from: [{ name: '', address: 'sender@test.com' }],
+        to: [{ address: 'test@gmail.com' }],
+        date: new Date('2025-01-01')
+      },
+      source
+    }
+  }
+
+  it('uses HTML fallback when text is null but html exists', async () => {
+    mockSimpleParser.mockResolvedValue({
+      text: null,
+      html: '<p>HTML content</p>'
+    } as any)
+    mockClient.search.mockResolvedValue([1])
+    mockClient.fetchAll.mockResolvedValue([makeSearchMsg()])
+
+    const results = await searchEmails([account], 'ALL', 'INBOX', 10)
+
+    expect(results[0]!.snippet).toBe('cleaned: <p>HTML content</p>')
+  })
+
+  it('truncates snippet with ... when text exceeds 200 chars', async () => {
+    const longText = 'A'.repeat(250)
+    mockSimpleParser.mockResolvedValue({ text: longText } as any)
+    mockClient.search.mockResolvedValue([1])
+    mockClient.fetchAll.mockResolvedValue([makeSearchMsg()])
+
+    const results = await searchEmails([account], 'ALL', 'INBOX', 10)
+
+    expect(results[0]!.snippet).toBe(`${'A'.repeat(200)}...`)
+    expect(results[0]!.snippet.length).toBe(203)
+  })
+
+  it('returns empty string when simpleParser throws', async () => {
+    mockSimpleParser.mockRejectedValue(new Error('parse error'))
+    mockClient.search.mockResolvedValue([1])
+    mockClient.fetchAll.mockResolvedValue([makeSearchMsg()])
+
+    const results = await searchEmails([account], 'ALL', 'INBOX', 10)
+
+    expect(results[0]!.snippet).toBe('')
+  })
+
+  it('returns empty string when text is empty after parsing', async () => {
+    mockSimpleParser.mockResolvedValue({ text: null, html: null } as any)
+    mockClient.search.mockResolvedValue([1])
+    mockClient.fetchAll.mockResolvedValue([makeSearchMsg()])
+
+    const results = await searchEmails([account], 'ALL', 'INBOX', 10)
+
+    expect(results[0]!.snippet).toBe('')
+  })
+})
+
+// ============================================================================
+// formatAddress edge cases (tested via readEmail)
+// ============================================================================
+
+describe('formatAddress edge cases', () => {
+  function setupReadEmail(parsedOverrides: Record<string, any>) {
+    mockClient.fetchOne.mockResolvedValue({
+      uid: 1,
+      flags: new Set(),
+      source: Buffer.from('raw')
+    })
+    mockSimpleParser.mockResolvedValue({
+      subject: 'Test',
+      from: { text: 'default@test.com' },
+      to: { text: 'to@test.com' },
+      date: new Date('2025-01-01'),
+      text: 'body',
+      attachments: [],
+      ...parsedOverrides
+    } as any)
+  }
+
+  it('returns the string directly when addr is a string', async () => {
+    setupReadEmail({ from: 'user@test.com' })
+
+    const result = await readEmail(account, 1, 'INBOX')
+
+    expect(result.from).toBe('user@test.com')
+  })
+
+  it('returns addr.text when present', async () => {
+    setupReadEmail({ from: { text: 'John <john@test.com>' } })
+
+    const result = await readEmail(account, 1, 'INBOX')
+
+    expect(result.from).toBe('John <john@test.com>')
+  })
+
+  it('formats value array with name', async () => {
+    setupReadEmail({
+      from: { value: [{ name: 'John Doe', address: 'john@test.com' }] }
+    })
+
+    const result = await readEmail(account, 1, 'INBOX')
+
+    expect(result.from).toBe('John Doe <john@test.com>')
+  })
+
+  it('formats value array without name', async () => {
+    setupReadEmail({
+      from: { value: [{ address: 'john@test.com' }] }
+    })
+
+    const result = await readEmail(account, 1, 'INBOX')
+
+    expect(result.from).toBe('john@test.com')
+  })
+
+  it('formats value array with multiple entries', async () => {
+    setupReadEmail({
+      to: {
+        value: [{ name: 'Alice', address: 'alice@test.com' }, { address: 'bob@test.com' }]
+      }
+    })
+
+    const result = await readEmail(account, 1, 'INBOX')
+
+    expect(result.to).toBe('Alice <alice@test.com>, bob@test.com')
+  })
+
+  it('returns empty string for null/undefined addr', async () => {
+    setupReadEmail({ cc: null, bcc: undefined })
+
+    const result = await readEmail(account, 1, 'INBOX')
+
+    expect(result.cc).toBe('')
+    expect(result.bcc).toBe('')
+  })
+
+  it('returns empty string for object with no text or value', async () => {
+    setupReadEmail({ cc: {} })
+
+    const result = await readEmail(account, 1, 'INBOX')
+
+    expect(result.cc).toBe('')
+  })
+})
+
+// ============================================================================
+// buildSearchCriteria (tested via searchEmails)
+// ============================================================================
+
+describe('buildSearchCriteria', () => {
+  function setupSearch() {
+    mockSimpleParser.mockResolvedValue({ text: 'text' } as any)
+    mockClient.search.mockResolvedValue([1])
+    mockClient.fetchAll.mockResolvedValue([
+      {
+        uid: 1,
+        flags: new Set(),
+        envelope: {
+          subject: 'Test',
+          from: [{ address: 'x@test.com' }],
+          to: [{ address: 'y@test.com' }],
+          date: new Date()
+        },
+        source: Buffer.from('text')
+      }
+    ])
+  }
+
+  it('maps READ to { seen: true }', async () => {
+    setupSearch()
+    await searchEmails([account], 'READ', 'INBOX', 10)
+    expect(mockClient.search).toHaveBeenCalledWith({ seen: true }, { uid: true })
+  })
+
+  it('maps SEEN to { seen: true }', async () => {
+    setupSearch()
+    await searchEmails([account], 'SEEN', 'INBOX', 10)
+    expect(mockClient.search).toHaveBeenCalledWith({ seen: true }, { uid: true })
+  })
+
+  it('maps FLAGGED to { flagged: true }', async () => {
+    setupSearch()
+    await searchEmails([account], 'FLAGGED', 'INBOX', 10)
+    expect(mockClient.search).toHaveBeenCalledWith({ flagged: true }, { uid: true })
+  })
+
+  it('maps STARRED to { flagged: true }', async () => {
+    setupSearch()
+    await searchEmails([account], 'STARRED', 'INBOX', 10)
+    expect(mockClient.search).toHaveBeenCalledWith({ flagged: true }, { uid: true })
+  })
+
+  it('maps UNFLAGGED to { flagged: false }', async () => {
+    setupSearch()
+    await searchEmails([account], 'UNFLAGGED', 'INBOX', 10)
+    expect(mockClient.search).toHaveBeenCalledWith({ flagged: false }, { uid: true })
+  })
+
+  it('maps UNSTARRED to { flagged: false }', async () => {
+    setupSearch()
+    await searchEmails([account], 'UNSTARRED', 'INBOX', 10)
+    expect(mockClient.search).toHaveBeenCalledWith({ flagged: false }, { uid: true })
+  })
+
+  it('maps ALL to {}', async () => {
+    setupSearch()
+    await searchEmails([account], 'ALL', 'INBOX', 10)
+    expect(mockClient.search).toHaveBeenCalledWith({}, { uid: true })
+  })
+
+  it('maps * to {}', async () => {
+    setupSearch()
+    await searchEmails([account], '*', 'INBOX', 10)
+    expect(mockClient.search).toHaveBeenCalledWith({}, { uid: true })
+  })
+
+  it('maps SINCE date to { since: Date }', async () => {
+    setupSearch()
+    await searchEmails([account], 'SINCE 2024-01-01', 'INBOX', 10)
+    expect(mockClient.search).toHaveBeenCalledWith({ since: new Date('2024-01-01') }, { uid: true })
+  })
+
+  it('maps FROM to { from: string }', async () => {
+    setupSearch()
+    await searchEmails([account], 'FROM user@test.com', 'INBOX', 10)
+    expect(mockClient.search).toHaveBeenCalledWith({ from: 'user@test.com' }, { uid: true })
+  })
+
+  it('maps SUBJECT to { subject: string }', async () => {
+    setupSearch()
+    await searchEmails([account], 'SUBJECT hello', 'INBOX', 10)
+    expect(mockClient.search).toHaveBeenCalledWith({ subject: 'hello' }, { uid: true })
+  })
+
+  it('maps UNREAD SINCE to compound criteria', async () => {
+    setupSearch()
+    await searchEmails([account], 'UNREAD SINCE 2024-01-01', 'INBOX', 10)
+    expect(mockClient.search).toHaveBeenCalledWith({ seen: false, since: new Date('2024-01-01') }, { uid: true })
+  })
+
+  it('maps UNREAD FROM to compound criteria', async () => {
+    setupSearch()
+    await searchEmails([account], 'UNREAD FROM user@test.com', 'INBOX', 10)
+    expect(mockClient.search).toHaveBeenCalledWith({ seen: false, from: 'user@test.com' }, { uid: true })
+  })
+
+  it('falls back to subject search for plain text', async () => {
+    setupSearch()
+    await searchEmails([account], 'meeting notes', 'INBOX', 10)
+    expect(mockClient.search).toHaveBeenCalledWith({ subject: 'meeting notes' }, { uid: true })
   })
 })

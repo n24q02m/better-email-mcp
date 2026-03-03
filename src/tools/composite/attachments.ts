@@ -4,6 +4,7 @@
  */
 
 import type { AccountConfig } from '../helpers/config.js'
+import { resolveSingleAccount } from '../helpers/config.js'
 import { EmailMCPError, withErrorHandling } from '../helpers/errors.js'
 import { getAttachment, readEmail } from '../helpers/imap-client.js'
 
@@ -17,34 +18,6 @@ export interface AttachmentsInput {
   // Optional
   folder?: string
   filename?: string
-}
-
-/**
- * Resolve a single account by filter
- */
-function resolveSingleAccount(accounts: AccountConfig[], accountFilter: string): AccountConfig {
-  const lower = accountFilter.toLowerCase()
-  const matched = accounts.filter(
-    (a) => a.email.toLowerCase() === lower || a.id === lower || a.email.toLowerCase().includes(lower)
-  )
-
-  if (matched.length === 0) {
-    throw new EmailMCPError(
-      `Account not found: ${accountFilter}`,
-      'ACCOUNT_NOT_FOUND',
-      `Available accounts: ${accounts.map((a) => a.email).join(', ')}`
-    )
-  }
-
-  if (matched.length > 1) {
-    throw new EmailMCPError(
-      'Multiple accounts matched. Specify the exact account email.',
-      'AMBIGUOUS_ACCOUNT',
-      `Matched: ${matched.map((a) => a.email).join(', ')}`
-    )
-  }
-
-  return matched[0]!
 }
 
 /**

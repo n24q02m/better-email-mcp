@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
-import { loadConfig, parseCredentials } from './config.js'
+import type { AccountConfig } from './config.js'
+import { loadConfig, parseCredentials, resolveAccount, resolveAccounts, resolveSingleAccount } from './config.js'
+import { EmailMCPError } from './errors.js'
 
 describe('parseCredentials', () => {
   it('returns empty array for empty string', () => {
@@ -174,4 +176,142 @@ it('vulnerability reproduction: exposes sensitive data in logs', () => {
   // The vulnerability is that it logs the substring which contains the password
   expect(spy).not.toHaveBeenCalledWith(expect.stringContaining('SecretPasswo'))
   spy.mockRestore()
+})
+
+const testAccounts: AccountConfig[] = [
+  {
+    id: 'user1_gmail_com',
+    email: 'user1@gmail.com',
+    password: 'pass1',
+    imap: { host: 'imap.gmail.com', port: 993, secure: true },
+    smtp: { host: 'smtp.gmail.com', port: 465, secure: true }
+  },
+  {
+    id: 'user2_outlook_com',
+    email: 'user2@outlook.com',
+    password: 'pass2',
+    imap: { host: 'outlook.office365.com', port: 993, secure: true },
+    smtp: { host: 'smtp.office365.com', port: 587, secure: false }
+  }
+]
+
+describe('resolveAccount', () => {
+  it('resolves by exact email match', () => {
+    const result = resolveAccount(testAccounts, 'user1@gmail.com')
+    expect(result.email).toBe('user1@gmail.com')
+  })
+
+  it('resolves by exact id match', () => {
+    const result = resolveAccount(testAccounts, 'user2_outlook_com')
+    expect(result.email).toBe('user2@outlook.com')
+  })
+
+  it('resolves by partial email match', () => {
+    const result = resolveAccount(testAccounts, 'outlook')
+    expect(result.email).toBe('user2@outlook.com')
+  })
+
+  it('is case-insensitive', () => {
+    const result = resolveAccount(testAccounts, 'User1@Gmail.com')
+    expect(result.email).toBe('user1@gmail.com')
+  })
+
+  it('throws ACCOUNT_NOT_FOUND when no match', () => {
+    expect(() => resolveAccount(testAccounts, 'nonexistent@test.com')).toThrow(EmailMCPError)
+    try {
+      resolveAccount(testAccounts, 'nonexistent@test.com')
+    } catch (e) {
+      expect(e).toBeInstanceOf(EmailMCPError)
+      expect((e as EmailMCPError).code).toBe('ACCOUNT_NOT_FOUND')
+    }
+  })
+
+  it('throws AMBIGUOUS_ACCOUNT when multiple partial matches', () => {
+    expect(() => resolveAccount(testAccounts, 'user')).toThrow(EmailMCPError)
+    try {
+      resolveAccount(testAccounts, 'user')
+    } catch (e) {
+      expect(e).toBeInstanceOf(EmailMCPError)
+      expect((e as EmailMCPError).code).toBe('AMBIGUOUS_ACCOUNT')
+    }
+  })
+})
+
+describe('resolveSingleAccount', () => {
+  it('resolves with a specific filter', () => {
+    const result = resolveSingleAccount(testAccounts, 'user1@gmail.com')
+    expect(result.email).toBe('user1@gmail.com')
+  })
+
+  it('returns the only account when no filter and single account', () => {
+    const single = [testAccounts[0]!]
+    const result = resolveSingleAccount(single)
+    expect(result.email).toBe('user1@gmail.com')
+  })
+
+  it('throws AMBIGUOUS_ACCOUNT when no filter and multiple accounts', () => {
+    expect(() => resolveSingleAccount(testAccounts)).toThrow(EmailMCPError)
+    try {
+      resolveSingleAccount(testAccounts)
+    } catch (e) {
+      expect(e).toBeInstanceOf(EmailMCPError)
+      expect((e as EmailMCPError).code).toBe('AMBIGUOUS_ACCOUNT')
+    }
+  })
+
+  it('throws AMBIGUOUS_ACCOUNT when filter matches multiple accounts', () => {
+    expect(() => resolveSingleAccount(testAccounts, 'user')).toThrow(EmailMCPError)
+    try {
+      resolveSingleAccount(testAccounts, 'user')
+    } catch (e) {
+      expect(e).toBeInstanceOf(EmailMCPError)
+      expect((e as EmailMCPError).code).toBe('AMBIGUOUS_ACCOUNT')
+    }
+  })
+})
+
+describe('resolveAccounts', () => {
+  it('returns all accounts when no query', () => {
+    const result = resolveAccounts(testAccounts)
+    expect(result).toHaveLength(2)
+    expect(result).toEqual(testAccounts)
+  })
+
+  it('returns all accounts when query is undefined', () => {
+    const result = resolveAccounts(testAccounts, undefined)
+    expect(result).toHaveLength(2)
+  })
+
+  it('returns exact match by email', () => {
+    const result = resolveAccounts(testAccounts, 'user1@gmail.com')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.email).toBe('user1@gmail.com')
+  })
+
+  it('returns exact match by id', () => {
+    const result = resolveAccounts(testAccounts, 'user2_outlook_com')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.email).toBe('user2@outlook.com')
+  })
+
+  it('returns partial matches', () => {
+    const result = resolveAccounts(testAccounts, 'user')
+    expect(result).toHaveLength(2)
+  })
+
+  it('returns single partial match', () => {
+    const result = resolveAccounts(testAccounts, 'gmail')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.email).toBe('user1@gmail.com')
+  })
+
+  it('throws ACCOUNT_NOT_FOUND when no match', () => {
+    expect(() => resolveAccounts(testAccounts, 'nonexistent@test.com')).toThrow(EmailMCPError)
+    try {
+      resolveAccounts(testAccounts, 'nonexistent@test.com')
+    } catch (e) {
+      expect(e).toBeInstanceOf(EmailMCPError)
+      expect((e as EmailMCPError).code).toBe('ACCOUNT_NOT_FOUND')
+    }
+  })
 })

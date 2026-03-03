@@ -4,6 +4,7 @@
  */
 
 import type { AccountConfig } from '../helpers/config.js'
+import { resolveAccounts } from '../helpers/config.js'
 import { EmailMCPError, withErrorHandling } from '../helpers/errors.js'
 import { listFolders } from '../helpers/imap-client.js'
 
@@ -33,22 +34,7 @@ export async function folders(accounts: AccountConfig[], input: FoldersInput): P
  * List folders across accounts
  */
 async function handleList(accounts: AccountConfig[], input: FoldersInput): Promise<any> {
-  let targetAccounts = accounts
-
-  if (input.account) {
-    const lower = input.account.toLowerCase()
-    targetAccounts = accounts.filter(
-      (a) => a.email.toLowerCase() === lower || a.id === lower || a.email.toLowerCase().includes(lower)
-    )
-
-    if (targetAccounts.length === 0) {
-      throw new EmailMCPError(
-        `Account not found: ${input.account}`,
-        'ACCOUNT_NOT_FOUND',
-        `Available accounts: ${accounts.map((a) => a.email).join(', ')}`
-      )
-    }
-  }
+  const targetAccounts = resolveAccounts(accounts, input.account)
 
   const accountPromises = targetAccounts.map(async (account) => {
     try {

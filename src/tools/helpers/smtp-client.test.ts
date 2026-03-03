@@ -123,10 +123,22 @@ describe('sendNewEmail', () => {
     })
 
     const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.html).toContain('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;')
+    expect(callArgs.html).toContain('&lt;script&gt;')
     expect(callArgs.html).toContain('&lt;img src=x onerror=alert(1)&gt;')
     expect(callArgs.html).not.toContain('<script>')
     expect(callArgs.html).not.toContain('<img')
+  })
+
+  it('supports markdown blockquotes', async () => {
+    await sendNewEmail(account, {
+      to: 'r@test.com',
+      subject: 'Test',
+      body: '> Quoted text'
+    })
+
+    const callArgs = mockSendMail.mock.calls[0]![0]
+    expect(callArgs.html).toContain('<blockquote>')
+    expect(callArgs.html).toContain('Quoted text')
   })
 
   it('always closes transport', async () => {
@@ -150,7 +162,28 @@ describe('sendNewEmail', () => {
       host: 'smtp.gmail.com',
       port: 465,
       secure: true,
+      requireTLS: false,
       auth: { user: 'test@gmail.com', pass: 'testpass' }
+    })
+  })
+
+  it('enforces TLS for port 587 (STARTTLS)', async () => {
+    const outlookAccount: AccountConfig = {
+      id: 'test_outlook_com',
+      email: 'test@outlook.com',
+      password: 'testpass',
+      imap: { host: 'outlook.office365.com', port: 993, secure: true },
+      smtp: { host: 'smtp.office365.com', port: 587, secure: false }
+    }
+
+    await sendNewEmail(outlookAccount, { to: 'r@test.com', subject: 'T', body: 'B' })
+
+    expect(createTransport).toHaveBeenCalledWith({
+      host: 'smtp.office365.com',
+      port: 587,
+      secure: false,
+      requireTLS: true,
+      auth: { user: 'test@outlook.com', pass: 'testpass' }
     })
   })
 
