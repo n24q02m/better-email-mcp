@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { loadConfig, parseCredentials } from './config.js'
+import { loadConfig, parseCredentials, resolveAccount, resolveAccounts } from './config.js'
 
 describe('parseCredentials', () => {
   it('returns empty array for empty string', () => {
@@ -174,4 +174,80 @@ it('vulnerability reproduction: exposes sensitive data in logs', () => {
   // The vulnerability is that it logs the substring which contains the password
   expect(spy).not.toHaveBeenCalledWith(expect.stringContaining('SecretPasswo'))
   spy.mockRestore()
+})
+
+describe('resolveAccount', () => {
+  const accounts = [
+    { id: 'user_a_example_com', email: 'user.a@example.com' } as any,
+    { id: 'user_b_example_com', email: 'user.b@example.com' } as any,
+    { id: 'admin_example_com', email: 'admin@example.com' } as any
+  ]
+
+  it('matches exactly by email (case-insensitive)', () => {
+    const result = resolveAccount(accounts, 'User.A@example.com')
+    expect(result.id).toBe('user_a_example_com')
+  })
+
+  it('matches exactly by id (case-insensitive)', () => {
+    const result = resolveAccount(accounts, 'USER_B_example_com')
+    expect(result.id).toBe('user_b_example_com')
+  })
+
+  it('matches partially by email', () => {
+    const result = resolveAccount(accounts, 'admin')
+    expect(result.id).toBe('admin_example_com')
+  })
+
+  it('throws an error if no account matches', () => {
+    expect(() => resolveAccount(accounts, 'nobody')).toThrowError('Account "nobody" not found')
+  })
+
+  it('throws an error if multiple accounts partially match', () => {
+    expect(() => resolveAccount(accounts, 'user')).toThrowError(
+      'Multiple accounts matched: user.a@example.com, user.b@example.com. Specify exact account email.'
+    )
+  })
+})
+
+describe('resolveAccounts', () => {
+  const accounts = [
+    { id: 'user_a_example_com', email: 'user.a@example.com' } as any,
+    { id: 'user_b_example_com', email: 'user.b@example.com' } as any,
+    { id: 'admin_example_com', email: 'admin@example.com' } as any
+  ]
+
+  it('returns all accounts when no query is provided', () => {
+    const result = resolveAccounts(accounts)
+    expect(result).toHaveLength(3)
+    expect(result).toEqual(accounts)
+  })
+
+  it('matches exactly by email (case-insensitive)', () => {
+    const result = resolveAccounts(accounts, 'User.A@example.com')
+    expect(result).toHaveLength(1)
+    expect(result[0].id).toBe('user_a_example_com')
+  })
+
+  it('matches exactly by id (case-insensitive)', () => {
+    const result = resolveAccounts(accounts, 'USER_B_example_com')
+    expect(result).toHaveLength(1)
+    expect(result[0].id).toBe('user_b_example_com')
+  })
+
+  it('matches partially by email', () => {
+    const result = resolveAccounts(accounts, 'admin')
+    expect(result).toHaveLength(1)
+    expect(result[0].id).toBe('admin_example_com')
+  })
+
+  it('returns multiple partial matches', () => {
+    const result = resolveAccounts(accounts, 'user')
+    expect(result).toHaveLength(2)
+    expect(result[0].id).toBe('user_a_example_com')
+    expect(result[1].id).toBe('user_b_example_com')
+  })
+
+  it('throws an error if no account matches', () => {
+    expect(() => resolveAccounts(accounts, 'nobody')).toThrowError('Account "nobody" not found')
+  })
 })
