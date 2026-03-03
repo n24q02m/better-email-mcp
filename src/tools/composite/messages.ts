@@ -8,7 +8,8 @@ import { EmailMCPError, withErrorHandling } from '../helpers/errors.js'
 import { listFolders, modifyFlags, moveEmails, readEmail, searchEmails, trashEmails } from '../helpers/imap-client.js'
 
 // Simple in-memory cache for archive folder paths to avoid repeated IMAP calls
-const archiveFolderCache = new Map<string, string>()
+// Stores Promises to handle concurrent requests gracefully
+const archiveFolderCache = new Map<string, Promise<string>>()
 
 export interface MessagesInput {
   action: 'search' | 'read' | 'mark_read' | 'mark_unread' | 'flag' | 'unflag' | 'move' | 'archive' | 'trash'
@@ -281,36 +282,44 @@ async function handleArchive(accounts: AccountConfig[], input: MessagesInput): P
   const folder = input.folder || 'INBOX'
 
   // Check cache first
-  let archiveFolder = archiveFolderCache.get(account.id)
+  let archiveFolderPromise = archiveFolderCache.get(account.id)
 
-  if (!archiveFolder) {
-    // Detect archive folder based on provider
-    archiveFolder = '[Gmail]/All Mail'
-    if (account.imap.host.includes('office365') || account.imap.host.includes('outlook')) {
-      archiveFolder = 'Archive'
-    } else if (account.imap.host.includes('yahoo')) {
-      archiveFolder = 'Archive'
-    }
-
-    // Try to find actual archive folder
-    try {
-      const folders = await listFolders(account)
-      const found = folders.find(
-        (f) =>
-          f.path.toLowerCase().includes('archive') ||
-          f.path.toLowerCase().includes('all mail') ||
-          f.flags.some((flag) => flag.toLowerCase().includes('archive') || flag.toLowerCase().includes('all'))
-      )
-      if (found) {
-        archiveFolder = found.path
+  if (!archiveFolderPromise) {
+    // Create the promise and immediately store it in the cache to prevent concurrent requests
+    archiveFolderPromise = (async () => {
+      // Detect archive folder based on provider
+      let detectedFolder = '[Gmail]/All Mail'
+      if (account.imap.host.includes('office365') || account.imap.host.includes('outlook')) {
+        detectedFolder = 'Archive'
+      } else if (account.imap.host.includes('yahoo')) {
+        detectedFolder = 'Archive'
       }
-    } catch {
-      // Use default if folder listing fails
-    }
 
-    // Cache the result
-    archiveFolderCache.set(account.id, archiveFolder)
+      // Try to find actual archive folder
+      try {
+        const folders = await listFolders(account)
+        const found = folders.find(
+          (f) =>
+            f.path.toLowerCase().includes('archive') ||
+            f.path.toLowerCase().includes('all mail') ||
+            f.flags.some((flag) => flag.toLowerCase().includes('archive') || flag.toLowerCase().includes('all'))
+        )
+        if (found) {
+          detectedFolder = found.path
+        }
+      } catch {
+        // Use default if folder listing fails
+      }
+
+      return detectedFolder
+    })()
+
+    // Cache the promise immediately so concurrent calls will await this same promise
+    archiveFolderCache.set(account.id, archiveFolderPromise)
   }
+
+  // Await the resolution of the folder (either from cache or fresh calculation)
+  const archiveFolder = await archiveFolderPromise
 
   const result = await moveEmails(account, uids, folder, archiveFolder)
 
