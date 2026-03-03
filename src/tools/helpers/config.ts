@@ -7,6 +7,7 @@ export interface ServerConfig {
   host: string
   port: number
   secure: boolean
+  requireTLS?: boolean
 }
 
 export interface AccountConfig {
@@ -25,7 +26,7 @@ const GMAIL_SETTINGS = {
 
 const OUTLOOK_SETTINGS = {
   imap: { host: 'outlook.office365.com', port: 993, secure: true },
-  smtp: { host: 'smtp.office365.com', port: 587, secure: false }
+  smtp: { host: 'smtp.office365.com', port: 587, secure: false, requireTLS: true }
 }
 
 const YAHOO_SETTINGS = {
@@ -35,7 +36,7 @@ const YAHOO_SETTINGS = {
 
 const ICLOUD_SETTINGS = {
   imap: { host: 'imap.mail.me.com', port: 993, secure: true },
-  smtp: { host: 'smtp.mail.me.com', port: 587, secure: false }
+  smtp: { host: 'smtp.mail.me.com', port: 587, secure: false, requireTLS: true }
 }
 
 const ZOHO_SETTINGS = {
@@ -155,7 +156,7 @@ export function parseCredentials(envValue: string): AccountConfig[] {
     if (customImapHost) {
       imap = { host: customImapHost, port: 993, secure: true }
       // Guess SMTP from IMAP host
-      smtp = { host: customImapHost.replace('imap.', 'smtp.'), port: 587, secure: false }
+      smtp = { host: customImapHost.replace('imap.', 'smtp.'), port: 587, secure: false, requireTLS: true }
     } else {
       const discovered = discoverSettings(email)
       if (!discovered) {
