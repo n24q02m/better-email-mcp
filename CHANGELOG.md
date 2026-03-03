@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v1.2.3 (2026-03-03)
+
+### Bug Fixes
+
+- **security**: Enforce SMTP TLS, prevent XSS, remove unused zod dep, DRY refactor, boost test
+  coverage to 98% ([#112](https://github.com/n24q02m/better-email-mcp/pull/112),
+  [`42a7011`](https://github.com/n24q02m/better-email-mcp/commit/42a70113d6f0a505813bfe44f526d0493abb1dff))
+
+
 ## v1.2.2 (2026-03-01)
 
 ### Bug Fixes
