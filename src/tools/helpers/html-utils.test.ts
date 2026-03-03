@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { escapeHtml, htmlToCleanText } from './html-utils.js'
+import { escapeHtml, fastExtractSnippet, htmlToCleanText } from './html-utils.js'
 
 describe('escapeHtml', () => {
   it('escapes &, <, >, ", and \'', () => {
@@ -134,5 +134,38 @@ describe('htmlToCleanText', () => {
     expect(result).not.toContain('font-family')
     expect(result).not.toContain('tracking')
     expect(result).not.toContain('banner.jpg')
+  })
+})
+
+describe('fastExtractSnippet', () => {
+  it('returns empty for empty input', () => {
+    expect(fastExtractSnippet('')).toBe('')
+  })
+
+  it('strips HTML tags', () => {
+    expect(fastExtractSnippet('<p>Hello <b>world</b></p>')).toBe('Hello world')
+  })
+
+  it('removes style and script blocks', () => {
+    const html = '<style>.x{color:red}</style><p>Content</p><script>alert(1)</script>'
+    expect(fastExtractSnippet(html)).toBe('Content')
+  })
+
+  it('decodes HTML entities', () => {
+    expect(fastExtractSnippet('&amp; &lt; &gt; &quot; &#039;')).toBe('& < > " \'')
+  })
+
+  it('truncates to maxLength', () => {
+    const html = '<p>' + 'a'.repeat(300) + '</p>'
+    const result = fastExtractSnippet(html, 200)
+    expect(result).toBe('a'.repeat(200) + '...')
+  })
+
+  it('does not truncate short text', () => {
+    expect(fastExtractSnippet('<p>short</p>', 200)).toBe('short')
+  })
+
+  it('collapses whitespace', () => {
+    expect(fastExtractSnippet('<p>hello   \n\t  world</p>')).toBe('hello world')
   })
 })

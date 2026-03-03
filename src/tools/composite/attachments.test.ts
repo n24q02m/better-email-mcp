@@ -167,4 +167,31 @@ describe('attachments - validation', () => {
       })
     ).rejects.toThrow()
   })
+
+  it('throws AMBIGUOUS_ACCOUNT when query matches multiple accounts', async () => {
+    const multiAccounts: AccountConfig[] = [
+      {
+        id: 'user1_gmail_com',
+        email: 'user1@gmail.com',
+        password: 'pass1',
+        imap: { host: 'imap.gmail.com', port: 993, secure: true },
+        smtp: { host: 'smtp.gmail.com', port: 465, secure: true }
+      },
+      {
+        id: 'user1_yahoo_com',
+        email: 'user1@yahoo.com',
+        password: 'pass2',
+        imap: { host: 'imap.mail.yahoo.com', port: 993, secure: true },
+        smtp: { host: 'smtp.mail.yahoo.com', port: 465, secure: true }
+      }
+    ]
+
+    await expect(
+      attachments(multiAccounts, {
+        action: 'list',
+        account: 'user1',
+        uid: 10
+      })
+    ).rejects.toThrow('Multiple accounts match')
+  })
 })
