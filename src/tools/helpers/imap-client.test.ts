@@ -32,7 +32,8 @@ vi.mock('mailparser', () => ({
   simpleParser: vi.fn()
 }))
 
-vi.mock('./html-utils.js', () => ({
+vi.mock('./html-utils.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./html-utils.js')>()),
   htmlToCleanText: vi.fn((html: string) => `cleaned: ${html}`)
 }))
 
@@ -517,7 +518,7 @@ describe('extractSnippet edge cases', () => {
 
     const results = await searchEmails([account], 'ALL', 'INBOX', 10)
 
-    expect(results[0]!.snippet).toBe('cleaned: <p>HTML content</p>')
+    expect(results[0]!.snippet).toBe('HTML content')
   })
 
   it('truncates snippet with ... when text exceeds 200 chars', async () => {

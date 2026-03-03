@@ -7,7 +7,7 @@ import { ImapFlow } from 'imapflow'
 import { simpleParser } from 'mailparser'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
-import { htmlToCleanText } from './html-utils.js'
+import { fastExtractSnippet, htmlToCleanText } from './html-utils.js'
 
 export interface EmailSummary {
   account_id: string
@@ -130,8 +130,10 @@ function buildSearchCriteria(query: string): any {
 async function extractSnippet(source: string | Buffer, maxLength = 200): Promise<string> {
   try {
     const parsed = await simpleParser(source)
-    const text = parsed.text || (parsed.html ? htmlToCleanText(parsed.html as string) : '')
+    const text = parsed.text || (parsed.html ? fastExtractSnippet(parsed.html as string, maxLength) : '')
     if (!text) return ''
+    // If we used fastExtractSnippet, it's already cleaned and truncated
+    if (parsed.html && !parsed.text) return text
     const cleaned = text.replace(/\s+/g, ' ').trim()
     if (cleaned.length <= maxLength) return cleaned
     return `${cleaned.substring(0, maxLength)}...`

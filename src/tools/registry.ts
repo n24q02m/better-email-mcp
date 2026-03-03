@@ -254,9 +254,12 @@ export function registerTools(server: Server, accounts: AccountConfig[]) {
           break
         case 'help': {
           const toolName = (args as { tool_name: string }).tool_name
-          const docFile = `${toolName}.md`
+          const resource = RESOURCES.find((r) => r.uri === `email://docs/${toolName}`)
+          if (!resource) {
+            throw new EmailMCPError(`Documentation not found for: ${toolName}`, 'DOC_NOT_FOUND', 'Check tool_name')
+          }
           try {
-            const content = await readFile(join(DOCS_DIR, docFile), 'utf-8')
+            const content = await readFile(join(DOCS_DIR, resource.file), 'utf-8')
             result = { tool: toolName, documentation: content }
           } catch {
             throw new EmailMCPError(`Documentation not found for: ${toolName}`, 'DOC_NOT_FOUND', 'Check tool_name')

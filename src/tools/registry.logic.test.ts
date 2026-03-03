@@ -233,3 +233,40 @@ describe('CallToolRequestSchema handler - successful tool calls', () => {
     expect(result.content[0].text).toContain(JSON.stringify(mockResult, null, 2))
   })
 })
+
+describe('CallToolRequestSchema handler - tool execution error', () => {
+  it('should catch and enhance non-EmailMCPError thrown by tool', async () => {
+    const { messages } = await import('./composite/messages.js')
+    vi.mocked(messages).mockRejectedValue(new Error('IMAP connection failed'))
+
+    const { getHandler } = createMockServerWithHandlers()
+    const handler = getHandler(CallToolRequestSchema)
+
+    const result = await handler({
+      params: {
+        name: 'messages',
+        arguments: { action: 'search', query: 'ALL' }
+      }
+    })
+
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toContain('IMAP connection failed')
+  })
+})
+
+describe('CallToolRequestSchema handler - unknown tool', () => {
+  it('should return error for unknown tool name', async () => {
+    const { getHandler } = createMockServerWithHandlers()
+    const handler = getHandler(CallToolRequestSchema)
+
+    const result = await handler({
+      params: {
+        name: 'nonexistent_tool',
+        arguments: { action: 'test' }
+      }
+    })
+
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toContain('Unknown tool: nonexistent_tool')
+  })
+})

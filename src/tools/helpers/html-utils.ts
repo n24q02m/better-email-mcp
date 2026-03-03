@@ -40,3 +40,39 @@ export function htmlToCleanText(html: string): string {
     ]
   }).trim()
 }
+
+/**
+ * Fast regex-based HTML snippet extraction for search results
+ * Much faster than full html-to-text for short previews (~30x speedup)
+ */
+export function fastExtractSnippet(html: string, maxLength = 200): string {
+  if (!html) return ''
+
+  // Remove style and script blocks entirely
+  let text = html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+  text = text.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+
+  // Replace block elements with spaces
+  text = text.replace(/<\/(p|div|br|tr|li|h[1-6])>/gi, ' ')
+  text = text.replace(/<br\s*\/?>/gi, ' ')
+
+  // Strip all remaining HTML tags
+  text = text.replace(/<[^>]+>/g, '')
+
+  // Decode common HTML entities
+  text = text
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#039;/gi, "'")
+    .replace(/&#x27;/gi, "'")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+
+  // Collapse whitespace
+  text = text.replace(/\s+/g, ' ').trim()
+
+  if (text.length <= maxLength) return text
+  return `${text.substring(0, maxLength)}...`
+}

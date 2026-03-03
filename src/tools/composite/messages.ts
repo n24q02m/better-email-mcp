@@ -114,9 +114,15 @@ async function handleRead(accounts: AccountConfig[], input: MessagesInput): Prom
 }
 
 /**
- * Mark emails as read
+ * Shared helper for flag modification actions (mark_read, mark_unread, flag, unflag)
  */
-async function handleMarkRead(accounts: AccountConfig[], input: MessagesInput): Promise<any> {
+async function handleFlagModification(
+  accounts: AccountConfig[],
+  input: MessagesInput,
+  action: string,
+  flags: string[],
+  mode: 'add' | 'remove'
+): Promise<any> {
   const uids = input.uids || (input.uid ? [input.uid] : [])
   if (uids.length === 0) {
     throw new EmailMCPError('uid or uids required', 'VALIDATION_ERROR', 'Provide at least one email UID')
@@ -125,80 +131,42 @@ async function handleMarkRead(accounts: AccountConfig[], input: MessagesInput): 
   const account = resolveSingleAccount(accounts, input.account)
   const folder = input.folder || 'INBOX'
 
-  const result = await modifyFlags(account, uids, folder, ['\\Seen'], 'add')
+  const result = await modifyFlags(account, uids, folder, flags, mode)
 
   return {
-    action: 'mark_read',
+    action,
     account: account.email,
     folder,
     ...result
   }
+}
+
+/**
+ * Mark emails as read
+ */
+async function handleMarkRead(accounts: AccountConfig[], input: MessagesInput): Promise<any> {
+  return handleFlagModification(accounts, input, 'mark_read', ['\\Seen'], 'add')
 }
 
 /**
  * Mark emails as unread
  */
 async function handleMarkUnread(accounts: AccountConfig[], input: MessagesInput): Promise<any> {
-  const uids = input.uids || (input.uid ? [input.uid] : [])
-  if (uids.length === 0) {
-    throw new EmailMCPError('uid or uids required', 'VALIDATION_ERROR', 'Provide at least one email UID')
-  }
-
-  const account = resolveSingleAccount(accounts, input.account)
-  const folder = input.folder || 'INBOX'
-
-  const result = await modifyFlags(account, uids, folder, ['\\Seen'], 'remove')
-
-  return {
-    action: 'mark_unread',
-    account: account.email,
-    folder,
-    ...result
-  }
+  return handleFlagModification(accounts, input, 'mark_unread', ['\\Seen'], 'remove')
 }
 
 /**
  * Flag (star) emails
  */
 async function handleFlag(accounts: AccountConfig[], input: MessagesInput): Promise<any> {
-  const uids = input.uids || (input.uid ? [input.uid] : [])
-  if (uids.length === 0) {
-    throw new EmailMCPError('uid or uids required', 'VALIDATION_ERROR', 'Provide at least one email UID')
-  }
-
-  const account = resolveSingleAccount(accounts, input.account)
-  const folder = input.folder || 'INBOX'
-
-  const result = await modifyFlags(account, uids, folder, ['\\Flagged'], 'add')
-
-  return {
-    action: 'flag',
-    account: account.email,
-    folder,
-    ...result
-  }
+  return handleFlagModification(accounts, input, 'flag', ['\\Flagged'], 'add')
 }
 
 /**
  * Unflag (unstar) emails
  */
 async function handleUnflag(accounts: AccountConfig[], input: MessagesInput): Promise<any> {
-  const uids = input.uids || (input.uid ? [input.uid] : [])
-  if (uids.length === 0) {
-    throw new EmailMCPError('uid or uids required', 'VALIDATION_ERROR', 'Provide at least one email UID')
-  }
-
-  const account = resolveSingleAccount(accounts, input.account)
-  const folder = input.folder || 'INBOX'
-
-  const result = await modifyFlags(account, uids, folder, ['\\Flagged'], 'remove')
-
-  return {
-    action: 'unflag',
-    account: account.email,
-    folder,
-    ...result
-  }
+  return handleFlagModification(accounts, input, 'unflag', ['\\Flagged'], 'remove')
 }
 
 /**
