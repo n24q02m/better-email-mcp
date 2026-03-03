@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v1.2.4 (2026-03-03)
+
+### Bug Fixes
+
+- DRY flag handlers, RESOURCES-based help lookup, fast HTML snippets, add missing tests
+  ([#113](https://github.com/n24q02m/better-email-mcp/pull/113),
+  [`1d520b4`](https://github.com/n24q02m/better-email-mcp/commit/1d520b4c44821815ddf72ed80660c18a7d1763dd))
+
+
 ## v1.2.3 (2026-03-03)
 
 ### Bug Fixes
