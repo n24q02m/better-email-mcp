@@ -31,11 +31,11 @@ await client.connect(t)
 let passed = 0,
   failed = 0
 const pass = (label) => {
-  console.log('[PASS] ' + label)
+  console.log(`[PASS] ${label}`)
   passed++
 }
 const fail = (label, err) => {
-  console.log('[FAIL] ' + label + ': ' + (err.message || err))
+  console.log(`[FAIL] ${label}: ${err.message || err}`)
   failed++
 }
 
@@ -44,9 +44,9 @@ for (const toolName of ['messages', 'folders', 'attachments', 'send', 'help']) {
   try {
     const r = await client.callTool({ name: 'help', arguments: { tool_name: toolName } }, undefined, TIMEOUT)
     const d = parseResult(r)
-    pass('help(tool_name=' + toolName + ') -> tool: ' + d.tool)
+    pass(`help(tool_name=${toolName}) -> tool: ${d.tool}`)
   } catch (e) {
-    fail('help(tool_name=' + toolName + ')', e)
+    fail(`help(tool_name=${toolName})`, e)
   }
 }
 
@@ -54,7 +54,7 @@ for (const toolName of ['messages', 'folders', 'attachments', 'send', 'help']) {
 try {
   const r = await client.callTool({ name: 'folders', arguments: { action: 'list' } }, undefined, TIMEOUT)
   const d = parseResult(r)
-  pass('folders.list (accounts: ' + d.total_accounts + ')')
+  pass(`folders.list (accounts: ${d.total_accounts})`)
 } catch (e) {
   fail('folders.list', e)
 }
@@ -77,7 +77,7 @@ try {
     TIMEOUT
   )
   const sd = parseResult(s)
-  pass('send.new (success: ' + sd.success + ', msg_id: ' + (sd.message_id || 'none') + ')')
+  pass(`send.new (success: ${sd.success}, msg_id: ${sd.message_id || 'none'})`)
 } catch (e) {
   fail('send.new', e)
 }
@@ -102,8 +102,8 @@ try {
     TIMEOUT
   )
   const d = parseResult(r)
-  testUid = d.messages && d.messages[0] ? d.messages[0].uid : null
-  pass('messages.search (found: ' + d.total + ', uid: ' + testUid + ')')
+  testUid = d.messages?.[0] ? d.messages[0].uid : null
+  pass(`messages.search (found: ${d.total}, uid: ${testUid})`)
 } catch (e) {
   fail('messages.search', e)
 }
@@ -118,7 +118,7 @@ if (testUid) {
       TIMEOUT
     )
     const d = parseResult(r)
-    pass('messages.read (uid: ' + d.uid + ', subject: ' + (d.subject || '').slice(0, 40) + ')')
+    pass(`messages.read (uid: ${d.uid}, subject: ${(d.subject || '').slice(0, 40)})`)
   } catch (e) {
     fail('messages.read', e)
   }
@@ -191,7 +191,7 @@ if (testUid) {
       TIMEOUT
     )
     const d = parseResult(r)
-    pass('attachments.list (uid: ' + testUid + ', total: ' + d.total + ')')
+    pass(`attachments.list (uid: ${testUid}, total: ${d.total})`)
   } catch (e) {
     fail('attachments.list', e)
   }
@@ -214,7 +214,7 @@ if (testUid) {
       TIMEOUT
     )
     const d = parseResult(r)
-    pass('send.reply (success: ' + d.success + ', to: ' + d.to + ')')
+    pass(`send.reply (success: ${d.success}, to: ${d.to})`)
   } catch (e) {
     fail('send.reply', e)
   }
@@ -237,7 +237,7 @@ if (testUid) {
       TIMEOUT
     )
     const d = parseResult(r)
-    pass('send.forward (success: ' + d.success + ')')
+    pass(`send.forward (success: ${d.success})`)
   } catch (e) {
     fail('send.forward', e)
   }
@@ -253,7 +253,7 @@ if (testUid) {
       TIMEOUT
     )
     const d = parseResult(r)
-    pass('messages.archive (success: ' + d.success + ')')
+    pass(`messages.archive (success: ${d.success})`)
   } catch (e) {
     fail('messages.archive', e)
   }
@@ -262,4 +262,4 @@ if (testUid) {
 }
 
 await client.close()
-console.log('\n=== RESULT: ' + passed + ' passed, ' + failed + ' failed ===')
+console.log(`\n=== RESULT: ${passed} passed, ${failed} failed ===`)
