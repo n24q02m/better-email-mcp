@@ -365,16 +365,31 @@ export async function trashEmails(
 /**
  * List mailbox folders
  */
+// Cache for folder listings to avoid repeated IMAP calls
+const foldersCache = new Map<string, Promise<FolderInfo[]>>()
+
 export async function listFolders(account: AccountConfig): Promise<FolderInfo[]> {
-  return withConnection(account, async (client) => {
+  const cacheKey = account.id
+  const cached = foldersCache.get(cacheKey)
+  if (cached) {
+    return cached
+  }
+
+  const promise = withConnection(account, async (client) => {
     const mailboxes = await client.list()
     return mailboxes.map((mb: any) => ({
       name: mb.name,
       path: mb.path,
-      flags: Array.from(mb.flags || []),
+      flags: Array.from(mb.flags || []).map(String),
       delimiter: mb.delimiter || '/'
     }))
+  }).catch((err) => {
+    foldersCache.delete(cacheKey)
+    throw err
   })
+
+  foldersCache.set(cacheKey, promise)
+  return promise
 }
 
 /**
