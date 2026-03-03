@@ -161,7 +161,9 @@ export function parseCredentials(envValue: string): AccountConfig[] {
     } else {
       const discovered = discoverSettings(email)
       if (!discovered) {
-        console.error(`Cannot auto-discover settings for ${email}. Use format: email:password:imap.server.com`)
+        console.error(
+          'Cannot auto-discover settings for the provided email. Use format: email:password:imap.server.com'
+        )
         continue
       }
       imap = discovered.imap

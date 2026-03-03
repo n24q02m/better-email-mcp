@@ -43,7 +43,7 @@ export async function initServer() {
     process.exit(1)
   }
 
-  console.error(`Loaded ${accounts.length} email account(s): ${accounts.map((a) => a.email).join(', ')}`)
+  console.error(`Loaded ${accounts.length} email account(s)`)
 
   // Create MCP server
   const server = new Server(

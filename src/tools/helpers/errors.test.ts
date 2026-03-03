@@ -37,6 +37,13 @@ describe('EmailMCPError', () => {
 })
 
 describe('enhanceError', () => {
+  it('preserves existing EmailMCPError instances', () => {
+    const existing = new EmailMCPError('already handled', 'CUSTOM_CODE', 'some suggestion')
+    const result = enhanceError(existing)
+    expect(result).toBe(existing)
+    expect(result.code).toBe('CUSTOM_CODE')
+  })
+
   it('handles IMAP auth errors', () => {
     const result = enhanceError({ message: 'AUTHENTICATIONFAILED' })
     expect(result.code).toBe('AUTH_FAILED')
