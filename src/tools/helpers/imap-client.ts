@@ -7,7 +7,6 @@ import { ImapFlow } from 'imapflow'
 import { simpleParser } from 'mailparser'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
-import { htmlToCleanText } from './html-utils.js'
 
 export interface EmailSummary {
   account_id: string
@@ -124,13 +123,48 @@ function buildSearchCriteria(query: string): any {
   return { subject: query }
 }
 
+import { htmlToCleanText } from './html-utils.js'
+
+/**
+ * Fast HTML snippet extractor for preview generation.
+ * Avoids full html-to-text conversion which is CPU intensive for large payloads.
+ */
+function fastExtractHtmlSnippet(html: string, maxLength: number): string {
+  if (!html) return ''
+
+  // Extract roughly enough HTML to yield maxLength clean characters
+  // We double the size to account for large style/script blocks that might be stripped
+  const scanLength = Math.max(maxLength * 20, 8000)
+  const scanned = html.substring(0, scanLength)
+
+  // Clean up hidden blocks BEFORE stripping tags, otherwise we expose raw CSS/JS
+  const withoutScripts = scanned
+    .replace(/<head\b[^>]*>[\s\S]*?(?:<\/head\s*>|$)/gi, '')
+    .replace(/<style\b[^>]*>[\s\S]*?(?:<\/style\s*>|$)/gi, '')
+    .replace(/<script\b[^>]*>[\s\S]*?(?:<\/script\s*>|$)/gi, '')
+
+  // Now we can safely take a smaller slice of the cleaned HTML
+  const sliceLength = Math.max(maxLength * 10, 2000)
+  const sliced = withoutScripts.substring(0, sliceLength)
+
+  // Strip tags and basic entities
+  const stripped = sliced
+    .replace(/<[^>]+>/g, ' ') // Replace tags with space
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&[a-z0-9#]+;/gi, '') // Simple entity stripping
+    .replace(/\s+/g, ' ') // Collapse whitespace
+    .trim()
+
+  return stripped
+}
+
 /**
  * Extract a short snippet from email body
  */
 async function extractSnippet(source: string | Buffer, maxLength = 200): Promise<string> {
   try {
     const parsed = await simpleParser(source)
-    const text = parsed.text || (parsed.html ? htmlToCleanText(parsed.html as string) : '')
+    const text = parsed.text || (parsed.html ? fastExtractHtmlSnippet(parsed.html as string, maxLength) : '')
     if (!text) return ''
     const cleaned = text.replace(/\s+/g, ' ').trim()
     if (cleaned.length <= maxLength) return cleaned
