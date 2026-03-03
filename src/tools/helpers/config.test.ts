@@ -35,6 +35,7 @@ describe('parseCredentials', () => {
     expect(result[0]!.smtp.host).toBe('smtp.office365.com')
     expect(result[0]!.smtp.port).toBe(587)
     expect(result[0]!.smtp.secure).toBe(false)
+    expect(result[0]!.smtp.requireTLS).toBe(true)
   })
 
   it('auto-discovers Hotmail as Outlook', () => {
@@ -57,6 +58,7 @@ describe('parseCredentials', () => {
     const result = parseCredentials('user@icloud.com:pass')
     expect(result[0]!.imap.host).toBe('imap.mail.me.com')
     expect(result[0]!.smtp.host).toBe('smtp.mail.me.com')
+    expect(result[0]!.smtp.requireTLS).toBe(true)
   })
 
   it('auto-discovers me.com as iCloud', () => {
@@ -84,6 +86,7 @@ describe('parseCredentials', () => {
     expect(result).toHaveLength(1)
     expect(result[0]!.imap.host).toBe('imap.custom.com')
     expect(result[0]!.smtp.host).toBe('smtp.custom.com')
+    expect(result[0]!.smtp.requireTLS).toBe(true)
     expect(result[0]!.password).toBe('mypass')
   })
 

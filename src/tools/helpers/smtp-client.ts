@@ -19,11 +19,8 @@ export interface SendEmailOptions {
   references?: string
 }
 
-/**
- * Create a Nodemailer transporter for the given account
- */
 function createSmtpTransport(account: AccountConfig) {
-  return createTransport({
+  const options: any = {
     host: account.smtp.host,
     port: account.smtp.port,
     secure: account.smtp.secure,
@@ -31,7 +28,13 @@ function createSmtpTransport(account: AccountConfig) {
       user: account.email,
       pass: account.password
     }
-  })
+  }
+
+  if (account.smtp.requireTLS !== undefined) {
+    options.requireTLS = account.smtp.requireTLS
+  }
+
+  return createTransport(options)
 }
 
 /**

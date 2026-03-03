@@ -154,6 +154,23 @@ describe('sendNewEmail', () => {
     })
   })
 
+  it('passes requireTLS option to transport when configured', async () => {
+    const outlookAccount: AccountConfig = {
+      ...account,
+      smtp: { host: 'smtp.office365.com', port: 587, secure: false, requireTLS: true }
+    }
+
+    await sendNewEmail(outlookAccount, { to: 'r@test.com', subject: 'T', body: 'B' })
+
+    expect(createTransport).toHaveBeenCalledWith({
+      host: 'smtp.office365.com',
+      port: 587,
+      secure: false,
+      requireTLS: true,
+      auth: { user: 'test@gmail.com', pass: 'testpass' }
+    })
+  })
+
   it('handles empty messageId in response', async () => {
     mockSendMail.mockResolvedValue({})
 
