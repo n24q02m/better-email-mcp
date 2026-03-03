@@ -196,25 +196,27 @@ export async function searchEmails(
             { uid: true }
           )
 
-          const summaries: EmailSummary[] = []
-          for (const msg of messages) {
-            const snippet = msg.source ? await extractSnippet(msg.source) : ''
+          // Process snippets in parallel to avoid sequential await bottleneck
+          const summaries: EmailSummary[] = await Promise.all(
+            messages.map(async (msg) => {
+              const snippet = msg.source ? await extractSnippet(msg.source) : ''
 
-            summaries.push({
-              account_id: account.id,
-              account_email: account.email,
-              uid: msg.uid,
-              message_id: msg.envelope?.messageId,
-              subject: msg.envelope?.subject || '(No subject)',
-              from: msg.envelope?.from?.[0]
-                ? `${msg.envelope.from[0].name || ''} <${msg.envelope.from[0].address || ''}>`.trim()
-                : '',
-              to: msg.envelope?.to?.map((a: any) => a.address).join(', ') || '',
-              date: msg.envelope?.date?.toISOString() || '',
-              flags: Array.from(msg.flags || []),
-              snippet
+              return {
+                account_id: account.id,
+                account_email: account.email,
+                uid: msg.uid,
+                message_id: msg.envelope?.messageId,
+                subject: msg.envelope?.subject || '(No subject)',
+                from: msg.envelope?.from?.[0]
+                  ? `${msg.envelope.from[0].name || ''} <${msg.envelope.from[0].address || ''}>`.trim()
+                  : '',
+                to: msg.envelope?.to?.map((a: any) => a.address).join(', ') || '',
+                date: msg.envelope?.date?.toISOString() || '',
+                flags: Array.from(msg.flags || []),
+                snippet
+              }
             })
-          }
+          )
 
           return summaries
         } finally {
