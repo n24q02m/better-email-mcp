@@ -291,7 +291,7 @@ describe('send - validation', () => {
     ).rejects.toThrow()
   })
 
-  it('throws when multiple accounts match', async () => {
+  it('throws AMBIGUOUS_ACCOUNT when multiple accounts match', async () => {
     const ambiguousAccounts: AccountConfig[] = [
       {
         id: 'user1_gmail_com',
@@ -309,14 +309,18 @@ describe('send - validation', () => {
       }
     ]
 
-    await expect(
-      send(ambiguousAccounts, {
+    try {
+      await send(ambiguousAccounts, {
         action: 'new',
         account: 'gmail.com',
         to: 'r@test.com',
         subject: 'T',
         body: 'B'
       })
-    ).rejects.toThrow('Multiple accounts matched')
+      expect.fail('Should have thrown')
+    } catch (e: any) {
+      expect(e.message).toContain('Multiple accounts matched')
+      expect(e.code).toBe('AMBIGUOUS_ACCOUNT')
+    }
   })
 })
