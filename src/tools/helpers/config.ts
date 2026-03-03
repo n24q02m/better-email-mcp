@@ -7,6 +7,7 @@ export interface ServerConfig {
   host: string
   port: number
   secure: boolean
+  requireTLS?: boolean
 }
 
 export interface AccountConfig {
@@ -17,35 +18,40 @@ export interface AccountConfig {
   smtp: ServerConfig
 }
 
+/** Default Port and Security Configurations */
+export const DEFAULT_IMAP_CONFIG = { port: 993, secure: true }
+export const DEFAULT_SMTP_CONFIG = { port: 465, secure: true }
+export const STARTTLS_SMTP_CONFIG = { port: 587, secure: false, requireTLS: true }
+
 /** Well-known email provider settings */
 const GMAIL_SETTINGS = {
-  imap: { host: 'imap.gmail.com', port: 993, secure: true },
-  smtp: { host: 'smtp.gmail.com', port: 465, secure: true }
+  imap: { host: 'imap.gmail.com', ...DEFAULT_IMAP_CONFIG },
+  smtp: { host: 'smtp.gmail.com', ...DEFAULT_SMTP_CONFIG }
 }
 
 const OUTLOOK_SETTINGS = {
-  imap: { host: 'outlook.office365.com', port: 993, secure: true },
-  smtp: { host: 'smtp.office365.com', port: 587, secure: false }
+  imap: { host: 'outlook.office365.com', ...DEFAULT_IMAP_CONFIG },
+  smtp: { host: 'smtp.office365.com', ...STARTTLS_SMTP_CONFIG }
 }
 
 const YAHOO_SETTINGS = {
-  imap: { host: 'imap.mail.yahoo.com', port: 993, secure: true },
-  smtp: { host: 'smtp.mail.yahoo.com', port: 465, secure: true }
+  imap: { host: 'imap.mail.yahoo.com', ...DEFAULT_IMAP_CONFIG },
+  smtp: { host: 'smtp.mail.yahoo.com', ...DEFAULT_SMTP_CONFIG }
 }
 
 const ICLOUD_SETTINGS = {
-  imap: { host: 'imap.mail.me.com', port: 993, secure: true },
-  smtp: { host: 'smtp.mail.me.com', port: 587, secure: false }
+  imap: { host: 'imap.mail.me.com', ...DEFAULT_IMAP_CONFIG },
+  smtp: { host: 'smtp.mail.me.com', ...STARTTLS_SMTP_CONFIG }
 }
 
 const ZOHO_SETTINGS = {
-  imap: { host: 'imap.zoho.com', port: 993, secure: true },
-  smtp: { host: 'smtp.zoho.com', port: 465, secure: true }
+  imap: { host: 'imap.zoho.com', ...DEFAULT_IMAP_CONFIG },
+  smtp: { host: 'smtp.zoho.com', ...DEFAULT_SMTP_CONFIG }
 }
 
 const PROTONMAIL_SETTINGS = {
-  imap: { host: 'imap.protonmail.ch', port: 993, secure: true },
-  smtp: { host: 'smtp.protonmail.ch', port: 465, secure: true }
+  imap: { host: 'imap.protonmail.ch', ...DEFAULT_IMAP_CONFIG },
+  smtp: { host: 'smtp.protonmail.ch', ...DEFAULT_SMTP_CONFIG }
 }
 
 const PROVIDER_MAP: Record<string, { imap: ServerConfig; smtp: ServerConfig }> = {
@@ -153,9 +159,9 @@ export function parseCredentials(envValue: string): AccountConfig[] {
     let smtp: ServerConfig
 
     if (customImapHost) {
-      imap = { host: customImapHost, port: 993, secure: true }
+      imap = { host: customImapHost, ...DEFAULT_IMAP_CONFIG }
       // Guess SMTP from IMAP host
-      smtp = { host: customImapHost.replace('imap.', 'smtp.'), port: 587, secure: false }
+      smtp = { host: customImapHost.replace('imap.', 'smtp.'), ...STARTTLS_SMTP_CONFIG }
     } else {
       const discovered = discoverSettings(email)
       if (!discovered) {
