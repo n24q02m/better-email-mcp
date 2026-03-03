@@ -150,7 +150,27 @@ describe('sendNewEmail', () => {
       host: 'smtp.gmail.com',
       port: 465,
       secure: true,
+      requireTLS: undefined,
       auth: { user: 'test@gmail.com', pass: 'testpass' }
+    })
+  })
+
+  it('creates transport with correct SMTP config for Outlook (requireTLS: true)', async () => {
+    const outlookAccount: AccountConfig = {
+      id: 'test_outlook_com',
+      email: 'test@outlook.com',
+      password: 'testpass',
+      imap: { host: 'outlook.office365.com', port: 993, secure: true },
+      smtp: { host: 'smtp.office365.com', port: 587, secure: false, requireTLS: true }
+    }
+    await sendNewEmail(outlookAccount, { to: 'r@test.com', subject: 'T', body: 'B' })
+
+    expect(createTransport).toHaveBeenCalledWith({
+      host: 'smtp.office365.com',
+      port: 587,
+      secure: false,
+      requireTLS: true,
+      auth: { user: 'test@outlook.com', pass: 'testpass' }
     })
   })
 
