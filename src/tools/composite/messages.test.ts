@@ -306,3 +306,110 @@ describe('account resolution', () => {
     )
   })
 })
+
+// ============================================================================
+// archive — extended coverage
+// ============================================================================
+
+describe('messages - archive (extended)', () => {
+  const yahooAccount: AccountConfig = {
+    id: 'yahoo_user',
+    email: 'user@yahoo.com',
+    password: 'pass',
+    imap: { host: 'imap.mail.yahoo.com', port: 993, secure: true },
+    smtp: { host: 'smtp.mail.yahoo.com', port: 465, secure: true }
+  }
+
+  it('uses Archive for Yahoo accounts', async () => {
+    mockListFolders.mockResolvedValue([{ name: 'Archive', path: 'Archive', flags: [], delimiter: '/' }])
+    mockMoveEmails.mockResolvedValue({ success: true, moved: 1 })
+
+    const result = await messages([yahooAccount], { action: 'archive', uid: 1 })
+
+    expect(result.action).toBe('archive')
+    expect(result.archive_folder).toBe('Archive')
+    expect(mockMoveEmails).toHaveBeenCalledWith(yahooAccount, [1], 'INBOX', 'Archive')
+  })
+
+  it('detects archive folder from flags', async () => {
+    const customAccount: AccountConfig = {
+      id: 'custom_archive_flags',
+      email: 'user@custom.com',
+      password: 'pass',
+      imap: { host: 'imap.custom.com', port: 993, secure: true },
+      smtp: { host: 'smtp.custom.com', port: 465, secure: true }
+    }
+    mockListFolders.mockResolvedValue([{ name: 'Saved', path: 'Saved', flags: ['\\Archive'], delimiter: '/' }])
+    mockMoveEmails.mockResolvedValue({ success: true, moved: 1 })
+
+    const result = await messages([customAccount], { action: 'archive', uid: 5 })
+
+    expect(result.archive_folder).toBe('Saved')
+  })
+
+  it('uses default when folder listing fails', async () => {
+    const failAccount: AccountConfig = {
+      id: 'fail_listing_account',
+      email: 'user@fail.com',
+      password: 'pass',
+      imap: { host: 'imap.fail.com', port: 993, secure: true },
+      smtp: { host: 'smtp.fail.com', port: 465, secure: true }
+    }
+    mockListFolders.mockRejectedValue(new Error('connection refused'))
+    mockMoveEmails.mockResolvedValue({ success: true, moved: 1 })
+
+    const result = await messages([failAccount], { action: 'archive', uid: 1 })
+
+    // Default for non-Gmail/non-Outlook/non-Yahoo is [Gmail]/All Mail
+    expect(result.archive_folder).toBe('[Gmail]/All Mail')
+  })
+
+  it('caches archive folder across calls', async () => {
+    const cacheAccount: AccountConfig = {
+      id: 'cache_test_account',
+      email: 'user@cache.com',
+      password: 'pass',
+      imap: { host: 'imap.cache.com', port: 993, secure: true },
+      smtp: { host: 'smtp.cache.com', port: 465, secure: true }
+    }
+    mockListFolders.mockResolvedValue([{ name: 'MyArchive', path: 'MyArchive', flags: ['\\Archive'], delimiter: '/' }])
+    mockMoveEmails.mockResolvedValue({ success: true, moved: 1 })
+
+    await messages([cacheAccount], { action: 'archive', uid: 1 })
+    await messages([cacheAccount], { action: 'archive', uid: 2 })
+
+    // listFolders should only be called once due to caching
+    expect(mockListFolders).toHaveBeenCalledTimes(1)
+  })
+
+  it('throws when no uid or uids provided', async () => {
+    await expect(messages(accounts, { action: 'archive', account: 'user1@gmail.com' })).rejects.toThrow(
+      'uid or uids required'
+    )
+  })
+})
+
+// ============================================================================
+// trash — extended coverage
+// ============================================================================
+
+describe('messages - trash (extended)', () => {
+  it('throws when no uid or uids provided', async () => {
+    await expect(messages(accounts, { action: 'trash', account: 'user1@gmail.com' })).rejects.toThrow(
+      'uid or uids required'
+    )
+  })
+
+  it('supports batch uids', async () => {
+    mockTrashEmails.mockResolvedValue({ success: true, trashed: 3 })
+
+    const result = await messages(accounts, {
+      action: 'trash',
+      uids: [10, 20, 30],
+      account: 'user1@gmail.com'
+    })
+
+    expect(result.action).toBe('trash')
+    expect(mockTrashEmails).toHaveBeenCalledWith(accounts[0], [10, 20, 30], 'INBOX')
+  })
+})

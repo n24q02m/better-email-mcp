@@ -4,6 +4,7 @@
  */
 
 import type { AccountConfig } from '../helpers/config.js'
+import { resolveAccounts, resolveSingleAccount } from '../helpers/config.js'
 import { EmailMCPError, withErrorHandling } from '../helpers/errors.js'
 import { listFolders, modifyFlags, moveEmails, readEmail, searchEmails, trashEmails } from '../helpers/imap-client.js'
 
@@ -27,43 +28,6 @@ export interface MessagesInput {
 
   // Move params
   destination?: string
-}
-
-/**
- * Resolve target accounts from input
- */
-function resolveAccounts(accounts: AccountConfig[], accountFilter?: string): AccountConfig[] {
-  if (!accountFilter) return accounts
-
-  const lower = accountFilter.toLowerCase()
-  const matched = accounts.filter(
-    (a) => a.email.toLowerCase() === lower || a.id === lower || a.email.toLowerCase().includes(lower)
-  )
-
-  if (matched.length === 0) {
-    throw new EmailMCPError(
-      `Account not found: ${accountFilter}`,
-      'ACCOUNT_NOT_FOUND',
-      `Available accounts: ${accounts.map((a) => a.email).join(', ')}`
-    )
-  }
-
-  return matched
-}
-
-/**
- * Resolve a single account (for operations that require exactly one)
- */
-function resolveSingleAccount(accounts: AccountConfig[], accountFilter?: string): AccountConfig {
-  const resolved = resolveAccounts(accounts, accountFilter)
-  if (resolved.length > 1) {
-    throw new EmailMCPError(
-      'Multiple accounts matched. Specify the exact account email.',
-      'AMBIGUOUS_ACCOUNT',
-      `Matched: ${resolved.map((a) => a.email).join(', ')}`
-    )
-  }
-  return resolved[0]!
 }
 
 /**

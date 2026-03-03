@@ -3,6 +3,8 @@
  * Parses EMAIL_CREDENTIALS env var and auto-discovers IMAP/SMTP settings
  */
 
+import { EmailMCPError } from './errors.js'
+
 export interface ServerConfig {
   host: string
   port: number
@@ -195,13 +197,37 @@ export function resolveAccount(accounts: AccountConfig[], query: string): Accoun
   if (exact.length === 1) return exact[0]!
   const partial = accounts.filter((a) => a.email.toLowerCase().includes(lower))
   if (partial.length === 0)
-    throw new Error(`Account "${query}" not found. Available: ${accounts.map((a) => a.email).join(', ')}`)
+    throw new EmailMCPError(
+      `Account not found: ${query}`,
+      'ACCOUNT_NOT_FOUND',
+      `Available accounts: ${accounts.map((a) => a.email).join(', ')}`
+    )
   if (partial.length > 1)
-    throw new Error(
-      `Multiple accounts matched: ${partial.map((a) => a.email).join(', ')}. Specify exact account email.`
+    throw new EmailMCPError(
+      'Multiple accounts matched. Specify the exact account email.',
+      'AMBIGUOUS_ACCOUNT',
+      `Matched: ${partial.map((a) => a.email).join(', ')}`
     )
   return partial[0]!
 }
+
+/**
+ * Resolve a single account, with optional filter.
+ * When filter is omitted and there's exactly one account, returns it.
+ * Throws AMBIGUOUS_ACCOUNT if multiple accounts match.
+ */
+export function resolveSingleAccount(accounts: AccountConfig[], accountFilter?: string): AccountConfig {
+  const resolved = resolveAccounts(accounts, accountFilter)
+  if (resolved.length > 1) {
+    throw new EmailMCPError(
+      'Multiple accounts matched. Specify the exact account email.',
+      'AMBIGUOUS_ACCOUNT',
+      `Matched: ${resolved.map((a) => a.email).join(', ')}`
+    )
+  }
+  return resolved[0]!
+}
+
 export function resolveAccounts(accounts: AccountConfig[], query?: string): AccountConfig[] {
   if (!query) return accounts
   const lower = query.toLowerCase().trim()
@@ -209,6 +235,10 @@ export function resolveAccounts(accounts: AccountConfig[], query?: string): Acco
   if (exact.length > 0) return exact
   const partial = accounts.filter((a) => a.email.toLowerCase().includes(lower))
   if (partial.length === 0)
-    throw new Error(`Account "${query}" not found. Available: ${accounts.map((a) => a.email).join(', ')}`)
+    throw new EmailMCPError(
+      `Account not found: ${query}`,
+      'ACCOUNT_NOT_FOUND',
+      `Available accounts: ${accounts.map((a) => a.email).join(', ')}`
+    )
   return partial
 }

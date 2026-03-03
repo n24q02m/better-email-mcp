@@ -320,3 +320,106 @@ describe('send - validation', () => {
     ).rejects.toThrow('Multiple accounts matched')
   })
 })
+
+// ============================================================================
+// handleNew result coverage (line 125)
+// ============================================================================
+
+describe('send - new result fields', () => {
+  it('returns result with all fields from sendNewEmail merged', async () => {
+    mockSendNewEmail.mockResolvedValue({
+      success: true,
+      message_id: '<new-full@gmail.com>'
+    })
+
+    const result = await send(accounts, {
+      action: 'new',
+      account: 'user1@gmail.com',
+      to: 'dest@test.com',
+      subject: 'Full Result',
+      body: 'Testing result spread'
+    })
+
+    expect(result).toEqual({
+      action: 'new',
+      from: 'user1@gmail.com',
+      to: 'dest@test.com',
+      subject: 'Full Result',
+      success: true,
+      message_id: '<new-full@gmail.com>'
+    })
+  })
+})
+
+// ============================================================================
+// reply auto-derive 'to' and references fallback (lines 122, 139)
+// ============================================================================
+
+describe('send - reply auto-derive', () => {
+  it('auto-derives to from original sender when to is not provided', async () => {
+    mockReadEmail.mockResolvedValue({
+      account_id: 'user1_gmail_com',
+      account_email: 'user1@gmail.com',
+      uid: 99,
+      message_id: '<orig99@test>',
+      references: '<ref99@test>',
+      subject: 'Auto To',
+      from: 'original@test.com',
+      to: 'user1@gmail.com',
+      date: '2025-06-01',
+      flags: [],
+      body_text: 'original body',
+      attachments: []
+    })
+    mockReplyToEmail.mockResolvedValue({ success: true, message_id: '<reply99@gmail.com>' })
+
+    const result = await send(accounts, {
+      action: 'reply',
+      account: 'user1@gmail.com',
+      body: 'Auto-derived reply',
+      uid: 99
+    })
+
+    expect(result.action).toBe('reply')
+    expect(result.to).toBe('original@test.com')
+    expect(mockReplyToEmail).toHaveBeenCalledWith(
+      accounts[0],
+      expect.objectContaining({
+        to: 'original@test.com'
+      })
+    )
+  })
+
+  it('uses message_id as references fallback when references is absent', async () => {
+    mockReadEmail.mockResolvedValue({
+      account_id: 'user1_gmail_com',
+      account_email: 'user1@gmail.com',
+      uid: 77,
+      message_id: '<msgid77@test>',
+      subject: 'No References',
+      from: 'sender77@test.com',
+      to: 'user1@gmail.com',
+      date: '2025-06-01',
+      flags: [],
+      body_text: 'body',
+      attachments: []
+    })
+    mockReplyToEmail.mockResolvedValue({ success: true, message_id: '<reply77@gmail.com>' })
+
+    await send(accounts, {
+      action: 'reply',
+      account: 'user1@gmail.com',
+      to: 'sender77@test.com',
+      body: 'Reply without references',
+      uid: 77
+    })
+
+    expect(mockReplyToEmail).toHaveBeenCalledWith(
+      accounts[0],
+      expect.objectContaining({
+        in_reply_to: '<msgid77@test>',
+        references: '<msgid77@test>'
+      })
+    )
+  })
+})
