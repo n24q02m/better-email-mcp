@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v1.2.5 (2026-03-03)
+
+### Bug Fixes
+
+- **deps**: Update non-major dependencies
+  ([#39](https://github.com/n24q02m/better-email-mcp/pull/39),
+  [`062973c`](https://github.com/n24q02m/better-email-mcp/commit/062973c5a38d836ed26623208cee1124d71238a0))
+
+### Chores
+
+- **deps**: Pin dependencies ([#38](https://github.com/n24q02m/better-email-mcp/pull/38),
+  [`f6c7644`](https://github.com/n24q02m/better-email-mcp/commit/f6c7644ddcde0a7a61c69e613ff6b9a9d80be642))
+
+- **deps**: Update github artifact actions
+  ([#108](https://github.com/n24q02m/better-email-mcp/pull/108),
+  [`4ffe9b4`](https://github.com/n24q02m/better-email-mcp/commit/4ffe9b468b32b666b0201b5257b27cdb30dc20f3))
+
+
 ## v1.2.4 (2026-03-03)
 
 ### Bug Fixes
