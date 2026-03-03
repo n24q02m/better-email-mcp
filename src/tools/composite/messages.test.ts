@@ -34,7 +34,7 @@ const accounts: AccountConfig[] = [
     email: 'user2@outlook.com',
     password: 'pass2',
     imap: { host: 'outlook.office365.com', port: 993, secure: true },
-    smtp: { host: 'smtp.office365.com', port: 587, secure: false }
+    smtp: { host: 'smtp.office365.com', port: 587, secure: false, requireTLS: true }
   }
 ]
 
