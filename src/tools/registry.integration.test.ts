@@ -52,4 +52,31 @@ describe('registry.ts - help tool error handling', () => {
     expect(result.isError).toBe(true)
     expect(result.content[0].text).toContain('Documentation not found for: nonexistent-tool')
   })
+
+  it('should return error when no arguments are provided', async () => {
+    // 1. Register tools
+    registerTools(mockServer, [])
+
+    // 2. Ensure handler was registered
+    expect(callToolHandler).toBeDefined()
+
+    // 3. Call the handler with missing arguments
+    const result = await callToolHandler({
+      params: {
+        name: 'messages'
+        // arguments is explicitly missing
+      }
+    })
+
+    // 4. Verify the error response
+    expect(result).toEqual({
+      content: [
+        {
+          type: 'text',
+          text: 'Error: No arguments provided'
+        }
+      ],
+      isError: true
+    })
+  })
 })
