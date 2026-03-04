@@ -3,10 +3,9 @@
  * Send, reply, and forward emails via SMTP using Nodemailer
  */
 
-import DOMPurify from 'dompurify'
-import { JSDOM } from 'jsdom'
 import { marked } from 'marked'
 import { createTransport } from 'nodemailer'
+import sanitizeHtml from 'sanitize-html'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
 
@@ -41,18 +40,20 @@ function createSmtpTransport(account: AccountConfig) {
   })
 }
 
-// Initialize DOMPurify for Node environment
-const window = new JSDOM('').window
-const purify = DOMPurify(window as unknown as Window & typeof globalThis)
-
 /**
  * Convert markdown text to simple HTML for email.
- * Parses markdown using marked and uses DOMPurify to sanitize the output HTML against
+ * Parses markdown using marked and uses sanitize-html to sanitize the output HTML against
  * XSS vectors (e.g., javascript: links) while preserving full markdown features.
  */
 function textToHtml(text: string): string {
   const rawHtml = marked.parse(text, { async: false, breaks: true }) as string
-  return purify.sanitize(rawHtml)
+  return sanitizeHtml(rawHtml, {
+    allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']),
+    allowedAttributes: {
+      ...sanitizeHtml.defaults.allowedAttributes,
+      img: ['src', 'alt', 'title']
+    }
+  })
 }
 
 /**
