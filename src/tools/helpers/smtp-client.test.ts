@@ -123,10 +123,19 @@ describe('sendNewEmail', () => {
     })
 
     const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.html).toContain('&lt;script&gt;')
-    expect(callArgs.html).toContain('&lt;img src=x onerror=alert(1)&gt;')
     expect(callArgs.html).not.toContain('<script>')
-    expect(callArgs.html).not.toContain('<img')
+    expect(callArgs.html).not.toContain('onerror')
+  })
+
+  it('sanitizes javascript: links to prevent XSS', async () => {
+    await sendNewEmail(account, {
+      to: 'r@test.com',
+      subject: 'Test',
+      body: '[Click Here](javascript:alert("XSS"))'
+    })
+
+    const callArgs = mockSendMail.mock.calls[0]![0]
+    expect(callArgs.html).not.toContain('javascript:alert')
   })
 
   it('supports markdown blockquotes', async () => {
