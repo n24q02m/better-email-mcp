@@ -50,13 +50,13 @@
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.1",
 		"html-to-text": "^9.0.5",
-		"imapflow": "^1.2.10",
+		"imapflow": "^1.2.12",
 		"mailparser": "^3.9.3",
-		"marked": "^17.0.3",
+		"marked": "^17.0.4",
 		"nodemailer": "^7.0.13"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.4.5",
+		"@biomejs/biome": "^2.4.6",
 		"@types/html-to-text": "^9.0.4",
 		"@types/mailparser": "^3.4.6",
 		"@types/marked": "^6.0.0",
