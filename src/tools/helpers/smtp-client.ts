@@ -40,16 +40,38 @@ function createSmtpTransport(account: AccountConfig) {
   })
 }
 
+/** Dangerous URI schemes that could execute code in email clients */
+const DANGEROUS_SCHEMES = /^(javascript|data|vbscript):/i
+
 /**
  * Convert markdown text to simple HTML for email.
- * Uses marked with a custom renderer that escapes raw HTML tokens,
- * preventing XSS while preserving full markdown features (blockquotes, etc.).
+ * Uses marked with custom renderers that:
+ * - Escape raw HTML tokens (prevents injected tags)
+ * - Strip dangerous URI schemes from links/images (prevents javascript: XSS)
  */
 function textToHtml(text: string): string {
   const renderer = new marked.Renderer()
 
-  // Override html token handler to escape raw HTML instead of passing it through
+  // Escape raw HTML instead of passing it through
   renderer.html = ({ text: rawHtml }: { text: string }) => escapeHtml(rawHtml)
+
+  // Strip dangerous URI schemes from links
+  const originalLink = renderer.link.bind(renderer)
+  renderer.link = (token) => {
+    if (DANGEROUS_SCHEMES.test(token.href)) {
+      return escapeHtml(token.text)
+    }
+    return originalLink(token)
+  }
+
+  // Strip dangerous URI schemes from images
+  const originalImage = renderer.image.bind(renderer)
+  renderer.image = (token) => {
+    if (DANGEROUS_SCHEMES.test(token.href)) {
+      return escapeHtml(token.text || '')
+    }
+    return originalImage(token)
+  }
 
   return marked.parse(text, { async: false, breaks: true, renderer }) as string
 }

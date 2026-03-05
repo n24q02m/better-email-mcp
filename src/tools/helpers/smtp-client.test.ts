@@ -129,6 +129,30 @@ describe('sendNewEmail', () => {
     expect(callArgs.html).not.toContain('<img')
   })
 
+  it('strips javascript: links to prevent XSS', async () => {
+    await sendNewEmail(account, {
+      to: 'r@test.com',
+      subject: 'Test',
+      body: '[Click](javascript:alert("XSS")) and [Safe](https://example.com)'
+    })
+
+    const callArgs = mockSendMail.mock.calls[0]![0]
+    expect(callArgs.html).not.toContain('javascript:')
+    expect(callArgs.html).toContain('https://example.com')
+    expect(callArgs.html).toContain('Click')
+  })
+
+  it('strips data: and vbscript: URI schemes', async () => {
+    await sendNewEmail(account, {
+      to: 'r@test.com',
+      subject: 'Test',
+      body: '![img](data:text/html,<script>alert(1)</script>)'
+    })
+
+    const callArgs = mockSendMail.mock.calls[0]![0]
+    expect(callArgs.html).not.toContain('data:text/html')
+  })
+
   it('supports markdown blockquotes', async () => {
     await sendNewEmail(account, {
       to: 'r@test.com',

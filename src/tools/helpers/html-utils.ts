@@ -48,9 +48,14 @@ export function htmlToCleanText(html: string): string {
 export function fastExtractSnippet(html: string, maxLength = 200): string {
   if (!html) return ''
 
-  // Remove style and script blocks entirely
-  let text = html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-  text = text.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+  // Iteratively remove style/script blocks (handles nested tags)
+  let text = html
+  let prev: string
+  do {
+    prev = text
+    text = text.replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, '')
+    text = text.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+  } while (text !== prev)
 
   // Replace block elements with spaces
   text = text.replace(/<\/(p|div|br|tr|li|h[1-6])>/gi, ' ')
@@ -59,16 +64,27 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   // Strip all remaining HTML tags
   text = text.replace(/<[^>]+>/g, '')
 
-  // Decode common HTML entities
-  text = text
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#039;/gi, "'")
-    .replace(/&#x27;/gi, "'")
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+  // Decode HTML entities in a single pass to avoid double-decode
+  // (e.g., &amp;lt; should become &lt; not <)
+  text = text.replace(/&(#x?[\da-fA-F]+|[a-zA-Z]+);/g, (entity) => {
+    const map: Record<string, string> = {
+      '&nbsp;': ' ',
+      '&amp;': '&',
+      '&lt;': '<',
+      '&gt;': '>',
+      '&quot;': '"',
+      '&#039;': "'",
+      '&#x27;': "'"
+    }
+    const lower = entity.toLowerCase()
+    if (lower in map) return map[lower]
+    const numMatch = entity.match(/&#x?([\da-fA-F]+);/)
+    if (numMatch) {
+      const code = entity.startsWith('&#x') ? Number.parseInt(numMatch[1], 16) : Number.parseInt(numMatch[1], 10)
+      return String.fromCharCode(code)
+    }
+    return entity
+  })
 
   // Collapse whitespace
   text = text.replace(/\s+/g, ' ').trim()
