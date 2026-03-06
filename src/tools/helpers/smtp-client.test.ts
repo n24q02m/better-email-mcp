@@ -115,7 +115,7 @@ describe('sendNewEmail', () => {
     expect(callArgs.html).toContain('<p>Line 2</p>')
   })
 
-  it('escapes HTML entities in body to prevent XSS', async () => {
+  it('strips dangerous HTML tags and attributes to prevent XSS', async () => {
     await sendNewEmail(account, {
       to: 'r@test.com',
       subject: 'Test',
@@ -123,10 +123,10 @@ describe('sendNewEmail', () => {
     })
 
     const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.html).toContain('&lt;script&gt;')
-    expect(callArgs.html).toContain('&lt;img src=x onerror=alert(1)&gt;')
-    expect(callArgs.html).not.toContain('<script>')
-    expect(callArgs.html).not.toContain('<img')
+    // sanitize-html completely removes <script> and dangerous attributes like onerror
+    expect(callArgs.html).not.toContain('script')
+    expect(callArgs.html).not.toContain('onerror')
+    expect(callArgs.html).toContain('<img src="x" />')
   })
 
   it('strips javascript: links to prevent XSS', async () => {
@@ -142,11 +142,11 @@ describe('sendNewEmail', () => {
     expect(callArgs.html).toContain('Click')
   })
 
-  it('strips data: and vbscript: URI schemes', async () => {
+  it('strips dangerous data: URI schemes in links', async () => {
     await sendNewEmail(account, {
       to: 'r@test.com',
       subject: 'Test',
-      body: '![img](data:text/html,<script>alert(1)</script>)'
+      body: '[Link](data:text/html,<script>alert(1)</script>)'
     })
 
     const callArgs = mockSendMail.mock.calls[0]![0]
