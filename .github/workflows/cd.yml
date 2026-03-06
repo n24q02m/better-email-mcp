@@ -240,7 +240,16 @@ jobs:
       - name: Update server.json version
         run: |
           VERSION="${{ needs.release.outputs.version }}"
-          jq --arg v "$VERSION" '.version = $v | .packages[].version = $v' server.json > server.json.tmp && mv server.json.tmp server.json
+          jq --arg v "$VERSION" '
+            .version = $v |
+            .packages = [.packages[] |
+              if .registryType == "oci" then
+                del(.version) | .identifier = (.identifier | sub(":[^:]+$"; ":" + $v))
+              else
+                .version = $v
+              end
+            ]
+          ' server.json > server.json.tmp && mv server.json.tmp server.json
 
       - name: Install MCP Publisher
         run: |
