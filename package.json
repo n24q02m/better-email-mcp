@@ -53,7 +53,7 @@
 		"imapflow": "^1.2.12",
 		"mailparser": "^3.9.3",
 		"marked": "^17.0.4",
-		"nodemailer": "^7.0.13"
+		"nodemailer": "^8.0.1"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.6",
