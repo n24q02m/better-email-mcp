@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.4.1 (2026-03-06)
+
+### Bug Fixes
+
+- Shorten server.json description to comply with MCP Registry 100-char limit
+  ([`b7a57e6`](https://github.com/n24q02m/better-email-mcp/commit/b7a57e69dff82da2fa4adb260bdb7693c3400b9a))
+
+
 ## v1.4.0 (2026-03-06)
 
 ### Features
