@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v1.4.5 (2026-03-06)
+
+### Bug Fixes
+
+- Keep OCI identifier as latest in MCP Registry publish
+  ([`4216b30`](https://github.com/n24q02m/better-email-mcp/commit/4216b300a75bb556c5d4b57942e38a9990ebdc26))
+
+- **ci**: Skip Qodo AI review for bot-created PRs
+  ([`7c8f05f`](https://github.com/n24q02m/better-email-mcp/commit/7c8f05ff9159e2d577c6d16c74427e3c82c14512))
+
+
 ## v1.4.4 (2026-03-06)
 
 ### Bug Fixes
