@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.4.7 (2026-03-06)
+
+### Bug Fixes
+
+- Add Docker LABEL and re-add OCI package for MCP Registry
+  ([`0258f61`](https://github.com/n24q02m/better-email-mcp/commit/0258f61e4e83b14f0e5f992f0ff90588a4c38b9b))
+
+
 ## v1.4.6 (2026-03-06)
 
 ### Bug Fixes
