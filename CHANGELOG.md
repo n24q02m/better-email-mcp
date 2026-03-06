@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.4.2 (2026-03-06)
+
+### Bug Fixes
+
+- Add mcpName field for MCP Registry ownership validation
+  ([`df63a43`](https://github.com/n24q02m/better-email-mcp/commit/df63a43f6a1a6bbded3b1404607bf7dd992620b9))
+
+
 ## v1.4.1 (2026-03-06)
 
 ### Bug Fixes
