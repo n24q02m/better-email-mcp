@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.4.4 (2026-03-06)
+
+### Bug Fixes
+
+- Handle OCI package version in MCP Registry publish
+  ([`5274ca7`](https://github.com/n24q02m/better-email-mcp/commit/5274ca732ce666305705d23c68518e6c61a90a66))
+
+
 ## v1.4.3 (2026-03-06)
 
 ### Bug Fixes
