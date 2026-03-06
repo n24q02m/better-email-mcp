@@ -2,6 +2,43 @@
 
 <!-- version list -->
 
+## v1.3.0 (2026-03-06)
+
+### Bug Fixes
+
+- Fix Codecov badge in README
+  ([`317931b`](https://github.com/n24q02m/better-email-mcp/commit/317931b73e8ac07fa8d713552b701398ce800448))
+
+- **deps**: Update dependency nodemailer to v8
+  ([#109](https://github.com/n24q02m/better-email-mcp/pull/109),
+  [`38c5a6d`](https://github.com/n24q02m/better-email-mcp/commit/38c5a6d0db16527b8b65abff50ef874497868469))
+
+- **deps**: Update non-major dependencies
+  ([#114](https://github.com/n24q02m/better-email-mcp/pull/114),
+  [`f0770e3`](https://github.com/n24q02m/better-email-mcp/commit/f0770e3929a20b3f0968db1315fe41d0ba2b64fb))
+
+- **security**: Resolve code scanning alerts and XSS in textToHtml
+  ([`046ef8f`](https://github.com/n24q02m/better-email-mcp/commit/046ef8f2ca404366a50ea4caf29f2cb604e18773))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#115](https://github.com/n24q02m/better-email-mcp/pull/115),
+  [`1097c17`](https://github.com/n24q02m/better-email-mcp/commit/1097c17deef921af94754037d0b403ac40a1ee99))
+
+- **deps**: Update actions/setup-node digest to 53b8394
+  ([#118](https://github.com/n24q02m/better-email-mcp/pull/118),
+  [`eeed317`](https://github.com/n24q02m/better-email-mcp/commit/eeed3172d27b9971df82e8e6f526047092279724))
+
+- **deps**: Update dependency @types/node to v25
+  ([#40](https://github.com/n24q02m/better-email-mcp/pull/40),
+  [`2fbd9d9`](https://github.com/n24q02m/better-email-mcp/commit/2fbd9d995d777292ab2a8f477599a40eea347161))
+
+### Features
+
+- Add comprehensive Phase 5 live test via MCP protocol
+  ([`95f6af6`](https://github.com/n24q02m/better-email-mcp/commit/95f6af6383bb8ca65759f82063a4399b60da9bcd))
+
+
 ## v1.2.5 (2026-03-03)
 
 ### Bug Fixes
