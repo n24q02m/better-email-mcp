@@ -24,6 +24,22 @@
           "name": "EMAIL_CREDENTIALS"
         }
       ]
+    },
+    {
+      "registryType": "oci",
+      "identifier": "docker.io/n24q02m/better-email-mcp:latest",
+      "runtimeHint": "docker",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "description": "Email credentials (format: user@gmail.com:app-password). Multiple accounts: comma-separated.",
+          "isRequired": true,
+          "isSecret": true,
+          "name": "EMAIL_CREDENTIALS"
+        }
+      ]
     }
   ]
 }

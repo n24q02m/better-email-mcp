@@ -22,6 +22,8 @@ RUN bun run build
 # Minimal image for runtime
 FROM node:24.14.0-alpine
 
+LABEL io.modelcontextprotocol.server.name="io.github.n24q02m/better-email-mcp"
+
 # Copy built package from builder stage
 COPY --from=builder /app/build /usr/local/lib/node_modules/@n24q02m/better-email-mcp/build
 COPY --from=builder /app/bin /usr/local/lib/node_modules/@n24q02m/better-email-mcp/bin
