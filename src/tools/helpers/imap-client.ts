@@ -196,11 +196,11 @@ export async function searchEmails(
             { uid: true }
           )
 
-          const summaries: EmailSummary[] = []
-          for (const msg of messages) {
+          // Process snippets in parallel to improve performance
+          const summariesPromises = messages.map(async (msg) => {
             const snippet = msg.source ? await extractSnippet(msg.source) : ''
 
-            summaries.push({
+            return {
               account_id: account.id,
               account_email: account.email,
               uid: msg.uid,
@@ -213,10 +213,10 @@ export async function searchEmails(
               date: msg.envelope?.date?.toISOString() || '',
               flags: Array.from(msg.flags || []),
               snippet
-            })
-          }
+            }
+          })
 
-          return summaries
+          return Promise.all(summariesPromises)
         } finally {
           lock.release()
         }
