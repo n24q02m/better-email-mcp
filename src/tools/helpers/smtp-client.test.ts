@@ -119,16 +119,14 @@ describe('sendNewEmail', () => {
     await sendNewEmail(account, {
       to: 'r@test.com',
       subject: 'Test',
-      body: '<script>alert("xss")</script>\n# <img src="x" onerror="alert(1)">'
+      body: '<script>alert("xss")</script>\n# <img src=x onerror=alert(1)>'
     })
 
     const callArgs = mockSendMail.mock.calls[0]![0]
     expect(callArgs.html).toContain('&lt;script&gt;')
-    // sanitize-html will strip the onerror attribute completely rather than just escaping
-    expect(callArgs.html).not.toContain('onerror')
+    expect(callArgs.html).toContain('&lt;img src=x onerror=alert(1)&gt;')
     expect(callArgs.html).not.toContain('<script>')
-    // The img tag is allowed, but the bad attribute is removed
-    expect(callArgs.html).toContain('<img src="x"')
+    expect(callArgs.html).not.toContain('<img')
   })
 
   it('strips javascript: links to prevent XSS', async () => {
