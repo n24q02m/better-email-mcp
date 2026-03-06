@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.4.6 (2026-03-06)
+
+### Bug Fixes
+
+- Remove OCI package from server.json until Docker LABEL annotation added
+  ([`593ac6e`](https://github.com/n24q02m/better-email-mcp/commit/593ac6e9c253d40b75b90e7c0d192249823adfb6))
+
+
 ## v1.4.5 (2026-03-06)
 
 ### Bug Fixes
