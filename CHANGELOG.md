@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.4.3 (2026-03-06)
+
+### Bug Fixes
+
+- Update server.json version dynamically in MCP Registry publish job
+  ([`18e15a8`](https://github.com/n24q02m/better-email-mcp/commit/18e15a8c86f5b0a9d80da2f0235425a8d64a7501))
+
+
 ## v1.4.2 (2026-03-06)
 
 ### Bug Fixes
