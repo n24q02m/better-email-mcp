@@ -2,6 +2,23 @@
 
 <!-- version list -->
 
+## v1.4.0 (2026-03-06)
+
+### Features
+
+- Add compatible-with badges and cross-links to sibling MCP servers
+  ([`1566da7`](https://github.com/n24q02m/better-email-mcp/commit/1566da71a4c97e2140d897ddd7e2418018eea24c))
+
+- Add MCP client keywords to package.json for npm discoverability
+  ([`2615f09`](https://github.com/n24q02m/better-email-mcp/commit/2615f099fbee9230152bc90fc2407d31bed24814))
+
+- Add server.json and MCP Registry publish step to CD workflow
+  ([`964b541`](https://github.com/n24q02m/better-email-mcp/commit/964b5410f4a34340780a817a408a8651741e1718))
+
+- Update compatible-with badges - add Antigravity, Gemini CLI, Codex, OpenCode
+  ([`25c3b7e`](https://github.com/n24q02m/better-email-mcp/commit/25c3b7e84728b7e243ea5c632a2eb240269aa563))
+
+
 ## v1.3.0 (2026-03-06)
 
 ### Bug Fixes
