@@ -67,7 +67,7 @@ After sending, the server saves a copy to the Sent folder via IMAP APPEND.
 | ProtonMail | Not supported (requires Bridge) | N/A |
 
 ## Outlook OAuth2
-Outlook.com/Hotmail/Live accounts use OAuth2 automatically (client ID is bundled). On first use, run `npx @n24q02m/better-email-mcp auth user@outlook.com` to authenticate. Tokens auto-refresh silently.
+Outlook.com/Hotmail/Live accounts use OAuth2 automatically (client ID is bundled). On first use, the server returns a sign-in link and code. Tokens auto-refresh silently.
 
 ## Notes
 - Reply subject auto-prepends "Re:" if not already present
