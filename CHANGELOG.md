@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.7.0 (2026-03-08)
+
+### Features
+
+- Add OAuth2 Device Code flow for Outlook/Hotmail/Live accounts
+  ([`24af5a7`](https://github.com/n24q02m/better-email-mcp/commit/24af5a79211c08d7a68fcb11641e7f1c88b3f4c6))
+
+
 ## v1.6.0 (2026-03-08)
 
 ### Bug Fixes
