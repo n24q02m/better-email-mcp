@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.6.0 (2026-03-08)
+
+### Bug Fixes
+
+- Remove hardcoded credentials from test files
+  ([`67a6273`](https://github.com/n24q02m/better-email-mcp/commit/67a62732317ce59d8360e33a9b6eb0fe60f0e502))
+
+### Features
+
+- Skip save-to-sent for Yahoo/iCloud, update provider docs
+  ([`4a8927a`](https://github.com/n24q02m/better-email-mcp/commit/4a8927a37b92d2fd3447f7f6efba9be48af8ad52))
+
+
 ## v1.5.0 (2026-03-08)
 
 ### Bug Fixes
