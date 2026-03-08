@@ -70,7 +70,7 @@
 		"@types/html-to-text": "^9.0.4",
 		"@types/mailparser": "^3.4.6",
 		"@types/marked": "^6.0.0",
-		"@types/node": "^25.3.3",
+		"@types/node": "^25.3.5",
 		"@types/nodemailer": "^6.4.23",
 		"@types/sanitize-html": "^2.16.1",
 		"@vitest/coverage-v8": "^4.0.18",
