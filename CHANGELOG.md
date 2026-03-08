@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.9.0 (2026-03-08)
+
+### Bug Fixes
+
+- Update send.md to reflect auto-auth flow
+  ([`adba331`](https://github.com/n24q02m/better-email-mcp/commit/adba331b0da9bfff9604112791c9b4a01a4e1c9f))
+
+### Features
+
+- **security**: Add URL validation, path traversal protection, and PR template
+  ([`aec4bd9`](https://github.com/n24q02m/better-email-mcp/commit/aec4bd9632773c00434dcd533f14883edd74823c))
+
+
 ## v1.8.0 (2026-03-08)
 
 ### Features
