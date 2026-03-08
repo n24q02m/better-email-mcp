@@ -5,9 +5,9 @@
 
 import { marked } from 'marked'
 import { createTransport } from 'nodemailer'
+import sanitizeHtml from 'sanitize-html'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
-import { escapeHtml } from './html-utils.js'
 
 export interface SendEmailOptions {
   to: string
@@ -40,40 +40,17 @@ function createSmtpTransport(account: AccountConfig) {
   })
 }
 
-/** Dangerous URI schemes that could execute code in email clients */
-const DANGEROUS_SCHEMES = /^(javascript|data|vbscript):/i
-
 /**
  * Convert markdown text to simple HTML for email.
- * Uses marked with custom renderers that:
- * - Escape raw HTML tokens (prevents injected tags)
- * - Strip dangerous URI schemes from links/images (prevents javascript: XSS)
+ * Uses sanitize-html to sanitize the output HTML against XSS vectors like javascript: links.
  */
-function textToHtml(text: string): string {
-  const renderer = new marked.Renderer()
+export function textToHtml(text: string): string {
+  // marked.parse can return a Promise if async: true, but we use async: false
+  const rawHtml = marked.parse(text, { async: false, breaks: true }) as string
 
-  // Escape raw HTML instead of passing it through
-  renderer.html = ({ text: rawHtml }: { text: string }) => escapeHtml(rawHtml)
-
-  // Strip dangerous URI schemes from links
-  const originalLink = renderer.link.bind(renderer)
-  renderer.link = (token) => {
-    if (DANGEROUS_SCHEMES.test(token.href)) {
-      return escapeHtml(token.text)
-    }
-    return originalLink(token)
-  }
-
-  // Strip dangerous URI schemes from images
-  const originalImage = renderer.image.bind(renderer)
-  renderer.image = (token) => {
-    if (DANGEROUS_SCHEMES.test(token.href)) {
-      return escapeHtml(token.text || '')
-    }
-    return originalImage(token)
-  }
-
-  return marked.parse(text, { async: false, breaks: true, renderer }) as string
+  return sanitizeHtml(rawHtml, {
+    allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img'])
+  })
 }
 
 /**

@@ -156,9 +156,9 @@ describe('fastExtractSnippet', () => {
   })
 
   it('truncates to maxLength', () => {
-    const html = '<p>' + 'a'.repeat(300) + '</p>'
+    const html = `<p>${'a'.repeat(300)}</p>`
     const result = fastExtractSnippet(html, 200)
-    expect(result).toBe('a'.repeat(200) + '...')
+    expect(result).toBe(`${'a'.repeat(200)}...`)
   })
 
   it('does not truncate short text', () => {
