@@ -72,22 +72,17 @@ export function isOutlookDomain(email: string): boolean {
   return domain ? OUTLOOK_DOMAINS.has(domain) : false
 }
 
+// Bundled Azure AD public client ID for better-email-mcp.
+// Public clients have no secret — this is safe to embed (like Thunderbird's client ID).
+// Override with OUTLOOK_CLIENT_ID env var if you want to use your own Azure AD app.
+const DEFAULT_CLIENT_ID = 'd56f8c71-9f7c-43f4-9934-be29cb6e77b0'
+
 /**
  * Get the Azure AD client ID for OAuth2.
- * Reads from OUTLOOK_CLIENT_ID env var.
+ * Uses bundled client ID by default, can be overridden via OUTLOOK_CLIENT_ID env var.
  */
 export function getClientId(): string {
-  const clientId = process.env.OUTLOOK_CLIENT_ID
-  if (clientId) return clientId
-
-  throw new Error(
-    'OUTLOOK_CLIENT_ID environment variable is required for Outlook OAuth2.\n' +
-      'Register a public client app at https://portal.azure.com > App registrations:\n' +
-      '  - Supported account types: Accounts in any org directory + personal Microsoft accounts\n' +
-      '  - Authentication: Enable "Allow public client flows"\n' +
-      '  - API permissions: Microsoft Graph > Delegated: IMAP.AccessAsUser.All, SMTP.Send\n' +
-      'Then set OUTLOOK_CLIENT_ID to the Application (client) ID.'
-  )
+  return process.env.OUTLOOK_CLIENT_ID || DEFAULT_CLIENT_ID
 }
 
 /**
@@ -152,13 +147,154 @@ export async function refreshAccessToken(clientId: string, refreshToken: string)
 }
 
 /**
+ * Track pending Device Code auth flows so we don't request new codes on every retry.
+ * Maps email → { verificationUri, userCode, expiresAt }
+ */
+interface PendingAuth {
+  verificationUri: string
+  userCode: string
+  expiresAt: number
+}
+const pendingAuths = new Map<string, PendingAuth>()
+
+/** Exposed for testing */
+export function _getPendingAuths(): Map<string, PendingAuth> {
+  return pendingAuths
+}
+
+/**
+ * Request a device code from Microsoft's OAuth2 endpoint.
+ */
+async function requestDeviceCode(clientId: string): Promise<DeviceCodeResponse> {
+  const response = await fetch(DEVICE_CODE_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: clientId,
+      scope: SCOPES.join(' ')
+    })
+  })
+
+  const data = (await response.json()) as DeviceCodeResponse
+
+  if (data.error || !data.user_code) {
+    throw new Error(`Device code request failed: ${data.error_description || data.error || 'Unknown error'}`)
+  }
+
+  return data
+}
+
+/**
+ * Poll for token in the background. Saves to disk when authorized.
+ * Runs silently — errors are logged to stderr, not thrown.
+ */
+function startBackgroundPoll(
+  clientId: string,
+  deviceCode: string,
+  interval: number,
+  expiresIn: number,
+  email: string
+): void {
+  const emailKey = email.toLowerCase()
+  const deadline = Date.now() + expiresIn * 1000
+  let pollInterval = (interval || 5) * 1000
+
+  const poll = async () => {
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, pollInterval))
+
+      const response = await fetch(TOKEN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: clientId,
+          grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+          device_code: deviceCode
+        })
+      })
+
+      const data = (await response.json()) as TokenResponse
+
+      if (data.access_token) {
+        const now = Math.floor(Date.now() / 1000)
+        saveTokens(email, {
+          accessToken: data.access_token,
+          refreshToken: data.refresh_token,
+          expiresAt: now + data.expires_in,
+          clientId
+        })
+        pendingAuths.delete(emailKey)
+        return
+      }
+
+      if (data.error === 'authorization_pending') continue
+      if (data.error === 'slow_down') {
+        pollInterval += 5000
+        continue
+      }
+
+      // authorization_declined, expired_token, etc.
+      pendingAuths.delete(emailKey)
+      return
+    }
+
+    pendingAuths.delete(emailKey)
+  }
+
+  poll().catch(() => pendingAuths.delete(emailKey))
+}
+
+/**
  * Ensure the account has a valid (non-expired) access token.
- * Refreshes automatically if expired or within 5-minute buffer.
+ *
+ * If no tokens exist: initiates Device Code flow in the background and throws
+ * an error containing the sign-in URL and code for the MCP client to display.
+ * On retry, picks up tokens saved to disk by the background poll.
+ *
+ * If tokens exist but expired: refreshes automatically with 5-minute buffer.
  * Mutates account.oauth2 in place and persists to disk.
  */
 export async function ensureValidToken(account: { email: string; oauth2?: OAuth2Tokens }): Promise<string> {
+  // Try loading from disk (background auth may have saved tokens since last call)
   if (!account.oauth2) {
-    throw new Error(`No OAuth2 tokens for ${account.email}. Run: npx @n24q02m/better-email-mcp auth ${account.email}`)
+    const stored = loadStoredTokens(account.email)
+    if (stored) {
+      account.oauth2 = stored
+    }
+  }
+
+  if (!account.oauth2) {
+    const emailKey = account.email.toLowerCase()
+    const pending = pendingAuths.get(emailKey)
+
+    if (pending && pending.expiresAt > Date.now()) {
+      // Auth flow already in progress — show same code
+      throw new Error(
+        `Outlook sign-in in progress for ${account.email}.\n` +
+          `Visit: ${pending.verificationUri}\n` +
+          `Enter code: ${pending.userCode}\n\n` +
+          `After signing in, retry your request.`
+      )
+    }
+
+    // Start new Device Code flow
+    const clientId = getClientId()
+    const codeData = await requestDeviceCode(clientId)
+
+    pendingAuths.set(emailKey, {
+      verificationUri: codeData.verification_uri,
+      userCode: codeData.user_code,
+      expiresAt: Date.now() + codeData.expires_in * 1000
+    })
+
+    startBackgroundPoll(clientId, codeData.device_code, codeData.interval, codeData.expires_in, account.email)
+
+    throw new Error(
+      `Outlook OAuth2 sign-in required for ${account.email}.\n` +
+        `Visit: ${codeData.verification_uri}\n` +
+        `Enter code: ${codeData.user_code}\n\n` +
+        `After signing in, retry your request.`
+    )
   }
 
   const now = Math.floor(Date.now() / 1000)
@@ -185,33 +321,18 @@ export async function ensureValidToken(account: { email: string; oauth2?: OAuth2
 }
 
 /**
- * Interactive Device Code flow for Outlook OAuth2 authentication.
+ * Interactive Device Code flow for CLI-based OAuth2 authentication.
  * Prints instructions to stderr and polls until user authorizes or timeout.
+ * Used by `npx @n24q02m/better-email-mcp auth <email>`.
  */
 export async function deviceCodeAuth(email: string, clientId?: string): Promise<OAuth2Tokens> {
   const resolvedClientId = clientId || getClientId()
-
-  // Step 1: Request device code
-  const codeResponse = await fetch(DEVICE_CODE_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: resolvedClientId,
-      scope: SCOPES.join(' ')
-    })
-  })
-
-  const codeData = (await codeResponse.json()) as DeviceCodeResponse
-
-  if (codeData.error || !codeData.user_code) {
-    throw new Error(`Device code request failed: ${codeData.error_description || codeData.error || 'Unknown error'}`)
-  }
+  const codeData = await requestDeviceCode(resolvedClientId)
 
   console.error(`\nTo sign in, visit: ${codeData.verification_uri}`)
   console.error(`Enter code: ${codeData.user_code}\n`)
   console.error('Waiting for authorization...')
 
-  // Step 2: Poll for token at the specified interval
   const interval = (codeData.interval || 5) * 1000
   const deadline = Date.now() + codeData.expires_in * 1000
   let pollInterval = interval

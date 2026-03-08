@@ -31,17 +31,15 @@ describe('parseCredentials', () => {
     expect(result[1]!.email).toBe('user2@outlook.com')
   })
 
-  it('auto-discovers Outlook settings and warns about OAuth2', () => {
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  it('auto-discovers Outlook settings and sets OAuth2 auth type', () => {
     const result = parseCredentials('user@outlook.com:pass')
     expect(result[0]!.imap.host).toBe('outlook.office365.com')
     expect(result[0]!.smtp.host).toBe('smtp.office365.com')
     expect(result[0]!.smtp.port).toBe(587)
     expect(result[0]!.smtp.secure).toBe(false)
-    // Outlook domains without stored tokens should warn and default to password
-    expect(result[0]!.authType).toBe('password')
-    expect(spy).toHaveBeenCalledWith(expect.stringContaining('requires OAuth2'))
-    spy.mockRestore()
+    // Outlook domains always use OAuth2, even without stored tokens
+    expect(result[0]!.authType).toBe('oauth2')
+    expect(result[0]!.oauth2).toBeUndefined()
   })
 
   it('auto-discovers Hotmail as Outlook', () => {

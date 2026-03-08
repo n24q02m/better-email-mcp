@@ -183,14 +183,13 @@ export function parseCredentials(envValue: string): AccountConfig[] {
       smtp
     }
 
-    // For Outlook domains, check for stored OAuth2 tokens
+    // For Outlook domains, always use OAuth2 — password auth is not supported.
+    // ensureValidToken handles auto-auth (Device Code flow) when tokens are missing.
     if (isOutlookDomain(email)) {
+      account.authType = 'oauth2'
       const tokens = loadStoredTokens(email)
       if (tokens) {
-        account.authType = 'oauth2'
         account.oauth2 = tokens
-      } else {
-        console.error(`Warning: ${email} requires OAuth2. Run: npx @n24q02m/better-email-mcp auth ${email}`)
       }
     }
 

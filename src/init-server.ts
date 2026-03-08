@@ -37,7 +37,7 @@ export async function initServer() {
     console.error('  EMAIL_CREDENTIALS=user1@gmail.com:pass1,user2@outlook.com:pass2')
     console.error('')
     console.error('For Gmail: Enable 2FA, then create App Password at https://myaccount.google.com/apppasswords')
-    console.error('For Outlook: Run `npx @n24q02m/better-email-mcp auth user@outlook.com` (OAuth2 required)')
+    console.error('For Outlook: OAuth2 sign-in is prompted automatically on first use')
     process.exit(1)
   }
 

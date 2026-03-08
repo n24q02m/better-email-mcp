@@ -66,23 +66,8 @@ After sending, the server saves a copy to the Sent folder via IMAP APPEND.
 | Fastmail | App Password | IMAP APPEND |
 | ProtonMail | Not supported (requires Bridge) | N/A |
 
-## Outlook OAuth2 Setup
-Outlook.com/Hotmail/Live accounts require OAuth2 (Microsoft deprecated app passwords).
-
-**One-time setup:**
-```bash
-npx @n24q02m/better-email-mcp auth user@outlook.com
-```
-
-This opens a browser for Microsoft sign-in. Tokens are saved to `~/.better-email-mcp/tokens.json`.
-After setup, use `EMAIL_CREDENTIALS` as usual — OAuth2 is automatic.
-
-**Requirements:**
-- `OUTLOOK_CLIENT_ID` env var (Azure AD app client ID, provided by server operator)
-- Azure AD app: "Accounts in any organizational directory and personal Microsoft accounts"
-- API permissions: Microsoft Graph > Delegated > `IMAP.AccessAsUser.All`, `SMTP.Send`
-- Authentication > Advanced settings: Enable "Allow public client flows"
-- Tokens auto-refresh (access token: 1h, refresh token: 90-day sliding window)
+## Outlook OAuth2
+Outlook.com/Hotmail/Live accounts use OAuth2 automatically (client ID is bundled). On first use, run `npx @n24q02m/better-email-mcp auth user@outlook.com` to authenticate. Tokens auto-refresh silently.
 
 ## Notes
 - Reply subject auto-prepends "Re:" if not already present

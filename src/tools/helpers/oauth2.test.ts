@@ -23,6 +23,7 @@ beforeEach(() => {
 
 import type { OAuth2Tokens } from './oauth2.js'
 import {
+  _getPendingAuths,
   deviceCodeAuth,
   ensureValidToken,
   getClientId,
@@ -90,9 +91,9 @@ describe('getClientId', () => {
     expect(getClientId()).toBe('test-client-id-123')
   })
 
-  it('throws when OUTLOOK_CLIENT_ID is not set', () => {
+  it('returns bundled default when OUTLOOK_CLIENT_ID is not set', () => {
     delete process.env.OUTLOOK_CLIENT_ID
-    expect(() => getClientId()).toThrow('OUTLOOK_CLIENT_ID')
+    expect(getClientId()).toBe('d56f8c71-9f7c-43f4-9934-be29cb6e77b0')
   })
 })
 
@@ -372,10 +373,72 @@ describe('ensureValidToken', () => {
     expect(mockWriteFileSync).toHaveBeenCalled()
   })
 
-  it('throws when no oauth2 tokens', async () => {
-    const account = { email: 'user@outlook.com' }
+  it('loads tokens from disk when not in memory', async () => {
+    const stored: OAuth2Tokens = {
+      accessToken: 'disk-token',
+      refreshToken: 'disk-rt',
+      expiresAt: Math.floor(Date.now() / 1000) + 3600,
+      clientId: 'cid'
+    }
+    mockReadFileSync.mockReturnValue(JSON.stringify({ 'user@outlook.com': stored }))
 
-    await expect(ensureValidToken(account)).rejects.toThrow('No OAuth2 tokens')
+    const account = { email: 'user@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
+    const token = await ensureValidToken(account)
+
+    expect(token).toBe('disk-token')
+    expect(account.oauth2).toEqual(stored)
+  })
+
+  it('initiates Device Code flow when no tokens exist', async () => {
+    // No tokens on disk
+    mockReadFileSync.mockReturnValue('{}')
+
+    // Mock device code request
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        device_code: 'dc-auto',
+        user_code: 'AUTO-CODE',
+        verification_uri: 'https://microsoft.com/devicelogin',
+        expires_in: 900,
+        interval: 5
+      })
+    })
+
+    const account = { email: 'user@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
+
+    await expect(ensureValidToken(account)).rejects.toThrow('AUTO-CODE')
+    await expect(ensureValidToken(account)).rejects.toThrow('microsoft.com/devicelogin')
+
+    // Clean up pending auth
+    _getPendingAuths().clear()
+  })
+
+  it('reuses pending auth code on retry', async () => {
+    mockReadFileSync.mockReturnValue('{}')
+
+    // First call: device code request
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        device_code: 'dc-1',
+        user_code: 'FIRST-CODE',
+        verification_uri: 'https://microsoft.com/devicelogin',
+        expires_in: 900,
+        interval: 5
+      })
+    })
+
+    const account = { email: 'retry@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
+
+    // First call initiates flow
+    await expect(ensureValidToken(account)).rejects.toThrow('FIRST-CODE')
+
+    // Second call should reuse same code, no new fetch
+    const fetchCountBefore = mockFetch.mock.calls.length
+    await expect(ensureValidToken(account)).rejects.toThrow('FIRST-CODE')
+    // No additional device code fetch (only background poll may have fired)
+    expect(mockFetch.mock.calls.length - fetchCountBefore).toBeLessThanOrEqual(1)
+
+    _getPendingAuths().clear()
   })
 
   it('keeps old refresh token if new one not provided', async () => {

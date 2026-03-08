@@ -43,7 +43,7 @@ Create App Passwords (NOT your regular password):
 - **Gmail**: Enable 2FA, then <https://myaccount.google.com/apppasswords>
 - **Yahoo**: Enable 2FA, then <https://login.yahoo.com/account/security/app-passwords>
 - **iCloud**: <https://appleid.apple.com> > Sign-In and Security > App-Specific Passwords
-- **Outlook**: OAuth2 required (see [Outlook Setup](#outlook-oauth2-setup) below)
+- **Outlook/Hotmail/Live**: OAuth2 built-in (server guides you on first use)
 
 ### Option 1: Package Manager (Recommended)
 
@@ -165,27 +165,11 @@ EMAIL_CREDENTIALS=user@custom.com:password:imap.custom.com
 | ProtonMail | ProtonMail Bridge | `imap.protonmail.ch:993` / TLS (465) | IMAP APPEND |
 | Custom | Via `email:pass:imap.host` format | Configurable | IMAP APPEND |
 
-### Outlook OAuth2 Setup
+### Outlook OAuth2
 
-Outlook.com / Hotmail / Live accounts require OAuth2 (Microsoft deprecated app passwords).
+Outlook.com / Hotmail / Live accounts use OAuth2 automatically — just add the email to `EMAIL_CREDENTIALS`. On first use, the server returns a sign-in link and code. Open the link, enter the code, then retry your request. Tokens are saved to `~/.better-email-mcp/tokens.json` and auto-refresh silently.
 
-**Step 1:** Authenticate (one-time):
-```bash
-OUTLOOK_CLIENT_ID=your-azure-app-id npx @n24q02m/better-email-mcp auth user@outlook.com
-```
-
-**Step 2:** Use as normal — OAuth2 is automatic:
-```bash
-EMAIL_CREDENTIALS=user@outlook.com:anything
-```
-
-Tokens are saved to `~/.better-email-mcp/tokens.json` and auto-refresh silently.
-
-> **For server operators:** Register a public client app at [Azure Portal](https://portal.azure.com) > App registrations:
-> 1. **Supported account types**: "Accounts in any organizational directory and personal Microsoft accounts"
-> 2. **Authentication** > **Advanced settings**: Enable "Allow public client flows"
-> 3. **API permissions** > Add permissions > Microsoft Graph > Delegated: `IMAP.AccessAsUser.All`, `SMTP.Send`
-> 4. Set `OUTLOOK_CLIENT_ID` to the Application (client) ID
+> **Self-hosting with your own client ID?** Set `OUTLOOK_CLIENT_ID` env var. See [Azure Setup](src/docs/send.md#outlook-oauth2) for details.
 
 ---
 
