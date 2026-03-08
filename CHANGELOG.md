@@ -2,6 +2,44 @@
 
 <!-- version list -->
 
+## v1.5.0 (2026-03-08)
+
+### Bug Fixes
+
+- Align repo with skill audit findings
+  ([`85c6d5c`](https://github.com/n24q02m/better-email-mcp/commit/85c6d5c614be98f5f2a2f5209b2485cec7bcae15))
+
+- Correct Qodo PR Agent ignore_pr_authors config
+  ([`eb0861a`](https://github.com/n24q02m/better-email-mcp/commit/eb0861ade72af46322f872169b497ecf24e263e3))
+
+- **ci**: Fix Qodo PR review for external contributors
+  ([`e98bed7`](https://github.com/n24q02m/better-email-mcp/commit/e98bed70ae3923f19217710dfdf082ea3fa66c2a))
+
+### Chores
+
+- **deps**: Update dependency @types/node to ^25.3.5
+  ([#127](https://github.com/n24q02m/better-email-mcp/pull/127),
+  [`df01f4f`](https://github.com/n24q02m/better-email-mcp/commit/df01f4fe0b3b234820e6044a713900ead860e706))
+
+- **deps**: Update docker/build-push-action action to v7
+  ([#128](https://github.com/n24q02m/better-email-mcp/pull/128),
+  [`a802bed`](https://github.com/n24q02m/better-email-mcp/commit/a802bed9d4cc7ad2d726c995c285123f22108a22))
+
+- **deps**: Update docker/setup-buildx-action action to v4
+  ([#130](https://github.com/n24q02m/better-email-mcp/pull/130),
+  [`961dcb4`](https://github.com/n24q02m/better-email-mcp/commit/961dcb4d62f577a9117edae9f9c16a0c7d4a0edf))
+
+- **deps**: Update step-security/harden-runner digest to 58077d3
+  ([#126](https://github.com/n24q02m/better-email-mcp/pull/126),
+  [`19699bd`](https://github.com/n24q02m/better-email-mcp/commit/19699bd8fcb54b334860b03aee10015dd8fe721f))
+
+### Features
+
+- Save sent emails to IMAP Sent folder
+  ([#129](https://github.com/n24q02m/better-email-mcp/pull/129),
+  [`858a401`](https://github.com/n24q02m/better-email-mcp/commit/858a401f79588af01e5effe53ca00ddf8424a25a))
+
+
 ## v1.4.7 (2026-03-06)
 
 ### Bug Fixes
