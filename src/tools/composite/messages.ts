@@ -242,7 +242,11 @@ async function handleArchive(accounts: AccountConfig[], input: MessagesInput): P
         // Use default if folder listing fails
       }
       return detectedFolder
-    })()
+    })().catch((err) => {
+      // Remove failed promise from cache to prevent permanent poisoning
+      archiveFolderCache.delete(account.id)
+      throw err
+    })
 
     // Cache the promise immediately so concurrent calls await the same promise
     archiveFolderCache.set(account.id, archiveFolderPromise)
