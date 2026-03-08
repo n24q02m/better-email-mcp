@@ -25,7 +25,12 @@ vi.mock('nodemailer/lib/mail-composer/index.js', () => ({
   default: MockMailComposer
 }))
 
+vi.mock('./oauth2.js', () => ({
+  ensureValidToken: vi.fn().mockResolvedValue('mock-access-token')
+}))
+
 import { createTransport } from 'nodemailer'
+import { ensureValidToken } from './oauth2.js'
 import { forwardEmail, replyToEmail, sendNewEmail } from './smtp-client.js'
 
 const account: AccountConfig = {
@@ -377,5 +382,62 @@ describe('forwardEmail', () => {
     })
 
     expect(result.raw).toBeInstanceOf(Buffer)
+  })
+})
+
+// ============================================================================
+// OAuth2 SMTP authentication
+// ============================================================================
+
+describe('OAuth2 SMTP authentication', () => {
+  const oauth2Account: AccountConfig = {
+    id: 'test_outlook_com',
+    email: 'test@outlook.com',
+    password: '',
+    authType: 'oauth2',
+    imap: { host: 'outlook.office365.com', port: 993, secure: true },
+    smtp: { host: 'smtp.office365.com', port: 587, secure: false },
+    oauth2: {
+      accessToken: 'outlook-access-token',
+      refreshToken: 'outlook-refresh-token',
+      expiresAt: Math.floor(Date.now() / 1000) + 3600,
+      clientId: 'test-client-id'
+    }
+  }
+
+  it('calls ensureValidToken before sending for OAuth2 accounts', async () => {
+    await sendNewEmail(oauth2Account, { to: 'r@test.com', subject: 'T', body: 'B' })
+
+    expect(ensureValidToken).toHaveBeenCalledWith(oauth2Account)
+  })
+
+  it('creates transport with OAuth2 auth for Outlook accounts', async () => {
+    await sendNewEmail(oauth2Account, { to: 'r@test.com', subject: 'T', body: 'B' })
+
+    expect(createTransport).toHaveBeenCalledWith({
+      host: 'smtp.office365.com',
+      port: 587,
+      secure: false,
+      requireTLS: true,
+      auth: { type: 'OAuth2', user: 'test@outlook.com', accessToken: 'outlook-access-token' }
+    })
+  })
+
+  it('does not call ensureValidToken for password accounts', async () => {
+    vi.mocked(ensureValidToken).mockClear()
+
+    await sendNewEmail(account, { to: 'r@test.com', subject: 'T', body: 'B' })
+
+    expect(ensureValidToken).not.toHaveBeenCalled()
+  })
+
+  it('creates transport with password auth for non-OAuth2 accounts', async () => {
+    await sendNewEmail(account, { to: 'r@test.com', subject: 'T', body: 'B' })
+
+    expect(createTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        auth: { user: 'test@gmail.com', pass: 'testpass' }
+      })
+    )
   })
 })

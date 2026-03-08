@@ -1,11 +1,18 @@
 /**
  * Better Email MCP Server Starter
- * Simplified to use composite tools only
+ * Routes: `auth` subcommand → OAuth2 flow, default → MCP server
  */
 
+import { runAuth } from '../src/auth-cli.js'
 import { initServer } from '../src/init-server.js'
 
-async function startServer() {
+async function main() {
+  // Route `auth` subcommand to OAuth2 CLI
+  if (process.argv[2] === 'auth') {
+    await runAuth()
+    return
+  }
+
   try {
     await initServer()
 
@@ -20,4 +27,4 @@ async function startServer() {
   }
 }
 
-startServer()
+main()

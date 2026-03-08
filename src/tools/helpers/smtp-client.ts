@@ -8,6 +8,7 @@ import { createTransport } from 'nodemailer'
 import sanitizeHtml from 'sanitize-html'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
+import { ensureValidToken } from './oauth2.js'
 
 export interface SendEmailOptions {
   to: string
@@ -30,19 +31,22 @@ export interface SendResult {
  * Enforces TLS for all connections to prevent STARTTLS downgrade attacks.
  * - Port 465: implicit TLS (secure: true)
  * - Port 587: STARTTLS with requireTLS to enforce upgrade
+ * Uses OAuth2 XOAUTH2 for Outlook accounts with stored tokens.
  */
 function createSmtpTransport(account: AccountConfig) {
   const isImplicitTls = account.smtp.secure || account.smtp.port === 465
+
+  const auth =
+    account.authType === 'oauth2'
+      ? { type: 'OAuth2' as const, user: account.email, accessToken: account.oauth2!.accessToken }
+      : { user: account.email, pass: account.password }
 
   return createTransport({
     host: account.smtp.host,
     port: account.smtp.port,
     secure: isImplicitTls,
     requireTLS: !isImplicitTls,
-    auth: {
-      user: account.email,
-      pass: account.password
-    }
+    auth
   })
 }
 
@@ -102,6 +106,11 @@ async function sendRawMessage(
   raw: Buffer,
   envelope: { from: string; to: string[] }
 ): Promise<{ messageId: string }> {
+  // For OAuth2, ensure fresh token before creating transport
+  if (account.authType === 'oauth2') {
+    await ensureValidToken(account)
+  }
+
   const transport = createSmtpTransport(account)
   try {
     const result = await transport.sendMail({ raw, envelope })

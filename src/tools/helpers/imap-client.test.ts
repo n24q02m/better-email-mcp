@@ -38,6 +38,11 @@ vi.mock('./html-utils.js', async (importOriginal) => ({
   htmlToCleanText: vi.fn((html: string) => `cleaned: ${html}`)
 }))
 
+vi.mock('./oauth2.js', () => ({
+  ensureValidToken: vi.fn().mockResolvedValue('mock-access-token')
+}))
+
+import { ImapFlow } from 'imapflow'
 import { simpleParser } from 'mailparser'
 import {
   appendToFolder,
@@ -50,6 +55,7 @@ import {
   searchEmails,
   trashEmails
 } from './imap-client.js'
+import { ensureValidToken } from './oauth2.js'
 
 const mockSimpleParser = vi.mocked(simpleParser)
 
@@ -872,5 +878,67 @@ describe('appendToFolder', () => {
     mockClient.append.mockRejectedValue(new Error('IMAP APPEND failed'))
 
     await expect(appendToFolder(account, 'Sent', Buffer.from('msg'))).rejects.toThrow('IMAP APPEND failed')
+  })
+})
+
+// ============================================================================
+// OAuth2 IMAP authentication
+// ============================================================================
+
+describe('OAuth2 IMAP authentication', () => {
+  const oauth2Account: AccountConfig = {
+    id: 'test_outlook_com',
+    email: 'test@outlook.com',
+    password: '',
+    authType: 'oauth2',
+    imap: { host: 'outlook.office365.com', port: 993, secure: true },
+    smtp: { host: 'smtp.office365.com', port: 587, secure: false },
+    oauth2: {
+      accessToken: 'outlook-access-token',
+      refreshToken: 'outlook-refresh-token',
+      expiresAt: Math.floor(Date.now() / 1000) + 3600,
+      clientId: 'test-client-id'
+    }
+  }
+
+  it('calls ensureValidToken before connecting for OAuth2 accounts', async () => {
+    mockClient.list.mockResolvedValue([])
+
+    await listFolders(oauth2Account)
+
+    expect(ensureValidToken).toHaveBeenCalledWith(oauth2Account)
+  })
+
+  it('creates ImapFlow with accessToken for OAuth2 accounts', async () => {
+    mockClient.list.mockResolvedValue([])
+
+    await listFolders(oauth2Account)
+
+    expect(ImapFlow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        auth: { user: 'test@outlook.com', accessToken: 'outlook-access-token' }
+      })
+    )
+  })
+
+  it('creates ImapFlow with password for non-OAuth2 accounts', async () => {
+    mockClient.list.mockResolvedValue([])
+
+    await listFolders(account)
+
+    expect(ImapFlow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        auth: { user: 'test@gmail.com', pass: 'testpass' }
+      })
+    )
+  })
+
+  it('does not call ensureValidToken for password accounts', async () => {
+    mockClient.list.mockResolvedValue([])
+    vi.mocked(ensureValidToken).mockClear()
+
+    await listFolders(account)
+
+    expect(ensureValidToken).not.toHaveBeenCalled()
   })
 })

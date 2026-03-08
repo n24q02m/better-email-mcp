@@ -43,7 +43,7 @@ Create App Passwords (NOT your regular password):
 - **Gmail**: Enable 2FA, then <https://myaccount.google.com/apppasswords>
 - **Yahoo**: Enable 2FA, then <https://login.yahoo.com/account/security/app-passwords>
 - **iCloud**: <https://appleid.apple.com> > Sign-In and Security > App-Specific Passwords
-- **Outlook**: No longer supports app passwords. OAuth2 support planned for a future release.
+- **Outlook**: OAuth2 required (see [Outlook Setup](#outlook-oauth2-setup) below)
 
 ### Option 1: Package Manager (Recommended)
 
@@ -160,12 +160,32 @@ EMAIL_CREDENTIALS=user@custom.com:password:imap.custom.com
 | Gmail | App Password | `imap.gmail.com:993` / TLS (465) | Auto (skipped) |
 | Yahoo | App Password | `imap.mail.yahoo.com:993` / TLS (465) | Auto (skipped) |
 | iCloud/Me.com | App-Specific Password | `imap.mail.me.com:993` / STARTTLS (587) | Auto (skipped) |
-| Outlook/Hotmail/Live | **OAuth2 only** | `outlook.office365.com:993` / STARTTLS (587) | IMAP APPEND |
+| Outlook/Hotmail/Live | **OAuth2** (Device Code) | `outlook.office365.com:993` / STARTTLS (587) | IMAP APPEND |
 | Zoho | App Password | `imap.zoho.com:993` / TLS (465) | IMAP APPEND |
 | ProtonMail | ProtonMail Bridge | `imap.protonmail.ch:993` / TLS (465) | IMAP APPEND |
 | Custom | Via `email:pass:imap.host` format | Configurable | IMAP APPEND |
 
-> **Note:** Outlook.com deprecated Basic Authentication. App passwords no longer work for IMAP/SMTP. OAuth2 support is planned for a future release.
+### Outlook OAuth2 Setup
+
+Outlook.com / Hotmail / Live accounts require OAuth2 (Microsoft deprecated app passwords).
+
+**Step 1:** Authenticate (one-time):
+```bash
+OUTLOOK_CLIENT_ID=your-azure-app-id npx @n24q02m/better-email-mcp auth user@outlook.com
+```
+
+**Step 2:** Use as normal — OAuth2 is automatic:
+```bash
+EMAIL_CREDENTIALS=user@outlook.com:anything
+```
+
+Tokens are saved to `~/.better-email-mcp/tokens.json` and auto-refresh silently.
+
+> **For server operators:** Register a public client app at [Azure Portal](https://portal.azure.com) > App registrations:
+> 1. **Supported account types**: "Accounts in any organizational directory and personal Microsoft accounts"
+> 2. **Authentication** > **Advanced settings**: Enable "Allow public client flows"
+> 3. **API permissions** > Add permissions > Microsoft Graph > Delegated: `IMAP.AccessAsUser.All`, `SMTP.Send`
+> 4. Set `OUTLOOK_CLIENT_ID` to the Application (client) ID
 
 ---
 

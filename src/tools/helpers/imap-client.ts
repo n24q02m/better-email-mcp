@@ -8,6 +8,7 @@ import { simpleParser } from 'mailparser'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
 import { fastExtractSnippet, htmlToCleanText } from './html-utils.js'
+import { ensureValidToken } from './oauth2.js'
 
 export interface EmailSummary {
   account_id: string
@@ -55,25 +56,33 @@ export interface FolderInfo {
 }
 
 /**
- * Create an ImapFlow client for the given account
+ * Create an ImapFlow client for the given account.
+ * Uses XOAUTH2 for OAuth2 accounts, plain password otherwise.
  */
 function createClient(account: AccountConfig): ImapFlow {
+  const auth =
+    account.authType === 'oauth2'
+      ? { user: account.email, accessToken: account.oauth2!.accessToken }
+      : { user: account.email, pass: account.password }
+
   return new ImapFlow({
     host: account.imap.host,
     port: account.imap.port,
     secure: account.imap.secure,
-    auth: {
-      user: account.email,
-      pass: account.password
-    },
+    auth,
     logger: false
   })
 }
 
 /**
- * Execute an operation with an IMAP connection (auto-connect/disconnect)
+ * Execute an operation with an IMAP connection (auto-connect/disconnect).
+ * For OAuth2 accounts, refreshes the access token before connecting.
  */
 async function withConnection<T>(account: AccountConfig, fn: (client: ImapFlow) => Promise<T>): Promise<T> {
+  if (account.authType === 'oauth2') {
+    await ensureValidToken(account)
+  }
+
   const client = createClient(account)
   try {
     await client.connect()

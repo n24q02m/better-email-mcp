@@ -4,6 +4,8 @@
  */
 
 import { EmailMCPError } from './errors.js'
+import type { OAuth2Tokens } from './oauth2.js'
+import { isOutlookDomain, loadStoredTokens } from './oauth2.js'
 
 export interface ServerConfig {
   host: string
@@ -15,8 +17,10 @@ export interface AccountConfig {
   id: string
   email: string
   password: string
+  authType?: 'password' | 'oauth2'
   imap: ServerConfig
   smtp: ServerConfig
+  oauth2?: OAuth2Tokens
 }
 
 /** Well-known email provider settings */
@@ -170,13 +174,27 @@ export function parseCredentials(envValue: string): AccountConfig[] {
       smtp = discovered.smtp
     }
 
-    accounts.push({
+    const account: AccountConfig = {
       id: emailToId(email),
       email,
       password,
+      authType: 'password',
       imap,
       smtp
-    })
+    }
+
+    // For Outlook domains, check for stored OAuth2 tokens
+    if (isOutlookDomain(email)) {
+      const tokens = loadStoredTokens(email)
+      if (tokens) {
+        account.authType = 'oauth2'
+        account.oauth2 = tokens
+      } else {
+        console.error(`Warning: ${email} requires OAuth2. Run: npx @n24q02m/better-email-mcp auth ${email}`)
+      }
+    }
+
+    accounts.push(account)
   }
 
   return accounts
