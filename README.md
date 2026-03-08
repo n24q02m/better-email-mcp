@@ -14,6 +14,10 @@
 [![semantic-release](https://img.shields.io/badge/semantic--release-e10079?logo=semantic-release&logoColor=white)](https://github.com/python-semantic-release/python-semantic-release)
 [![Renovate](https://img.shields.io/badge/renovate-enabled-1A1F6C?logo=renovatebot&logoColor=white)](https://developer.mend.io/)
 
+<a href="https://glama.ai/mcp/servers/@n24q02m/better-email-mcp">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@n24q02m/better-email-mcp/badge" alt="better-email-mcp MCP server" />
+</a>
+
 ## Why "Better"?
 
 **5 composite tools** that provide full email operations (search, read, send, reply, forward, organize) across multiple accounts using IMAP/SMTP with App Passwords.
