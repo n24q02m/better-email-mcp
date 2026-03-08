@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.8.0 (2026-03-08)
+
+### Features
+
+- Auto-initiate OAuth2 Device Code flow from MCP tool calls
+  ([`07c2661`](https://github.com/n24q02m/better-email-mcp/commit/07c2661145094d4cf34e3946ce2216a71c073234))
+
+
 ## v1.7.0 (2026-03-08)
 
 ### Features
