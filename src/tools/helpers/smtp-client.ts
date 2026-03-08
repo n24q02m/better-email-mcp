@@ -19,6 +19,12 @@ export interface SendEmailOptions {
   references?: string
 }
 
+export interface SendResult {
+  success: boolean
+  message_id: string
+  raw?: Buffer
+}
+
 /**
  * Create a Nodemailer transporter for the given account.
  * Enforces TLS for all connections to prevent STARTTLS downgrade attacks.
@@ -54,41 +60,86 @@ export function textToHtml(text: string): string {
 }
 
 /**
- * Send a new email
+ * Build a raw RFC2822 message using Nodemailer's MailComposer.
+ * Returns the exact bytes that can be sent via SMTP and/or appended to IMAP.
  */
-export async function sendNewEmail(
+async function buildRawMessage(mailOptions: {
+  from: string
+  to: string
+  cc?: string
+  bcc?: string
+  subject: string
+  text: string
+  html: string
+  inReplyTo?: string
+  references?: string
+}): Promise<Buffer> {
+  // Dynamic import to avoid TypeScript issues with Nodemailer's internal module
+  const { default: MailComposer } = await import('nodemailer/lib/mail-composer/index.js')
+  const composer = new MailComposer(mailOptions)
+  return composer.compile().build()
+}
+
+/**
+ * Collect all recipient addresses for the SMTP envelope.
+ * When sending raw messages, Nodemailer doesn't parse headers —
+ * the envelope must be provided separately with all RCPT TO addresses.
+ */
+function collectRecipients(...fields: (string | undefined)[]): string[] {
+  return fields
+    .filter((f): f is string => !!f)
+    .flatMap((f) => f.split(',').map((a) => a.trim()))
+    .filter(Boolean)
+}
+
+/**
+ * Send a raw RFC2822 message via SMTP and return both the result and raw bytes.
+ * Requires an explicit envelope because Nodemailer doesn't extract recipients
+ * from raw message headers for SMTP delivery.
+ */
+async function sendRawMessage(
   account: AccountConfig,
-  options: SendEmailOptions
-): Promise<{ success: boolean; message_id: string }> {
+  raw: Buffer,
+  envelope: { from: string; to: string[] }
+): Promise<{ messageId: string }> {
   const transport = createSmtpTransport(account)
-
   try {
-    const result = await transport.sendMail({
-      from: account.email,
-      to: options.to,
-      cc: options.cc,
-      bcc: options.bcc,
-      subject: options.subject,
-      text: options.body,
-      html: textToHtml(options.body)
-    })
-
-    return {
-      success: true,
-      message_id: result.messageId || ''
-    }
+    const result = await transport.sendMail({ raw, envelope })
+    return { messageId: result.messageId || '' }
   } finally {
     transport.close()
   }
 }
 
 /**
+ * Send a new email
+ */
+export async function sendNewEmail(account: AccountConfig, options: SendEmailOptions): Promise<SendResult> {
+  const mailOptions = {
+    from: account.email,
+    to: options.to,
+    cc: options.cc,
+    bcc: options.bcc,
+    subject: options.subject,
+    text: options.body,
+    html: textToHtml(options.body)
+  }
+
+  const raw = await buildRawMessage(mailOptions)
+  const recipients = collectRecipients(options.to, options.cc, options.bcc)
+  const result = await sendRawMessage(account, raw, { from: account.email, to: recipients })
+
+  return {
+    success: true,
+    message_id: result.messageId,
+    raw
+  }
+}
+
+/**
  * Reply to an email (maintains thread via In-Reply-To and References headers)
  */
-export async function replyToEmail(
-  account: AccountConfig,
-  options: SendEmailOptions
-): Promise<{ success: boolean; message_id: string }> {
+export async function replyToEmail(account: AccountConfig, options: SendEmailOptions): Promise<SendResult> {
   if (!options.in_reply_to) {
     throw new EmailMCPError(
       'in_reply_to is required for reply',
@@ -97,29 +148,28 @@ export async function replyToEmail(
     )
   }
 
-  const transport = createSmtpTransport(account)
+  const subject = options.subject.startsWith('Re:') ? options.subject : `Re: ${options.subject}`
 
-  try {
-    const subject = options.subject.startsWith('Re:') ? options.subject : `Re: ${options.subject}`
+  const mailOptions = {
+    from: account.email,
+    to: options.to,
+    cc: options.cc,
+    bcc: options.bcc,
+    subject,
+    text: options.body,
+    html: textToHtml(options.body),
+    inReplyTo: options.in_reply_to,
+    references: options.references || options.in_reply_to
+  }
 
-    const result = await transport.sendMail({
-      from: account.email,
-      to: options.to,
-      cc: options.cc,
-      bcc: options.bcc,
-      subject,
-      text: options.body,
-      html: textToHtml(options.body),
-      inReplyTo: options.in_reply_to,
-      references: options.references || options.in_reply_to
-    })
+  const raw = await buildRawMessage(mailOptions)
+  const recipients = collectRecipients(options.to, options.cc, options.bcc)
+  const result = await sendRawMessage(account, raw, { from: account.email, to: recipients })
 
-    return {
-      success: true,
-      message_id: result.messageId || ''
-    }
-  } finally {
-    transport.close()
+  return {
+    success: true,
+    message_id: result.messageId,
+    raw
   }
 }
 
@@ -129,28 +179,27 @@ export async function replyToEmail(
 export async function forwardEmail(
   account: AccountConfig,
   options: SendEmailOptions & { original_body: string }
-): Promise<{ success: boolean; message_id: string }> {
-  const transport = createSmtpTransport(account)
+): Promise<SendResult> {
+  const subject = options.subject.startsWith('Fwd:') ? options.subject : `Fwd: ${options.subject}`
+  const body = `${options.body}\n\n---------- Forwarded message ----------\n${options.original_body}`
 
-  try {
-    const subject = options.subject.startsWith('Fwd:') ? options.subject : `Fwd: ${options.subject}`
-    const body = `${options.body}\n\n---------- Forwarded message ----------\n${options.original_body}`
+  const mailOptions = {
+    from: account.email,
+    to: options.to,
+    cc: options.cc,
+    bcc: options.bcc,
+    subject,
+    text: body,
+    html: textToHtml(body)
+  }
 
-    const result = await transport.sendMail({
-      from: account.email,
-      to: options.to,
-      cc: options.cc,
-      bcc: options.bcc,
-      subject,
-      text: body,
-      html: textToHtml(body)
-    })
+  const raw = await buildRawMessage(mailOptions)
+  const recipients = collectRecipients(options.to, options.cc, options.bcc)
+  const result = await sendRawMessage(account, raw, { from: account.email, to: recipients })
 
-    return {
-      success: true,
-      message_id: result.messageId || ''
-    }
-  } finally {
-    transport.close()
+  return {
+    success: true,
+    message_id: result.messageId,
+    raw
   }
 }

@@ -156,6 +156,59 @@ function formatAddress(addr: any): string {
 }
 
 // ============================================================================
+// Sent Folder
+// ============================================================================
+
+/** Cache for resolved sent folder paths per account */
+const sentFolderCache = new Map<string, string>()
+
+/**
+ * Resolve the Sent folder path for the given account.
+ * Uses provider-specific defaults, then verifies via IMAP folder listing.
+ * Results are cached per account.
+ */
+export async function resolveSentFolder(account: AccountConfig): Promise<string> {
+  const cached = sentFolderCache.get(account.id)
+  if (cached) return cached
+
+  // Provider-specific defaults
+  let sentFolder = 'Sent'
+  if (account.imap.host.includes('gmail')) {
+    sentFolder = '[Gmail]/Sent Mail'
+  } else if (account.imap.host.includes('office365') || account.imap.host.includes('outlook')) {
+    sentFolder = 'Sent Items'
+  }
+
+  // Try to find the actual sent folder via IMAP flags
+  try {
+    const folders = await listFolders(account)
+    const found = folders.find((f) => f.flags.some((flag) => flag === '\\Sent') || f.path === sentFolder)
+    if (found) sentFolder = found.path
+  } catch {
+    // Use default if folder listing fails
+  }
+
+  sentFolderCache.set(account.id, sentFolder)
+  return sentFolder
+}
+
+/**
+ * Append a raw RFC2822 message to an IMAP folder.
+ * Used to save sent emails to the Sent folder.
+ */
+export async function appendToFolder(
+  account: AccountConfig,
+  folder: string,
+  message: Buffer | string,
+  flags?: string[]
+): Promise<boolean> {
+  return withConnection(account, async (client) => {
+    const result = await client.append(folder, message, flags || ['\\Seen'], new Date())
+    return result !== false
+  })
+}
+
+// ============================================================================
 // Public API
 // ============================================================================
 

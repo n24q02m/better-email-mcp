@@ -6,8 +6,28 @@
 import type { AccountConfig } from '../helpers/config.js'
 import { resolveSingleAccount } from '../helpers/config.js'
 import { EmailMCPError, withErrorHandling } from '../helpers/errors.js'
-import { readEmail } from '../helpers/imap-client.js'
+import { appendToFolder, readEmail, resolveSentFolder } from '../helpers/imap-client.js'
+import type { SendResult } from '../helpers/smtp-client.js'
 import { forwardEmail, replyToEmail, sendNewEmail } from '../helpers/smtp-client.js'
+
+/** Gmail SMTP auto-saves to Sent — appending would create duplicates */
+function isGmailSmtp(account: AccountConfig): boolean {
+  return account.smtp.host.includes('gmail')
+}
+
+/**
+ * Best-effort save to Sent folder via IMAP APPEND.
+ * Skips Gmail (auto-saves). Failures are silent — sending already succeeded.
+ */
+async function saveToSent(account: AccountConfig, result: SendResult): Promise<boolean> {
+  if (!result.raw || isGmailSmtp(account)) return false
+  try {
+    const sentFolder = await resolveSentFolder(account)
+    return await appendToFolder(account, sentFolder, result.raw, ['\\Seen'])
+  } catch {
+    return false
+  }
+}
 
 export interface SendInput {
   action: 'new' | 'reply' | 'forward'
@@ -90,12 +110,16 @@ async function handleNew(accounts: AccountConfig[], input: SendInput): Promise<a
     bcc: input.bcc
   })
 
+  const saved_to_sent = await saveToSent(account, result)
+
   return {
     action: 'new',
     from: account.email,
     to: input.to,
     subject: input.subject,
-    ...result
+    success: result.success,
+    message_id: result.message_id,
+    saved_to_sent
   }
 }
 
@@ -139,13 +163,17 @@ async function handleReply(accounts: AccountConfig[], input: SendInput): Promise
     references: original.references || original.message_id
   })
 
+  const saved_to_sent = await saveToSent(account, result)
+
   return {
     action: 'reply',
     from: account.email,
     to: replyTo,
     subject: input.subject || `Re: ${original.subject}`,
     in_reply_to: original.message_id,
-    ...result
+    success: result.success,
+    message_id: result.message_id,
+    saved_to_sent
   }
 }
 
@@ -184,11 +212,15 @@ async function handleForward(accounts: AccountConfig[], input: SendInput): Promi
     original_body: original.body_text
   })
 
+  const saved_to_sent = await saveToSent(account, result)
+
   return {
     action: 'forward',
     from: account.email,
     to: input.to,
     subject: input.subject || `Fwd: ${original.subject}`,
-    ...result
+    success: result.success,
+    message_id: result.message_id,
+    saved_to_sent
   }
 }

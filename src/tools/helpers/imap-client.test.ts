@@ -16,7 +16,8 @@ const { mockClient, mockRelease } = vi.hoisted(() => {
     messageFlagsRemove: vi.fn().mockResolvedValue(undefined),
     messageMove: vi.fn().mockResolvedValue(undefined),
     messageDelete: vi.fn().mockResolvedValue(undefined),
-    list: vi.fn()
+    list: vi.fn(),
+    append: vi.fn().mockResolvedValue({ destination: 'Sent', uid: 1 })
   }
   return { mockClient, mockRelease }
 })
@@ -39,11 +40,13 @@ vi.mock('./html-utils.js', async (importOriginal) => ({
 
 import { simpleParser } from 'mailparser'
 import {
+  appendToFolder,
   getAttachment,
   listFolders,
   modifyFlags,
   moveEmails,
   readEmail,
+  resolveSentFolder,
   searchEmails,
   trashEmails
 } from './imap-client.js'
@@ -747,5 +750,127 @@ describe('buildSearchCriteria', () => {
     setupSearch()
     await searchEmails([account], 'meeting notes', 'INBOX', 10)
     expect(mockClient.search).toHaveBeenCalledWith({ subject: 'meeting notes' }, { uid: true })
+  })
+})
+
+// ============================================================================
+// resolveSentFolder
+// ============================================================================
+
+describe('resolveSentFolder', () => {
+  it('returns [Gmail]/Sent Mail for Gmail accounts', async () => {
+    mockClient.list.mockResolvedValue([
+      { name: 'Sent Mail', path: '[Gmail]/Sent Mail', flags: new Set(['\\Sent']), delimiter: '/' }
+    ])
+
+    const result = await resolveSentFolder(account)
+
+    expect(result).toBe('[Gmail]/Sent Mail')
+  })
+
+  it('returns Sent Items for Outlook accounts', async () => {
+    const outlookAccount: AccountConfig = {
+      id: 'test_outlook_com',
+      email: 'test@outlook.com',
+      password: 'testpass',
+      imap: { host: 'outlook.office365.com', port: 993, secure: true },
+      smtp: { host: 'smtp.office365.com', port: 587, secure: false }
+    }
+    mockClient.list.mockResolvedValue([
+      { name: 'Sent Items', path: 'Sent Items', flags: new Set(['\\Sent']), delimiter: '/' }
+    ])
+
+    const result = await resolveSentFolder(outlookAccount)
+
+    expect(result).toBe('Sent Items')
+  })
+
+  it('defaults to Sent for unknown providers', async () => {
+    const customAccount: AccountConfig = {
+      id: 'test_custom_com',
+      email: 'test@custom.com',
+      password: 'testpass',
+      imap: { host: 'imap.custom.com', port: 993, secure: true },
+      smtp: { host: 'smtp.custom.com', port: 465, secure: true }
+    }
+    mockClient.list.mockResolvedValue([{ name: 'Sent', path: 'Sent', flags: new Set(['\\Sent']), delimiter: '/' }])
+
+    const result = await resolveSentFolder(customAccount)
+
+    expect(result).toBe('Sent')
+  })
+
+  it('detects sent folder via \\Sent flag', async () => {
+    const customAccount: AccountConfig = {
+      id: 'test_zoho_com',
+      email: 'test@zoho.com',
+      password: 'testpass',
+      imap: { host: 'imap.zoho.com', port: 993, secure: true },
+      smtp: { host: 'smtp.zoho.com', port: 465, secure: true }
+    }
+    mockClient.list.mockResolvedValue([
+      { name: 'SentMail', path: 'SentMail', flags: new Set(['\\Sent']), delimiter: '/' }
+    ])
+
+    const result = await resolveSentFolder(customAccount)
+
+    expect(result).toBe('SentMail')
+  })
+
+  it('uses default when folder listing fails', async () => {
+    const customAccount: AccountConfig = {
+      id: 'test_fail_com',
+      email: 'test@fail.com',
+      password: 'testpass',
+      imap: { host: 'imap.fail.com', port: 993, secure: true },
+      smtp: { host: 'smtp.fail.com', port: 465, secure: true }
+    }
+    mockClient.connect.mockRejectedValueOnce(new Error('IMAP failed'))
+
+    const result = await resolveSentFolder(customAccount)
+
+    expect(result).toBe('Sent')
+  })
+})
+
+// ============================================================================
+// appendToFolder
+// ============================================================================
+
+describe('appendToFolder', () => {
+  it('appends message to folder with \\Seen flag', async () => {
+    const message = Buffer.from('raw RFC2822 message')
+
+    const result = await appendToFolder(account, 'Sent', message)
+
+    expect(result).toBe(true)
+    expect(mockClient.append).toHaveBeenCalledWith('Sent', message, ['\\Seen'], expect.any(Date))
+  })
+
+  it('uses custom flags when provided', async () => {
+    const message = Buffer.from('raw message')
+
+    await appendToFolder(account, '[Gmail]/Sent Mail', message, ['\\Seen', '\\Flagged'])
+
+    expect(mockClient.append).toHaveBeenCalledWith(
+      '[Gmail]/Sent Mail',
+      message,
+      ['\\Seen', '\\Flagged'],
+      expect.any(Date)
+    )
+  })
+
+  it('returns false when append returns false', async () => {
+    mockClient.append.mockResolvedValue(false)
+
+    const result = await appendToFolder(account, 'Sent', Buffer.from('msg'))
+
+    expect(result).toBe(false)
+  })
+
+  it('propagates errors from IMAP connection', async () => {
+    mockClient.append.mockRejectedValue(new Error('IMAP APPEND failed'))
+
+    await expect(appendToFolder(account, 'Sent', Buffer.from('msg'))).rejects.toThrow('IMAP APPEND failed')
   })
 })

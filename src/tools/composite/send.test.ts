@@ -3,7 +3,9 @@ import type { AccountConfig } from '../helpers/config.js'
 
 // --- Mocks ---
 vi.mock('../helpers/imap-client.js', () => ({
-  readEmail: vi.fn()
+  readEmail: vi.fn(),
+  resolveSentFolder: vi.fn(),
+  appendToFolder: vi.fn()
 }))
 
 vi.mock('../helpers/smtp-client.js', () => ({
@@ -12,7 +14,7 @@ vi.mock('../helpers/smtp-client.js', () => ({
   forwardEmail: vi.fn()
 }))
 
-import { readEmail } from '../helpers/imap-client.js'
+import { appendToFolder, readEmail, resolveSentFolder } from '../helpers/imap-client.js'
 import { forwardEmail, replyToEmail, sendNewEmail } from '../helpers/smtp-client.js'
 import { send } from './send.js'
 
@@ -20,8 +22,10 @@ const mockReadEmail = vi.mocked(readEmail)
 const mockSendNewEmail = vi.mocked(sendNewEmail)
 const mockReplyToEmail = vi.mocked(replyToEmail)
 const mockForwardEmail = vi.mocked(forwardEmail)
+const mockResolveSentFolder = vi.mocked(resolveSentFolder)
+const mockAppendToFolder = vi.mocked(appendToFolder)
 
-const accounts: AccountConfig[] = [
+const gmailAccounts: AccountConfig[] = [
   {
     id: 'user1_gmail_com',
     email: 'user1@gmail.com',
@@ -31,8 +35,20 @@ const accounts: AccountConfig[] = [
   }
 ]
 
+const outlookAccounts: AccountConfig[] = [
+  {
+    id: 'user1_outlook_com',
+    email: 'user1@outlook.com',
+    password: 'pass1',
+    imap: { host: 'outlook.office365.com', port: 993, secure: true },
+    smtp: { host: 'smtp.office365.com', port: 587, secure: false }
+  }
+]
+
 beforeEach(() => {
   vi.clearAllMocks()
+  mockResolveSentFolder.mockResolvedValue('Sent')
+  mockAppendToFolder.mockResolvedValue(true)
 })
 
 // ============================================================================
@@ -43,7 +59,7 @@ describe('send - new', () => {
   it('sends a new email', async () => {
     mockSendNewEmail.mockResolvedValue({ success: true, message_id: '<new123@gmail.com>' })
 
-    const result = await send(accounts, {
+    const result = await send(gmailAccounts, {
       action: 'new',
       account: 'user1@gmail.com',
       to: 'recipient@test.com',
@@ -56,14 +72,14 @@ describe('send - new', () => {
     expect(result.to).toBe('recipient@test.com')
     expect(result.success).toBe(true)
     expect(mockSendNewEmail).toHaveBeenCalledWith(
-      accounts[0],
+      gmailAccounts[0],
       expect.objectContaining({ to: 'recipient@test.com', subject: 'Hello', body: 'World' })
     )
   })
 
   it('throws when subject is missing for new email', async () => {
     await expect(
-      send(accounts, {
+      send(gmailAccounts, {
         action: 'new',
         account: 'user1@gmail.com',
         to: 'r@test.com',
@@ -76,7 +92,7 @@ describe('send - new', () => {
   it('passes cc and bcc', async () => {
     mockSendNewEmail.mockResolvedValue({ success: true, message_id: '<id>' })
 
-    await send(accounts, {
+    await send(gmailAccounts, {
       action: 'new',
       account: 'user1@gmail.com',
       to: 'r@test.com',
@@ -87,7 +103,7 @@ describe('send - new', () => {
     })
 
     expect(mockSendNewEmail).toHaveBeenCalledWith(
-      accounts[0],
+      gmailAccounts[0],
       expect.objectContaining({ cc: 'cc@test.com', bcc: 'bcc@test.com' })
     )
   })
@@ -115,7 +131,7 @@ describe('send - reply', () => {
     })
     mockReplyToEmail.mockResolvedValue({ success: true, message_id: '<reply123@gmail.com>' })
 
-    const result = await send(accounts, {
+    const result = await send(gmailAccounts, {
       action: 'reply',
       account: 'user1@gmail.com',
       to: 'sender@test.com',
@@ -127,7 +143,7 @@ describe('send - reply', () => {
     expect(result.action).toBe('reply')
     expect(result.in_reply_to).toBe('<original@test>')
     expect(mockReplyToEmail).toHaveBeenCalledWith(
-      accounts[0],
+      gmailAccounts[0],
       expect.objectContaining({
         in_reply_to: '<original@test>',
         references: '<ref1@test>'
@@ -137,7 +153,7 @@ describe('send - reply', () => {
 
   it('throws when uid is missing for reply', async () => {
     await expect(
-      send(accounts, {
+      send(gmailAccounts, {
         action: 'reply',
         account: 'user1@gmail.com',
         to: 'x@test.com',
@@ -164,7 +180,7 @@ describe('send - reply', () => {
     })
     mockReplyToEmail.mockResolvedValue({ success: true, message_id: '<r@test>' })
 
-    const result = await send(accounts, {
+    const result = await send(gmailAccounts, {
       action: 'reply',
       account: 'user1@gmail.com',
       to: 'x@test.com',
@@ -197,7 +213,7 @@ describe('send - forward', () => {
     })
     mockForwardEmail.mockResolvedValue({ success: true, message_id: '<fwd123@gmail.com>' })
 
-    const result = await send(accounts, {
+    const result = await send(gmailAccounts, {
       action: 'forward',
       account: 'user1@gmail.com',
       to: 'third@test.com',
@@ -208,14 +224,14 @@ describe('send - forward', () => {
 
     expect(result.action).toBe('forward')
     expect(mockForwardEmail).toHaveBeenCalledWith(
-      accounts[0],
+      gmailAccounts[0],
       expect.objectContaining({ original_body: 'original content' })
     )
   })
 
   it('throws when uid is missing for forward', async () => {
     await expect(
-      send(accounts, {
+      send(gmailAccounts, {
         action: 'forward',
         account: 'user1@gmail.com',
         to: 'x@test.com',
@@ -233,7 +249,7 @@ describe('send - forward', () => {
 describe('send - validation', () => {
   it('throws when account is missing', async () => {
     await expect(
-      send(accounts, {
+      send(gmailAccounts, {
         action: 'new',
         account: '',
         to: 'x@test.com',
@@ -245,7 +261,7 @@ describe('send - validation', () => {
 
   it('throws when to is missing', async () => {
     await expect(
-      send(accounts, {
+      send(gmailAccounts, {
         action: 'new',
         account: 'user1@gmail.com',
         to: '',
@@ -257,7 +273,7 @@ describe('send - validation', () => {
 
   it('throws when body is missing', async () => {
     await expect(
-      send(accounts, {
+      send(gmailAccounts, {
         action: 'new',
         account: 'user1@gmail.com',
         to: 'x@test.com',
@@ -269,7 +285,7 @@ describe('send - validation', () => {
 
   it('throws when account not found', async () => {
     await expect(
-      send(accounts, {
+      send(gmailAccounts, {
         action: 'new',
         account: 'unknown@test.com',
         to: 'x@test.com',
@@ -281,7 +297,7 @@ describe('send - validation', () => {
 
   it('throws for unknown action', async () => {
     await expect(
-      send(accounts, {
+      send(gmailAccounts, {
         action: 'unknown' as any,
         account: 'user1@gmail.com',
         to: 'x@test.com',
@@ -322,22 +338,170 @@ describe('send - validation', () => {
 })
 
 // ============================================================================
-// handleNew result coverage (line 125)
+// save-to-sent
+// ============================================================================
+
+describe('send - save to sent', () => {
+  it('skips save-to-sent for Gmail (auto-saves)', async () => {
+    mockSendNewEmail.mockResolvedValue({
+      success: true,
+      message_id: '<new@gmail.com>',
+      raw: Buffer.from('raw-email')
+    })
+
+    const result = await send(gmailAccounts, {
+      action: 'new',
+      account: 'user1@gmail.com',
+      to: 'r@test.com',
+      subject: 'T',
+      body: 'B'
+    })
+
+    expect(result.saved_to_sent).toBe(false)
+    expect(mockAppendToFolder).not.toHaveBeenCalled()
+  })
+
+  it('saves to Sent folder for non-Gmail providers', async () => {
+    mockSendNewEmail.mockResolvedValue({
+      success: true,
+      message_id: '<new@outlook.com>',
+      raw: Buffer.from('raw-email')
+    })
+    mockResolveSentFolder.mockResolvedValue('Sent Items')
+
+    const result = await send(outlookAccounts, {
+      action: 'new',
+      account: 'user1@outlook.com',
+      to: 'r@test.com',
+      subject: 'T',
+      body: 'B'
+    })
+
+    expect(result.saved_to_sent).toBe(true)
+    expect(mockResolveSentFolder).toHaveBeenCalledWith(outlookAccounts[0])
+    expect(mockAppendToFolder).toHaveBeenCalledWith(outlookAccounts[0], 'Sent Items', expect.any(Buffer), ['\\Seen'])
+  })
+
+  it('returns saved_to_sent: false when raw is undefined', async () => {
+    mockSendNewEmail.mockResolvedValue({
+      success: true,
+      message_id: '<new@outlook.com>'
+      // no raw buffer
+    })
+
+    const result = await send(outlookAccounts, {
+      action: 'new',
+      account: 'user1@outlook.com',
+      to: 'r@test.com',
+      subject: 'T',
+      body: 'B'
+    })
+
+    expect(result.saved_to_sent).toBe(false)
+    expect(mockAppendToFolder).not.toHaveBeenCalled()
+  })
+
+  it('returns saved_to_sent: false when IMAP append fails (best-effort)', async () => {
+    mockSendNewEmail.mockResolvedValue({
+      success: true,
+      message_id: '<new@outlook.com>',
+      raw: Buffer.from('raw-email')
+    })
+    mockAppendToFolder.mockRejectedValue(new Error('IMAP connection failed'))
+
+    const result = await send(outlookAccounts, {
+      action: 'new',
+      account: 'user1@outlook.com',
+      to: 'r@test.com',
+      subject: 'T',
+      body: 'B'
+    })
+
+    // Send succeeded even though save-to-sent failed
+    expect(result.success).toBe(true)
+    expect(result.saved_to_sent).toBe(false)
+  })
+
+  it('saves to sent on reply for non-Gmail', async () => {
+    mockReadEmail.mockResolvedValue({
+      account_id: 'user1_outlook_com',
+      account_email: 'user1@outlook.com',
+      uid: 10,
+      message_id: '<orig@test>',
+      subject: 'Thread',
+      from: 'sender@test.com',
+      to: 'user1@outlook.com',
+      date: '2025-01-01',
+      flags: [],
+      body_text: 'body',
+      attachments: []
+    })
+    mockReplyToEmail.mockResolvedValue({
+      success: true,
+      message_id: '<reply@outlook.com>',
+      raw: Buffer.from('raw-reply')
+    })
+
+    const result = await send(outlookAccounts, {
+      action: 'reply',
+      account: 'user1@outlook.com',
+      body: 'reply',
+      uid: 10
+    })
+
+    expect(result.saved_to_sent).toBe(true)
+    expect(mockAppendToFolder).toHaveBeenCalled()
+  })
+
+  it('saves to sent on forward for non-Gmail', async () => {
+    mockReadEmail.mockResolvedValue({
+      account_id: 'user1_outlook_com',
+      account_email: 'user1@outlook.com',
+      uid: 20,
+      subject: 'FW',
+      from: 'sender@test.com',
+      to: 'user1@outlook.com',
+      date: '2025-01-01',
+      flags: [],
+      body_text: 'original',
+      attachments: []
+    })
+    mockForwardEmail.mockResolvedValue({
+      success: true,
+      message_id: '<fwd@outlook.com>',
+      raw: Buffer.from('raw-fwd')
+    })
+
+    const result = await send(outlookAccounts, {
+      action: 'forward',
+      account: 'user1@outlook.com',
+      to: 'third@test.com',
+      body: 'see attached',
+      uid: 20
+    })
+
+    expect(result.saved_to_sent).toBe(true)
+    expect(mockAppendToFolder).toHaveBeenCalled()
+  })
+})
+
+// ============================================================================
+// result fields
 // ============================================================================
 
 describe('send - new result fields', () => {
-  it('returns result with all fields from sendNewEmail merged', async () => {
+  it('returns result with all fields', async () => {
     mockSendNewEmail.mockResolvedValue({
       success: true,
       message_id: '<new-full@gmail.com>'
     })
 
-    const result = await send(accounts, {
+    const result = await send(gmailAccounts, {
       action: 'new',
       account: 'user1@gmail.com',
       to: 'dest@test.com',
       subject: 'Full Result',
-      body: 'Testing result spread'
+      body: 'Testing result'
     })
 
     expect(result).toEqual({
@@ -346,13 +510,14 @@ describe('send - new result fields', () => {
       to: 'dest@test.com',
       subject: 'Full Result',
       success: true,
-      message_id: '<new-full@gmail.com>'
+      message_id: '<new-full@gmail.com>',
+      saved_to_sent: false
     })
   })
 })
 
 // ============================================================================
-// reply auto-derive 'to' and references fallback (lines 122, 139)
+// reply auto-derive 'to' and references fallback
 // ============================================================================
 
 describe('send - reply auto-derive', () => {
@@ -373,7 +538,7 @@ describe('send - reply auto-derive', () => {
     })
     mockReplyToEmail.mockResolvedValue({ success: true, message_id: '<reply99@gmail.com>' })
 
-    const result = await send(accounts, {
+    const result = await send(gmailAccounts, {
       action: 'reply',
       account: 'user1@gmail.com',
       body: 'Auto-derived reply',
@@ -383,7 +548,7 @@ describe('send - reply auto-derive', () => {
     expect(result.action).toBe('reply')
     expect(result.to).toBe('original@test.com')
     expect(mockReplyToEmail).toHaveBeenCalledWith(
-      accounts[0],
+      gmailAccounts[0],
       expect.objectContaining({
         to: 'original@test.com'
       })
@@ -406,7 +571,7 @@ describe('send - reply auto-derive', () => {
     })
     mockReplyToEmail.mockResolvedValue({ success: true, message_id: '<reply77@gmail.com>' })
 
-    await send(accounts, {
+    await send(gmailAccounts, {
       action: 'reply',
       account: 'user1@gmail.com',
       to: 'sender77@test.com',
@@ -415,7 +580,7 @@ describe('send - reply auto-derive', () => {
     })
 
     expect(mockReplyToEmail).toHaveBeenCalledWith(
-      accounts[0],
+      gmailAccounts[0],
       expect.objectContaining({
         in_reply_to: '<msgid77@test>',
         references: '<msgid77@test>'

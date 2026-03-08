@@ -1,15 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AccountConfig } from './config.js'
 
-// --- Mocks ---
-const mockSendMail = vi.fn()
-const mockClose = vi.fn()
+// --- Mocks (vi.hoisted ensures availability in vi.mock factory) ---
+const { mockSendMail, mockClose, mockBuild, MockMailComposer } = vi.hoisted(() => {
+  const mockBuild = vi.fn().mockResolvedValue(Buffer.from('raw-email-bytes'))
+  const mockCompile = vi.fn().mockReturnValue({ build: mockBuild })
+  // biome-ignore lint/complexity/useArrowFunction: must use function keyword for `new` constructor mock
+  const MockMailComposer = vi.fn(function () {
+    return { compile: mockCompile }
+  })
+  const mockSendMail = vi.fn()
+  const mockClose = vi.fn()
+  return { mockSendMail, mockClose, mockBuild, mockCompile, MockMailComposer }
+})
 
 vi.mock('nodemailer', () => ({
   createTransport: vi.fn().mockImplementation(() => ({
     sendMail: mockSendMail,
     close: mockClose
   }))
+}))
+
+vi.mock('nodemailer/lib/mail-composer/index.js', () => ({
+  default: MockMailComposer
 }))
 
 import { createTransport } from 'nodemailer'
@@ -26,6 +39,7 @@ const account: AccountConfig = {
 beforeEach(() => {
   vi.clearAllMocks()
   mockSendMail.mockResolvedValue({ messageId: '<sent123@gmail.com>' })
+  mockBuild.mockResolvedValue(Buffer.from('raw-email-bytes'))
 })
 
 // ============================================================================
@@ -33,7 +47,7 @@ beforeEach(() => {
 // ============================================================================
 
 describe('sendNewEmail', () => {
-  it('sends email with correct parameters', async () => {
+  it('sends email with correct parameters via raw message', async () => {
     const result = await sendNewEmail(account, {
       to: 'recipient@test.com',
       subject: 'Hello',
@@ -44,16 +58,25 @@ describe('sendNewEmail', () => {
 
     expect(result.success).toBe(true)
     expect(result.message_id).toBe('<sent123@gmail.com>')
-    expect(mockSendMail).toHaveBeenCalledWith(
-      expect.objectContaining({
+    expect(result.raw).toBeInstanceOf(Buffer)
+
+    // Verify MailComposer received correct options
+    const composerArgs = (MockMailComposer as any).mock.calls[0]![0]
+    expect(composerArgs.from).toBe('test@gmail.com')
+    expect(composerArgs.to).toBe('recipient@test.com')
+    expect(composerArgs.subject).toBe('Hello')
+    expect(composerArgs.text).toBe('World')
+    expect(composerArgs.cc).toBe('cc@test.com')
+    expect(composerArgs.bcc).toBe('bcc@test.com')
+
+    // Verify sendMail was called with raw buffer and envelope
+    expect(mockSendMail).toHaveBeenCalledWith({
+      raw: expect.any(Buffer),
+      envelope: {
         from: 'test@gmail.com',
-        to: 'recipient@test.com',
-        subject: 'Hello',
-        text: 'World',
-        cc: 'cc@test.com',
-        bcc: 'bcc@test.com'
-      })
-    )
+        to: ['recipient@test.com', 'cc@test.com', 'bcc@test.com']
+      }
+    })
   })
 
   it('includes HTML version of the body', async () => {
@@ -63,8 +86,8 @@ describe('sendNewEmail', () => {
       body: 'Simple line'
     })
 
-    const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.html).toContain('<p>Simple line</p>')
+    const composerArgs = (MockMailComposer as any).mock.calls[0]![0]
+    expect(composerArgs.html).toContain('<p>Simple line</p>')
   })
 
   it('converts markdown headings to HTML', async () => {
@@ -74,10 +97,10 @@ describe('sendNewEmail', () => {
       body: '# Title\n## Subtitle\n### Section'
     })
 
-    const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.html).toContain('<h1>Title</h1>')
-    expect(callArgs.html).toContain('<h2>Subtitle</h2>')
-    expect(callArgs.html).toContain('<h3>Section</h3>')
+    const composerArgs = (MockMailComposer as any).mock.calls[0]![0]
+    expect(composerArgs.html).toContain('<h1>Title</h1>')
+    expect(composerArgs.html).toContain('<h2>Subtitle</h2>')
+    expect(composerArgs.html).toContain('<h3>Section</h3>')
   })
 
   it('converts list items to HTML', async () => {
@@ -87,9 +110,9 @@ describe('sendNewEmail', () => {
       body: '- Item 1\n- Item 2'
     })
 
-    const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.html).toContain('<li>Item 1</li>')
-    expect(callArgs.html).toContain('<li>Item 2</li>')
+    const composerArgs = (MockMailComposer as any).mock.calls[0]![0]
+    expect(composerArgs.html).toContain('<li>Item 1</li>')
+    expect(composerArgs.html).toContain('<li>Item 2</li>')
   })
 
   it('converts bold text to HTML', async () => {
@@ -99,8 +122,8 @@ describe('sendNewEmail', () => {
       body: '**Important**'
     })
 
-    const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.html).toContain('<strong>Important</strong>')
+    const composerArgs = (MockMailComposer as any).mock.calls[0]![0]
+    expect(composerArgs.html).toContain('<strong>Important</strong>')
   })
 
   it('converts empty lines to br tags', async () => {
@@ -110,9 +133,9 @@ describe('sendNewEmail', () => {
       body: 'Line 1\n\nLine 2'
     })
 
-    const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.html).toContain('<p>Line 1</p>')
-    expect(callArgs.html).toContain('<p>Line 2</p>')
+    const composerArgs = (MockMailComposer as any).mock.calls[0]![0]
+    expect(composerArgs.html).toContain('<p>Line 1</p>')
+    expect(composerArgs.html).toContain('<p>Line 2</p>')
   })
 
   it('escapes HTML entities in body to prevent XSS', async () => {
@@ -122,10 +145,10 @@ describe('sendNewEmail', () => {
       body: '<script>alert("xss")</script>\n# <img src=x onerror=alert(1)>'
     })
 
-    const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.html).not.toContain('alert("xss")')
-    expect(callArgs.html).not.toContain('onerror')
-    expect(callArgs.html).not.toContain('<script>')
+    const composerArgs = (MockMailComposer as any).mock.calls[0]![0]
+    expect(composerArgs.html).not.toContain('alert("xss")')
+    expect(composerArgs.html).not.toContain('onerror')
+    expect(composerArgs.html).not.toContain('<script>')
   })
 
   it('strips javascript: links to prevent XSS', async () => {
@@ -135,10 +158,10 @@ describe('sendNewEmail', () => {
       body: '[Click](javascript:alert("XSS")) and [Safe](https://example.com)'
     })
 
-    const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.html).not.toContain('javascript:')
-    expect(callArgs.html).toContain('https://example.com')
-    expect(callArgs.html).toContain('Click')
+    const composerArgs = (MockMailComposer as any).mock.calls[0]![0]
+    expect(composerArgs.html).not.toContain('javascript:')
+    expect(composerArgs.html).toContain('https://example.com')
+    expect(composerArgs.html).toContain('Click')
   })
 
   it('strips data: and vbscript: URI schemes', async () => {
@@ -148,8 +171,8 @@ describe('sendNewEmail', () => {
       body: '![img](data:text/html,<script>alert(1)</script>)'
     })
 
-    const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.html).not.toContain('data:text/html')
+    const composerArgs = (MockMailComposer as any).mock.calls[0]![0]
+    expect(composerArgs.html).not.toContain('data:text/html')
   })
 
   it('supports markdown blockquotes', async () => {
@@ -159,9 +182,9 @@ describe('sendNewEmail', () => {
       body: '> Quoted text'
     })
 
-    const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.html).toContain('<blockquote>')
-    expect(callArgs.html).toContain('Quoted text')
+    const composerArgs = (MockMailComposer as any).mock.calls[0]![0]
+    expect(composerArgs.html).toContain('<blockquote>')
+    expect(composerArgs.html).toContain('Quoted text')
   })
 
   it('always closes transport', async () => {
@@ -217,6 +240,15 @@ describe('sendNewEmail', () => {
 
     expect(result.message_id).toBe('')
   })
+
+  it('returns raw buffer from MailComposer build', async () => {
+    const rawBuf = Buffer.from('test-raw-message')
+    mockBuild.mockResolvedValue(rawBuf)
+
+    const result = await sendNewEmail(account, { to: 'r@test.com', subject: 'T', body: 'B' })
+
+    expect(result.raw).toBe(rawBuf)
+  })
 })
 
 // ============================================================================
@@ -234,13 +266,10 @@ describe('replyToEmail', () => {
     })
 
     expect(result.success).toBe(true)
-    expect(mockSendMail).toHaveBeenCalledWith(
-      expect.objectContaining({
-        subject: 'Re: Original Subject',
-        inReplyTo: '<original123@test>',
-        references: '<ref1@test> <original123@test>'
-      })
-    )
+    const composerArgs = (MockMailComposer as any).mock.calls[0]![0]
+    expect(composerArgs.subject).toBe('Re: Original Subject')
+    expect(composerArgs.inReplyTo).toBe('<original123@test>')
+    expect(composerArgs.references).toBe('<ref1@test> <original123@test>')
   })
 
   it('does not double-prepend Re: prefix', async () => {
@@ -251,8 +280,8 @@ describe('replyToEmail', () => {
       in_reply_to: '<msg@test>'
     })
 
-    const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.subject).toBe('Re: Already has prefix')
+    const composerArgs = (MockMailComposer as any).mock.calls[0]![0]
+    expect(composerArgs.subject).toBe('Re: Already has prefix')
   })
 
   it('uses in_reply_to as references fallback', async () => {
@@ -264,8 +293,8 @@ describe('replyToEmail', () => {
       // no references provided
     })
 
-    const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.references).toBe('<msg@test>')
+    const composerArgs = (MockMailComposer as any).mock.calls[0]![0]
+    expect(composerArgs.references).toBe('<msg@test>')
   })
 
   it('throws when in_reply_to is missing', async () => {
@@ -277,6 +306,17 @@ describe('replyToEmail', () => {
         // no in_reply_to
       })
     ).rejects.toThrow('in_reply_to is required')
+  })
+
+  it('returns raw buffer', async () => {
+    const result = await replyToEmail(account, {
+      to: 'x@test.com',
+      subject: 'Test',
+      body: 'reply',
+      in_reply_to: '<msg@test>'
+    })
+
+    expect(result.raw).toBeInstanceOf(Buffer)
   })
 })
 
@@ -294,11 +334,11 @@ describe('forwardEmail', () => {
     })
 
     expect(result.success).toBe(true)
-    const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.subject).toBe('Fwd: Original Subject')
-    expect(callArgs.text).toContain('Check this out')
-    expect(callArgs.text).toContain('---------- Forwarded message ----------')
-    expect(callArgs.text).toContain('This is the original email content')
+    const composerArgs = (MockMailComposer as any).mock.calls[0]![0]
+    expect(composerArgs.subject).toBe('Fwd: Original Subject')
+    expect(composerArgs.text).toContain('Check this out')
+    expect(composerArgs.text).toContain('---------- Forwarded message ----------')
+    expect(composerArgs.text).toContain('This is the original email content')
   })
 
   it('does not double-prepend Fwd: prefix', async () => {
@@ -309,8 +349,8 @@ describe('forwardEmail', () => {
       original_body: 'original'
     })
 
-    const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.subject).toBe('Fwd: Already forwarded')
+    const composerArgs = (MockMailComposer as any).mock.calls[0]![0]
+    expect(composerArgs.subject).toBe('Fwd: Already forwarded')
   })
 
   it('includes cc and bcc when provided', async () => {
@@ -323,8 +363,19 @@ describe('forwardEmail', () => {
       original_body: 'orig'
     })
 
-    const callArgs = mockSendMail.mock.calls[0]![0]
-    expect(callArgs.cc).toBe('cc@test.com')
-    expect(callArgs.bcc).toBe('bcc@test.com')
+    const composerArgs = (MockMailComposer as any).mock.calls[0]![0]
+    expect(composerArgs.cc).toBe('cc@test.com')
+    expect(composerArgs.bcc).toBe('bcc@test.com')
+  })
+
+  it('returns raw buffer', async () => {
+    const result = await forwardEmail(account, {
+      to: 'x@test.com',
+      subject: 'Test',
+      body: 'fwd',
+      original_body: 'orig'
+    })
+
+    expect(result.raw).toBeInstanceOf(Buffer)
   })
 })
