@@ -41,7 +41,9 @@
 
 Create App Passwords (NOT your regular password):
 - **Gmail**: Enable 2FA, then <https://myaccount.google.com/apppasswords>
-- **Outlook**: Enable 2FA, then go to <https://account.microsoft.com/security> > Advanced security options > App passwords
+- **Yahoo**: Enable 2FA, then <https://login.yahoo.com/account/security/app-passwords>
+- **iCloud**: <https://appleid.apple.com> > Sign-In and Security > App-Specific Passwords
+- **Outlook**: No longer supports app passwords. OAuth2 support planned for a future release.
 
 ### Option 1: Package Manager (Recommended)
 
@@ -153,15 +155,17 @@ EMAIL_CREDENTIALS=user@custom.com:password:imap.custom.com
 
 ## Supported Providers
 
-| Provider | Auto-Discovery | IMAP | SMTP |
-|----------|---------------|------|------|
-| Gmail | `imap.gmail.com:993` | TLS | TLS (465) |
-| Outlook/Hotmail/Live | `outlook.office365.com:993` | TLS | STARTTLS (587) |
-| Yahoo | `imap.mail.yahoo.com:993` | TLS | TLS (465) |
-| iCloud/Me.com | `imap.mail.me.com:993` | TLS | STARTTLS (587) |
-| Zoho | `imap.zoho.com:993` | TLS | TLS (465) |
-| ProtonMail | `imap.protonmail.ch:993` | TLS | TLS (465) |
-| Custom | Via `email:pass:imap.host` format | Configurable | Auto-derived |
+| Provider | Auth | IMAP / SMTP | Save-to-Sent |
+|----------|------|-------------|-------------|
+| Gmail | App Password | `imap.gmail.com:993` / TLS (465) | Auto (skipped) |
+| Yahoo | App Password | `imap.mail.yahoo.com:993` / TLS (465) | Auto (skipped) |
+| iCloud/Me.com | App-Specific Password | `imap.mail.me.com:993` / STARTTLS (587) | Auto (skipped) |
+| Outlook/Hotmail/Live | **OAuth2 only** | `outlook.office365.com:993` / STARTTLS (587) | IMAP APPEND |
+| Zoho | App Password | `imap.zoho.com:993` / TLS (465) | IMAP APPEND |
+| ProtonMail | ProtonMail Bridge | `imap.protonmail.ch:993` / TLS (465) | IMAP APPEND |
+| Custom | Via `email:pass:imap.host` format | Configurable | IMAP APPEND |
+
+> **Note:** Outlook.com deprecated Basic Authentication. App passwords no longer work for IMAP/SMTP. OAuth2 support is planned for a future release.
 
 ---
 

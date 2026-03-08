@@ -46,7 +46,28 @@ Forward an email. Original body is appended with separator.
 - `uid` - Original email UID (required for reply/forward)
 - `folder` - Folder of original email (default: INBOX, for reply/forward)
 
+## Response Fields
+- `saved_to_sent` - Whether the sent message was saved to the Sent folder via IMAP APPEND
+
+## Save-to-Sent Behavior
+After sending, the server saves a copy to the Sent folder via IMAP APPEND.
+- **Gmail, Yahoo, iCloud**: Skipped (these providers auto-save sent messages; APPEND would create duplicates)
+- **Outlook, Zoho, Fastmail, and others**: Saved via IMAP APPEND (best-effort, silent failure)
+- `saved_to_sent: false` means either the provider auto-saves or the IMAP save was skipped/failed
+
+## Provider Compatibility
+| Provider | Auth Method | Save-to-Sent |
+|----------|------------|-------------|
+| Gmail | App Password | Auto (skipped) |
+| Yahoo | App Password | Auto (skipped) |
+| iCloud | App-Specific Password | Auto (skipped) |
+| Outlook.com | OAuth2 only (app passwords no longer work) | IMAP APPEND |
+| Zoho Mail | App Password | IMAP APPEND |
+| Fastmail | App Password | IMAP APPEND |
+| ProtonMail | Not supported (requires Bridge) | N/A |
+
 ## Notes
 - Reply subject auto-prepends "Re:" if not already present
 - Forward subject auto-prepends "Fwd:" if not already present
 - Body supports basic markdown: `# heading`, `## heading`, `- list item`, `**bold**`
+- Outlook.com deprecated Basic Auth for IMAP/SMTP (OAuth2 required since 2024, SMTP Basic Auth ends Dec 2026)

@@ -45,6 +45,26 @@ const outlookAccounts: AccountConfig[] = [
   }
 ]
 
+const yahooAccounts: AccountConfig[] = [
+  {
+    id: 'user1_yahoo_com',
+    email: 'user1@yahoo.com',
+    password: 'pass1',
+    imap: { host: 'imap.mail.yahoo.com', port: 993, secure: true },
+    smtp: { host: 'smtp.mail.yahoo.com', port: 465, secure: true }
+  }
+]
+
+const icloudAccounts: AccountConfig[] = [
+  {
+    id: 'user1_icloud_com',
+    email: 'user1@icloud.com',
+    password: 'pass1',
+    imap: { host: 'imap.mail.me.com', port: 993, secure: true },
+    smtp: { host: 'smtp.mail.me.com', port: 587, secure: false }
+  }
+]
+
 beforeEach(() => {
   vi.clearAllMocks()
   mockResolveSentFolder.mockResolvedValue('Sent')
@@ -352,6 +372,44 @@ describe('send - save to sent', () => {
     const result = await send(gmailAccounts, {
       action: 'new',
       account: 'user1@gmail.com',
+      to: 'r@test.com',
+      subject: 'T',
+      body: 'B'
+    })
+
+    expect(result.saved_to_sent).toBe(false)
+    expect(mockAppendToFolder).not.toHaveBeenCalled()
+  })
+
+  it('skips save-to-sent for Yahoo (auto-saves)', async () => {
+    mockSendNewEmail.mockResolvedValue({
+      success: true,
+      message_id: '<new@yahoo.com>',
+      raw: Buffer.from('raw-email')
+    })
+
+    const result = await send(yahooAccounts, {
+      action: 'new',
+      account: 'user1@yahoo.com',
+      to: 'r@test.com',
+      subject: 'T',
+      body: 'B'
+    })
+
+    expect(result.saved_to_sent).toBe(false)
+    expect(mockAppendToFolder).not.toHaveBeenCalled()
+  })
+
+  it('skips save-to-sent for iCloud (auto-saves)', async () => {
+    mockSendNewEmail.mockResolvedValue({
+      success: true,
+      message_id: '<new@icloud.com>',
+      raw: Buffer.from('raw-email')
+    })
+
+    const result = await send(icloudAccounts, {
+      action: 'new',
+      account: 'user1@icloud.com',
       to: 'r@test.com',
       subject: 'T',
       body: 'B'

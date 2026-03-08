@@ -10,17 +10,25 @@ import { appendToFolder, readEmail, resolveSentFolder } from '../helpers/imap-cl
 import type { SendResult } from '../helpers/smtp-client.js'
 import { forwardEmail, replyToEmail, sendNewEmail } from '../helpers/smtp-client.js'
 
-/** Gmail SMTP auto-saves to Sent — appending would create duplicates */
-function isGmailSmtp(account: AccountConfig): boolean {
-  return account.smtp.host.includes('gmail')
+/**
+ * Providers whose SMTP servers auto-save sent messages to the Sent folder.
+ * IMAP APPEND on these would create duplicates.
+ * - Gmail: smtp.gmail.com
+ * - Yahoo: smtp.mail.yahoo.com
+ * - iCloud: smtp.mail.me.com
+ */
+function autoSavesToSent(account: AccountConfig): boolean {
+  const host = account.smtp.host
+  return host.includes('gmail') || host.includes('yahoo') || host.includes('mail.me')
 }
 
 /**
  * Best-effort save to Sent folder via IMAP APPEND.
- * Skips Gmail (auto-saves). Failures are silent — sending already succeeded.
+ * Skips providers that auto-save (Gmail, Yahoo, iCloud).
+ * Failures are silent — sending already succeeded.
  */
 async function saveToSent(account: AccountConfig, result: SendResult): Promise<boolean> {
-  if (!result.raw || isGmailSmtp(account)) return false
+  if (!result.raw || autoSavesToSent(account)) return false
   try {
     const sentFolder = await resolveSentFolder(account)
     return await appendToFolder(account, sentFolder, result.raw, ['\\Seen'])
