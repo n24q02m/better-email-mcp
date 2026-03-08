@@ -32,17 +32,14 @@ describe('registry.ts - help tool error handling', () => {
     }
   })
 
-  it('should return a friendly error when documentation is missing', async () => {
+  it('should return a validation error for invalid tool names', async () => {
     // 1. Register tools
     registerTools(mockServer, [])
 
     // 2. Ensure handler was registered
     expect(callToolHandler).toBeDefined()
 
-    // 3. Mock readFile (from node:fs/promises) to reject (simulating missing file)
-    vi.mocked(readFile).mockRejectedValue(new Error('File not found'))
-
-    // 4. Call the handler with 'help' tool
+    // 3. Call the handler with an invalid tool name (blocked by isValidToolName)
     const result = await callToolHandler({
       params: {
         name: 'help',
@@ -50,9 +47,32 @@ describe('registry.ts - help tool error handling', () => {
       }
     })
 
+    // 4. Verify the validation error response
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toContain('Invalid tool name: nonexistent-tool')
+  })
+
+  it('should return a friendly error when documentation file is missing', async () => {
+    // 1. Register tools
+    registerTools(mockServer, [])
+
+    // 2. Ensure handler was registered
+    expect(callToolHandler).toBeDefined()
+
+    // 3. Mock readFile to reject (simulating missing file) for a valid tool name
+    vi.mocked(readFile).mockRejectedValue(new Error('File not found'))
+
+    // 4. Call the handler with a valid tool name but missing docs file
+    const result = await callToolHandler({
+      params: {
+        name: 'help',
+        arguments: { tool_name: 'messages' }
+      }
+    })
+
     // 5. Verify the error response
     expect(result.isError).toBe(true)
-    expect(result.content[0].text).toContain('Documentation not found for: nonexistent-tool')
+    expect(result.content[0].text).toContain('Documentation not found for: messages')
   })
 })
 

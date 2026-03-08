@@ -20,7 +20,7 @@ import { send } from './composite/send.js'
 // Import mega tools
 import type { AccountConfig } from './helpers/config.js'
 import { aiReadableMessage, EmailMCPError, enhanceError } from './helpers/errors.js'
-import { wrapToolResult } from './helpers/security.js'
+import { isValidToolName, wrapToolResult } from './helpers/security.js'
 
 // Get docs directory path - works for both bundled CLI and unbundled code
 const __filename = fileURLToPath(import.meta.url)
@@ -254,6 +254,13 @@ export function registerTools(server: Server, accounts: AccountConfig[]) {
           break
         case 'help': {
           const toolName = (args as { tool_name: string }).tool_name
+          if (!isValidToolName(toolName)) {
+            throw new EmailMCPError(
+              `Invalid tool name: ${toolName}`,
+              'VALIDATION_ERROR',
+              'Valid: messages, folders, attachments, send, help'
+            )
+          }
           const resource = RESOURCES.find((r) => r.uri === `email://docs/${toolName}`)
           if (!resource) {
             throw new EmailMCPError(`Documentation not found for: ${toolName}`, 'DOC_NOT_FOUND', 'Check tool_name')
