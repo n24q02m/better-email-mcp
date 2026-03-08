@@ -9,7 +9,7 @@ import { EmailMCPError, withErrorHandling } from '../helpers/errors.js'
 import { listFolders, modifyFlags, moveEmails, readEmail, searchEmails, trashEmails } from '../helpers/imap-client.js'
 
 // Simple in-memory cache for archive folder paths to avoid repeated IMAP calls
-const archiveFolderCache = new Map<string, string>()
+const archiveFolderCache = new Map<string, Promise<string>>()
 
 export interface MessagesInput {
   action: 'search' | 'read' | 'mark_read' | 'mark_unread' | 'flag' | 'unflag' | 'move' | 'archive' | 'trash'
@@ -201,23 +201,17 @@ async function handleMove(accounts: AccountConfig[], input: MessagesInput): Prom
 }
 
 /**
- * Archive emails (move to archive folder)
+ * Resolve the archive folder path for the given account.
+ * Uses provider-specific defaults, then verifies via IMAP folder listing.
+ * Results are cached per account.
  */
-async function handleArchive(accounts: AccountConfig[], input: MessagesInput): Promise<any> {
-  const uids = input.uids || (input.uid ? [input.uid] : [])
-  if (uids.length === 0) {
-    throw new EmailMCPError('uid or uids required', 'VALIDATION_ERROR', 'Provide at least one email UID')
-  }
+async function resolveArchiveFolder(account: AccountConfig): Promise<string> {
+  const cached = archiveFolderCache.get(account.id)
+  if (cached) return cached
 
-  const account = resolveSingleAccount(accounts, input.account)
-  const folder = input.folder || 'INBOX'
-
-  // Check cache first
-  let archiveFolder = archiveFolderCache.get(account.id)
-
-  if (!archiveFolder) {
+  const resolvePromise = (async () => {
     // Detect archive folder based on provider
-    archiveFolder = '[Gmail]/All Mail'
+    let archiveFolder = '[Gmail]/All Mail'
     if (account.imap.host.includes('office365') || account.imap.host.includes('outlook')) {
       archiveFolder = 'Archive'
     } else if (account.imap.host.includes('yahoo')) {
@@ -240,9 +234,32 @@ async function handleArchive(accounts: AccountConfig[], input: MessagesInput): P
       // Use default if folder listing fails
     }
 
-    // Cache the result
-    archiveFolderCache.set(account.id, archiveFolder)
+    return archiveFolder
+  })()
+
+  archiveFolderCache.set(account.id, resolvePromise)
+
+  try {
+    return await resolvePromise
+  } catch (err) {
+    archiveFolderCache.delete(account.id)
+    throw err
   }
+}
+
+/**
+ * Archive emails (move to archive folder)
+ */
+async function handleArchive(accounts: AccountConfig[], input: MessagesInput): Promise<any> {
+  const uids = input.uids || (input.uid ? [input.uid] : [])
+  if (uids.length === 0) {
+    throw new EmailMCPError('uid or uids required', 'VALIDATION_ERROR', 'Provide at least one email UID')
+  }
+
+  const account = resolveSingleAccount(accounts, input.account)
+  const folder = input.folder || 'INBOX'
+
+  const archiveFolder = await resolveArchiveFolder(account)
 
   const result = await moveEmails(account, uids, folder, archiveFolder)
 
