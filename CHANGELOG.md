@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.10.0 (2026-03-09)
+
+### Bug Fixes
+
+- Standardize CI with PR title check, email notify, and templates
+  ([`ee735d7`](https://github.com/n24q02m/better-email-mcp/commit/ee735d73f88639b399ac40a139f9a27f84c09fee))
+
+### Features
+
+- Proactive OAuth2 auth at startup with auto browser open
+  ([`d8fe48f`](https://github.com/n24q02m/better-email-mcp/commit/d8fe48f0def977277c28f038b3a98eedf654be73))
+
+
 ## v1.9.0 (2026-03-08)
 
 ### Bug Fixes
