@@ -1,5 +1,10 @@
+import { exec } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('node:child_process', () => ({
+  exec: vi.fn()
+}))
 
 vi.mock('node:fs', () => ({
   existsSync: vi.fn(),
@@ -12,6 +17,7 @@ vi.mock('node:os', () => ({
   homedir: vi.fn().mockReturnValue('/mock/home')
 }))
 
+const mockExec = vi.mocked(exec)
 const mockExistsSync = vi.mocked(existsSync)
 const mockReadFileSync = vi.mocked(readFileSync)
 const mockWriteFileSync = vi.mocked(writeFileSync)
@@ -410,6 +416,57 @@ describe('ensureValidToken', () => {
     await expect(ensureValidToken(account)).rejects.toThrow('microsoft.com/devicelogin')
 
     // Clean up pending auth
+    _getPendingAuths().clear()
+  })
+
+  it('opens browser when initiating Device Code flow', async () => {
+    mockReadFileSync.mockReturnValue('{}')
+
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        device_code: 'dc-browser',
+        user_code: 'BROWSER-CODE',
+        verification_uri: 'https://microsoft.com/devicelogin',
+        expires_in: 900,
+        interval: 5
+      })
+    })
+
+    const account = { email: 'browser@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
+
+    await expect(ensureValidToken(account)).rejects.toThrow('BROWSER-CODE')
+
+    // Verify exec was called with the verification URI
+    expect(mockExec).toHaveBeenCalledTimes(1)
+    expect(mockExec).toHaveBeenCalledWith(expect.stringContaining('microsoft.com/devicelogin'), expect.any(Function))
+
+    _getPendingAuths().clear()
+  })
+
+  it('does not open browser on retry (reuses pending auth)', async () => {
+    mockReadFileSync.mockReturnValue('{}')
+
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        device_code: 'dc-nodup',
+        user_code: 'NODUP-CODE',
+        verification_uri: 'https://microsoft.com/devicelogin',
+        expires_in: 900,
+        interval: 5
+      })
+    })
+
+    const account = { email: 'nodup@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
+
+    // First call: opens browser
+    await expect(ensureValidToken(account)).rejects.toThrow('NODUP-CODE')
+    expect(mockExec).toHaveBeenCalledTimes(1)
+
+    // Second call: reuses pending auth, should NOT open browser again
+    mockExec.mockClear()
+    await expect(ensureValidToken(account)).rejects.toThrow('NODUP-CODE')
+    expect(mockExec).not.toHaveBeenCalled()
+
     _getPendingAuths().clear()
   })
 

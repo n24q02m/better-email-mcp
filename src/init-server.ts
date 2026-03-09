@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { loadConfig } from './tools/helpers/config.js'
+import { ensureValidToken } from './tools/helpers/oauth2.js'
 import { registerTools } from './tools/registry.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -42,6 +43,22 @@ export async function initServer() {
   }
 
   console.error(`Loaded ${accounts.length} email account(s)`)
+
+  // Proactive OAuth2 auth for Outlook accounts without stored tokens.
+  // Triggers Device Code flow immediately so the user sees the sign-in link
+  // at startup instead of waiting until the first tool call.
+  for (const account of accounts) {
+    if (account.authType === 'oauth2' && !account.oauth2) {
+      try {
+        await ensureValidToken(account)
+      } catch (err: any) {
+        // ensureValidToken throws with sign-in instructions — log to stderr.
+        // Background poll is already running; tokens will be saved to disk
+        // and picked up on the next tool call.
+        console.error(err.message)
+      }
+    }
+  }
 
   // Create MCP server
   const server = new Server(

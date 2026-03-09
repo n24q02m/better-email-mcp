@@ -4,6 +4,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { initServer } from './init-server.js'
 import { loadConfig } from './tools/helpers/config.js'
+import { ensureValidToken } from './tools/helpers/oauth2.js'
 import { registerTools } from './tools/registry.js'
 
 // Mock dependencies
@@ -14,6 +15,9 @@ vi.mock('./tools/helpers/config.js', () => ({
   loadConfig: vi.fn(),
   resolveAccount: vi.fn(),
   resolveAccounts: vi.fn()
+}))
+vi.mock('./tools/helpers/oauth2.js', () => ({
+  ensureValidToken: vi.fn()
 }))
 vi.mock('./tools/registry.js', () => ({
   registerTools: vi.fn()
@@ -127,5 +131,49 @@ describe('initServer', () => {
     expect(consoleSpy).toHaveBeenCalledWith('EMAIL_CREDENTIALS environment variable is required')
     expect(exitSpy).toHaveBeenCalledWith(1)
     expect(Server).not.toHaveBeenCalled()
+  })
+
+  it('triggers proactive OAuth2 auth for Outlook accounts without tokens', async () => {
+    const mockAccounts = [
+      { email: 'user@outlook.com', authType: 'oauth2', oauth2: undefined },
+      { email: 'user@gmail.com', authType: 'password' }
+    ]
+    vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
+    vi.mocked(ensureValidToken).mockRejectedValue(
+      new Error('Visit: https://microsoft.com/devicelogin\nEnter code: ABCD-EFGH')
+    )
+
+    await initServer()
+
+    // ensureValidToken called only for Outlook account, not Gmail
+    expect(ensureValidToken).toHaveBeenCalledTimes(1)
+    expect(ensureValidToken).toHaveBeenCalledWith(mockAccounts[0])
+    // Error message logged to stderr as fallback
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('ABCD-EFGH'))
+  })
+
+  it('skips proactive auth for Outlook accounts with existing tokens', async () => {
+    const mockAccounts = [
+      {
+        email: 'user@outlook.com',
+        authType: 'oauth2',
+        oauth2: { accessToken: 'at', refreshToken: 'rt', expiresAt: 9999999999, clientId: 'cid' }
+      }
+    ]
+    vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
+
+    await initServer()
+
+    // Should not call ensureValidToken — tokens already present
+    expect(ensureValidToken).not.toHaveBeenCalled()
+  })
+
+  it('skips proactive auth for non-OAuth2 accounts', async () => {
+    const mockAccounts = [{ email: 'user@gmail.com', authType: 'password' }]
+    vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
+
+    await initServer()
+
+    expect(ensureValidToken).not.toHaveBeenCalled()
   })
 })

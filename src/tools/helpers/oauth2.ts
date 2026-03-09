@@ -6,6 +6,7 @@
  * persistent token storage, and automatic token refresh.
  */
 
+import { exec } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -163,6 +164,16 @@ export function _getPendingAuths(): Map<string, PendingAuth> {
 }
 
 /**
+ * Open a URL in the user's default browser.
+ * Fire-and-forget — errors are silently ignored since stderr instructions
+ * serve as fallback if the browser fails to open.
+ */
+function openBrowser(url: string): void {
+  const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start ""' : 'xdg-open'
+  exec(`${cmd} ${JSON.stringify(url)}`, () => {})
+}
+
+/**
  * Request a device code from Microsoft's OAuth2 endpoint.
  */
 async function requestDeviceCode(clientId: string): Promise<DeviceCodeResponse> {
@@ -288,6 +299,9 @@ export async function ensureValidToken(account: { email: string; oauth2?: OAuth2
     })
 
     startBackgroundPoll(clientId, codeData.device_code, codeData.interval, codeData.expires_in, account.email)
+
+    // Auto-open browser for desktop environments
+    openBrowser(codeData.verification_uri)
 
     throw new Error(
       `Outlook OAuth2 sign-in required for ${account.email}.\n` +
