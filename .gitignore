@@ -14,3 +14,6 @@ logs_*/
 *.log
 .jules/
 .venv/
+
+# AI Agent
+JULES.md
