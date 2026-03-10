@@ -2,6 +2,49 @@
 
 <!-- version list -->
 
+## v1.10.1 (2026-03-10)
+
+### Bug Fixes
+
+- Add .jules/ and JULES.md to gitignore
+  ([`09a688d`](https://github.com/n24q02m/better-email-mcp/commit/09a688da22297962e76d8120697473df3589d0df))
+
+- Remove commit-message-check job
+  ([`87b247a`](https://github.com/n24q02m/better-email-mcp/commit/87b247a9a4011f3641143189b311e5c09cfd643b))
+
+- Sync CI/CD configs and standardize templates
+  ([`36b8df3`](https://github.com/n24q02m/better-email-mcp/commit/36b8df3592331bf44968eaa3d4f96ca2a2f1031f))
+
+- ⚡ Bolt async cache race conditions in folder resolution
+  ([`690bd95`](https://github.com/n24q02m/better-email-mcp/commit/690bd9522b405e38c795b4fc8333e17f4639ada5))
+
+- **ci**: Pin PSR v10, Python 3.13, Node 24, Java 21 in Renovate
+  ([`ee0e6c2`](https://github.com/n24q02m/better-email-mcp/commit/ee0e6c2e2441623215f7f576f9713b20acb46081))
+
+- **deps**: Update non-major dependencies
+  ([#142](https://github.com/n24q02m/better-email-mcp/pull/142),
+  [`36e9daf`](https://github.com/n24q02m/better-email-mcp/commit/36e9daf44646eb8374fbe4ffc42bd2f82ed880ba))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#131](https://github.com/n24q02m/better-email-mcp/pull/131),
+  [`fe7af9a`](https://github.com/n24q02m/better-email-mcp/commit/fe7af9a41826091598458a9b97652d294b625f68))
+
+- **deps**: Update actions/dependency-review-action digest to 3c4e3dc
+  ([#141](https://github.com/n24q02m/better-email-mcp/pull/141),
+  [`26e0d1e`](https://github.com/n24q02m/better-email-mcp/commit/26e0d1e290817b2b1d00e489a86f7eb5cb7b8fb6))
+
+- **deps**: Update dawidd6/action-send-mail action to v11
+  ([#138](https://github.com/n24q02m/better-email-mcp/pull/138),
+  [`f6ea2a8`](https://github.com/n24q02m/better-email-mcp/commit/f6ea2a834f07123d623b4e29efefab70a5bb7612))
+
+### Continuous Integration
+
+- Improve PR checks and Qodo filtering
+  ([#140](https://github.com/n24q02m/better-email-mcp/pull/140),
+  [`79ae514`](https://github.com/n24q02m/better-email-mcp/commit/79ae5148802736ee61daaea6ef1c7d5286277960))
+
+
 ## v1.10.0 (2026-03-09)
 
 ### Bug Fixes
