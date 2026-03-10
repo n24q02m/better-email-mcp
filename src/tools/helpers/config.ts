@@ -212,9 +212,21 @@ export function loadConfig(): AccountConfig[] {
 
 export function resolveAccount(accounts: AccountConfig[], query: string): AccountConfig {
   const lower = query.toLowerCase().trim()
-  const exact = accounts.filter((a) => a.email.toLowerCase() === lower || a.id === lower)
+
+  const exact: AccountConfig[] = []
+  const partial: AccountConfig[] = []
+
+  for (const a of accounts) {
+    const lowerEmail = a.email.toLowerCase()
+    if (lowerEmail === lower || a.id === lower) exact.push(a)
+    else if (lowerEmail.includes(lower)) partial.push(a)
+  }
+
   if (exact.length === 1) return exact[0]!
-  const partial = accounts.filter((a) => a.email.toLowerCase().includes(lower))
+  if (exact.length > 1) {
+    return exact[0]! // Should not happen with well-formed IDs, but fallback safely
+  }
+
   if (partial.length === 0)
     throw new EmailMCPError(
       `Account not found: ${query}`,
@@ -250,9 +262,18 @@ export function resolveSingleAccount(accounts: AccountConfig[], accountFilter?: 
 export function resolveAccounts(accounts: AccountConfig[], query?: string): AccountConfig[] {
   if (!query) return accounts
   const lower = query.toLowerCase().trim()
-  const exact = accounts.filter((a) => a.email.toLowerCase() === lower || a.id === lower)
+
+  const exact: AccountConfig[] = []
+  const partial: AccountConfig[] = []
+
+  for (const a of accounts) {
+    const lowerEmail = a.email.toLowerCase()
+    if (lowerEmail === lower || a.id === lower) exact.push(a)
+    else if (lowerEmail.includes(lower)) partial.push(a)
+  }
+
   if (exact.length > 0) return exact
-  const partial = accounts.filter((a) => a.email.toLowerCase().includes(lower))
+
   if (partial.length === 0)
     throw new EmailMCPError(
       `Account not found: ${query}`,
