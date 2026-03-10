@@ -169,7 +169,7 @@ function formatAddress(addr: any): string {
 // ============================================================================
 
 /** Cache for resolved sent folder paths per account */
-const sentFolderCache = new Map<string, string>()
+const sentFolderCache = new Map<string, Promise<string>>()
 
 /**
  * Resolve the Sent folder path for the given account.
@@ -180,25 +180,35 @@ export async function resolveSentFolder(account: AccountConfig): Promise<string>
   const cached = sentFolderCache.get(account.id)
   if (cached) return cached
 
-  // Provider-specific defaults
-  let sentFolder = 'Sent'
-  if (account.imap.host.includes('gmail')) {
-    sentFolder = '[Gmail]/Sent Mail'
-  } else if (account.imap.host.includes('office365') || account.imap.host.includes('outlook')) {
-    sentFolder = 'Sent Items'
-  }
+  const resolvePromise = (async () => {
+    // Provider-specific defaults
+    let sentFolder = 'Sent'
+    if (account.imap.host.includes('gmail')) {
+      sentFolder = '[Gmail]/Sent Mail'
+    } else if (account.imap.host.includes('office365') || account.imap.host.includes('outlook')) {
+      sentFolder = 'Sent Items'
+    }
 
-  // Try to find the actual sent folder via IMAP flags
+    // Try to find the actual sent folder via IMAP flags
+    try {
+      const folders = await listFolders(account)
+      const found = folders.find((f) => f.flags.some((flag) => flag === '\\Sent') || f.path === sentFolder)
+      if (found) sentFolder = found.path
+    } catch {
+      // Use default if folder listing fails
+    }
+
+    return sentFolder
+  })()
+
+  sentFolderCache.set(account.id, resolvePromise)
+
   try {
-    const folders = await listFolders(account)
-    const found = folders.find((f) => f.flags.some((flag) => flag === '\\Sent') || f.path === sentFolder)
-    if (found) sentFolder = found.path
-  } catch {
-    // Use default if folder listing fails
+    return await resolvePromise
+  } catch (err) {
+    sentFolderCache.delete(account.id)
+    throw err
   }
-
-  sentFolderCache.set(account.id, sentFolder)
-  return sentFolder
 }
 
 /**
