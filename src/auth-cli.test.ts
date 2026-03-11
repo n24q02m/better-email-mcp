@@ -56,7 +56,7 @@ describe('runAuth', () => {
   it('should call deviceCodeAuth if email is a valid Outlook domain', async () => {
     process.argv.push('user@outlook.com')
     vi.mocked(isOutlookDomain).mockReturnValue(true)
-    vi.mocked(deviceCodeAuth).mockResolvedValue(undefined)
+    vi.mocked(deviceCodeAuth).mockResolvedValue({} as any)
 
     await runAuth()
 
