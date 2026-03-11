@@ -438,7 +438,11 @@ describe('ensureValidToken', () => {
 
     // Verify exec was called with the verification URI
     expect(mockExecFile).toHaveBeenCalledTimes(1)
-    expect(mockExecFile).toHaveBeenCalledWith(expect.any(String), ['https://microsoft.com/devicelogin'], expect.any(Function))
+    expect(mockExecFile).toHaveBeenCalledWith(
+      expect.any(String),
+      ['https://microsoft.com/devicelogin'],
+      expect.any(Function)
+    )
 
     _getPendingAuths().clear()
   })
