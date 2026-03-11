@@ -13,10 +13,10 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js'
-import { attachments } from './composite/attachments.js'
-import { folders } from './composite/folders.js'
-import { messages } from './composite/messages.js'
-import { send } from './composite/send.js'
+import { type AttachmentsInput, attachments } from './composite/attachments.js'
+import { type FoldersInput, folders } from './composite/folders.js'
+import { type MessagesInput, messages } from './composite/messages.js'
+import { type SendInput, send } from './composite/send.js'
 // Import mega tools
 import type { AccountConfig } from './helpers/config.js'
 import { aiReadableMessage, EmailMCPError, enhanceError } from './helpers/errors.js'
@@ -241,16 +241,16 @@ export function registerTools(server: Server, accounts: AccountConfig[]) {
 
       switch (name) {
         case 'messages':
-          result = await messages(accounts, args as any)
+          result = await messages(accounts, args as unknown as MessagesInput)
           break
         case 'folders':
-          result = await folders(accounts, args as any)
+          result = await folders(accounts, args as unknown as FoldersInput)
           break
         case 'attachments':
-          result = await attachments(accounts, args as any)
+          result = await attachments(accounts, args as unknown as AttachmentsInput)
           break
         case 'send':
-          result = await send(accounts, args as any)
+          result = await send(accounts, args as unknown as SendInput)
           break
         case 'help': {
           const toolName = (args as { tool_name: string }).tool_name
