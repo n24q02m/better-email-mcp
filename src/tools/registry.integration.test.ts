@@ -1,5 +1,10 @@
 import { readFile } from 'node:fs/promises'
-import { CallToolRequestSchema, ReadResourceRequestSchema, ListToolsRequestSchema, ListResourcesRequestSchema } from '@modelcontextprotocol/sdk/types.js'
+import {
+  CallToolRequestSchema,
+  ListResourcesRequestSchema,
+  ListToolsRequestSchema,
+  ReadResourceRequestSchema
+} from '@modelcontextprotocol/sdk/types.js'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock dependencies before importing registry
@@ -14,17 +19,17 @@ vi.mock('node:fs/promises', () => ({
 }))
 
 vi.mock('./helpers/security.js', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = await importOriginal<typeof import('./helpers/security.js')>()
   return {
     ...actual,
     isValidToolName: vi.fn((name) => {
       // Force "unknown_but_valid" to be treated as a valid tool,
       // which allows it to pass validation but fail the RESOURCES lookup.
-      if (name === 'unknown_but_valid') return true;
-      return actual.isValidToolName(name);
+      if (name === 'unknown_but_valid') return true
+      return actual.isValidToolName(name)
     })
-  };
-});
+  }
+})
 
 // Import after mocking
 import { registerTools } from './registry.js'
@@ -223,7 +228,7 @@ describe('registry.ts - core registration', () => {
     registerTools(mockServer, [])
 
     const listToolsCall = mockServer.setRequestHandler.mock.calls.find(
-      (call) => call[0] === ListToolsRequestSchema
+      (call: any[]) => call[0] === ListToolsRequestSchema
     )
     expect(listToolsCall).toBeDefined()
     expect(listToolsCall[1]).toBeTypeOf('function')
@@ -237,7 +242,7 @@ describe('registry.ts - core registration', () => {
     expect(listToolsResult.tools[0]).toHaveProperty('description')
 
     const listResourcesCall = mockServer.setRequestHandler.mock.calls.find(
-      (call) => call[0] === ListResourcesRequestSchema
+      (call: any[]) => call[0] === ListResourcesRequestSchema
     )
     expect(listResourcesCall).toBeDefined()
     expect(listResourcesCall[1]).toBeTypeOf('function')
