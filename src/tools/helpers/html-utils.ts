@@ -5,6 +5,16 @@
 
 import { convert } from 'html-to-text'
 
+const ENTITY_MAP: Record<string, string> = {
+  '&nbsp;': ' ',
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#039;': "'",
+  '&#x27;': "'"
+}
+
 /**
  * Escapes HTML characters in a string to prevent XSS attacks when embedding user input into HTML
  */
@@ -67,17 +77,8 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   // Decode HTML entities in a single pass to avoid double-decode
   // (e.g., &amp;lt; should become &lt; not <)
   text = text.replace(/&(#x?[\da-fA-F]+|[a-zA-Z]+);/g, (entity) => {
-    const map: Record<string, string> = {
-      '&nbsp;': ' ',
-      '&amp;': '&',
-      '&lt;': '<',
-      '&gt;': '>',
-      '&quot;': '"',
-      '&#039;': "'",
-      '&#x27;': "'"
-    }
     const lower = entity.toLowerCase()
-    if (lower in map) return map[lower]
+    if (lower in ENTITY_MAP) return ENTITY_MAP[lower]
     const numMatch = entity.match(/&#x?([\da-fA-F]+);/)
     if (numMatch) {
       const code = entity.startsWith('&#x') ? Number.parseInt(numMatch[1], 16) : Number.parseInt(numMatch[1], 10)
