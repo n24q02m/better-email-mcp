@@ -228,3 +228,10 @@ export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
     }
   }
 }
+
+/**
+ * Create a standard error for unknown actions
+ */
+export function createUnknownActionError(action: string, supportedActions: string): EmailMCPError {
+  return new EmailMCPError(`Unknown action: ${action}`, 'VALIDATION_ERROR', `Supported actions: ${supportedActions}`)
+}

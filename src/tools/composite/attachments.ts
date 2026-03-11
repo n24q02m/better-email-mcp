@@ -5,7 +5,7 @@
 
 import type { AccountConfig } from '../helpers/config.js'
 import { resolveSingleAccount } from '../helpers/config.js'
-import { EmailMCPError, withErrorHandling } from '../helpers/errors.js'
+import { createUnknownActionError, EmailMCPError, withErrorHandling } from '../helpers/errors.js'
 import { getAttachment, readEmail } from '../helpers/imap-client.js'
 
 export interface AttachmentsInput {
@@ -49,11 +49,7 @@ export async function attachments(accounts: AccountConfig[], input: AttachmentsI
         return await handleDownload(accounts, input)
 
       default:
-        throw new EmailMCPError(
-          `Unknown action: ${input.action}`,
-          'VALIDATION_ERROR',
-          'Supported actions: list, download'
-        )
+        throw createUnknownActionError(input.action, 'list, download')
     }
   })()
 }

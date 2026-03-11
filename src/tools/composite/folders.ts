@@ -5,7 +5,7 @@
 
 import type { AccountConfig } from '../helpers/config.js'
 import { resolveAccounts } from '../helpers/config.js'
-import { EmailMCPError, withErrorHandling } from '../helpers/errors.js'
+import { createUnknownActionError, withErrorHandling } from '../helpers/errors.js'
 import { listFolders } from '../helpers/imap-client.js'
 
 export interface FoldersInput {
@@ -25,7 +25,7 @@ export async function folders(accounts: AccountConfig[], input: FoldersInput): P
         return await handleList(accounts, input)
 
       default:
-        throw new EmailMCPError(`Unknown action: ${input.action}`, 'VALIDATION_ERROR', 'Supported actions: list')
+        throw createUnknownActionError(input.action, 'list')
     }
   })()
 }
