@@ -1,9 +1,9 @@
-import { exec } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('node:child_process', () => ({
-  exec: vi.fn()
+  execFile: vi.fn()
 }))
 
 vi.mock('node:fs', () => ({
@@ -17,7 +17,7 @@ vi.mock('node:os', () => ({
   homedir: vi.fn().mockReturnValue('/mock/home')
 }))
 
-const mockExec = vi.mocked(exec)
+const mockExecFile = vi.mocked(execFile)
 const mockExistsSync = vi.mocked(existsSync)
 const mockReadFileSync = vi.mocked(readFileSync)
 const mockWriteFileSync = vi.mocked(writeFileSync)
@@ -437,8 +437,8 @@ describe('ensureValidToken', () => {
     await expect(ensureValidToken(account)).rejects.toThrow('BROWSER-CODE')
 
     // Verify exec was called with the verification URI
-    expect(mockExec).toHaveBeenCalledTimes(1)
-    expect(mockExec).toHaveBeenCalledWith(expect.stringContaining('microsoft.com/devicelogin'), expect.any(Function))
+    expect(mockExecFile).toHaveBeenCalledTimes(1)
+    expect(mockExecFile).toHaveBeenCalledWith(expect.any(String), ['https://microsoft.com/devicelogin'], expect.any(Function))
 
     _getPendingAuths().clear()
   })
@@ -460,12 +460,12 @@ describe('ensureValidToken', () => {
 
     // First call: opens browser
     await expect(ensureValidToken(account)).rejects.toThrow('NODUP-CODE')
-    expect(mockExec).toHaveBeenCalledTimes(1)
+    expect(mockExecFile).toHaveBeenCalledTimes(1)
 
     // Second call: reuses pending auth, should NOT open browser again
-    mockExec.mockClear()
+    mockExecFile.mockClear()
     await expect(ensureValidToken(account)).rejects.toThrow('NODUP-CODE')
-    expect(mockExec).not.toHaveBeenCalled()
+    expect(mockExecFile).not.toHaveBeenCalled()
 
     _getPendingAuths().clear()
   })

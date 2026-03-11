@@ -6,7 +6,7 @@
  * persistent token storage, and automatic token refresh.
  */
 
-import { exec } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -169,8 +169,23 @@ export function _getPendingAuths(): Map<string, PendingAuth> {
  * serve as fallback if the browser fails to open.
  */
 function openBrowser(url: string): void {
-  const cmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start ""' : 'xdg-open'
-  exec(`${cmd} ${JSON.stringify(url)}`, () => {})
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return
+    }
+  } catch {
+    return
+  }
+
+  if (process.platform === 'darwin') {
+    execFile('open', [url], () => {})
+  } else if (process.platform === 'win32') {
+    // On Windows, use rundll32 to open URLs safely without cmd.exe
+    execFile('rundll32', ['url.dll,FileProtocolHandler', url], () => {})
+  } else {
+    execFile('xdg-open', [url], () => {})
+  }
 }
 
 /**
