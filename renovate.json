@@ -44,19 +44,19 @@
       "allowedVersions": ">=10.0.0"
     },
     {
-      "description": "Disable Python runtime upgrades (pinned to 3.13)",
+      "description": "Pin Python runtime to 3.13.x",
       "matchPackageNames": ["python"],
-      "enabled": false
+      "allowedVersions": ">=3.13.0 <3.14.0"
     },
     {
-      "description": "Disable Node.js runtime upgrades (pinned to 24)",
+      "description": "Pin Node.js runtime to 24.x",
       "matchPackageNames": ["node"],
-      "enabled": false
+      "allowedVersions": ">=24.0.0 <25.0.0"
     },
     {
-      "description": "Disable Java runtime upgrades (pinned to 21 LTS)",
+      "description": "Pin Java runtime to 21.x LTS",
       "matchPackageNames": ["java"],
-      "enabled": false
+      "allowedVersions": ">=21.0.0 <22.0.0"
     }
   ]
 }
