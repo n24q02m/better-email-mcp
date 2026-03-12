@@ -2,6 +2,69 @@
 
 <!-- version list -->
 
+## v1.11.0-beta.1 (2026-03-12)
+
+### Bug Fixes
+
+- Add tests for MCP tool registration and docs error handling]
+  ([#154](https://github.com/n24q02m/better-email-mcp/pull/154),
+  [`4290ce1`](https://github.com/n24q02m/better-email-mcp/commit/4290ce185ad4eca254f7d26a4b13db3643d6b1e9))
+
+- Fix Command Injection in openBrowser
+  ([#149](https://github.com/n24q02m/better-email-mcp/pull/149),
+  [`3fdcb89`](https://github.com/n24q02m/better-email-mcp/commit/3fdcb89848e18bb7b7e006a26dfadc1b980614f9))
+
+- Improve send tool description accuracy for LLM calling
+  ([`f84a842`](https://github.com/n24q02m/better-email-mcp/commit/f84a8424c235081a81945d038a9d25a98704df77))
+
+- Pin runtime versions with allowedVersions, revert Python to 3.13
+  ([`35e8892`](https://github.com/n24q02m/better-email-mcp/commit/35e8892e5862e4531c11d4958a619ebaab5d32b5))
+
+- Remove patch scripts and junk files from PR merges
+  ([`bf34cf3`](https://github.com/n24q02m/better-email-mcp/commit/bf34cf35a940fae1c8918876d67a52b67e14d0dc))
+
+- Revert Python to 3.13, disable mise runtime updates in Renovate
+  ([`5a431ab`](https://github.com/n24q02m/better-email-mcp/commit/5a431ab7910431238559b025bcbeedd766fb4d6f))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#144](https://github.com/n24q02m/better-email-mcp/pull/144),
+  [`6565ce8`](https://github.com/n24q02m/better-email-mcp/commit/6565ce8a31977a1453d4a21003e5a90255fa6ae9))
+
+- **deps**: Update actions/download-artifact digest to 3e5f45b
+  ([#155](https://github.com/n24q02m/better-email-mcp/pull/155),
+  [`96888c4`](https://github.com/n24q02m/better-email-mcp/commit/96888c44635d603818593f3d16227bae69143cee))
+
+- **deps**: Update dawidd6/action-send-mail action to v13
+  ([#157](https://github.com/n24q02m/better-email-mcp/pull/157),
+  [`25c2ecf`](https://github.com/n24q02m/better-email-mcp/commit/25c2ecfeff4e5db76d3cc6c0aac0fa0085d47370))
+
+- **deps**: Update non-major dependencies
+  ([#156](https://github.com/n24q02m/better-email-mcp/pull/156),
+  [`b05165b`](https://github.com/n24q02m/better-email-mcp/commit/b05165be702bd6b40142052cab5f9cb949ca614d))
+
+### Features
+
+- Add live MCP test script for all email tools and accounts
+  ([`17ffce4`](https://github.com/n24q02m/better-email-mcp/commit/17ffce45cb1bbc6473abb63de394a6f4c5ec0d4d))
+
+- Testing improvement] Add unit tests for OAuth2 CLI entry point
+  ([#150](https://github.com/n24q02m/better-email-mcp/pull/150),
+  [`35323c5`](https://github.com/n24q02m/better-email-mcp/commit/35323c558332faf760a78da6e4cb1d0caef840da))
+
+### Performance Improvements
+
+- Extract HTML entity map to module scope to avoid reallocation
+  ([#152](https://github.com/n24q02m/better-email-mcp/pull/152),
+  [`1ca53ef`](https://github.com/n24q02m/better-email-mcp/commit/1ca53efc65ad7d4d3bb4ec4035b3b024cb9a4c05))
+
+### Testing
+
+- Add unit tests for OAuth2 CLI entry point
+  ([#150](https://github.com/n24q02m/better-email-mcp/pull/150),
+  [`35323c5`](https://github.com/n24q02m/better-email-mcp/commit/35323c558332faf760a78da6e4cb1d0caef840da))
+
+
 ## v1.10.1 (2026-03-10)
 
 ### Bug Fixes
