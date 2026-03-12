@@ -52,7 +52,8 @@ export function htmlToCleanText(html: string): string {
 }
 
 // Pre-compiled regular expressions for fast snippet extraction
-const STYLE_SCRIPT_REGEX = /<(style|script)\b[^>]*>[\s\S]*?<\/\1\s*>/gi
+const STYLE_REGEX = /<style\b[^>]*>[\s\S]*?<\/style\s*>/gi
+const SCRIPT_REGEX = /<script\b[^>]*>[\s\S]*?<\/script\s*>/gi
 const BLOCK_TAGS_REGEX = /<\/(p|div|br|tr|li|h[1-6])>|<br\s*\/?>/gi
 const HTML_TAGS_REGEX = /<[^>]+>/g
 const ENTITY_REGEX = /&(#x?[\da-fA-F]+|[a-zA-Z]+);/g
@@ -70,7 +71,8 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   let prev: string
   do {
     prev = text
-    text = text.replace(STYLE_SCRIPT_REGEX, '')
+    text = text.replace(STYLE_REGEX, '')
+    text = text.replace(SCRIPT_REGEX, '')
   } while (text !== prev)
 
   // Replace block elements with spaces
