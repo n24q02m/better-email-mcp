@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import { loadConfig } from './tools/helpers/config.js'
+import { type AccountConfig, loadConfig } from './tools/helpers/config.js'
 import { ensureValidToken } from './tools/helpers/oauth2.js'
 import { registerTools } from './tools/registry.js'
 
@@ -25,7 +25,7 @@ function getVersion(): string {
   }
 }
 
-export async function initServer() {
+async function setupEnvironment(): Promise<AccountConfig[]> {
   // Load email accounts from environment
   const accounts = loadConfig()
 
@@ -60,6 +60,10 @@ export async function initServer() {
     }
   }
 
+  return accounts
+}
+
+async function setupServer(accounts: AccountConfig[]): Promise<Server> {
   // Create MCP server
   const server = new Server(
     {
@@ -81,4 +85,9 @@ export async function initServer() {
   const transport = new StdioServerTransport()
   await server.connect(transport)
   return server
+}
+
+export async function initServer() {
+  const accounts = await setupEnvironment()
+  return setupServer(accounts)
 }
