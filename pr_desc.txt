@@ -1,8 +1,0 @@
-🧪 [Add tests for MCP tool registration and docs error handling]
-
-🎯 **What:** The `src/tools/registry.ts` logic for handling `ListToolsRequestSchema` and `ListResourcesRequestSchema` lacked testing coverage, along with a specific edge case involving documentation lookups. This pull request adds tests covering these previously untested lines.
-📊 **Coverage:** The new tests cover:
-- Checking that `mockServer.setRequestHandler` is called properly with `ListToolsRequestSchema` and `ListResourcesRequestSchema`.
-- Executing the provided schemas and verifying valid JSON return structures (tool definitions and URI resources).
-- A regression case verifying `DOC_NOT_FOUND` error handling for unmapped valid tools through `isValidToolName`.
-✨ **Result:** Test coverage for `src/tools/registry.ts` is improved from approximately 60% to 100%, improving stability, robustness and confidence in tool registration mechanics.
