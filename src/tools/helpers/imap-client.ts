@@ -469,7 +469,8 @@ export async function getAttachment(
       }
 
       const parsed = await simpleParser(fetchResult.source)
-      const attachment = parsed.attachments?.find((att) => att.filename?.toLowerCase() === filename.toLowerCase())
+      const lowerFilename = filename.toLowerCase()
+      const attachment = parsed.attachments?.find((att) => att.filename?.toLowerCase() === lowerFilename)
 
       if (!attachment) {
         throw new EmailMCPError(

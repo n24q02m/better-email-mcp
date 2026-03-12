@@ -220,12 +220,16 @@ async function resolveArchiveFolder(account: AccountConfig): Promise<string> {
     // Try to find actual archive folder
     try {
       const folders = await listFolders(account)
-      const found = folders.find(
-        (f) =>
-          f.path.toLowerCase().includes('archive') ||
-          f.path.toLowerCase().includes('all mail') ||
-          f.flags.some((flag) => flag.toLowerCase().includes('archive') || flag.toLowerCase().includes('all'))
-      )
+      const found = folders.find((f) => {
+        const lowerPath = f.path.toLowerCase()
+        if (lowerPath.includes('archive') || lowerPath.includes('all mail')) {
+          return true
+        }
+        return f.flags.some((flag) => {
+          const lowerFlag = flag.toLowerCase()
+          return lowerFlag.includes('archive') || lowerFlag.includes('all')
+        })
+      })
       if (found) {
         archiveFolder = found.path
       }
