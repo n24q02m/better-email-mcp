@@ -63,13 +63,14 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   let prev: string
   do {
     prev = text
-    text = text.replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, '')
-    text = text.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+    // Strict boundaries for both opening and closing tags to satisfy CodeQL static analysis.
+    // Handles malformed attributes or trailing whitespace in closing tags (e.g. </script foo>)
+    text = text.replace(/<style\b[^>]*>[\s\S]*?<\/style\b[^>]*>/gi, '')
+    text = text.replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, '')
   } while (text !== prev)
 
   // Replace block elements with spaces
-  text = text.replace(/<\/(p|div|br|tr|li|h[1-6])>/gi, ' ')
-  text = text.replace(/<br\s*\/?>/gi, ' ')
+  text = text.replace(/<\/(p|div|br|tr|li|h[1-6])>|<br\s*\/?>/gi, ' ')
 
   // Strip all remaining HTML tags
   text = text.replace(/<[^>]+>/g, '')
@@ -79,10 +80,14 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   text = text.replace(/&(#x?[\da-fA-F]+|[a-zA-Z]+);/g, (entity) => {
     const lower = entity.toLowerCase()
     if (lower in ENTITY_MAP) return ENTITY_MAP[lower]
-    const numMatch = entity.match(/&#x?([\da-fA-F]+);/)
-    if (numMatch) {
-      const code = entity.startsWith('&#x') ? Number.parseInt(numMatch[1], 16) : Number.parseInt(numMatch[1], 10)
-      return String.fromCharCode(code)
+
+    // Fast path for numeric entities
+    if (lower.charCodeAt(1) === 35) {
+      // '#'
+      const isHex = lower.charCodeAt(2) === 120 // 'x'
+      const codeStr = isHex ? lower.slice(3, -1) : lower.slice(2, -1)
+      const code = Number.parseInt(codeStr, isHex ? 16 : 10)
+      if (!Number.isNaN(code)) return String.fromCharCode(code)
     }
     return entity
   })
