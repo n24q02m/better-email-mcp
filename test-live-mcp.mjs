@@ -7,16 +7,28 @@
  *
  * Usage:
  *   EMAIL_CREDENTIALS=user@gmail.com:apppassword node test-live-mcp.mjs
+ *   EMAIL_CREDENTIALS=user1@gmail.com:pass1,user2@outlook.com:pass2 node test-live-mcp.mjs
  *
- * Without EMAIL_CREDENTIALS: tests listTools, listResources, help (all 5), error paths
- * With EMAIL_CREDENTIALS: also tests actual email operations (folders, messages, send)
+ * EMAIL_CREDENTIALS is required. Tests all operations including real email.
  */
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
-const EMAIL_CREDENTIALS = process.env.EMAIL_CREDENTIALS || 'fake@example.com:fake_password'
-const HAS_REAL_CREDS = !!process.env.EMAIL_CREDENTIALS
+if (!process.env.EMAIL_CREDENTIALS) {
+  console.error(
+    'EMAIL_CREDENTIALS environment variable is required\n' +
+      'Format: email1:password1,email2:password2\n\n' +
+      'Examples:\n' +
+      '  EMAIL_CREDENTIALS=user@gmail.com:abcd-efgh-ijkl-mnop\n' +
+      '  EMAIL_CREDENTIALS=user1@gmail.com:pass1,user2@outlook.com:pass2\n\n' +
+      'For Gmail: Enable 2FA, then create App Password at https://myaccount.google.com/apppasswords\n' +
+      'For Outlook: Use app password from https://account.live.com/proofs/AppPassword'
+  )
+  process.exit(1)
+}
+const EMAIL_CREDENTIALS = process.env.EMAIL_CREDENTIALS
+const HAS_REAL_CREDS = true
 const TIMEOUT = { timeout: 30000 }
 
 let passed = 0
