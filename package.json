@@ -20,7 +20,7 @@
 		"opencode",
 		"gemini-cli"
 	],
-	"version": "1.11.0-beta.1",
+	"version": "1.11.0-beta.2",
 	"license": "MIT",
 	"type": "module",
 	"publishConfig": {

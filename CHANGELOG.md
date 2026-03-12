@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.11.0-beta.2 (2026-03-12)
+
+### Bug Fixes
+
+- Require EMAIL_CREDENTIALS in live test, remove crash-prone fallback
+  ([`8d51455`](https://github.com/n24q02m/better-email-mcp/commit/8d514554eecfc55a3d1dbfb8087d5c5f89916ba2))
+
+
 ## v1.11.0-beta.1 (2026-03-12)
 
 ### Bug Fixes
