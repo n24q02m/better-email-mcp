@@ -63,9 +63,10 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   let prev: string
   do {
     prev = text
-    // Regex allows whitespace/attributes in closing tags to prevent CodeQL bypass warnings
-    text = text.replace(/<style\b[^>]*>[\s\S]*?<\/style[^>]*>/gi, '')
-    text = text.replace(/<script\b[^>]*>[\s\S]*?<\/script[^>]*>/gi, '')
+    // Strict boundaries for both opening and closing tags to satisfy CodeQL static analysis.
+    // Handles malformed attributes or trailing whitespace in closing tags (e.g. </script foo>)
+    text = text.replace(/<style\b[^>]*>[\s\S]*?<\/style\b[^>]*>/gi, '')
+    text = text.replace(/<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>/gi, '')
   } while (text !== prev)
 
   // Replace block elements with spaces
