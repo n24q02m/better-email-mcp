@@ -5,7 +5,7 @@
 
 import type { AccountConfig } from '../helpers/config.js'
 import { resolveSingleAccount } from '../helpers/config.js'
-import { EmailMCPError, withErrorHandling } from '../helpers/errors.js'
+import { createUnknownActionError, EmailMCPError, withErrorHandling } from '../helpers/errors.js'
 import { appendToFolder, readEmail, resolveSentFolder } from '../helpers/imap-client.js'
 import type { SendResult } from '../helpers/smtp-client.js'
 import { forwardEmail, replyToEmail, sendNewEmail } from '../helpers/smtp-client.js'
@@ -87,11 +87,7 @@ export async function send(accounts: AccountConfig[], input: SendInput): Promise
         return await handleForward(accounts, input)
 
       default:
-        throw new EmailMCPError(
-          `Unknown action: ${input.action}`,
-          'VALIDATION_ERROR',
-          'Supported actions: new, reply, forward'
-        )
+        throw createUnknownActionError(input.action, 'new, reply, forward')
     }
   })()
 }

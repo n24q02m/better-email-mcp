@@ -5,7 +5,7 @@
 
 import type { AccountConfig } from '../helpers/config.js'
 import { resolveAccounts, resolveSingleAccount } from '../helpers/config.js'
-import { EmailMCPError, withErrorHandling } from '../helpers/errors.js'
+import { createUnknownActionError, EmailMCPError, withErrorHandling } from '../helpers/errors.js'
 import { listFolders, modifyFlags, moveEmails, readEmail, searchEmails, trashEmails } from '../helpers/imap-client.js'
 
 // Simple in-memory cache for archive folder paths to avoid repeated IMAP calls
@@ -64,10 +64,9 @@ export async function messages(accounts: AccountConfig[], input: MessagesInput):
         return await handleTrash(accounts, input)
 
       default:
-        throw new EmailMCPError(
-          `Unknown action: ${input.action}`,
-          'VALIDATION_ERROR',
-          'Supported actions: search, read, mark_read, mark_unread, flag, unflag, move, archive, trash'
+        throw createUnknownActionError(
+          input.action,
+          'search, read, mark_read, mark_unread, flag, unflag, move, archive, trash'
         )
     }
   })()
