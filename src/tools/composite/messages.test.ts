@@ -248,6 +248,47 @@ describe('messages - archive', () => {
 
     expect(result.archive_folder).toBe('Archive')
   })
+
+  it('clears cache and rethrows if archive folder resolution fails', async () => {
+    // The reviewer requested mocking listFolders to throw an IMAP error.
+    // However, resolveArchiveFolder catches all errors from listFolders internally
+    // and returns a default folder instead of rejecting.
+    // To legitimately cause the cached promise to reject without type-cheating,
+    // we can use a getter that throws a legitimate error when the account's host is accessed.
+
+    const badAccount: AccountConfig = {
+      ...accounts[0],
+      id: 'bad_account',
+      email: 'bad@account.com',
+      imap: { ...accounts[0].imap }
+    }
+
+    // Legitimate error generation: throw when accessing the host property
+    Object.defineProperty(badAccount.imap, 'host', {
+      get: () => {
+        throw new Error('Simulated config error')
+      }
+    })
+
+    // First call should throw and clear the cache
+    await expect(messages([badAccount], { action: 'archive', uid: 1, account: badAccount.email })).rejects.toThrow(
+      'Simulated config error'
+    )
+
+    // Second call with same ID but valid host should succeed, proving cache was cleared
+    const fixedAccount: AccountConfig = {
+      ...badAccount,
+      imap: { ...accounts[0].imap, host: 'imap.gmail.com' }
+    }
+
+    mockListFolders.mockResolvedValue([])
+    mockMoveEmails.mockResolvedValue({ success: true, moved: 1 })
+
+    const result = await messages([fixedAccount], { action: 'archive', uid: 1, account: fixedAccount.email })
+
+    expect(result.action).toBe('archive')
+    expect(result.archive_folder).toBe('[Gmail]/All Mail')
+  })
 })
 
 // ============================================================================
