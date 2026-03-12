@@ -51,6 +51,13 @@ export function htmlToCleanText(html: string): string {
   }).trim()
 }
 
+// Pre-compiled regular expressions for fast snippet extraction
+const STYLE_SCRIPT_REGEX = /<(style|script)\b[^>]*>[\s\S]*?<\/\1\s*>/gi
+const BLOCK_TAGS_REGEX = /<\/(p|div|br|tr|li|h[1-6])>|<br\s*\/?>/gi
+const HTML_TAGS_REGEX = /<[^>]+>/g
+const ENTITY_REGEX = /&(#x?[\da-fA-F]+|[a-zA-Z]+);/g
+const WHITESPACE_REGEX = /\s+/g
+
 /**
  * Fast regex-based HTML snippet extraction for search results
  * Much faster than full html-to-text for short previews (~30x speedup)
@@ -63,32 +70,34 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   let prev: string
   do {
     prev = text
-    text = text.replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, '')
-    text = text.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+    text = text.replace(STYLE_SCRIPT_REGEX, '')
   } while (text !== prev)
 
   // Replace block elements with spaces
-  text = text.replace(/<\/(p|div|br|tr|li|h[1-6])>/gi, ' ')
-  text = text.replace(/<br\s*\/?>/gi, ' ')
+  text = text.replace(BLOCK_TAGS_REGEX, ' ')
 
   // Strip all remaining HTML tags
-  text = text.replace(/<[^>]+>/g, '')
+  text = text.replace(HTML_TAGS_REGEX, '')
 
   // Decode HTML entities in a single pass to avoid double-decode
   // (e.g., &amp;lt; should become &lt; not <)
-  text = text.replace(/&(#x?[\da-fA-F]+|[a-zA-Z]+);/g, (entity) => {
+  text = text.replace(ENTITY_REGEX, (entity) => {
     const lower = entity.toLowerCase()
     if (lower in ENTITY_MAP) return ENTITY_MAP[lower]
-    const numMatch = entity.match(/&#x?([\da-fA-F]+);/)
-    if (numMatch) {
-      const code = entity.startsWith('&#x') ? Number.parseInt(numMatch[1], 16) : Number.parseInt(numMatch[1], 10)
-      return String.fromCharCode(code)
+
+    // Fast path for numeric entities
+    if (lower.charCodeAt(1) === 35) {
+      // '#'
+      const isHex = lower.charCodeAt(2) === 120 // 'x'
+      const codeStr = isHex ? lower.slice(3, -1) : lower.slice(2, -1)
+      const code = Number.parseInt(codeStr, isHex ? 16 : 10)
+      if (!Number.isNaN(code)) return String.fromCharCode(code)
     }
     return entity
   })
 
   // Collapse whitespace
-  text = text.replace(/\s+/g, ' ').trim()
+  text = text.replace(WHITESPACE_REGEX, ' ').trim()
 
   if (text.length <= maxLength) return text
   return `${text.substring(0, maxLength)}...`
