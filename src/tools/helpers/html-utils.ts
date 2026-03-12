@@ -51,14 +51,6 @@ export function htmlToCleanText(html: string): string {
   }).trim()
 }
 
-// Pre-compiled regular expressions for fast snippet extraction
-const STYLE_REGEX = /<style\b[^>]*>[\s\S]*?<\/style\s*>/gi
-const SCRIPT_REGEX = /<script\b[^>]*>[\s\S]*?<\/script\s*>/gi
-const BLOCK_TAGS_REGEX = /<\/(p|div|br|tr|li|h[1-6])>|<br\s*\/?>/gi
-const HTML_TAGS_REGEX = /<[^>]+>/g
-const ENTITY_REGEX = /&(#x?[\da-fA-F]+|[a-zA-Z]+);/g
-const WHITESPACE_REGEX = /\s+/g
-
 /**
  * Fast regex-based HTML snippet extraction for search results
  * Much faster than full html-to-text for short previews (~30x speedup)
@@ -71,19 +63,20 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   let prev: string
   do {
     prev = text
-    text = text.replace(STYLE_REGEX, '')
-    text = text.replace(SCRIPT_REGEX, '')
+    // Regex allows whitespace/attributes in closing tags to prevent CodeQL bypass warnings
+    text = text.replace(/<style\b[^>]*>[\s\S]*?<\/style[^>]*>/gi, '')
+    text = text.replace(/<script\b[^>]*>[\s\S]*?<\/script[^>]*>/gi, '')
   } while (text !== prev)
 
   // Replace block elements with spaces
-  text = text.replace(BLOCK_TAGS_REGEX, ' ')
+  text = text.replace(/<\/(p|div|br|tr|li|h[1-6])>|<br\s*\/?>/gi, ' ')
 
   // Strip all remaining HTML tags
-  text = text.replace(HTML_TAGS_REGEX, '')
+  text = text.replace(/<[^>]+>/g, '')
 
   // Decode HTML entities in a single pass to avoid double-decode
   // (e.g., &amp;lt; should become &lt; not <)
-  text = text.replace(ENTITY_REGEX, (entity) => {
+  text = text.replace(/&(#x?[\da-fA-F]+|[a-zA-Z]+);/g, (entity) => {
     const lower = entity.toLowerCase()
     if (lower in ENTITY_MAP) return ENTITY_MAP[lower]
 
@@ -99,7 +92,7 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   })
 
   // Collapse whitespace
-  text = text.replace(WHITESPACE_REGEX, ' ').trim()
+  text = text.replace(/\s+/g, ' ').trim()
 
   if (text.length <= maxLength) return text
   return `${text.substring(0, maxLength)}...`
