@@ -38,7 +38,7 @@ Forward an email. Original body is appended with separator.
 ## Parameters
 - `action` - Action to perform (required): new, reply, forward
 - `account` - Sender account email (required)
-- `to` - Recipient email address (required)
+- `to` - Recipient email address (required for new/forward, optional for reply - auto-derived from original sender)
 - `subject` - Email subject (required for new, optional for reply/forward)
 - `body` - Email body text (required)
 - `cc` - CC recipients (comma-separated, optional)

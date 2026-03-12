@@ -134,7 +134,7 @@ const TOOLS = [
   {
     name: 'send',
     description:
-      'Send emails: new, reply, forward. Reply maintains thread headers (In-Reply-To, References). Forward includes original body.',
+      'Send emails: new, reply, forward. Reply maintains thread headers (In-Reply-To, References) and auto-prepends "Re:" to subject. Forward includes original body and auto-prepends "Fwd:" to subject.',
     annotations: {
       title: 'Send',
       readOnlyHint: false,
@@ -151,7 +151,11 @@ const TOOLS = [
           description: 'Action to perform'
         },
         account: { type: 'string', description: 'Sender account email (required)' },
-        to: { type: 'string', description: 'Recipient email address (required)' },
+        to: {
+          type: 'string',
+          description:
+            'Recipient email address (required for new/forward, optional for reply - auto-derived from original sender)'
+        },
         subject: { type: 'string', description: 'Email subject (required for new)' },
         body: { type: 'string', description: 'Email body text (required)' },
         cc: { type: 'string', description: 'CC recipients (comma-separated)' },
