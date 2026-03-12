@@ -120,17 +120,18 @@ describe('initServer', () => {
     )
   })
 
-  it('exits process if no accounts are loaded', async () => {
+  it('starts server with warning when no accounts are loaded', async () => {
     // Setup mocks
     vi.mocked(loadConfig).mockReturnValue([])
 
-    // Execute & Verify
-    await expect(initServer()).rejects.toThrow('process.exit: 1')
+    // Execute
+    await initServer()
 
+    // Verify server still starts
     expect(loadConfig).toHaveBeenCalled()
-    expect(consoleSpy).toHaveBeenCalledWith('EMAIL_CREDENTIALS environment variable is required')
-    expect(exitSpy).toHaveBeenCalledWith(1)
-    expect(Server).not.toHaveBeenCalled()
+    expect(consoleSpy).toHaveBeenCalledWith('Warning: No email accounts configured')
+    expect(Server).toHaveBeenCalled()
+    expect(exitSpy).not.toHaveBeenCalled()
   })
 
   it('triggers proactive OAuth2 auth for Outlook accounts without tokens', async () => {

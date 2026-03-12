@@ -30,19 +30,12 @@ async function setupEnvironment(): Promise<AccountConfig[]> {
   const accounts = loadConfig()
 
   if (accounts.length === 0) {
-    console.error('EMAIL_CREDENTIALS environment variable is required')
+    console.error('Warning: No email accounts configured')
+    console.error('Set EMAIL_CREDENTIALS to enable email tools')
     console.error('Format: email1:password1,email2:password2')
-    console.error('')
-    console.error('Examples:')
-    console.error('  EMAIL_CREDENTIALS=user@gmail.com:abcd-efgh-ijkl-mnop')
-    console.error('  EMAIL_CREDENTIALS=user1@gmail.com:pass1,user2@outlook.com:pass2')
-    console.error('')
-    console.error('For Gmail: Enable 2FA, then create App Password at https://myaccount.google.com/apppasswords')
-    console.error('For Outlook: OAuth2 sign-in is prompted automatically on first use')
-    process.exit(1)
+  } else {
+    console.error(`Loaded ${accounts.length} email account(s)`)
   }
-
-  console.error(`Loaded ${accounts.length} email account(s)`)
 
   // Proactive OAuth2 auth for Outlook accounts without stored tokens.
   // Triggers Device Code flow immediately so the user sees the sign-in link

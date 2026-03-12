@@ -274,6 +274,26 @@ describe('resolveSingleAccount', () => {
 })
 
 describe('resolveAccounts', () => {
+  it('throws NO_ACCOUNTS when accounts array is empty', () => {
+    expect(() => resolveAccounts([])).toThrow(EmailMCPError)
+    try {
+      resolveAccounts([])
+    } catch (e) {
+      expect(e).toBeInstanceOf(EmailMCPError)
+      expect((e as EmailMCPError).code).toBe('NO_ACCOUNTS')
+    }
+  })
+
+  it('throws NO_ACCOUNTS when accounts empty with query', () => {
+    expect(() => resolveAccounts([], 'user@test.com')).toThrow(EmailMCPError)
+    try {
+      resolveAccounts([], 'user@test.com')
+    } catch (e) {
+      expect(e).toBeInstanceOf(EmailMCPError)
+      expect((e as EmailMCPError).code).toBe('NO_ACCOUNTS')
+    }
+  })
+
   it('returns all accounts when no query', () => {
     const result = resolveAccounts(testAccounts)
     expect(result).toHaveLength(2)

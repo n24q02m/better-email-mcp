@@ -260,6 +260,13 @@ export function resolveSingleAccount(accounts: AccountConfig[], accountFilter?: 
 }
 
 export function resolveAccounts(accounts: AccountConfig[], query?: string): AccountConfig[] {
+  if (accounts.length === 0) {
+    throw new EmailMCPError(
+      'No email accounts configured',
+      'NO_ACCOUNTS',
+      'Set EMAIL_CREDENTIALS env var. Format: email1:password1,email2:password2'
+    )
+  }
   if (!query) return accounts
   const lower = query.toLowerCase().trim()
 
