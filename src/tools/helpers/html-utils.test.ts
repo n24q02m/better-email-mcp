@@ -168,4 +168,15 @@ describe('fastExtractSnippet', () => {
   it('collapses whitespace', () => {
     expect(fastExtractSnippet('<p>hello   \n\t  world</p>')).toBe('hello world')
   })
+
+  it('handles unclosed style and script tags (e.g. from truncation)', () => {
+    const html1 = '<style>body { color: red; } /* ... truncated */'
+    expect(fastExtractSnippet(html1)).toBe('')
+
+    const html2 = '<script>alert("xss") // ... truncated'
+    expect(fastExtractSnippet(html2)).toBe('')
+
+    const html3 = '<p>Content</p><style>.x{color:red}'
+    expect(fastExtractSnippet(html3)).toBe('Content')
+  })
 })

@@ -59,12 +59,14 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   if (!html) return ''
 
   // Iteratively remove style/script blocks (handles nested tags)
+  // [SECURITY] Use strict closing tag boundaries and handle unclosed tags
+  // (e.g., from IMAP source truncation) to prevent XSS/injection leaks.
   let text = html
   let prev: string
   do {
     prev = text
-    text = text.replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, '')
-    text = text.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+    text = text.replace(/<style\b[^>]*>[\s\S]*?(?:<\/style\b[^>]*>|$)/gi, '')
+    text = text.replace(/<script\b[^>]*>[\s\S]*?(?:<\/script\b[^>]*>|$)/gi, '')
   } while (text !== prev)
 
   // Replace block elements with spaces
