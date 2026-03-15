@@ -27,6 +27,12 @@ const SCOPES = [
   'offline_access'
 ]
 
+// Time constants
+const MS_PER_SECOND = 1000
+const DEFAULT_POLLING_INTERVAL_SECONDS = 5
+const SLOW_DOWN_BACKOFF_MS = 5000
+const TOKEN_REFRESH_BUFFER_SECONDS = 300
+
 // Persistent token storage
 const CONFIG_DIR = join(homedir(), '.better-email-mcp')
 const TOKEN_FILE = join(CONFIG_DIR, 'tokens.json')
@@ -222,8 +228,8 @@ function startBackgroundPoll(
   email: string
 ): void {
   const emailKey = email.toLowerCase()
-  const deadline = Date.now() + expiresIn * 1000
-  let pollInterval = (interval || 5) * 1000
+  const deadline = Date.now() + expiresIn * MS_PER_SECOND
+  let pollInterval = (interval || DEFAULT_POLLING_INTERVAL_SECONDS) * MS_PER_SECOND
 
   const poll = async () => {
     while (Date.now() < deadline) {
@@ -242,7 +248,7 @@ function startBackgroundPoll(
       const data = (await response.json()) as TokenResponse
 
       if (data.access_token) {
-        const now = Math.floor(Date.now() / 1000)
+        const now = Math.floor(Date.now() / MS_PER_SECOND)
         saveTokens(email, {
           accessToken: data.access_token,
           refreshToken: data.refresh_token,
@@ -255,7 +261,7 @@ function startBackgroundPoll(
 
       if (data.error === 'authorization_pending') continue
       if (data.error === 'slow_down') {
-        pollInterval += 5000
+        pollInterval += SLOW_DOWN_BACKOFF_MS
         continue
       }
 
@@ -310,7 +316,7 @@ export async function ensureValidToken(account: { email: string; oauth2?: OAuth2
     pendingAuths.set(emailKey, {
       verificationUri: codeData.verification_uri,
       userCode: codeData.user_code,
-      expiresAt: Date.now() + codeData.expires_in * 1000
+      expiresAt: Date.now() + codeData.expires_in * MS_PER_SECOND
     })
 
     startBackgroundPoll(clientId, codeData.device_code, codeData.interval, codeData.expires_in, account.email)
@@ -326,8 +332,8 @@ export async function ensureValidToken(account: { email: string; oauth2?: OAuth2
     )
   }
 
-  const now = Math.floor(Date.now() / 1000)
-  const buffer = 300 // 5-minute safety buffer
+  const now = Math.floor(Date.now() / MS_PER_SECOND)
+  const buffer = TOKEN_REFRESH_BUFFER_SECONDS // 5-minute safety buffer
 
   if (account.oauth2.expiresAt > now + buffer) {
     return account.oauth2.accessToken
@@ -362,8 +368,8 @@ export async function deviceCodeAuth(email: string, clientId?: string): Promise<
   console.error(`Enter code: ${codeData.user_code}\n`)
   console.error('Waiting for authorization...')
 
-  const interval = (codeData.interval || 5) * 1000
-  const deadline = Date.now() + codeData.expires_in * 1000
+  const interval = (codeData.interval || DEFAULT_POLLING_INTERVAL_SECONDS) * MS_PER_SECOND
+  const deadline = Date.now() + codeData.expires_in * MS_PER_SECOND
   let pollInterval = interval
 
   while (Date.now() < deadline) {
@@ -382,7 +388,7 @@ export async function deviceCodeAuth(email: string, clientId?: string): Promise<
     const tokenData = (await tokenResponse.json()) as TokenResponse
 
     if (tokenData.access_token) {
-      const now = Math.floor(Date.now() / 1000)
+      const now = Math.floor(Date.now() / MS_PER_SECOND)
       const tokens: OAuth2Tokens = {
         accessToken: tokenData.access_token,
         refreshToken: tokenData.refresh_token,
@@ -400,7 +406,7 @@ export async function deviceCodeAuth(email: string, clientId?: string): Promise<
     }
 
     if (tokenData.error === 'slow_down') {
-      pollInterval += 5000 // Back off as requested by server
+      pollInterval += SLOW_DOWN_BACKOFF_MS // Back off as requested by server
       continue
     }
 
