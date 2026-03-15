@@ -76,14 +76,19 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
 
   // Decode HTML entities in a single pass to avoid double-decode
   // (e.g., &amp;lt; should become &lt; not <)
-  text = text.replace(/&(#x?[\da-fA-F]+|[a-zA-Z]+);/g, (entity) => {
+  text = text.replace(/&(#x?[\da-fA-F]+|[a-zA-Z]+);/gi, (entity, p1) => {
+    // Check against pre-defined map using lowercase conversion
     const lower = entity.toLowerCase()
     if (lower in ENTITY_MAP) return ENTITY_MAP[lower]
-    const numMatch = entity.match(/&#x?([\da-fA-F]+);/)
-    if (numMatch) {
-      const code = entity.startsWith('&#x') ? Number.parseInt(numMatch[1], 16) : Number.parseInt(numMatch[1], 10)
+
+    // Fast path for numeric entities using the capture group (p1)
+    if (p1[0] === '#') {
+      const isHex = p1[1] === 'x' || p1[1] === 'X'
+      const codeStr = p1.substring(isHex ? 2 : 1)
+      const code = Number.parseInt(codeStr, isHex ? 16 : 10)
       return String.fromCharCode(code)
     }
+
     return entity
   })
 
