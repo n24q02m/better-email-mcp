@@ -208,9 +208,9 @@ describe('messages - move', () => {
   })
 
   it('throws when no uids provided', async () => {
-    await expect(messages(accounts, { action: 'move', destination: 'Archive', account: 'user1@gmail.com' })).rejects.toThrow(
-      'uid or uids required'
-    )
+    await expect(
+      messages(accounts, { action: 'move', destination: 'Archive', account: 'user1@gmail.com' })
+    ).rejects.toThrow('uid or uids required')
   })
 
   it('throws when destination is missing', async () => {
@@ -261,29 +261,30 @@ describe('messages - archive', () => {
       id: 'cache_clear_test',
       email: 'cache@test.com',
       imap: { ...accounts[0].imap }
-    };
+    }
 
     // The IIFE is an async function, so a synchronous throw inside it results in a rejected Promise
     Object.defineProperty(failAccount.imap, 'host', {
       get: () => {
-        throw new Error('Intentional error to reject promise');
+        throw new Error('Intentional error to reject promise')
       }
-    });
+    })
 
-    await expect(messages([failAccount], { action: 'archive', uid: 1 })).rejects.toThrow('Intentional error to reject promise');
+    await expect(messages([failAccount], { action: 'archive', uid: 1 })).rejects.toThrow(
+      'Intentional error to reject promise'
+    )
 
     // Second call with a fixed account matching the same ID to verify cache was cleared
     const fixedAccount: AccountConfig = {
       ...failAccount,
       imap: { ...accounts[0].imap, host: 'imap.gmail.com' }
-    };
-    mockListFolders.mockResolvedValue([]);
-    mockMoveEmails.mockResolvedValue({ success: true, moved: 1 });
+    }
+    mockListFolders.mockResolvedValue([])
+    mockMoveEmails.mockResolvedValue({ success: true, moved: 1 })
 
-    const result = await messages([fixedAccount], { action: 'archive', uid: 1 });
-    expect(result.archive_folder).toBe('[Gmail]/All Mail');
+    const result = await messages([fixedAccount], { action: 'archive', uid: 1 })
+    expect(result.archive_folder).toBe('[Gmail]/All Mail')
   })
-
 })
 
 // ============================================================================
@@ -371,7 +372,7 @@ describe('messages - archive (extended)', () => {
     const allAccount: AccountConfig = {
       ...accounts[0],
       id: 'all_flags',
-      email: 'all@custom.com',
+      email: 'all@custom.com'
     }
     mockListFolders.mockResolvedValue([{ name: 'Everything', path: 'Everything', flags: ['\\All'], delimiter: '/' }])
     mockMoveEmails.mockResolvedValue({ success: true, moved: 1 })
