@@ -50,7 +50,7 @@ describe('start-server', () => {
   })
 
   it('calls initServer and registers SIGINT handler if argv[2] is not "auth"', async () => {
-    vi.mocked(initServer).mockResolvedValue(undefined)
+    vi.mocked(initServer).mockResolvedValue(undefined as any)
 
     await import('./start-server.js')
     await new Promise((resolve) => setTimeout(resolve, 0))
@@ -61,11 +61,11 @@ describe('start-server', () => {
   })
 
   it('handles SIGINT correctly', async () => {
-    vi.mocked(initServer).mockResolvedValue(undefined)
+    vi.mocked(initServer).mockResolvedValue(undefined as any)
 
     // We need to capture the SIGINT handler
     let sigintHandler: (() => void) | undefined
-    processOnSpy.mockImplementation((event, listener) => {
+    processOnSpy.mockImplementation((event: string, listener: (...args: any[]) => void) => {
       if (event === 'SIGINT') {
         sigintHandler = listener as () => void
       }
