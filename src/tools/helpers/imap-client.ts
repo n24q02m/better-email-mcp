@@ -55,6 +55,156 @@ export interface FolderInfo {
   delimiter: string
 }
 
+// ============================================================================
+// Connection Pooling
+// ============================================================================
+
+const MAX_CONNECTIONS_PER_ACCOUNT = 5
+const CONNECTION_IDLE_TIMEOUT_MS = 15000 // 15 seconds
+
+interface PooledClient {
+  client: ImapFlow
+  idleTimeoutId: NodeJS.Timeout
+}
+
+interface QueuedRequest {
+  account: AccountConfig
+  resolve: (client: ImapFlow) => void
+  reject: (err: any) => void
+}
+
+class ConnectionPool {
+  private pools = new Map<
+    string,
+    {
+      active: Set<ImapFlow>
+      idle: PooledClient[]
+      queue: QueuedRequest[]
+    }
+  >()
+
+  private getPool(accountId: string) {
+    if (!this.pools.has(accountId)) {
+      this.pools.set(accountId, {
+        active: new Set(),
+        idle: [],
+        queue: []
+      })
+    }
+    return this.pools.get(accountId)!
+  }
+
+  private handleClientClosed(accountId: string, client: ImapFlow) {
+    const pool = this.pools.get(accountId)
+    if (!pool) return
+
+    pool.active.delete(client)
+    pool.idle = pool.idle.filter((p) => p.client !== client)
+
+    this.pumpQueue(accountId)
+  }
+
+  private async pumpQueue(accountId: string) {
+    const pool = this.pools.get(accountId)
+    if (!pool || pool.queue.length === 0) return
+
+    // If we have room to create a new connection or an idle one is available
+    if (pool.idle.length > 0 || pool.active.size < MAX_CONNECTIONS_PER_ACCOUNT) {
+      const req = pool.queue.shift()!
+      try {
+        const client = await this.acquire(req.account)
+        req.resolve(client)
+      } catch (err) {
+        req.reject(err)
+        // If it failed, try to pump again for the next one
+        this.pumpQueue(accountId)
+      }
+    }
+  }
+
+  async acquire(account: AccountConfig): Promise<ImapFlow> {
+    const pool = this.getPool(account.id)
+
+    // 1. Try to find a usable idle connection
+    while (pool.idle.length > 0) {
+      const pooled = pool.idle.pop()!
+      clearTimeout(pooled.idleTimeoutId)
+
+      if (pooled.client.usable) {
+        pool.active.add(pooled.client)
+        return pooled.client
+      }
+
+      try {
+        await pooled.client.logout()
+      } catch {
+        // ignore
+      }
+    }
+
+    // 2. Can we create a new connection?
+    if (pool.active.size < MAX_CONNECTIONS_PER_ACCOUNT) {
+      if (account.authType === 'oauth2') {
+        await ensureValidToken(account)
+      }
+
+      const client = createClient(account)
+      pool.active.add(client)
+
+      try {
+        await client.connect()
+        client.on('close', () => this.handleClientClosed(account.id, client))
+        client.on('error', () => this.handleClientClosed(account.id, client))
+        return client
+      } catch (err) {
+        pool.active.delete(client)
+        this.pumpQueue(account.id)
+        throw err
+      }
+    }
+
+    // 3. Must wait in queue
+    return new Promise<ImapFlow>((resolve, reject) => {
+      pool.queue.push({ account, resolve, reject })
+    })
+  }
+
+  release(account: AccountConfig, client: ImapFlow) {
+    const pool = this.getPool(account.id)
+
+    if (!client.usable) {
+      this.handleClientClosed(account.id, client)
+      try {
+        client.logout()
+      } catch {
+        // ignore
+      }
+      return
+    }
+
+    pool.active.delete(client)
+
+    if (pool.queue.length > 0) {
+      const req = pool.queue.shift()!
+      pool.active.add(client)
+      req.resolve(client)
+    } else {
+      const timeoutId = setTimeout(() => {
+        pool.idle = pool.idle.filter((p) => p.client !== client)
+        try {
+          client.logout()
+        } catch {
+          // ignore
+        }
+      }, CONNECTION_IDLE_TIMEOUT_MS)
+
+      pool.idle.push({ client, idleTimeoutId: timeoutId })
+    }
+  }
+}
+
+export const connectionPool = new ConnectionPool()
+
 /**
  * Create an ImapFlow client for the given account.
  * Uses XOAUTH2 for OAuth2 accounts, plain password otherwise.
@@ -76,23 +226,23 @@ function createClient(account: AccountConfig): ImapFlow {
 
 /**
  * Execute an operation with an IMAP connection (auto-connect/disconnect).
- * For OAuth2 accounts, refreshes the access token before connecting.
+ * Uses connection pooling to minimize connection latency.
  */
-async function withConnection<T>(account: AccountConfig, fn: (client: ImapFlow) => Promise<T>): Promise<T> {
-  if (account.authType === 'oauth2') {
-    await ensureValidToken(account)
+export async function withConnection<T>(
+  accountOrClient: AccountConfig | ImapFlow,
+  fn: (client: ImapFlow) => Promise<T>
+): Promise<T> {
+  // If an active connection is passed, reuse it directly
+  if (accountOrClient instanceof ImapFlow) {
+    return fn(accountOrClient)
   }
 
-  const client = createClient(account)
+  const account = accountOrClient as AccountConfig
+  const client = await connectionPool.acquire(account)
   try {
-    await client.connect()
     return await fn(client)
   } finally {
-    try {
-      await client.logout()
-    } catch {
-      // Ignore logout errors
-    }
+    connectionPool.release(account, client)
   }
 }
 

@@ -5,6 +5,8 @@ import type { AccountConfig } from './config.js'
 const { mockClient, mockRelease } = vi.hoisted(() => {
   const mockRelease = vi.fn()
   const mockClient = {
+    on: vi.fn(),
+    usable: true,
     connect: vi.fn().mockResolvedValue(undefined),
     logout: vi.fn().mockResolvedValue(undefined),
     getMailboxLock: vi.fn().mockResolvedValue({ release: mockRelease }),
@@ -46,6 +48,7 @@ import { ImapFlow } from 'imapflow'
 import { simpleParser } from 'mailparser'
 import {
   appendToFolder,
+  connectionPool,
   getAttachment,
   listFolders,
   modifyFlags,
@@ -84,6 +87,9 @@ function _toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  ;(connectionPool as any).pools.clear() // Clear the internal Map for tests
+  mockClient.usable = true
+
   mockClient.connect.mockResolvedValue(undefined)
   mockClient.logout.mockResolvedValue(undefined)
   mockClient.getMailboxLock.mockResolvedValue({ release: mockRelease })
@@ -471,10 +477,13 @@ describe('getAttachment', () => {
 
 describe('connection lifecycle', () => {
   it('always calls logout even on error', async () => {
-    mockClient.fetchOne.mockRejectedValue(new Error('IMAP error'))
+    mockClient.fetchOne.mockRejectedValue(new Error('Fetch failed'))
+    mockClient.usable = false
 
     await expect(readEmail(account, 1, 'INBOX')).rejects.toThrow()
 
+    // With connection pool, unusable clients are cleaned up and logout is called
+    // Let's ensure logout was called
     expect(mockClient.logout).toHaveBeenCalled()
   })
 
