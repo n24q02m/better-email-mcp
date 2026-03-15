@@ -330,7 +330,7 @@ if (HAS_REAL_CREDS) {
     ok(`messages.search(${testAccount}, ALL)`, text.slice(0, 80))
     // Try to extract a UID from results
     const uidMatch = text.match(/UID[:\s]+(\d+)/i) || text.match(/"uid":\s*(\d+)/)
-    if (uidMatch) foundUid = parseInt(uidMatch[1])
+    if (uidMatch) foundUid = parseInt(uidMatch[1], 10)
   } catch (e) {
     fail(`messages.search(${testAccount})`, e.message)
   }
