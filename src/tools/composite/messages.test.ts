@@ -207,6 +207,12 @@ describe('messages - move', () => {
     expect(mockMoveEmails).toHaveBeenCalledWith(accounts[0], [1, 2], 'INBOX', 'Archive')
   })
 
+  it('throws when no uids provided', async () => {
+    await expect(messages(accounts, { action: 'move', destination: 'Archive', account: 'user1@gmail.com' })).rejects.toThrow(
+      'uid or uids required'
+    )
+  })
+
   it('throws when destination is missing', async () => {
     await expect(messages(accounts, { action: 'move', uid: 1, account: 'user1@gmail.com' })).rejects.toThrow(
       'destination is required'
@@ -250,45 +256,34 @@ describe('messages - archive', () => {
   })
 
   it('clears cache and rethrows if archive folder resolution fails', async () => {
-    // The reviewer requested mocking listFolders to throw an IMAP error.
-    // However, resolveArchiveFolder catches all errors from listFolders internally
-    // and returns a default folder instead of rejecting.
-    // To legitimately cause the cached promise to reject without type-cheating,
-    // we can use a getter that throws a legitimate error when the account's host is accessed.
-
-    const badAccount: AccountConfig = {
+    const failAccount: AccountConfig = {
       ...accounts[0],
-      id: 'bad_account',
-      email: 'bad@account.com',
+      id: 'cache_clear_test',
+      email: 'cache@test.com',
       imap: { ...accounts[0].imap }
-    }
+    };
 
-    // Legitimate error generation: throw when accessing the host property
-    Object.defineProperty(badAccount.imap, 'host', {
+    // The IIFE is an async function, so a synchronous throw inside it results in a rejected Promise
+    Object.defineProperty(failAccount.imap, 'host', {
       get: () => {
-        throw new Error('Simulated config error')
+        throw new Error('Intentional error to reject promise');
       }
-    })
+    });
 
-    // First call should throw and clear the cache
-    await expect(messages([badAccount], { action: 'archive', uid: 1, account: badAccount.email })).rejects.toThrow(
-      'Simulated config error'
-    )
+    await expect(messages([failAccount], { action: 'archive', uid: 1 })).rejects.toThrow('Intentional error to reject promise');
 
-    // Second call with same ID but valid host should succeed, proving cache was cleared
+    // Second call with a fixed account matching the same ID to verify cache was cleared
     const fixedAccount: AccountConfig = {
-      ...badAccount,
+      ...failAccount,
       imap: { ...accounts[0].imap, host: 'imap.gmail.com' }
-    }
+    };
+    mockListFolders.mockResolvedValue([]);
+    mockMoveEmails.mockResolvedValue({ success: true, moved: 1 });
 
-    mockListFolders.mockResolvedValue([])
-    mockMoveEmails.mockResolvedValue({ success: true, moved: 1 })
-
-    const result = await messages([fixedAccount], { action: 'archive', uid: 1, account: fixedAccount.email })
-
-    expect(result.action).toBe('archive')
-    expect(result.archive_folder).toBe('[Gmail]/All Mail')
+    const result = await messages([fixedAccount], { action: 'archive', uid: 1 });
+    expect(result.archive_folder).toBe('[Gmail]/All Mail');
   })
+
 })
 
 // ============================================================================
@@ -370,6 +365,20 @@ describe('messages - archive (extended)', () => {
     expect(result.action).toBe('archive')
     expect(result.archive_folder).toBe('Archive')
     expect(mockMoveEmails).toHaveBeenCalledWith(yahooAccount, [1], 'INBOX', 'Archive')
+  })
+
+  it('detects archive folder from \\All flag', async () => {
+    const allAccount: AccountConfig = {
+      ...accounts[0],
+      id: 'all_flags',
+      email: 'all@custom.com',
+    }
+    mockListFolders.mockResolvedValue([{ name: 'Everything', path: 'Everything', flags: ['\\All'], delimiter: '/' }])
+    mockMoveEmails.mockResolvedValue({ success: true, moved: 1 })
+
+    const result = await messages([allAccount], { action: 'archive', uid: 5 })
+
+    expect(result.archive_folder).toBe('Everything')
   })
 
   it('detects archive folder from flags', async () => {
