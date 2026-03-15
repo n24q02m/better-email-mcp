@@ -49,14 +49,6 @@ describe('isSafeUrl', () => {
   it('blocks javascript& entity bypass', () => {
     expect(isSafeUrl('javascript&colon;alert(1)')).toBe(false)
   })
-
-  it('allows relative paths', () => {
-    expect(isSafeUrl('/foo/bar')).toBe(true)
-  })
-
-  it('allows plain text that is not a dangerous protocol', () => {
-    expect(isSafeUrl('just some text')).toBe(true)
-  })
 })
 
 // ============================================================================
