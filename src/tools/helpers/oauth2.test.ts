@@ -30,6 +30,7 @@ beforeEach(() => {
 import type { OAuth2Tokens } from './oauth2.js'
 import {
   _getPendingAuths,
+  _resetTokenCache,
   deviceCodeAuth,
   ensureValidToken,
   getClientId,
@@ -42,6 +43,10 @@ import {
 // ============================================================================
 // isOutlookDomain
 // ============================================================================
+
+afterEach(() => {
+  _resetTokenCache()
+})
 
 describe('isOutlookDomain', () => {
   it('detects outlook.com', () => {
@@ -160,6 +165,10 @@ describe('loadStoredTokens', () => {
 // ============================================================================
 
 describe('saveTokens', () => {
+  beforeEach(() => {
+    _resetTokenCache()
+  })
+
   const tokens: OAuth2Tokens = {
     accessToken: 'at',
     refreshToken: 'rt',
