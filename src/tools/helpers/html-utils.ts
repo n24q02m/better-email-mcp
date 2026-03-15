@@ -58,13 +58,13 @@ export function htmlToCleanText(html: string): string {
 export function fastExtractSnippet(html: string, maxLength = 200): string {
   if (!html) return ''
 
-  // Iteratively remove style/script blocks (handles nested tags)
+  // ⚡ Bolt: Iteratively remove style/script blocks using a combined regex with a backreference.
+  // This reduces string parsing overhead compared to running separate passes for style and script tags.
   let text = html
   let prev: string
   do {
     prev = text
-    text = text.replace(/<style\b[^>]*>[\s\S]*?(?:<\/style\s*>|$)/gi, '')
-    text = text.replace(/<script\b[^>]*>[\s\S]*?(?:<\/script\s*>|$)/gi, '')
+    text = text.replace(/<(style|script)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi, '')
   } while (text !== prev)
 
   // Replace block elements with spaces
@@ -74,15 +74,19 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   // Strip all remaining HTML tags
   text = text.replace(/<[^>]+>/g, '')
 
-  // Decode HTML entities in a single pass to avoid double-decode
-  // (e.g., &amp;lt; should become &lt; not <)
-  text = text.replace(/&(#x?[\da-fA-F]+|[a-zA-Z]+);/g, (entity) => {
+  // ⚡ Bolt: Decode HTML entities in a single pass.
+  // We use the capture group `p1` (which contains the entity name or number without the `&` and `;`)
+  // to avoid invoking `entity.match(...)` internally, which creates secondary string allocations.
+  text = text.replace(/&(#x?[\da-fA-F]+|[a-zA-Z]+);/g, (entity, p1) => {
     const lower = entity.toLowerCase()
     if (lower in ENTITY_MAP) return ENTITY_MAP[lower]
-    const numMatch = entity.match(/&#x?([\da-fA-F]+);/)
-    if (numMatch) {
-      const code = entity.startsWith('&#x') ? Number.parseInt(numMatch[1], 16) : Number.parseInt(numMatch[1], 10)
-      return String.fromCharCode(code)
+
+    // Check if it's a numeric entity starting with '#'
+    if (p1[0] === '#') {
+      const isHex = p1[1] === 'x' || p1[1] === 'X'
+      // Parse using radix 16 or 10 depending on whether it has an 'x'
+      const code = isHex ? Number.parseInt(p1.substring(2), 16) : Number.parseInt(p1.substring(1), 10)
+      if (!Number.isNaN(code)) return String.fromCharCode(code)
     }
     return entity
   })
