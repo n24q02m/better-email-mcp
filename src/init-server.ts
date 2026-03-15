@@ -27,7 +27,7 @@ function getVersion(): string {
 
 async function setupEnvironment(): Promise<AccountConfig[]> {
   // Load email accounts from environment
-  const accounts = loadConfig()
+  const accounts = await loadConfig()
 
   if (accounts.length === 0) {
     console.error('Warning: No email accounts configured')

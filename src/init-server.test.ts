@@ -70,7 +70,7 @@ describe('initServer', () => {
   it('initializes server successfully when accounts are loaded', async () => {
     // Setup mocks
     const mockAccounts = [{ email: 'test@example.com' }]
-    vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
+    vi.mocked(loadConfig).mockResolvedValue(mockAccounts as any)
 
     // Execute
     const server = await initServer()
@@ -90,7 +90,7 @@ describe('initServer', () => {
 
   it('uses fallback version 0.0.0 when package.json read fails', async () => {
     const mockAccounts = [{ email: 'test@example.com' }]
-    vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
+    vi.mocked(loadConfig).mockResolvedValue(mockAccounts as any)
     vi.mocked(readFileSync).mockImplementation(() => {
       throw new Error('File not found')
     })
@@ -107,7 +107,7 @@ describe('initServer', () => {
 
   it('uses fallback version when package.json has no version field', async () => {
     const mockAccounts = [{ email: 'test@example.com' }]
-    vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
+    vi.mocked(loadConfig).mockResolvedValue(mockAccounts as any)
     vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ name: 'test' }))
 
     await initServer()
@@ -122,7 +122,7 @@ describe('initServer', () => {
 
   it('starts server with warning when no accounts are loaded', async () => {
     // Setup mocks
-    vi.mocked(loadConfig).mockReturnValue([])
+    vi.mocked(loadConfig).mockResolvedValue([])
 
     // Execute
     await initServer()
@@ -139,7 +139,7 @@ describe('initServer', () => {
       { email: 'user@outlook.com', authType: 'oauth2', oauth2: undefined },
       { email: 'user@gmail.com', authType: 'password' }
     ]
-    vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
+    vi.mocked(loadConfig).mockResolvedValue(mockAccounts as any)
     vi.mocked(ensureValidToken).mockRejectedValue(
       new Error('Visit: https://microsoft.com/devicelogin\nEnter code: ABCD-EFGH')
     )
@@ -161,7 +161,7 @@ describe('initServer', () => {
         oauth2: { accessToken: 'at', refreshToken: 'rt', expiresAt: 9999999999, clientId: 'cid' }
       }
     ]
-    vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
+    vi.mocked(loadConfig).mockResolvedValue(mockAccounts as any)
 
     await initServer()
 
@@ -171,7 +171,7 @@ describe('initServer', () => {
 
   it('skips proactive auth for non-OAuth2 accounts', async () => {
     const mockAccounts = [{ email: 'user@gmail.com', authType: 'password' }]
-    vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
+    vi.mocked(loadConfig).mockResolvedValue(mockAccounts as any)
 
     await initServer()
 

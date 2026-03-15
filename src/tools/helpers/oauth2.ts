@@ -7,7 +7,7 @@
  */
 
 import { execFile } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
@@ -90,10 +90,10 @@ export function getClientId(): string {
  * Load stored OAuth2 tokens for an email account.
  * Returns null if no tokens are stored.
  */
-export function loadStoredTokens(email: string): OAuth2Tokens | null {
+export async function loadStoredTokens(email: string): Promise<OAuth2Tokens | null> {
   try {
-    if (!existsSync(TOKEN_FILE)) return null
-    const store: TokenStore = JSON.parse(readFileSync(TOKEN_FILE, 'utf-8'))
+    const data = await readFile(TOKEN_FILE, 'utf-8')
+    const store: TokenStore = JSON.parse(data)
     return store[email.toLowerCase()] || null
   } catch {
     return null
@@ -104,22 +104,23 @@ export function loadStoredTokens(email: string): OAuth2Tokens | null {
  * Persist OAuth2 tokens to disk.
  * Creates config directory if needed. File permissions: 0600.
  */
-export function saveTokens(email: string, tokens: OAuth2Tokens): void {
-  if (!existsSync(CONFIG_DIR)) {
-    mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 })
+export async function saveTokens(email: string, tokens: OAuth2Tokens): Promise<void> {
+  try {
+    await mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 })
+  } catch {
+    // Ignore error if directory already exists
   }
 
   let store: TokenStore = {}
   try {
-    if (existsSync(TOKEN_FILE)) {
-      store = JSON.parse(readFileSync(TOKEN_FILE, 'utf-8'))
-    }
+    const data = await readFile(TOKEN_FILE, 'utf-8')
+    store = JSON.parse(data)
   } catch {
-    // Start fresh if file is corrupted
+    // Start fresh if file doesn't exist or is corrupted
   }
 
   store[email.toLowerCase()] = tokens
-  writeFileSync(TOKEN_FILE, JSON.stringify(store, null, 2), { mode: 0o600 })
+  await writeFile(TOKEN_FILE, JSON.stringify(store, null, 2), { mode: 0o600 })
 }
 
 /**
@@ -243,7 +244,7 @@ function startBackgroundPoll(
 
       if (data.access_token) {
         const now = Math.floor(Date.now() / 1000)
-        saveTokens(email, {
+        await saveTokens(email, {
           accessToken: data.access_token,
           refreshToken: data.refresh_token,
           expiresAt: now + data.expires_in,
@@ -283,7 +284,7 @@ function startBackgroundPoll(
 export async function ensureValidToken(account: { email: string; oauth2?: OAuth2Tokens }): Promise<string> {
   // Try loading from disk (background auth may have saved tokens since last call)
   if (!account.oauth2) {
-    const stored = loadStoredTokens(account.email)
+    const stored = await loadStoredTokens(account.email)
     if (stored) {
       account.oauth2 = stored
     }
@@ -344,7 +345,7 @@ export async function ensureValidToken(account: { email: string; oauth2?: OAuth2
   }
 
   // Persist updated tokens
-  saveTokens(account.email, account.oauth2)
+  await saveTokens(account.email, account.oauth2)
 
   return newTokens.access_token
 }
@@ -390,7 +391,7 @@ export async function deviceCodeAuth(email: string, clientId?: string): Promise<
         clientId: resolvedClientId
       }
 
-      saveTokens(email, tokens)
+      await saveTokens(email, tokens)
       console.error(`\nSuccess! Token saved for ${email}`)
       return tokens
     }
