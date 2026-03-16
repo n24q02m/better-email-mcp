@@ -63,8 +63,7 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   let prev: string
   do {
     prev = text
-    text = text.replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, '')
-    text = text.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+    text = text.replace(/<(style|script)\b[^>]*>[\s\S]*?(?:<\/\1\b[^>]*>|$)/gi, '')
   } while (text !== prev)
 
   // Replace block elements with spaces
@@ -76,15 +75,17 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
 
   // Decode HTML entities in a single pass to avoid double-decode
   // (e.g., &amp;lt; should become &lt; not <)
-  text = text.replace(/&(#x?[\da-fA-F]+|[a-zA-Z]+);/g, (entity) => {
-    const lower = entity.toLowerCase()
+  text = text.replace(/&(#x?[\da-fA-F]+|[a-zA-Z]+);/g, (match, p1) => {
+    const lower = match.toLowerCase()
     if (lower in ENTITY_MAP) return ENTITY_MAP[lower]
-    const numMatch = entity.match(/&#x?([\da-fA-F]+);/)
-    if (numMatch) {
-      const code = entity.startsWith('&#x') ? Number.parseInt(numMatch[1], 16) : Number.parseInt(numMatch[1], 10)
-      return String.fromCharCode(code)
+
+    if (p1.startsWith('#')) {
+      const isHex = p1.startsWith('#x') || p1.startsWith('#X')
+      const numStr = isHex ? p1.slice(2) : p1.slice(1)
+      const code = Number.parseInt(numStr, isHex ? 16 : 10)
+      if (!Number.isNaN(code)) return String.fromCharCode(code)
     }
-    return entity
+    return match
   })
 
   // Collapse whitespace
