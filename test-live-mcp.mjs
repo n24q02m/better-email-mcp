@@ -295,8 +295,8 @@ try {
 if (HAS_REAL_CREDS) {
   console.log('\n--- API tests (real credentials) ---')
   const accounts = EMAIL_CREDENTIALS.split(',').map((c) => c.split(':')[0])
-  const gmailAccounts = accounts.filter((a) => a.includes('gmail.com'))
-  const outlookAccounts = accounts.filter((a) => a.includes('outlook.com'))
+  const gmailAccounts = accounts.filter((a) => a.endsWith('@gmail.com'))
+  const outlookAccounts = accounts.filter((a) => a.endsWith('@outlook.com'))
   const testAccount = gmailAccounts[0] || accounts[0]
 
   console.log(`Testing with ${accounts.length} account(s): ${accounts.join(', ')}`)
