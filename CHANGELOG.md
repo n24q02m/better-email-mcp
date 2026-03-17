@@ -2,6 +2,70 @@
 
 <!-- version list -->
 
+## v1.12.0 (2026-03-17)
+
+### Bug Fixes
+
+- Allow server startup without configured email accounts
+  ([`f4b3715`](https://github.com/n24q02m/better-email-mcp/commit/f4b3715bda73e225f018d3ef7f33478c5594d5f2))
+
+- Correct Glama.ai badge URL format
+  ([`b0bc7e7`](https://github.com/n24q02m/better-email-mcp/commit/b0bc7e78655c0892e183a90e9eb4dbdf7cbfd680))
+
+- Migrate biome config schema to 2.4.7
+  ([`2c3597a`](https://github.com/n24q02m/better-email-mcp/commit/2c3597a00f718fd637ed07341b9a24b3be4e91a4))
+
+- Remove junk pr_desc.txt file
+  ([`739fb8b`](https://github.com/n24q02m/better-email-mcp/commit/739fb8bc9f28f1e4586c1d3b1b2aff1e54706bec))
+
+- Remove junk pr_description.md file
+  ([`4e86c7a`](https://github.com/n24q02m/better-email-mcp/commit/4e86c7a641c4c9ccac26d1b3ddd2a9fd6c1312a2))
+
+- Standardize repo files across MCP server portfolio
+  ([`f332c94`](https://github.com/n24q02m/better-email-mcp/commit/f332c94719a4cfa7cae2de8a56021554d9884aa4))
+
+- Use exact domain matching for email account filtering
+  ([`2486b92`](https://github.com/n24q02m/better-email-mcp/commit/2486b928248cc3f487f049bd5e675220aa8d2f68))
+
+- **ci**: Use pull_request_target for jobs requiring secrets
+  ([`f586a1e`](https://github.com/n24q02m/better-email-mcp/commit/f586a1e6076b6bc4eac1db64e1aabdeb09ebfb62))
+
+- **deps**: Update non-major dependencies
+  ([`8392653`](https://github.com/n24q02m/better-email-mcp/commit/83926534af205f56a4439e1e356add4b8a5b3422))
+
+### Chores
+
+- **deps**: Update dawidd6/action-send-mail action to v15
+  ([`6a29247`](https://github.com/n24q02m/better-email-mcp/commit/6a292472158be00d97f189d864ab51d6db684bcb))
+
+- **deps**: Update oven-sh/setup-bun digest to 0c5077e
+  ([`effee64`](https://github.com/n24q02m/better-email-mcp/commit/effee64501fe4796705d14a9d24dc5d1df8dc1a5))
+
+- **deps**: Update step-security/harden-runner digest to fa2e9d6
+  ([`153baa8`](https://github.com/n24q02m/better-email-mcp/commit/153baa824466c9960d2b987aa92fa119f1cb9721))
+
+### Features
+
+- Add better-telegram-mcp to Also by section
+  ([`ef0dcfe`](https://github.com/n24q02m/better-email-mcp/commit/ef0dcfeb72ad552a66e18e42d25f9b6f89fd6fd7))
+
+- Add glama.json for Glama directory listing
+  ([`7df3a7c`](https://github.com/n24q02m/better-email-mcp/commit/7df3a7c4a64020e734b582176187f5cff0be6222))
+
+### Performance Improvements
+
+- **html**: Optimize fastExtractSnippet regex and memory usage
+  ([`0966e59`](https://github.com/n24q02m/better-email-mcp/commit/0966e59dcd2dc1abe31ff715171bdc7be37c4a31))
+
+### Testing
+
+- Add tests for scripts/start-server.ts
+  ([`a20a9e6`](https://github.com/n24q02m/better-email-mcp/commit/a20a9e69a971bc6a13af2491a32f8add73409393))
+
+- Fix typescript compilation errors in start-server.test.ts
+  ([`ff6bc64`](https://github.com/n24q02m/better-email-mcp/commit/ff6bc6473fd005767231c574fe2627e6e2975f49))
+
+
 ## v1.11.0 (2026-03-12)
 
 
