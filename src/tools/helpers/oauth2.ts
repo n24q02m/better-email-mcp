@@ -96,10 +96,23 @@ export function getClientId(): string {
  * Load stored OAuth2 tokens for an email account.
  * Returns null if no tokens are stored.
  */
+/** In-memory cache for loaded tokens to avoid synchronous file I/O on every call */
+let cachedTokenStore: TokenStore | null = null
+
+/** Exposed for testing */
+export function _resetTokenCache(): void {
+  cachedTokenStore = null
+}
+
 export function loadStoredTokens(email: string): OAuth2Tokens | null {
   try {
+    if (cachedTokenStore) {
+      return cachedTokenStore[email.toLowerCase()] || null
+    }
+
     if (!existsSync(TOKEN_FILE)) return null
     const store: TokenStore = JSON.parse(readFileSync(TOKEN_FILE, 'utf-8'))
+    cachedTokenStore = store
     return store[email.toLowerCase()] || null
   } catch {
     return null
@@ -115,16 +128,18 @@ export function saveTokens(email: string, tokens: OAuth2Tokens): void {
     mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 })
   }
 
-  let store: TokenStore = {}
+  let store: TokenStore = cachedTokenStore || {}
   try {
-    if (existsSync(TOKEN_FILE)) {
+    if (!cachedTokenStore && existsSync(TOKEN_FILE)) {
       store = JSON.parse(readFileSync(TOKEN_FILE, 'utf-8'))
     }
   } catch {
     // Start fresh if file is corrupted
+    store = {}
   }
 
   store[email.toLowerCase()] = tokens
+  cachedTokenStore = store
   writeFileSync(TOKEN_FILE, JSON.stringify(store, null, 2), { mode: 0o600 })
 }
 
