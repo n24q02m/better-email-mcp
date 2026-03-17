@@ -20,37 +20,12 @@ const VALID_TOOL_NAMES = new Set(['messages', 'folders', 'attachments', 'send', 
  * Prevents XSS attacks via javascript:, data:, vbscript:, etc.
  */
 export function isSafeUrl(url: string): boolean {
-  // Normalize by removing whitespace and control characters that could bypass checks
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: Intentionally matching control characters for security sanitization
-  const lowerUrl = url.toLowerCase().replace(/[\s\x00-\x1F\x7F]+/g, '')
-
-  // Explicitly block dangerous protocols that might bypass the URL parser
-  // when falling back to relative paths.
-  if (
-    lowerUrl.startsWith('javascript:') ||
-    lowerUrl.startsWith('data:') ||
-    lowerUrl.startsWith('vbscript:') ||
-    lowerUrl.startsWith('javascript&') ||
-    lowerUrl.startsWith('data&') ||
-    lowerUrl.startsWith('vbscript&')
-  ) {
-    return false
-  }
-
   try {
     // Try parsing as absolute URL
     const parsed = new URL(url)
     return ['http:', 'https:', 'mailto:', 'tel:'].includes(parsed.protocol)
   } catch {
-    // If absolute parsing fails, parse as a relative URL using a dummy base.
-    // This ensures valid relative URLs (like '/foo/bar') and plain text are
-    // handled securely, maintaining an allow-list approach.
-    try {
-      const parsedRelative = new URL(url, 'http://localhost')
-      return ['http:', 'https:', 'mailto:', 'tel:'].includes(parsedRelative.protocol)
-    } catch {
-      return false
-    }
+    return false
   }
 }
 
