@@ -35,6 +35,7 @@ describe('runAuth', () => {
     await expect(runAuth()).rejects.toThrow('process.exit called with 1')
 
     expect(console.error).toHaveBeenCalledWith('Usage: better-email-mcp auth <email>')
+    expect(process.exit).toHaveBeenCalledTimes(1)
     expect(process.exit).toHaveBeenCalledWith(1)
     expect(deviceCodeAuth).not.toHaveBeenCalled()
   })
@@ -49,6 +50,7 @@ describe('runAuth', () => {
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining('OAuth2 auth is only needed for Outlook/Hotmail/Live accounts.')
     )
+    expect(process.exit).toHaveBeenCalledTimes(1)
     expect(process.exit).toHaveBeenCalledWith(1)
     expect(deviceCodeAuth).not.toHaveBeenCalled()
   })
@@ -75,6 +77,7 @@ describe('runAuth', () => {
 
     expect(deviceCodeAuth).toHaveBeenCalledWith('user@outlook.com')
     expect(console.error).toHaveBeenCalledWith('\nError: Auth failed')
+    expect(process.exit).toHaveBeenCalledTimes(1)
     expect(process.exit).toHaveBeenCalledWith(1)
   })
 })
