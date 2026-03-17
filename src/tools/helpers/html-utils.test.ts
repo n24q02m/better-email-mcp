@@ -151,6 +151,17 @@ describe('fastExtractSnippet', () => {
     expect(fastExtractSnippet(html)).toBe('Content')
   })
 
+  it('removes unclosed style and script blocks', () => {
+    const html = '<style>.x{color:red}<p>Content</p><script>alert(1)'
+    expect(fastExtractSnippet(html)).toBe('')
+
+    const html2 = 'Hello <style>.x{color:red}'
+    expect(fastExtractSnippet(html2)).toBe('Hello')
+
+    const html3 = 'Hello <script>alert(1)'
+    expect(fastExtractSnippet(html3)).toBe('Hello')
+  })
+
   it('decodes HTML entities', () => {
     expect(fastExtractSnippet('&amp; &lt; &gt; &quot; &#039;')).toBe('& < > " \'')
   })

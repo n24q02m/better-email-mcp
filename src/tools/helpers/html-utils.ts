@@ -63,8 +63,8 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   let prev: string
   do {
     prev = text
-    text = text.replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, '')
-    text = text.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
+    text = text.replace(/<style\b[^>]*>[\s\S]*?(?:<\/style\s*>|$)/gi, '')
+    text = text.replace(/<script\b[^>]*>[\s\S]*?(?:<\/script\s*>|$)/gi, '')
   } while (text !== prev)
 
   // Replace block elements with spaces
