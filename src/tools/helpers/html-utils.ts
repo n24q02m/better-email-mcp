@@ -27,6 +27,24 @@ export function escapeHtml(unsafe: string): string {
     .replace(/'/g, '&#039;')
 }
 
+// ⚡ Bolt: Extract html-to-text options into a module-scoped constant.
+// This prevents reallocation and deep object parsing overhead on every call.
+const HTML_TO_TEXT_OPTIONS = {
+  wordwrap: false,
+  preserveNewlines: true,
+  selectors: [
+    // Remove style and script tags entirely
+    { selector: 'style', format: 'skip' },
+    { selector: 'script', format: 'skip' },
+    // Remove images (just show alt text if any)
+    { selector: 'img', format: 'skip' },
+    // Keep links as text
+    { selector: 'a', options: { hideLinkHrefIfSameAsText: true, ignoreHref: false } },
+    // Tables as readable text
+    { selector: 'table', format: 'dataTable' }
+  ]
+} as const
+
 /**
  * Convert HTML email body to clean plain text
  * Removes CSS, scripts, images, and formatting noise to save LLM tokens
@@ -34,21 +52,7 @@ export function escapeHtml(unsafe: string): string {
 export function htmlToCleanText(html: string): string {
   if (!html) return ''
 
-  return convert(html, {
-    wordwrap: false,
-    preserveNewlines: true,
-    selectors: [
-      // Remove style and script tags entirely
-      { selector: 'style', format: 'skip' },
-      { selector: 'script', format: 'skip' },
-      // Remove images (just show alt text if any)
-      { selector: 'img', format: 'skip' },
-      // Keep links as text
-      { selector: 'a', options: { hideLinkHrefIfSameAsText: true, ignoreHref: false } },
-      // Tables as readable text
-      { selector: 'table', format: 'dataTable' }
-    ]
-  }).trim()
+  return convert(html, HTML_TO_TEXT_OPTIONS as any).trim()
 }
 
 /**
