@@ -200,6 +200,19 @@ async function handleMove(accounts: AccountConfig[], input: MessagesInput): Prom
 }
 
 /**
+ * Check if a folder is an archive folder based on path or flags
+ */
+function isArchiveFolder(folder: { path: string; flags: string[] }): boolean {
+  if (/archive|all mail/i.test(folder.path)) {
+    return true
+  }
+  for (let i = 0; i < folder.flags.length; i++) {
+    if (/archive|all/i.test(folder.flags[i])) return true
+  }
+  return false
+}
+
+/**
  * Resolve the archive folder path for the given account.
  * Uses provider-specific defaults, then verifies via IMAP folder listing.
  * Results are cached per account.
@@ -220,15 +233,7 @@ async function resolveArchiveFolder(account: AccountConfig): Promise<string> {
     // Try to find actual archive folder
     try {
       const folders = await listFolders(account)
-      const found = folders.find((f) => {
-        if (/archive|all mail/i.test(f.path)) {
-          return true
-        }
-        for (let i = 0; i < f.flags.length; i++) {
-          if (/archive|all/i.test(f.flags[i])) return true
-        }
-        return false
-      })
+      const found = folders.find(isArchiveFolder)
       if (found) {
         archiveFolder = found.path
       }
