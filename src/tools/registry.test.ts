@@ -1,4 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import {
+  CallToolRequestSchema,
+  ListResourcesRequestSchema,
+  ListToolsRequestSchema,
+  ReadResourceRequestSchema
+} from '@modelcontextprotocol/sdk/types.js'
+import { describe, expect, it, vi } from 'vitest'
+import { registerTools } from './registry.js'
 
 /**
  * Registry tests - validate TOOLS definitions, input schemas, and help tool structure.
@@ -153,5 +160,33 @@ describe('help tool enum', () => {
 
   it('help does not include itself', () => {
     expect(HELP_ENUM).not.toContain('help')
+  })
+})
+
+// ============================================================================
+// Core Tool Registration (registerTools)
+// ============================================================================
+
+describe('registerTools function', () => {
+  it('should register all required MCP schemas', () => {
+    // 1. Setup mock Server instance
+    const mockServer = {
+      setRequestHandler: vi.fn()
+    }
+
+    // 2. Call the function under test
+    registerTools(mockServer as any, [])
+
+    // 3. Assert setRequestHandler was called exactly 4 times
+    expect(mockServer.setRequestHandler).toHaveBeenCalledTimes(4)
+
+    // 4. Assert the specific schemas were registered
+    const calls = mockServer.setRequestHandler.mock.calls
+    const registeredSchemas = calls.map((call) => call[0])
+
+    expect(registeredSchemas).toContain(ListToolsRequestSchema)
+    expect(registeredSchemas).toContain(ListResourcesRequestSchema)
+    expect(registeredSchemas).toContain(ReadResourceRequestSchema)
+    expect(registeredSchemas).toContain(CallToolRequestSchema)
   })
 })
