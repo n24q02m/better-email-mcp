@@ -321,52 +321,44 @@ export async function searchEmails(
  * Read a single email by UID
  */
 export async function readEmail(account: AccountConfig, uid: number, folder: string): Promise<EmailDetail> {
-  return withConnection(account, async (client) => {
+  const fetchResult = await withConnection(account, async (client) => {
     const lock = await client.getMailboxLock(folder)
     try {
-      const fetchResult = await client.fetchOne(
-        `${uid}`,
-        {
-          flags: true,
-          source: true
-        },
-        { uid: true }
-      )
-
-      if (!fetchResult || !fetchResult.source) {
-        throw new EmailMCPError(`Email UID ${uid} not found in ${folder}`, 'NOT_FOUND', 'Check the UID and folder')
-      }
-
-      const msg = fetchResult
-      const parsed = await simpleParser(msg.source!)
-      const bodyText = parsed.text || (parsed.html ? htmlToCleanText(parsed.html as string) : '(Empty body)')
-
-      return {
-        account_id: account.id,
-        account_email: account.email,
-        uid: msg.uid,
-        message_id: parsed.messageId,
-        in_reply_to: parsed.inReplyTo,
-        references: Array.isArray(parsed.references) ? parsed.references.join(' ') : parsed.references,
-        subject: parsed.subject || '(No subject)',
-        from: formatAddress(parsed.from),
-        to: formatAddress(parsed.to),
-        cc: formatAddress(parsed.cc),
-        bcc: formatAddress(parsed.bcc),
-        date: parsed.date?.toISOString() || '',
-        flags: Array.from(msg.flags || []),
-        body_text: bodyText,
-        attachments: (parsed.attachments || []).map((att: any) => ({
-          filename: att.filename || 'unnamed',
-          content_type: att.contentType || 'application/octet-stream',
-          size: att.size || 0,
-          content_id: att.contentId
-        }))
-      }
+      return await client.fetchOne(`${uid}`, { flags: true, source: true }, { uid: true })
     } finally {
       lock.release()
     }
   })
+
+  if (!fetchResult || !fetchResult.source) {
+    throw new EmailMCPError(`Email UID ${uid} not found in ${folder}`, 'NOT_FOUND', 'Check the UID and folder')
+  }
+
+  const parsed = await simpleParser(fetchResult.source!)
+  const bodyText = parsed.text || (parsed.html ? htmlToCleanText(parsed.html as string) : '(Empty body)')
+
+  return {
+    account_id: account.id,
+    account_email: account.email,
+    uid: fetchResult.uid,
+    message_id: parsed.messageId,
+    in_reply_to: parsed.inReplyTo,
+    references: Array.isArray(parsed.references) ? parsed.references.join(' ') : parsed.references,
+    subject: parsed.subject || '(No subject)',
+    from: formatAddress(parsed.from),
+    to: formatAddress(parsed.to),
+    cc: formatAddress(parsed.cc),
+    bcc: formatAddress(parsed.bcc),
+    date: parsed.date?.toISOString() || '',
+    flags: Array.from(fetchResult.flags || []),
+    body_text: bodyText,
+    attachments: (parsed.attachments || []).map((att: any) => ({
+      filename: att.filename || 'unnamed',
+      content_type: att.contentType || 'application/octet-stream',
+      size: att.size || 0,
+      content_id: att.contentId
+    }))
+  }
 }
 
 /**
