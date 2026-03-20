@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[better-email-mcp] Email ready. Tools: messages (search/read/manage), folders, attachments, send, help.'"
+          }
+        ]
+      }
+    ]
+  }
+}
