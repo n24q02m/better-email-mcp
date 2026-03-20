@@ -185,7 +185,7 @@ export function _getPendingAuths(): Map<string, PendingAuth> {
 }
 
 /**
- * Open a URL in the user's default browser.
+ * Open a URL safely in the user's default browser avoiding shell command injection.
  * Fire-and-forget — errors are silently ignored since stderr instructions
  * serve as fallback if the browser fails to open.
  */
