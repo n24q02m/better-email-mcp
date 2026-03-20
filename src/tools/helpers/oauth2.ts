@@ -8,6 +8,7 @@
 
 import { execFile } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
@@ -104,17 +105,20 @@ export function _resetTokenCache(): void {
   cachedTokenStore = null
 }
 
-export function loadStoredTokens(email: string): OAuth2Tokens | null {
+export async function loadStoredTokens(email: string): Promise<OAuth2Tokens | null> {
   try {
     if (cachedTokenStore) {
       return cachedTokenStore[email.toLowerCase()] || null
     }
 
-    if (!existsSync(TOKEN_FILE)) return null
-    const store: TokenStore = JSON.parse(readFileSync(TOKEN_FILE, 'utf-8'))
+    const data = await readFile(TOKEN_FILE, 'utf-8')
+    const store: TokenStore = JSON.parse(data)
     cachedTokenStore = store
     return store[email.toLowerCase()] || null
-  } catch {
+  } catch (err: any) {
+    if (err.code !== 'ENOENT') {
+      // Ignore parse errors or other issues, return null
+    }
     return null
   }
 }
@@ -304,7 +308,7 @@ function startBackgroundPoll(
 export async function ensureValidToken(account: { email: string; oauth2?: OAuth2Tokens }): Promise<string> {
   // Try loading from disk (background auth may have saved tokens since last call)
   if (!account.oauth2) {
-    const stored = loadStoredTokens(account.email)
+    const stored = await loadStoredTokens(account.email)
     if (stored) {
       account.oauth2 = stored
     }
