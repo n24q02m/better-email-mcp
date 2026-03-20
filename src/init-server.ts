@@ -40,18 +40,20 @@ async function setupEnvironment(): Promise<AccountConfig[]> {
   // Proactive OAuth2 auth for Outlook accounts without stored tokens.
   // Triggers Device Code flow immediately so the user sees the sign-in link
   // at startup instead of waiting until the first tool call.
-  for (const account of accounts) {
-    if (account.authType === 'oauth2' && !account.oauth2) {
-      try {
-        await ensureValidToken(account)
-      } catch (err: any) {
-        // ensureValidToken throws with sign-in instructions — log to stderr.
-        // Background poll is already running; tokens will be saved to disk
-        // and picked up on the next tool call.
-        console.error(err.message)
+  await Promise.all(
+    accounts.map(async (account) => {
+      if (account.authType === 'oauth2' && !account.oauth2) {
+        try {
+          await ensureValidToken(account)
+        } catch (err: any) {
+          // ensureValidToken throws with sign-in instructions — log to stderr.
+          // Background poll is already running; tokens will be saved to disk
+          // and picked up on the next tool call.
+          console.error(err.message)
+        }
       }
-    }
-  }
+    })
+  )
 
   return accounts
 }
