@@ -75,8 +75,10 @@ const OUTLOOK_DOMAINS = new Set(['outlook.com', 'hotmail.com', 'live.com'])
  * Check if an email address belongs to an Outlook/Hotmail/Live domain
  */
 export function isOutlookDomain(email: string): boolean {
-  const domain = email.split('@')[1]?.toLowerCase()
-  return domain ? OUTLOOK_DOMAINS.has(domain) : false
+  const atIndex = email.indexOf('@')
+  if (atIndex === -1) return false
+  const domain = email.substring(atIndex + 1).toLowerCase()
+  return OUTLOOK_DOMAINS.has(domain)
 }
 
 // Bundled Azure AD public client ID for better-email-mcp.

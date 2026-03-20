@@ -90,10 +90,17 @@ async function buildRawMessage(mailOptions: {
  * the envelope must be provided separately with all RCPT TO addresses.
  */
 function collectRecipients(...fields: (string | undefined)[]): string[] {
-  return fields
-    .filter((f): f is string => !!f)
-    .flatMap((f) => f.split(',').map((a) => a.trim()))
-    .filter(Boolean)
+  const result: string[] = []
+  for (let i = 0; i < fields.length; i++) {
+    const field = fields[i]
+    if (!field) continue
+    const parts = field.split(',')
+    for (let j = 0; j < parts.length; j++) {
+      const trimmed = parts[j]!.trim()
+      if (trimmed) result.push(trimmed)
+    }
+  }
+  return result
 }
 
 /**

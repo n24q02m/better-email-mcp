@@ -71,7 +71,9 @@ const PROVIDER_MAP: Record<string, { imap: ServerConfig; smtp: ServerConfig }> =
  * Auto-discover IMAP/SMTP settings from email domain
  */
 function discoverSettings(email: string): { imap: ServerConfig; smtp: ServerConfig } | null {
-  const domain = email.split('@')[1]?.toLowerCase()
+  const atIndex = email.indexOf('@')
+  if (atIndex === -1) return null
+  const domain = email.substring(atIndex + 1).toLowerCase()
   if (!domain) return null
 
   // Check exact domain match
