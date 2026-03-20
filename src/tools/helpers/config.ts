@@ -109,7 +109,7 @@ function emailToId(email: string): string {
  * For passwords containing colons, use the 3-field format to disambiguate:
  *   email:password_with:colon:imap_host
  */
-export function parseCredentials(envValue: string): AccountConfig[] {
+export async function parseCredentials(envValue: string): Promise<AccountConfig[]> {
   if (!envValue || envValue.trim() === '') {
     return []
   }
@@ -189,7 +189,7 @@ export function parseCredentials(envValue: string): AccountConfig[] {
     // ensureValidToken handles auto-auth (Device Code flow) when tokens are missing.
     if (isOutlookDomain(email)) {
       account.authType = 'oauth2'
-      const tokens = loadStoredTokens(email)
+      const tokens = await loadStoredTokens(email)
       if (tokens) {
         account.oauth2 = tokens
       }
@@ -204,7 +204,7 @@ export function parseCredentials(envValue: string): AccountConfig[] {
 /**
  * Load and validate configuration from environment
  */
-export function loadConfig(): AccountConfig[] {
+export async function loadConfig(): Promise<AccountConfig[]> {
   const credentials = process.env.EMAIL_CREDENTIALS
   if (!credentials) {
     return []

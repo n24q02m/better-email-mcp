@@ -122,7 +122,7 @@ describe('initServer', () => {
 
   it('starts server with warning when no accounts are loaded', async () => {
     // Setup mocks
-    vi.mocked(loadConfig).mockReturnValue([])
+    vi.mocked(loadConfig).mockReturnValue(Promise.resolve([]))
 
     // Execute
     await initServer()

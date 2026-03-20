@@ -6,6 +6,10 @@ vi.mock('node:child_process', () => ({
   execFile: vi.fn()
 }))
 
+vi.mock('node:fs/promises', () => ({
+  readFile: vi.fn()
+}))
+
 vi.mock('node:fs', () => ({
   existsSync: vi.fn(),
   mkdirSync: vi.fn(),
@@ -18,6 +22,10 @@ vi.mock('node:os', () => ({
 }))
 
 const mockExecFile = vi.mocked(execFile)
+
+import { readFile } from 'node:fs/promises'
+
+const mockReadFile = vi.mocked(readFile)
 const mockExistsSync = vi.mocked(existsSync)
 const mockReadFileSync = vi.mocked(readFileSync)
 const mockWriteFileSync = vi.mocked(writeFileSync)
@@ -113,50 +121,46 @@ describe('getClientId', () => {
 // ============================================================================
 
 describe('loadStoredTokens', () => {
-  it('returns null when token file does not exist', () => {
-    mockExistsSync.mockReturnValue(false)
+  it('returns null when token file does not exist', async () => {
+    mockReadFile.mockRejectedValue({ code: 'ENOENT' })
 
-    expect(loadStoredTokens('user@outlook.com')).toBeNull()
+    expect(await loadStoredTokens('user@outlook.com')).toBeNull()
   })
 
-  it('returns tokens for stored email', () => {
+  it('returns tokens for stored email', async () => {
     const tokens: OAuth2Tokens = {
       accessToken: 'at-123',
       refreshToken: 'rt-456',
       expiresAt: 9999999999,
       clientId: 'client-789'
     }
-    mockExistsSync.mockReturnValue(true)
-    mockReadFileSync.mockReturnValue(JSON.stringify({ 'user@outlook.com': tokens }))
+    mockReadFile.mockResolvedValue(JSON.stringify({ 'user@outlook.com': tokens }))
 
-    expect(loadStoredTokens('user@outlook.com')).toEqual(tokens)
+    expect(await loadStoredTokens('user@outlook.com')).toEqual(tokens)
   })
 
-  it('returns null for email not in store', () => {
-    mockExistsSync.mockReturnValue(true)
-    mockReadFileSync.mockReturnValue(JSON.stringify({ 'other@outlook.com': {} }))
+  it('returns null for email not in store', async () => {
+    mockReadFile.mockResolvedValue(JSON.stringify({ 'other@outlook.com': {} }))
 
-    expect(loadStoredTokens('user@outlook.com')).toBeNull()
+    expect(await loadStoredTokens('user@outlook.com')).toBeNull()
   })
 
-  it('normalizes email to lowercase', () => {
+  it('normalizes email to lowercase', async () => {
     const tokens: OAuth2Tokens = {
       accessToken: 'at',
       refreshToken: 'rt',
       expiresAt: 0,
       clientId: 'c'
     }
-    mockExistsSync.mockReturnValue(true)
-    mockReadFileSync.mockReturnValue(JSON.stringify({ 'user@outlook.com': tokens }))
+    mockReadFile.mockResolvedValue(JSON.stringify({ 'user@outlook.com': tokens }))
 
-    expect(loadStoredTokens('User@Outlook.com')).toEqual(tokens)
+    expect(await loadStoredTokens('User@Outlook.com')).toEqual(tokens)
   })
 
-  it('returns null on JSON parse error', () => {
-    mockExistsSync.mockReturnValue(true)
-    mockReadFileSync.mockReturnValue('invalid json{')
+  it('returns null on JSON parse error', async () => {
+    mockReadFile.mockResolvedValue('invalid json{')
 
-    expect(loadStoredTokens('user@outlook.com')).toBeNull()
+    expect(await loadStoredTokens('user@outlook.com')).toBeNull()
   })
 })
 
@@ -290,7 +294,7 @@ describe('ensureValidToken', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', mockFetch)
     mockExistsSync.mockReturnValue(true)
-    mockReadFileSync.mockReturnValue('{}')
+    mockReadFile.mockResolvedValue('{}')
   })
 
   afterEach(() => {
@@ -395,7 +399,7 @@ describe('ensureValidToken', () => {
       expiresAt: Math.floor(Date.now() / 1000) + 3600,
       clientId: 'cid'
     }
-    mockReadFileSync.mockReturnValue(JSON.stringify({ 'user@outlook.com': stored }))
+    mockReadFile.mockResolvedValue(JSON.stringify({ 'user@outlook.com': stored }))
 
     const account = { email: 'user@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
     const token = await ensureValidToken(account)
