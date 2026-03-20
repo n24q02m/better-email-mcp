@@ -193,6 +193,38 @@ const TOOLS = [
 /**
  * Register all tools with MCP server
  */
+
+async function handleHelp(args: unknown): Promise<{ tool: string; documentation: string }> {
+  const toolName = (args as { tool_name: string }).tool_name
+  if (!isValidToolName(toolName)) {
+    throw new EmailMCPError(
+      `Invalid tool name: ${toolName}`,
+      'VALIDATION_ERROR',
+      'Valid: messages, folders, attachments, send, help'
+    )
+  }
+  const resource = RESOURCES.find((r) => r.uri === `email://docs/${toolName}`)
+  if (!resource) {
+    throw new EmailMCPError(`Documentation not found for: ${toolName}`, 'DOC_NOT_FOUND', 'Check tool_name')
+  }
+  try {
+    const content = await readFile(join(DOCS_DIR, resource.file), 'utf-8')
+    return { tool: toolName, documentation: content }
+  } catch {
+    throw new EmailMCPError(`Documentation not found for: ${toolName}`, 'DOC_NOT_FOUND', 'Check tool_name')
+  }
+}
+
+type ToolHandler = (accounts: AccountConfig[], args: unknown) => Promise<unknown>
+
+const TOOL_HANDLERS: Record<string, ToolHandler> = {
+  messages: (accounts, args) => messages(accounts, args as unknown as MessagesInput),
+  folders: (accounts, args) => folders(accounts, args as unknown as FoldersInput),
+  attachments: (accounts, args) => attachments(accounts, args as unknown as AttachmentsInput),
+  send: (accounts, args) => send(accounts, args as unknown as SendInput),
+  help: (_, args) => handleHelp(args)
+}
+
 export function registerTools(server: Server, accounts: AccountConfig[]) {
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: TOOLS
@@ -241,49 +273,16 @@ export function registerTools(server: Server, accounts: AccountConfig[]) {
     }
 
     try {
-      let result
-
-      switch (name) {
-        case 'messages':
-          result = await messages(accounts, args as unknown as MessagesInput)
-          break
-        case 'folders':
-          result = await folders(accounts, args as unknown as FoldersInput)
-          break
-        case 'attachments':
-          result = await attachments(accounts, args as unknown as AttachmentsInput)
-          break
-        case 'send':
-          result = await send(accounts, args as unknown as SendInput)
-          break
-        case 'help': {
-          const toolName = (args as { tool_name: string }).tool_name
-          if (!isValidToolName(toolName)) {
-            throw new EmailMCPError(
-              `Invalid tool name: ${toolName}`,
-              'VALIDATION_ERROR',
-              'Valid: messages, folders, attachments, send, help'
-            )
-          }
-          const resource = RESOURCES.find((r) => r.uri === `email://docs/${toolName}`)
-          if (!resource) {
-            throw new EmailMCPError(`Documentation not found for: ${toolName}`, 'DOC_NOT_FOUND', 'Check tool_name')
-          }
-          try {
-            const content = await readFile(join(DOCS_DIR, resource.file), 'utf-8')
-            result = { tool: toolName, documentation: content }
-          } catch {
-            throw new EmailMCPError(`Documentation not found for: ${toolName}`, 'DOC_NOT_FOUND', 'Check tool_name')
-          }
-          break
-        }
-        default:
-          throw new EmailMCPError(
-            `Unknown tool: ${name}`,
-            'UNKNOWN_TOOL',
-            `Available tools: ${TOOLS.map((t) => t.name).join(', ')}`
-          )
+      const handler = TOOL_HANDLERS[name]
+      if (!handler) {
+        throw new EmailMCPError(
+          `Unknown tool: ${name}`,
+          'UNKNOWN_TOOL',
+          `Available tools: ${TOOLS.map((t) => t.name).join(', ')}`
+        )
       }
+
+      const result = await handler(accounts, args)
 
       const jsonText = JSON.stringify(result, null, 2)
       return {
