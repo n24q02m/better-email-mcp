@@ -235,6 +235,27 @@ describe('CallToolRequestSchema handler - successful tool calls', () => {
 })
 
 describe('CallToolRequestSchema handler - tool execution error', () => {
+  it('should catch and format EmailMCPError thrown by tool without enhancement', async () => {
+    const { messages } = await import('./composite/messages.js')
+    const { EmailMCPError } = await import('./helpers/errors.js')
+    const customError = new EmailMCPError('Custom validation failed', 'CUSTOM_ERR', 'Try something else')
+    vi.mocked(messages).mockRejectedValue(customError)
+
+    const { getHandler } = createMockServerWithHandlers()
+    const handler = getHandler(CallToolRequestSchema)
+
+    const result = await handler({
+      params: {
+        name: 'messages',
+        arguments: { action: 'search', query: 'ALL' }
+      }
+    })
+
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toContain('Custom validation failed')
+    expect(result.content[0].text).toContain('Try something else')
+  })
+
   it('should catch and enhance non-EmailMCPError thrown by tool', async () => {
     const { messages } = await import('./composite/messages.js')
     vi.mocked(messages).mockRejectedValue(new Error('IMAP connection failed'))
