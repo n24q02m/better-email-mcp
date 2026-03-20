@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { aiReadableMessage, EmailMCPError, enhanceError, suggestFixes, withErrorHandling } from './errors.js'
+import {
+  aiReadableMessage,
+  createUnknownActionError,
+  EmailMCPError,
+  enhanceError,
+  suggestFixes,
+  withErrorHandling
+} from './errors.js'
 
 describe('EmailMCPError', () => {
   it('creates error with message and code', () => {
@@ -240,5 +247,15 @@ describe('withErrorHandling', () => {
     const wrapped = withErrorHandling(fn)
     const result = await wrapped(2, 3)
     expect(result).toBe(5)
+  })
+})
+
+describe('createUnknownActionError', () => {
+  it('creates error with correct message, code, and suggestion', () => {
+    const error = createUnknownActionError('foo', 'bar, baz')
+    expect(error).toBeInstanceOf(EmailMCPError)
+    expect(error.message).toBe('Unknown action: foo')
+    expect(error.code).toBe('VALIDATION_ERROR')
+    expect(error.suggestion).toBe('Supported actions: bar, baz')
   })
 })
