@@ -49,6 +49,10 @@ describe('isSafeUrl', () => {
   it('blocks javascript& entity bypass', () => {
     expect(isSafeUrl('javascript&colon;alert(1)')).toBe(false)
   })
+
+  it('returns false for invalid URLs that fail to parse', () => {
+    expect(isSafeUrl('not-a-url')).toBe(false)
+  })
 })
 
 // ============================================================================
