@@ -50,7 +50,7 @@ const TOOLS = [
   {
     name: 'messages',
     description:
-      'Email messages: search, read, mark_read, mark_unread, flag, unflag, move, archive, trash. Search across all accounts or filter by account. Query supports: UNREAD, FLAGGED, SINCE YYYY-MM-DD, FROM x, SUBJECT x.',
+      'Email messages: search, read, mark_read, mark_unread, flag, unflag, move, archive, trash. Search across all accounts or filter by account. Query examples: "UNREAD", "FLAGGED", "SINCE 2026-01-01", "FROM user@example.com", "SUBJECT meeting", "UNREAD SINCE 2026-01-01", "UNREAD FROM boss@company.com". Date format MUST be YYYY-MM-DD.',
     annotations: {
       title: 'Messages',
       readOnlyHint: false,
@@ -70,7 +70,7 @@ const TOOLS = [
         query: {
           type: 'string',
           description:
-            'Search query: UNREAD, FLAGGED, SINCE YYYY-MM-DD, FROM email, SUBJECT text, or combined (default: UNSEEN)'
+            'IMAP search query (default: UNSEEN). Single: UNREAD, FLAGGED, SINCE YYYY-MM-DD, FROM email@example.com, SUBJECT text. Combined: UNREAD SINCE 2026-01-01, UNREAD FROM user@example.com. Dates MUST use YYYY-MM-DD format (e.g. 2026-03-21). Plain text is treated as subject search.'
         },
         folder: { type: 'string', description: 'Mailbox folder (default: INBOX)' },
         limit: { type: 'number', description: 'Max results for search (default: 20)' },
@@ -107,7 +107,7 @@ const TOOLS = [
   {
     name: 'attachments',
     description:
-      'Email attachments: list, download. List shows all attachments for an email. Download returns base64-encoded content.',
+      'Email attachments: list, download. List shows all attachments with filename, content_type, and size. Download returns base64-encoded content. Most email providers limit attachments to 25MB. Common types: PDF, DOCX, XLSX, images (PNG/JPEG), ZIP. Use list first to get exact filenames before download.',
     annotations: {
       title: 'Attachments',
       readOnlyHint: true,
@@ -126,7 +126,10 @@ const TOOLS = [
         account: { type: 'string', description: 'Account email (required)' },
         uid: { type: 'number', description: 'Email UID (required)' },
         folder: { type: 'string', description: 'Mailbox folder (default: INBOX)' },
-        filename: { type: 'string', description: 'Attachment filename (required for download)' }
+        filename: {
+          type: 'string',
+          description: 'Exact attachment filename from list action (required for download). Case-sensitive.'
+        }
       },
       required: ['action', 'account', 'uid']
     }
@@ -134,7 +137,7 @@ const TOOLS = [
   {
     name: 'send',
     description:
-      'Send emails: new, reply, forward. Reply maintains thread headers (In-Reply-To, References) and auto-prepends "Re:" to subject. Forward includes original body and auto-prepends "Fwd:" to subject.',
+      'Send emails: new, reply, forward. Reply maintains thread headers (In-Reply-To, References) and auto-prepends "Re:" to subject. Forward includes original body and auto-prepends "Fwd:" to subject. Body is sent as plain text by default. For rich formatting (tables, links, bold/italic), use HTML in body with tags like <b>, <a href>, <table>. Plain text is best for simple messages.',
     annotations: {
       title: 'Send',
       readOnlyHint: false,
@@ -157,7 +160,11 @@ const TOOLS = [
             'Recipient email address (required for new/forward, optional for reply - auto-derived from original sender)'
         },
         subject: { type: 'string', description: 'Email subject (required for new)' },
-        body: { type: 'string', description: 'Email body text (required)' },
+        body: {
+          type: 'string',
+          description:
+            'Email body (required). Use plain text for simple messages. Use HTML tags (<b>, <i>, <a href="...">, <br>, <table>) for rich formatting. Do NOT mix: send either plain text or HTML, not both.'
+        },
         cc: { type: 'string', description: 'CC recipients (comma-separated)' },
         bcc: { type: 'string', description: 'BCC recipients (comma-separated)' },
         uid: { type: 'number', description: 'Original email UID (required for reply/forward)' },

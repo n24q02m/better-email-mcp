@@ -113,6 +113,15 @@ function buildSearchCriteria(query: string): any {
   const sinceMatch = query.match(/^SINCE\s+(\d{4}-\d{2}-\d{2})$/i)
   if (sinceMatch) return { since: new Date(sinceMatch[1]!) }
 
+  // Detect wrong date format for SINCE (e.g. "SINCE 01/15/2026", "SINCE Jan 15")
+  if (/^SINCE\s+/i.test(query) && !sinceMatch) {
+    throw new EmailMCPError(
+      'Invalid date format in SINCE query',
+      'VALIDATION_ERROR',
+      'Date must be YYYY-MM-DD format. Example: SINCE 2026-01-15'
+    )
+  }
+
   // From filter: FROM email@example.com (strip optional surrounding quotes)
   const fromMatch = query.match(/^FROM\s+(.+)$/i)
   if (fromMatch) return { from: fromMatch[1]!.trim().replace(/^["']|["']$/g, '') }
@@ -124,6 +133,15 @@ function buildSearchCriteria(query: string): any {
   // Compound: UNREAD SINCE 2024-01-01
   const compoundUnreadSince = query.match(/^UNREAD\s+SINCE\s+(\d{4}-\d{2}-\d{2})$/i)
   if (compoundUnreadSince) return { seen: false, since: new Date(compoundUnreadSince[1]!) }
+
+  // Detect wrong date format in compound UNREAD SINCE query
+  if (/^UNREAD\s+SINCE\s+/i.test(query) && !compoundUnreadSince) {
+    throw new EmailMCPError(
+      'Invalid date format in UNREAD SINCE query',
+      'VALIDATION_ERROR',
+      'Date must be YYYY-MM-DD format. Example: UNREAD SINCE 2026-01-15'
+    )
+  }
 
   // Compound: UNREAD FROM x
   const compoundUnreadFrom = query.match(/^UNREAD\s+FROM\s+(.+)$/i)
