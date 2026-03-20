@@ -1,30 +1,18 @@
 {
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "better-email-mcp",
-  "display_name": "Better Email MCP",
-  "description": "Email management via IMAP/SMTP — search, read, send, organize across multiple accounts with 5 composite tools optimized for AI agents",
   "version": "1.13.0",
-  "category": "communication",
-  "author": {
+  "description": "Email management via IMAP/SMTP — search, read, send, organize across multiple accounts",
+  "owner": {
     "name": "n24q02m",
     "url": "https://github.com/n24q02m"
   },
-  "homepage": "https://github.com/n24q02m/better-email-mcp",
-  "repository": "https://github.com/n24q02m/better-email-mcp",
-  "license": "MIT",
-  "keywords": ["email", "imap", "smtp", "inbox-management", "mcp", "claude-code"],
-  "installation": {
-    "command": "npx",
-    "args": ["-y", "@n24q02m/better-email-mcp"],
-    "env": {
-      "EMAIL_CREDENTIALS": {
-        "description": "Email credentials in format: user@gmail.com:app-password (comma-separated for multiple accounts)",
-        "required": true
-      }
+  "plugins": [
+    {
+      "name": "better-email-mcp",
+      "description": "Email management via IMAP/SMTP — search, read, send, organize across multiple accounts",
+      "source": "./",
+      "category": "communication"
     }
-  },
-  "capabilities": {
-    "tools": ["messages", "folders", "attachments", "send", "help"],
-    "resources": true,
-    "skills": ["triage-inbox", "send-report"]
-  }
+  ]
 }

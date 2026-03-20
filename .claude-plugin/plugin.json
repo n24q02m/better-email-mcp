@@ -12,6 +12,5 @@
       "command": "npx",
       "args": ["-y", "@n24q02m/better-email-mcp"]
     }
-  },
-  "skills": "../.agents/skills/"
+  }
 }
