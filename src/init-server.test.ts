@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
@@ -9,6 +9,7 @@ import { registerTools } from './tools/registry.js'
 
 // Mock dependencies
 vi.mock('node:fs', () => ({
+  existsSync: vi.fn(),
   readFileSync: vi.fn()
 }))
 vi.mock('./tools/helpers/config.js', () => ({
@@ -45,8 +46,9 @@ describe('initServer', () => {
     // Mock console.error to suppress output
     consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    // Default: readFileSync returns valid package.json with version
-    vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ version: '1.0.0' }))
+    // Default: existsSync finds package.json, readFileSync returns valid version
+    vi.mocked(existsSync).mockReturnValue(true)
+    vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ name: '@n24q02m/better-email-mcp', version: '1.0.0' }))
 
     // Default mock implementation for Server
     // biome-ignore lint/complexity/useArrowFunction: Must use function for constructor mocking
@@ -88,12 +90,10 @@ describe('initServer', () => {
     expect(server.connect).toHaveBeenCalledWith(expect.anything())
   })
 
-  it('uses fallback version 0.0.0 when package.json read fails', async () => {
+  it('uses fallback version 0.0.0 when package.json not found', async () => {
     const mockAccounts = [{ email: 'test@example.com' }]
     vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
-    vi.mocked(readFileSync).mockImplementation(() => {
-      throw new Error('File not found')
-    })
+    vi.mocked(existsSync).mockReturnValue(false)
 
     await initServer()
 
@@ -108,7 +108,7 @@ describe('initServer', () => {
   it('uses fallback version when package.json has no version field', async () => {
     const mockAccounts = [{ email: 'test@example.com' }]
     vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
-    vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ name: 'test' }))
+    vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ name: '@n24q02m/better-email-mcp' }))
 
     await initServer()
 

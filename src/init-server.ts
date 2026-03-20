@@ -3,7 +3,7 @@
  * Using composite tools for human-friendly AI agent interactions
  */
 
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
@@ -16,10 +16,24 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 function getVersion(): string {
+  // Walk up from __dirname to find package.json.
+  // Needed because __dirname differs between contexts:
+  //   - src/          (dev via tsx)
+  //   - build/src/    (tsc output, referenced by "main" in package.json)
+  //   - bin/          (esbuild bundle)
   try {
-    const pkgPath = join(__dirname, '..', 'package.json')
-    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
-    return pkg.version ?? '0.0.0'
+    let dir = __dirname
+    for (let i = 0; i < 5; i++) {
+      const pkgPath = join(dir, 'package.json')
+      if (existsSync(pkgPath)) {
+        const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
+        if (pkg.name === '@n24q02m/better-email-mcp') {
+          return pkg.version ?? '0.0.0'
+        }
+      }
+      dir = dirname(dir)
+    }
+    return '0.0.0'
   } catch {
     return '0.0.0'
   }
