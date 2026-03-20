@@ -2,6 +2,43 @@
 
 <!-- version list -->
 
+## v1.13.0 (2026-03-20)
+
+### Bug Fixes
+
+- Resolve version 0.0.0 by walking up directories to find package.json
+  ([`f488912`](https://github.com/n24q02m/better-email-mcp/commit/f48891232cdf6368f1d575dd81a13cfa674ed7ba))
+
+- Testing improvement] Add tests for createUnknownActionError
+  ([#203](https://github.com/n24q02m/better-email-mcp/pull/203),
+  [`413a58f`](https://github.com/n24q02m/better-email-mcp/commit/413a58f37057bf799596fc227f33dabd3b699024))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#196](https://github.com/n24q02m/better-email-mcp/pull/196),
+  [`df3edf9`](https://github.com/n24q02m/better-email-mcp/commit/df3edf97e74a4569e895f0a40d3b6b9d5dc33618))
+
+- **deps**: Update codecov/codecov-action digest to 1af5884
+  ([#200](https://github.com/n24q02m/better-email-mcp/pull/200),
+  [`261d1bf`](https://github.com/n24q02m/better-email-mcp/commit/261d1bf8e766a3eff5b52d577db02371f86f8a54))
+
+- **deps**: Update dawidd6/action-send-mail action to v16
+  ([#199](https://github.com/n24q02m/better-email-mcp/pull/199),
+  [`b469ea3`](https://github.com/n24q02m/better-email-mcp/commit/b469ea3485a39d77b5ae79cb2ece03417241996f))
+
+### Features
+
+- Optimize loadStoredTokens by removing synchronous file I/O
+  ([#214](https://github.com/n24q02m/better-email-mcp/pull/214),
+  [`d3dbc69`](https://github.com/n24q02m/better-email-mcp/commit/d3dbc6904998b327cbd126e5ff041777df204add))
+
+### Performance Improvements
+
+- Extract html-to-text options into module constant
+  ([#201](https://github.com/n24q02m/better-email-mcp/pull/201),
+  [`6576142`](https://github.com/n24q02m/better-email-mcp/commit/657614224f4fffde58b82d25840122aae4ed443f))
+
+
 ## v1.12.0 (2026-03-17)
 
 ### Bug Fixes
