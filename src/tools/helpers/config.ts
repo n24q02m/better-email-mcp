@@ -202,7 +202,7 @@ export async function parseCredentials(envValue: string): Promise<AccountConfig[
 /**
  * Load and validate configuration from environment
  */
-export function loadConfig(): AccountConfig[] {
+export async function loadConfig(): Promise<AccountConfig[]> {
   const credentials = process.env.EMAIL_CREDENTIALS
   if (!credentials) {
     return []
