@@ -286,33 +286,42 @@ export async function searchEmails(
             { uid: true }
           )
 
-          // Process snippets in parallel to improve performance
-          const summariesPromises = messages.map(async (msg) => {
-            const snippet = msg.source ? await extractSnippet(msg.source) : ''
-
-            return {
-              account_id: account.id,
-              account_email: account.email,
-              uid: msg.uid,
-              message_id: msg.envelope?.messageId,
-              subject: msg.envelope?.subject || '(No subject)',
-              from: msg.envelope?.from?.[0]
-                ? `${msg.envelope.from[0].name || ''} <${msg.envelope.from[0].address || ''}>`.trim()
-                : '',
-              to: msg.envelope?.to?.map((a: any) => a.address).join(', ') || '',
-              date: msg.envelope?.date?.toISOString() || '',
-              flags: Array.from(msg.flags || []),
-              snippet
-            }
-          })
-
-          return Promise.all(summariesPromises)
+          // ⚡ Bolt: Extract properties mapped from the IMAP messages immediately to release the mailbox lock faster.
+          // We avoid awaiting `extractSnippet` inside the `withConnection` block because it uses `simpleParser`,
+          // which is CPU-bound and blocks the IMAP connection from being returned to the pool.
+          return messages.map((msg) => ({
+            account_id: account.id,
+            account_email: account.email,
+            uid: msg.uid,
+            message_id: msg.envelope?.messageId,
+            subject: msg.envelope?.subject || '(No subject)',
+            from: msg.envelope?.from?.[0]
+              ? `${msg.envelope.from[0].name || ''} <${msg.envelope.from[0].address || ''}>`.trim()
+              : '',
+            to: msg.envelope?.to?.map((a: any) => a.address).join(', ') || '',
+            date: msg.envelope?.date?.toISOString() || '',
+            flags: Array.from(msg.flags || []),
+            source: msg.source,
+            snippet: ''
+          }))
         } finally {
           lock.release()
         }
       })
 
-      return emails
+      // Process snippets in parallel outside the IMAP connection lock to improve performance and connection throughput
+      const summariesPromises = emails.map(async (email) => {
+        const snippet = email.source ? await extractSnippet(email.source) : ''
+
+        // Remove the internal source property from the returned object and add the resolved snippet
+        const { source, ...summary } = email
+        return {
+          ...summary,
+          snippet
+        }
+      })
+
+      return Promise.all(summariesPromises)
     } catch (error: any) {
       // Include error info but continue with other accounts
       return [
@@ -470,34 +479,37 @@ export async function getAttachment(
   folder: string,
   filename: string
 ): Promise<{ filename: string; content_type: string; size: number; content_base64: string }> {
-  return withConnection(account, async (client) => {
+  // ⚡ Bolt: Fetch the source string inside the `withConnection` block, immediately release the lock,
+  // and perform `simpleParser` decoding outside of the connection boundary.
+  const fetchResult = await withConnection(account, async (client) => {
     const lock = await client.getMailboxLock(folder)
     try {
-      const fetchResult = await client.fetchOne(`${uid}`, { source: true }, { uid: true })
-      if (!fetchResult || !fetchResult.source) {
-        throw new EmailMCPError(`Email UID ${uid} not found`, 'NOT_FOUND', 'Check the UID and folder')
-      }
-
-      const parsed = await simpleParser(fetchResult.source)
-      const lowerFilename = filename.toLowerCase()
-      const attachment = parsed.attachments?.find((att) => att.filename?.toLowerCase() === lowerFilename)
-
-      if (!attachment) {
-        throw new EmailMCPError(
-          `Attachment "${filename}" not found`,
-          'ATTACHMENT_NOT_FOUND',
-          `Available: ${parsed.attachments?.map((a) => a.filename).join(', ') || 'none'}`
-        )
-      }
-
-      return {
-        filename: attachment.filename || 'unnamed',
-        content_type: attachment.contentType || 'application/octet-stream',
-        size: attachment.size || 0,
-        content_base64: attachment.content.toString('base64')
-      }
+      return await client.fetchOne(`${uid}`, { source: true }, { uid: true })
     } finally {
       lock.release()
     }
   })
+
+  if (!fetchResult || !fetchResult.source) {
+    throw new EmailMCPError(`Email UID ${uid} not found`, 'NOT_FOUND', 'Check the UID and folder')
+  }
+
+  const parsed = await simpleParser(fetchResult.source)
+  const lowerFilename = filename.toLowerCase()
+  const attachment = parsed.attachments?.find((att) => att.filename?.toLowerCase() === lowerFilename)
+
+  if (!attachment) {
+    throw new EmailMCPError(
+      `Attachment "${filename}" not found`,
+      'ATTACHMENT_NOT_FOUND',
+      `Available: ${parsed.attachments?.map((a) => a.filename).join(', ') || 'none'}`
+    )
+  }
+
+  return {
+    filename: attachment.filename || 'unnamed',
+    content_type: attachment.contentType || 'application/octet-stream',
+    size: attachment.size || 0,
+    content_base64: attachment.content.toString('base64')
+  }
 }
