@@ -37,6 +37,8 @@
 claude plugin add n24q02m/better-email-mcp
 ```
 
+After install, set your credentials: `claude config set mcpServers.better-email-mcp.env.EMAIL_CREDENTIALS "user@gmail.com:app-password"`. See [Prerequisites](#mcp-server) below for how to create App Passwords.
+
 ### MCP Server
 
 **Prerequisites:** Create App Passwords (NOT your regular password):
