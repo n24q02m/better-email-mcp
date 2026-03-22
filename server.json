@@ -6,7 +6,7 @@
     "url": "https://github.com/n24q02m/better-email-mcp.git",
     "source": "github"
   },
-  "version": "1.3.0",
+  "version": "1.13.0",
   "packages": [
     {
       "registryType": "npm",

@@ -1,8 +1,11 @@
 {
   "name": "better-email-mcp",
-  "description": "Email management via IMAP/SMTP — search, read, send, organize across multiple accounts",
+  "description": "Email management via IMAP/SMTP \u2014 search, read, send, organize across multiple accounts",
   "version": "1.13.0",
-  "author": { "name": "n24q02m", "url": "https://github.com/n24q02m" },
+  "author": {
+    "name": "n24q02m",
+    "url": "https://github.com/n24q02m"
+  },
   "homepage": "https://github.com/n24q02m/better-email-mcp",
   "repository": "https://github.com/n24q02m/better-email-mcp",
   "license": "MIT",
