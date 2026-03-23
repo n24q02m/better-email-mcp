@@ -40,5 +40,9 @@ export function wrapToolResult(toolName: string, jsonText: string): string {
     return jsonText
   }
 
-  return `<untrusted_email_content>\n${jsonText}\n</untrusted_email_content>\n\n${SAFETY_WARNING}`
+  // Prevent XPIA breakout: sanitize the closing tag to prevent attackers from
+  // escaping the untrusted block and injecting system commands.
+  const safeText = jsonText.replace(/untrusted_email_content/gi, 'u_n_t_r_u_s_t_e_d_email_content')
+
+  return `<untrusted_email_content>\n${safeText}\n</untrusted_email_content>\n\n${SAFETY_WARNING}`
 }
