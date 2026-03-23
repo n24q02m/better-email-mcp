@@ -196,22 +196,24 @@ export function _getPendingAuths(): Map<string, PendingAuth> {
  * serve as fallback if the browser fails to open.
  */
 function openBrowser(url: string): void {
+  let safeUrl: string
   try {
     const parsed = new URL(url)
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
       return
     }
+    safeUrl = parsed.href
   } catch {
     return
   }
 
   if (process.platform === 'darwin') {
-    execFile('open', [url], () => {})
+    execFile('open', [safeUrl], () => {})
   } else if (process.platform === 'win32') {
     // On Windows, use rundll32 to open URLs safely without cmd.exe
-    execFile('rundll32', ['url.dll,FileProtocolHandler', url], () => {})
+    execFile('rundll32', ['url.dll,FileProtocolHandler', safeUrl], () => {})
   } else {
-    execFile('xdg-open', [url], () => {})
+    execFile('xdg-open', [safeUrl], () => {})
   }
 }
 
