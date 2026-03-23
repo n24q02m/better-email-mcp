@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.14.0-beta.2 (2026-03-23)
+
+### Features
+
+- Add full/real email tests with Gmail credentials
+  ([`aacaa37`](https://github.com/n24q02m/better-email-mcp/commit/aacaa37b3a99933764c8c8590b08fe485a0ba4a3))
+
+
 ## v1.14.0-beta.1 (2026-03-23)
 
 ### Bug Fixes
