@@ -19,7 +19,7 @@ import { type MessagesInput, messages } from './composite/messages.js'
 import { type SendInput, send } from './composite/send.js'
 // Import mega tools
 import type { AccountConfig } from './helpers/config.js'
-import { aiReadableMessage, EmailMCPError, enhanceError } from './helpers/errors.js'
+import { aiReadableMessage, EmailMCPError, enhanceError, findClosestMatch } from './helpers/errors.js'
 import { isValidToolName, wrapToolResult } from './helpers/security.js'
 
 // Get docs directory path - works for both bundled CLI and unbundled code
@@ -50,7 +50,7 @@ const TOOLS = [
   {
     name: 'messages',
     description:
-      'Email messages: search, read, mark_read, mark_unread, flag, unflag, move, archive, trash. Search across all accounts or filter by account. Query examples: "UNREAD", "FLAGGED", "SINCE 2026-01-01", "FROM user@example.com", "SUBJECT meeting", "UNREAD SINCE 2026-01-01", "UNREAD FROM boss@company.com". Date format MUST be YYYY-MM-DD.',
+      'Search, read, and manage email messages.\n\nActions (required params -> optional):\n- search (-> account, query="UNSEEN", folder="INBOX", limit=20)\n- read (account, uid -> folder)\n- mark_read / mark_unread / flag / unflag (account, uid|uids -> folder)\n- move (account, uid|uids, destination -> folder)\n- archive / trash (account, uid|uids -> folder)\n\nQuery examples: "UNREAD", "FROM user@example.com", "SINCE 2026-01-01", "UNREAD FROM boss@company.com". Date format MUST be YYYY-MM-DD.',
     annotations: {
       title: 'Messages',
       readOnlyHint: false,
@@ -83,7 +83,8 @@ const TOOLS = [
   },
   {
     name: 'folders',
-    description: 'List mailbox folders for one or all email accounts. Returns folder names, paths, and flags.',
+    description:
+      'List mailbox folders.\n\nActions (required params -> optional):\n- list (-> account): folder names, paths, and flags for one or all accounts',
     annotations: {
       title: 'Folders',
       readOnlyHint: true,
@@ -107,7 +108,7 @@ const TOOLS = [
   {
     name: 'attachments',
     description:
-      'Email attachments: list, download. List shows all attachments with filename, content_type, and size. Download returns base64-encoded content. Most email providers limit attachments to 25MB. Common types: PDF, DOCX, XLSX, images (PNG/JPEG), ZIP. Use list first to get exact filenames before download.',
+      'List and download email attachments.\n\nActions (required params -> optional):\n- list (account, uid -> folder): show attachments with filename, content_type, size\n- download (account, uid, filename -> folder): get base64-encoded content\n\nUse list first to get exact filenames. Case-sensitive. Max 25MB per provider.',
     annotations: {
       title: 'Attachments',
       readOnlyHint: true,
@@ -137,7 +138,7 @@ const TOOLS = [
   {
     name: 'send',
     description:
-      'Send emails: new, reply, forward. Reply maintains thread headers (In-Reply-To, References) and auto-prepends "Re:" to subject. Forward includes original body and auto-prepends "Fwd:" to subject. Body is sent as plain text by default. For rich formatting (tables, links, bold/italic), use HTML in body with tags like <b>, <a href>, <table>. Plain text is best for simple messages.',
+      'Compose and send emails.\n\nActions (required params -> optional):\n- new (account, to, subject, body -> cc, bcc)\n- reply (account, uid, body -> to, folder): auto-derives recipient, prepends "Re:"\n- forward (account, uid, to, body -> folder): includes original, prepends "Fwd:"\n\nBody: plain text (default) or HTML (<b>, <a href>, <table>). Do NOT mix.',
     annotations: {
       title: 'Send',
       readOnlyHint: false,
@@ -282,10 +283,13 @@ export function registerTools(server: Server, accounts: AccountConfig[]) {
     try {
       const handler = TOOL_HANDLERS[name]
       if (!handler) {
+        const validTools = TOOLS.map((t) => t.name)
+        const closest = findClosestMatch(name, validTools)
+        const suggestion = closest ? ` Did you mean '${closest}'?` : ''
         throw new EmailMCPError(
-          `Unknown tool: ${name}`,
+          `Unknown tool: ${name}.${suggestion}`,
           'UNKNOWN_TOOL',
-          `Available tools: ${TOOLS.map((t) => t.name).join(', ')}`
+          `Available tools: ${validTools.join(', ')}`
         )
       }
 

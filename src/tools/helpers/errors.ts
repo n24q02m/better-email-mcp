@@ -156,6 +156,41 @@ function handleSmtpError(error: any): EmailMCPError {
 }
 
 /**
+ * Find the closest matching string from a list of valid options.
+ * Uses bigram similarity for fuzzy matching.
+ */
+export function findClosestMatch(input: string, validOptions: string[]): string | null {
+  if (!input || validOptions.length === 0) return null
+
+  const lower = input.toLowerCase()
+  let bestMatch: string | null = null
+  let bestScore = 0
+
+  for (const option of validOptions) {
+    const optionLower = option.toLowerCase()
+    if (optionLower.startsWith(lower) || lower.startsWith(optionLower)) {
+      return option
+    }
+    const inputBigrams = new Set<string>()
+    for (let i = 0; i < lower.length - 1; i++) inputBigrams.add(lower.slice(i, i + 2))
+    const optionBigrams = new Set<string>()
+    for (let i = 0; i < optionLower.length - 1; i++) optionBigrams.add(optionLower.slice(i, i + 2))
+
+    let overlap = 0
+    for (const b of inputBigrams) {
+      if (optionBigrams.has(b)) overlap++
+    }
+    const score = (2 * overlap) / (inputBigrams.size + optionBigrams.size)
+    if (score > bestScore && score > 0.4) {
+      bestScore = score
+      bestMatch = option
+    }
+  }
+
+  return bestMatch
+}
+
+/**
  * Create AI-readable error message
  */
 export function aiReadableMessage(error: EmailMCPError): string {
