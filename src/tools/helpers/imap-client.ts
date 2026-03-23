@@ -274,7 +274,7 @@ export async function searchEmails(
           const selectedUids = (allUids as number[]).slice(-limit)
 
           // Step 3: fetch only those specific UIDs
-          const messages = await client.fetchAll(
+          return await client.fetchAll(
             selectedUids,
             {
               uid: true,
@@ -285,34 +285,34 @@ export async function searchEmails(
             },
             { uid: true }
           )
-
-          // Process snippets in parallel to improve performance
-          const summariesPromises = messages.map(async (msg) => {
-            const snippet = msg.source ? await extractSnippet(msg.source) : ''
-
-            return {
-              account_id: account.id,
-              account_email: account.email,
-              uid: msg.uid,
-              message_id: msg.envelope?.messageId,
-              subject: msg.envelope?.subject || '(No subject)',
-              from: msg.envelope?.from?.[0]
-                ? `${msg.envelope.from[0].name || ''} <${msg.envelope.from[0].address || ''}>`.trim()
-                : '',
-              to: msg.envelope?.to?.map((a: any) => a.address).join(', ') || '',
-              date: msg.envelope?.date?.toISOString() || '',
-              flags: Array.from(msg.flags || []),
-              snippet
-            }
-          })
-
-          return Promise.all(summariesPromises)
         } finally {
           lock.release()
         }
       })
 
-      return emails
+      // ⚡ Bolt: Execute CPU-intensive snippet extraction outside of the `withConnection` block.
+      // This ensures the IMAP connection and mailbox lock are released as quickly as possible,
+      // preventing other concurrent operations from being blocked while we parse MIME/HTML.
+      const summariesPromises = emails.map(async (msg: any) => {
+        const snippet = msg.source ? await extractSnippet(msg.source) : ''
+
+        return {
+          account_id: account.id,
+          account_email: account.email,
+          uid: msg.uid,
+          message_id: msg.envelope?.messageId,
+          subject: msg.envelope?.subject || '(No subject)',
+          from: msg.envelope?.from?.[0]
+            ? `${msg.envelope.from[0].name || ''} <${msg.envelope.from[0].address || ''}>`.trim()
+            : '',
+          to: msg.envelope?.to?.map((a: any) => a.address).join(', ') || '',
+          date: msg.envelope?.date?.toISOString() || '',
+          flags: Array.from((msg.flags as string[]) || []),
+          snippet
+        }
+      })
+
+      return await Promise.all(summariesPromises)
     } catch (error: any) {
       // Include error info but continue with other accounts
       return [
@@ -470,34 +470,38 @@ export async function getAttachment(
   folder: string,
   filename: string
 ): Promise<{ filename: string; content_type: string; size: number; content_base64: string }> {
-  return withConnection(account, async (client) => {
+  const fetchResult = await withConnection(account, async (client) => {
     const lock = await client.getMailboxLock(folder)
     try {
-      const fetchResult = await client.fetchOne(`${uid}`, { source: true }, { uid: true })
-      if (!fetchResult || !fetchResult.source) {
-        throw new EmailMCPError(`Email UID ${uid} not found`, 'NOT_FOUND', 'Check the UID and folder')
-      }
-
-      const parsed = await simpleParser(fetchResult.source)
-      const lowerFilename = filename.toLowerCase()
-      const attachment = parsed.attachments?.find((att) => att.filename?.toLowerCase() === lowerFilename)
-
-      if (!attachment) {
-        throw new EmailMCPError(
-          `Attachment "${filename}" not found`,
-          'ATTACHMENT_NOT_FOUND',
-          `Available: ${parsed.attachments?.map((a) => a.filename).join(', ') || 'none'}`
-        )
-      }
-
-      return {
-        filename: attachment.filename || 'unnamed',
-        content_type: attachment.contentType || 'application/octet-stream',
-        size: attachment.size || 0,
-        content_base64: attachment.content.toString('base64')
-      }
+      return await client.fetchOne(`${uid}`, { source: true }, { uid: true })
     } finally {
       lock.release()
     }
   })
+
+  if (!fetchResult || !fetchResult.source) {
+    throw new EmailMCPError(`Email UID ${uid} not found`, 'NOT_FOUND', 'Check the UID and folder')
+  }
+
+  // ⚡ Bolt: Execute CPU-intensive MIME parsing outside of the `withConnection` block.
+  // This ensures the IMAP connection and mailbox lock are released as quickly as possible,
+  // preventing other concurrent operations from being blocked while we parse attachments.
+  const parsed = await simpleParser(fetchResult.source)
+  const lowerFilename = filename.toLowerCase()
+  const attachment = parsed.attachments?.find((att) => att.filename?.toLowerCase() === lowerFilename)
+
+  if (!attachment) {
+    throw new EmailMCPError(
+      `Attachment "${filename}" not found`,
+      'ATTACHMENT_NOT_FOUND',
+      `Available: ${parsed.attachments?.map((a) => a.filename).join(', ') || 'none'}`
+    )
+  }
+
+  return {
+    filename: attachment.filename || 'unnamed',
+    content_type: attachment.contentType || 'application/octet-stream',
+    size: attachment.size || 0,
+    content_base64: attachment.content.toString('base64')
+  }
 }
