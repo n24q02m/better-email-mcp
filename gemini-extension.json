@@ -3,7 +3,7 @@
   "version": "1.14.0",
   "description": "Email management via IMAP/SMTP — multi-account",
   "mcpServers": {
-    "better-email": {
+    "better-email-mcp": {
       "command": "npx",
       "args": [
         "-y",
