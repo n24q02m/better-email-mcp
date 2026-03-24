@@ -9,21 +9,11 @@
   "homepage": "https://github.com/n24q02m/better-email-mcp",
   "repository": "https://github.com/n24q02m/better-email-mcp",
   "license": "MIT",
-  "keywords": [
-    "email",
-    "imap",
-    "smtp",
-    "inbox-management",
-    "mcp",
-    "claude-code"
-  ],
+  "keywords": ["email", "imap", "smtp", "inbox-management", "mcp", "claude-code"],
   "mcpServers": {
     "better-email-mcp": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@n24q02m/better-email-mcp"
-      ],
+      "args": ["-y", "@n24q02m/better-email-mcp"],
       "env": {
         "EMAIL_CREDENTIALS": ""
       }
