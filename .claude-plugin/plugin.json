@@ -10,19 +10,27 @@
   "mcpServers": {
     "better-email-mcp": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@n24q02m/better-email-mcp"
-      ]
+      "args": ["-y", "@n24q02m/better-email-mcp"],
+      "env": {
+        "EMAIL_CREDENTIALS": "",
+        "OUTLOOK_CLIENT_ID": ""
+      }
+    },
+    "better-email-mcp-bunx": {
+      "command": "bunx",
+      "args": ["--bun", "@n24q02m/better-email-mcp"],
+      "env": {
+        "EMAIL_CREDENTIALS": "",
+        "OUTLOOK_CLIENT_ID": ""
+      }
     },
     "better-email-mcp-docker": {
       "command": "docker",
-      "args": [
-        "run",
-        "--rm",
-        "-i",
-        "n24q02m/better-email-mcp:latest"
-      ]
+      "args": ["run", "--rm", "-i", "n24q02m/better-email-mcp:latest"],
+      "env": {
+        "EMAIL_CREDENTIALS": "",
+        "OUTLOOK_CLIENT_ID": ""
+      }
     }
   },
   "skills": "./skills/"
