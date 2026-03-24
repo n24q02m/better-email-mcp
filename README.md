@@ -72,6 +72,30 @@ Set credentials in `~/.claude/settings.local.json` or shell profile. See [Prereq
 
 Other runners: `bun x`, `pnpm dlx`, `yarn dlx` also work.
 
+<details>
+<summary>Other MCP clients (Cursor, Codex, Gemini CLI)</summary>
+
+```jsonc
+// Cursor, Windsurf, Cline, Amp, OpenCode
+{
+  "mcpServers": {
+    "better-email": {
+      "command": "npx",
+      "args": ["-y", "@n24q02m/better-email-mcp@latest"]
+    }
+  }
+}
+```
+
+```toml
+# Codex (~/.codex/config.toml)
+[mcp_servers.better-email]
+command = "npx"
+args = ["-y", "@n24q02m/better-email-mcp@latest"]
+```
+
+</details>
+
 #### Option 2: Docker
 
 ```jsonc
@@ -124,6 +148,16 @@ EMAIL_CREDENTIALS=user@custom.com:password:imap.custom.com
 | `SUBJECT meeting` | Emails matching subject |
 | `UNREAD SINCE 2024-06-01` | Compound filter |
 
+### MCP Resources
+
+| URI | Description |
+|:----|:------------|
+| `email://docs/messages` | Message operations reference |
+| `email://docs/folders` | Folder operations reference |
+| `email://docs/attachments` | Attachment operations reference |
+| `email://docs/send` | Send/compose reference |
+| `email://docs/help` | Full documentation |
+
 ## Configuration
 
 | Variable | Required | Default | Description |
@@ -143,14 +177,20 @@ EMAIL_CREDENTIALS=user@custom.com:password:imap.custom.com
 | ProtonMail | ProtonMail Bridge | IMAP APPEND |
 | Custom | Via `email:pass:imap.host` | IMAP APPEND |
 
+### Security
+
+- **Credential sanitization** -- Passwords never leaked in error messages
+- **App Passwords** -- Uses app-specific passwords, not regular passwords
+- **Token storage** -- Outlook OAuth tokens saved with 600 permissions
+- **IMAP validation** -- Search queries validated before execution
+
 ## Build from Source
 
 ```bash
 git clone https://github.com/n24q02m/better-email-mcp.git
 cd better-email-mcp
-npm install
-npm run build
-npm start
+bun install
+bun run dev
 ```
 
 ## Compatible With
