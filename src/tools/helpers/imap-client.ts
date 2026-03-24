@@ -245,6 +245,25 @@ export async function appendToFolder(
   })
 }
 
+/**
+ * Executes an IMAP client operation within a specific mailbox lock.
+ * Automatically acquires and releases the mailbox lock, and closes the connection when done.
+ */
+async function withMailbox<T>(
+  account: AccountConfig,
+  folder: string,
+  fn: (client: ImapFlow) => Promise<T>
+): Promise<T> {
+  return withConnection(account, async (client) => {
+    const lock = await client.getMailboxLock(folder)
+    try {
+      return await fn(client)
+    } finally {
+      lock.release()
+    }
+  })
+}
+
 // ============================================================================
 // Public API
 // ============================================================================
@@ -262,32 +281,27 @@ export async function searchEmails(
 
   const accountPromises = accounts.map(async (account) => {
     try {
-      const emails = await withConnection(account, async (client) => {
-        const lock = await client.getMailboxLock(folder)
-        try {
-          // Step 1: search to get UIDs (fast — server-side filtering)
-          const allUids = await client.search(criteria, { uid: true })
+      const emails = await withMailbox(account, folder, async (client) => {
+        // Step 1: search to get UIDs (fast — server-side filtering)
+        const allUids = await client.search(criteria, { uid: true })
 
-          if (!allUids || allUids.length === 0) return []
+        if (!allUids || allUids.length === 0) return []
 
-          // Step 2: take the most recent `limit` UIDs (highest UIDs = most recent)
-          const selectedUids = (allUids as number[]).slice(-limit)
+        // Step 2: take the most recent `limit` UIDs (highest UIDs = most recent)
+        const selectedUids = (allUids as number[]).slice(-limit)
 
-          // Step 3: fetch only those specific UIDs
-          return await client.fetchAll(
-            selectedUids,
-            {
-              uid: true,
-              flags: true,
-              envelope: true,
-              bodyStructure: true,
-              source: { start: 0, maxLength: 512 }
-            },
-            { uid: true }
-          )
-        } finally {
-          lock.release()
-        }
+        // Step 3: fetch only those specific UIDs
+        return await client.fetchAll(
+          selectedUids,
+          {
+            uid: true,
+            flags: true,
+            envelope: true,
+            bodyStructure: true,
+            source: { start: 0, maxLength: 512 }
+          },
+          { uid: true }
+        )
       })
 
       // ⚡ Bolt: Execute CPU-intensive snippet extraction outside of the `withConnection` block.
@@ -339,13 +353,8 @@ export async function searchEmails(
  * Read a single email by UID
  */
 export async function readEmail(account: AccountConfig, uid: number, folder: string): Promise<EmailDetail> {
-  const fetchResult = await withConnection(account, async (client) => {
-    const lock = await client.getMailboxLock(folder)
-    try {
-      return await client.fetchOne(`${uid}`, { flags: true, source: true }, { uid: true })
-    } finally {
-      lock.release()
-    }
+  const fetchResult = await withMailbox(account, folder, async (client) => {
+    return await client.fetchOne(`${uid}`, { flags: true, source: true }, { uid: true })
   })
 
   if (!fetchResult || !fetchResult.source) {
@@ -389,19 +398,14 @@ export async function modifyFlags(
   flags: string[],
   action: 'add' | 'remove'
 ): Promise<{ success: boolean; modified: number }> {
-  return withConnection(account, async (client) => {
-    const lock = await client.getMailboxLock(folder)
-    try {
-      const uidStr = uids.join(',')
-      if (action === 'add') {
-        await client.messageFlagsAdd({ uid: uidStr }, flags)
-      } else {
-        await client.messageFlagsRemove({ uid: uidStr }, flags)
-      }
-      return { success: true, modified: uids.length }
-    } finally {
-      lock.release()
+  return withMailbox(account, folder, async (client) => {
+    const uidStr = uids.join(',')
+    if (action === 'add') {
+      await client.messageFlagsAdd({ uid: uidStr }, flags)
+    } else {
+      await client.messageFlagsRemove({ uid: uidStr }, flags)
     }
+    return { success: true, modified: uids.length }
   })
 }
 
@@ -414,15 +418,10 @@ export async function moveEmails(
   fromFolder: string,
   toFolder: string
 ): Promise<{ success: boolean; moved: number }> {
-  return withConnection(account, async (client) => {
-    const lock = await client.getMailboxLock(fromFolder)
-    try {
-      const uidStr = uids.join(',')
-      await client.messageMove({ uid: uidStr }, toFolder)
-      return { success: true, moved: uids.length }
-    } finally {
-      lock.release()
-    }
+  return withMailbox(account, fromFolder, async (client) => {
+    const uidStr = uids.join(',')
+    await client.messageMove({ uid: uidStr }, toFolder)
+    return { success: true, moved: uids.length }
   })
 }
 
@@ -434,15 +433,10 @@ export async function trashEmails(
   uids: number[],
   folder: string
 ): Promise<{ success: boolean; trashed: number }> {
-  return withConnection(account, async (client) => {
-    const lock = await client.getMailboxLock(folder)
-    try {
-      const uidStr = uids.join(',')
-      await client.messageDelete({ uid: uidStr })
-      return { success: true, trashed: uids.length }
-    } finally {
-      lock.release()
-    }
+  return withMailbox(account, folder, async (client) => {
+    const uidStr = uids.join(',')
+    await client.messageDelete({ uid: uidStr })
+    return { success: true, trashed: uids.length }
   })
 }
 
@@ -470,13 +464,8 @@ export async function getAttachment(
   folder: string,
   filename: string
 ): Promise<{ filename: string; content_type: string; size: number; content_base64: string }> {
-  const fetchResult = await withConnection(account, async (client) => {
-    const lock = await client.getMailboxLock(folder)
-    try {
-      return await client.fetchOne(`${uid}`, { source: true }, { uid: true })
-    } finally {
-      lock.release()
-    }
+  const fetchResult = await withMailbox(account, folder, async (client) => {
+    return await client.fetchOne(`${uid}`, { source: true }, { uid: true })
   })
 
   if (!fetchResult || !fetchResult.source) {
