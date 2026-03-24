@@ -1,28 +1,27 @@
 {
   "name": "better-email-mcp",
-  "description": "Email management via IMAP/SMTP — search, read, send, organize across multiple accounts",
+  "description": "Email management via IMAP/SMTP — multi-account",
   "version": "1.14.0",
   "author": {
     "name": "n24q02m",
     "url": "https://github.com/n24q02m"
   },
   "homepage": "https://github.com/n24q02m/better-email-mcp",
-  "repository": "https://github.com/n24q02m/better-email-mcp",
-  "license": "MIT",
-  "keywords": [
-    "email",
-    "imap",
-    "smtp",
-    "inbox-management",
-    "mcp",
-    "claude-code"
-  ],
   "mcpServers": {
     "better-email-mcp": {
       "command": "npx",
       "args": [
         "-y",
         "@n24q02m/better-email-mcp"
+      ]
+    },
+    "better-email-mcp-docker": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "n24q02m/better-email-mcp:latest"
       ]
     }
   },
