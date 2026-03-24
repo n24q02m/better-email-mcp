@@ -11,6 +11,7 @@ vi.mock('./composite/messages.js', () => ({ messages: vi.fn() }))
 vi.mock('./composite/folders.js', () => ({ folders: vi.fn() }))
 vi.mock('./composite/attachments.js', () => ({ attachments: vi.fn() }))
 vi.mock('./composite/send.js', () => ({ send: vi.fn() }))
+vi.mock('node:fs/promises', () => ({ readFile: vi.fn() }))
 
 import { registerTools } from './registry.js'
 
@@ -130,6 +131,21 @@ describe('ReadResourceRequestSchema handler', () => {
     await expect(handler({ params: { uri: 'email://docs/nonexistent' } })).rejects.toThrow(
       'Resource not found: email://docs/nonexistent'
     )
+  })
+
+  it('should return contents for known resource URI', async () => {
+    const { readFile } = await import('node:fs/promises')
+    vi.mocked(readFile).mockResolvedValue('# Messages Docs Content')
+
+    const { getHandler } = createMockServerWithHandlers()
+    const handler = getHandler(ReadResourceRequestSchema)
+
+    const result = await handler({ params: { uri: 'email://docs/messages' } })
+
+    expect(result.contents).toHaveLength(1)
+    expect(result.contents[0].uri).toBe('email://docs/messages')
+    expect(result.contents[0].mimeType).toBe('text/markdown')
+    expect(result.contents[0].text).toBe('# Messages Docs Content')
   })
 })
 
@@ -289,5 +305,66 @@ describe('CallToolRequestSchema handler - unknown tool', () => {
 
     expect(result.isError).toBe(true)
     expect(result.content[0].text).toContain('Unknown tool: nonexistent_tool')
+  })
+})
+
+describe('CallToolRequestSchema handler - help tool', () => {
+  it('should return documentation for valid tool', async () => {
+    const { readFile } = await import('node:fs/promises')
+    vi.mocked(readFile).mockResolvedValue('# Folders Tool Help Content')
+
+    const { getHandler } = createMockServerWithHandlers()
+    const handler = getHandler(CallToolRequestSchema)
+
+    const result = await handler({
+      params: {
+        name: 'help',
+        arguments: { tool_name: 'folders' }
+      }
+    })
+
+    expect(result.isError).toBeUndefined()
+    expect(result.content[0].type).toBe('text')
+    // Result JSON parses properly and has the right data
+    const parsed = JSON.parse(
+      result.content[0].text.replace('<untrusted_email_content>\n', '').replace('\n</untrusted_email_content>', '')
+    )
+    expect(parsed.tool).toBe('folders')
+    expect(parsed.documentation).toBe('# Folders Tool Help Content')
+  })
+
+  it('should throw validation error for invalid tool name', async () => {
+    const { getHandler } = createMockServerWithHandlers()
+    const handler = getHandler(CallToolRequestSchema)
+
+    const result = await handler({
+      params: {
+        name: 'help',
+        arguments: { tool_name: 'nonexistent' }
+      }
+    })
+
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toContain('Invalid tool name: nonexistent')
+    expect(result.content[0].text).toContain('Valid: messages, folders, attachments, send, help')
+  })
+
+  it('should throw error when documentation file read fails', async () => {
+    const { readFile } = await import('node:fs/promises')
+    vi.mocked(readFile).mockRejectedValue(new Error('File not found'))
+
+    const { getHandler } = createMockServerWithHandlers()
+    const handler = getHandler(CallToolRequestSchema)
+
+    const result = await handler({
+      params: {
+        name: 'help',
+        arguments: { tool_name: 'messages' }
+      }
+    })
+
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toContain('Documentation not found for: messages')
+    expect(result.content[0].text).toContain('Check tool_name')
   })
 })
