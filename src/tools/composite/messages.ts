@@ -213,6 +213,34 @@ function isArchiveFolder(folder: { path: string; flags: string[] }): boolean {
 }
 
 /**
+ * Get the default archive folder path based on the email provider.
+ */
+function getDefaultArchiveFolder(account: AccountConfig): string {
+  if (account.imap.host.includes('office365') || account.imap.host.includes('outlook')) {
+    return 'Archive'
+  }
+  if (account.imap.host.includes('yahoo')) {
+    return 'Archive'
+  }
+  return '[Gmail]/All Mail'
+}
+
+/**
+ * Try to find the actual archive folder via IMAP folder listing.
+ * Returns the folder path if found, otherwise undefined.
+ */
+async function findActualArchiveFolder(account: AccountConfig): Promise<string | undefined> {
+  try {
+    const folders = await listFolders(account)
+    const found = folders.find(isArchiveFolder)
+    return found?.path
+  } catch {
+    // Return undefined if folder listing fails
+    return undefined
+  }
+}
+
+/**
  * Resolve the archive folder path for the given account.
  * Uses provider-specific defaults, then verifies via IMAP folder listing.
  * Results are cached per account.
@@ -222,26 +250,15 @@ async function resolveArchiveFolder(account: AccountConfig): Promise<string> {
   if (cached) return cached
 
   const resolvePromise = (async () => {
-    // Detect archive folder based on provider
-    let archiveFolder = '[Gmail]/All Mail'
-    if (account.imap.host.includes('office365') || account.imap.host.includes('outlook')) {
-      archiveFolder = 'Archive'
-    } else if (account.imap.host.includes('yahoo')) {
-      archiveFolder = 'Archive'
+    // Determine provider default first (may throw if getters throw)
+    const defaultFolder = getDefaultArchiveFolder(account)
+
+    const actualFolder = await findActualArchiveFolder(account)
+    if (actualFolder) {
+      return actualFolder
     }
 
-    // Try to find actual archive folder
-    try {
-      const folders = await listFolders(account)
-      const found = folders.find(isArchiveFolder)
-      if (found) {
-        archiveFolder = found.path
-      }
-    } catch {
-      // Use default if folder listing fails
-    }
-
-    return archiveFolder
+    return defaultFolder
   })()
 
   archiveFolderCache.set(account.id, resolvePromise)
