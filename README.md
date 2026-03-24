@@ -33,11 +33,19 @@
 
 ### Claude Code Plugin (Recommended)
 
+Via marketplace (includes skills: /inbox-review, /follow-up):
+
+```bash
+/plugins add n24q02m/claude-plugins
+```
+
+Or install this plugin only:
+
 ```bash
 claude plugin add n24q02m/better-email-mcp
 ```
 
-After install, set credentials in `~/.claude/settings.local.json` or your shell profile. See [Prerequisites](#mcp-server) below for how to create App Passwords.
+Set credentials in `~/.claude/settings.local.json` or shell profile. See [Prerequisites](#mcp-server).
 
 ### MCP Server
 
