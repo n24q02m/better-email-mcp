@@ -199,15 +199,18 @@ async function handleMove(accounts: AccountConfig[], input: MessagesInput): Prom
   }
 }
 
+const FOLDER_ARCHIVE_PATH_REGEX = /archive|all mail/i
+const FOLDER_ARCHIVE_FLAG_REGEX = /archive|all/i
+
 /**
  * Check if a folder is an archive folder based on path or flags
  */
 function isArchiveFolder(folder: { path: string; flags: string[] }): boolean {
-  if (/archive|all mail/i.test(folder.path)) {
+  if (FOLDER_ARCHIVE_PATH_REGEX.test(folder.path)) {
     return true
   }
   for (let i = 0; i < folder.flags.length; i++) {
-    if (/archive|all/i.test(folder.flags[i])) return true
+    if (FOLDER_ARCHIVE_FLAG_REGEX.test(folder.flags[i])) return true
   }
   return false
 }
