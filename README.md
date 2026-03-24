@@ -38,13 +38,15 @@ mcp-name: io.github.n24q02m/better-email-mcp
 Via marketplace (includes skills: /inbox-review, /follow-up):
 
 ```bash
-/plugins add n24q02m/claude-plugins
+/plugin marketplace add n24q02m/claude-plugins
+/plugin install better-email-mcp@claude-plugins
 ```
 
 Or install this plugin only:
 
 ```bash
-claude plugin add n24q02m/better-email-mcp
+/plugin marketplace add n24q02m/better-email-mcp
+/plugin install better-email-mcp
 ```
 
 Set credentials in `~/.claude/settings.local.json` or shell profile. See [Prerequisites](#mcp-server).
