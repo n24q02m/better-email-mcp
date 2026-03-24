@@ -1,0 +1,19 @@
+{
+  "name": "better-email-mcp",
+  "version": "1.14.0",
+  "description": "Email management via IMAP/SMTP — multi-account",
+  "mcpServers": {
+    "better-email": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@n24q02m/better-email-mcp"
+      ],
+      "env": {
+        "EMAIL_CREDENTIALS": "",
+        "OUTLOOK_CLIENT_ID": ""
+      }
+    }
+  },
+  "contextFileName": "GEMINI.md"
+}
