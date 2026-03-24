@@ -37,7 +37,7 @@
 claude plugin add n24q02m/better-email-mcp
 ```
 
-After install, set your credentials: `claude config set mcpServers.better-email-mcp.env.EMAIL_CREDENTIALS "user@gmail.com:app-password"`. See [Prerequisites](#mcp-server) below for how to create App Passwords.
+After install, set credentials in `~/.claude/settings.local.json` or your shell profile. See [Prerequisites](#mcp-server) below for how to create App Passwords.
 
 ### MCP Server
 
@@ -54,10 +54,7 @@ After install, set your credentials: `claude config set mcpServers.better-email-
   "mcpServers": {
     "better-email": {
       "command": "npx",
-      "args": ["-y", "@n24q02m/better-email-mcp@latest"],
-      "env": {
-        "EMAIL_CREDENTIALS": "user@gmail.com:abcd-efgh-ijkl-mnop"
-      }
+      "args": ["-y", "@n24q02m/better-email-mcp@latest"]
     }
   }
 }
@@ -76,14 +73,13 @@ Other runners: `bun x`, `pnpm dlx`, `yarn dlx` also work.
         "run", "-i", "--rm",
         "-e", "EMAIL_CREDENTIALS",
         "n24q02m/better-email-mcp:latest"
-      ],
-      "env": {
-        "EMAIL_CREDENTIALS": "user@gmail.com:abcd-efgh-ijkl-mnop"
-      }
+      ]
     }
   }
 }
 ```
+
+Configure `EMAIL_CREDENTIALS` in `~/.claude/settings.local.json` or your shell profile. See [Environment Variables](#environment-variables) below.
 
 ### Multiple Accounts
 
