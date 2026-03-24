@@ -47,4 +47,43 @@ describe('textToHtml', () => {
     const html = textToHtml('')
     expect(html).toBe('')
   })
+
+  it('strips data: and vbscript: URI schemes', () => {
+    const html = textToHtml('![img](data:text/html,<script>alert(1)</script>)')
+    expect(html).not.toContain('data:text/html')
+
+    const vbHtml = textToHtml('[link](vbscript:alert(1))')
+    expect(vbHtml).not.toContain('vbscript:')
+  })
+
+  it('supports markdown blockquotes', () => {
+    const html = textToHtml('> Quoted text')
+    expect(html).toContain('<blockquote>')
+    expect(html).toContain('Quoted text')
+  })
+
+  it('handles malformed HTML gracefully', () => {
+    const html = textToHtml('<img src=x onerror=alert(1)>')
+    expect(html).toContain('<img src="x" />')
+    expect(html).not.toContain('onerror')
+  })
+
+  it('allows h1 through h6 tags', () => {
+    const markdown = '# H1\n## H2\n### H3\n#### H4\n##### H5\n###### H6'
+    const html = textToHtml(markdown)
+    expect(html).toContain('<h1>H1</h1>')
+    expect(html).toContain('<h2>H2</h2>')
+    expect(html).toContain('<h3>H3</h3>')
+    expect(html).toContain('<h4>H4</h4>')
+    expect(html).toContain('<h5>H5</h5>')
+    expect(html).toContain('<h6>H6</h6>')
+  })
+
+  it('allows table tags if present in markdown', () => {
+    const markdown = '| Col 1 | Col 2 |\n|---|---|\n| Val 1 | Val 2 |'
+    const html = textToHtml(markdown)
+    expect(html).toContain('<table>')
+    expect(html).toContain('<th>Col 1</th>')
+    expect(html).toContain('<td>Val 1</td>')
+  })
 })
