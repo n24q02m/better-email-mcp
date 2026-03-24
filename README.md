@@ -1,5 +1,7 @@
 # Better Email MCP
 
+mcp-name: io.github.n24q02m/better-email-mcp
+
 **IMAP/SMTP email server for AI agents -- 5 composite tools with multi-account and auto-discovery**
 
 <!-- Badge Row 1: Status -->
