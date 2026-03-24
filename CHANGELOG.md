@@ -2,6 +2,65 @@
 
 <!-- version list -->
 
+## v1.14.0 (2026-03-24)
+
+### Bug Fixes
+
+- Correct plugin packaging paths and marketplace schema
+  ([`cca9bba`](https://github.com/n24q02m/better-email-mcp/commit/cca9bba208d7ed75c39783197b5db32456f59c5c))
+
+- Exclude live tests from default vitest run
+  ([`067e1a9`](https://github.com/n24q02m/better-email-mcp/commit/067e1a92ef815782fd046ea4e938691e533565dc))
+
+- Improve tool descriptions and corrective errors for LLM call pass rate
+  ([`fccfc2f`](https://github.com/n24q02m/better-email-mcp/commit/fccfc2f551fca0dc5fc5864706194c1a8a1015fd))
+
+- Redesign skills/hooks per approved spec
+  ([`89f224f`](https://github.com/n24q02m/better-email-mcp/commit/89f224f7efed7f434b9bfcfa3b75ab89e7cadbb8))
+
+- Standardize README structure with plugin-first Quick Start
+  ([`a3454b1`](https://github.com/n24q02m/better-email-mcp/commit/a3454b17cfcbebb341bfd67053265c70aa554640))
+
+- Sync plugin.json and server.json versions
+  ([`b730c31`](https://github.com/n24q02m/better-email-mcp/commit/b730c311b88cfe2a6bcfea2e3935674d85ced7c7))
+
+- **deps**: Update non-major dependencies
+  ([#217](https://github.com/n24q02m/better-email-mcp/pull/217),
+  [`19f6fbb`](https://github.com/n24q02m/better-email-mcp/commit/19f6fbb5231c44922c449cdc6ce00307247ee30c))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#218](https://github.com/n24q02m/better-email-mcp/pull/218),
+  [`aa9e567`](https://github.com/n24q02m/better-email-mcp/commit/aa9e56789780e6378d5bb531f188abb9526de331))
+
+### Features
+
+- Add EMAIL_CREDENTIALS env to plugin.json and setup guide
+  ([`a37c0a2`](https://github.com/n24q02m/better-email-mcp/commit/a37c0a2ba9ff387fc83605be19c66abfa4983aaa))
+
+- Add live MCP protocol tests
+  ([`7b82f26`](https://github.com/n24q02m/better-email-mcp/commit/7b82f261f11000096aaf61f03a3016ae446d0ec1))
+
+- Add plugin packaging with skills, hooks, and marketplace config
+  ([`920c5b2`](https://github.com/n24q02m/better-email-mcp/commit/920c5b25a556497619c6a5bd3ef9256d749e4bfc))
+
+- Improve tool descriptions and error messages for better LLM pass rate
+  ([`3ed51d3`](https://github.com/n24q02m/better-email-mcp/commit/3ed51d3e4e8e493376d7835a506d4fc9a3800c37))
+
+- Standardize README sections and sync Also by table
+  ([`87c68ee`](https://github.com/n24q02m/better-email-mcp/commit/87c68ee720b27f0ee2140e1105be89635d668bc4))
+
+### Performance Improvements
+
+- Execute CPU-bound parsing outside of IMAP lock scope
+  ([#219](https://github.com/n24q02m/better-email-mcp/pull/219),
+  [`6e14905`](https://github.com/n24q02m/better-email-mcp/commit/6e149055e0ffb1c95a7e5acd982184f19c890757))
+
+- **html-utils**: Optimize escapeHtml by using a single regex pass
+  ([#224](https://github.com/n24q02m/better-email-mcp/pull/224),
+  [`d9cc14a`](https://github.com/n24q02m/better-email-mcp/commit/d9cc14aa5ae7dfb9daca7e71d5d212a9576e6e59))
+
+
 ## v1.14.0-beta.1 (2026-03-23)
 
 ### Bug Fixes
