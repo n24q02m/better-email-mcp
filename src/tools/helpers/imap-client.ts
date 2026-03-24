@@ -96,6 +96,17 @@ async function withConnection<T>(account: AccountConfig, fn: (client: ImapFlow) 
   }
 }
 
+// ⚡ Bolt: Extract regular expressions to module scope.
+// This prevents compiling the regex objects on every search query parsing,
+// reducing overhead and garbage collection in frequently called search loops.
+const REGEX_SINCE = /^SINCE\s+(\d{4}-\d{2}-\d{2})$/i
+const REGEX_SINCE_START = /^SINCE\s+/i
+const REGEX_FROM = /^FROM\s+(.+)$/i
+const REGEX_SUBJECT = /^SUBJECT\s+(.+)$/i
+const REGEX_UNREAD_SINCE = /^UNREAD\s+SINCE\s+(\d{4}-\d{2}-\d{2})$/i
+const REGEX_UNREAD_SINCE_START = /^UNREAD\s+SINCE\s+/i
+const REGEX_UNREAD_FROM = /^UNREAD\s+FROM\s+(.+)$/i
+
 /**
  * Build IMAP search criteria from query string
  */
@@ -110,11 +121,11 @@ function buildSearchCriteria(query: string): any {
   if (upper === 'ALL' || upper === '*') return {}
 
   // Date-based: SINCE YYYY-MM-DD
-  const sinceMatch = query.match(/^SINCE\s+(\d{4}-\d{2}-\d{2})$/i)
+  const sinceMatch = query.match(REGEX_SINCE)
   if (sinceMatch) return { since: new Date(sinceMatch[1]!) }
 
   // Detect wrong date format for SINCE (e.g. "SINCE 01/15/2026", "SINCE Jan 15")
-  if (/^SINCE\s+/i.test(query) && !sinceMatch) {
+  if (REGEX_SINCE_START.test(query) && !sinceMatch) {
     throw new EmailMCPError(
       'Invalid date format in SINCE query',
       'VALIDATION_ERROR',
@@ -123,19 +134,19 @@ function buildSearchCriteria(query: string): any {
   }
 
   // From filter: FROM email@example.com (strip optional surrounding quotes)
-  const fromMatch = query.match(/^FROM\s+(.+)$/i)
+  const fromMatch = query.match(REGEX_FROM)
   if (fromMatch) return { from: fromMatch[1]!.trim().replace(/^["']|["']$/g, '') }
 
   // Subject filter: SUBJECT keyword (strip optional surrounding quotes)
-  const subjectMatch = query.match(/^SUBJECT\s+(.+)$/i)
+  const subjectMatch = query.match(REGEX_SUBJECT)
   if (subjectMatch) return { subject: subjectMatch[1]!.trim().replace(/^["']|["']$/g, '') }
 
   // Compound: UNREAD SINCE 2024-01-01
-  const compoundUnreadSince = query.match(/^UNREAD\s+SINCE\s+(\d{4}-\d{2}-\d{2})$/i)
+  const compoundUnreadSince = query.match(REGEX_UNREAD_SINCE)
   if (compoundUnreadSince) return { seen: false, since: new Date(compoundUnreadSince[1]!) }
 
   // Detect wrong date format in compound UNREAD SINCE query
-  if (/^UNREAD\s+SINCE\s+/i.test(query) && !compoundUnreadSince) {
+  if (REGEX_UNREAD_SINCE_START.test(query) && !compoundUnreadSince) {
     throw new EmailMCPError(
       'Invalid date format in UNREAD SINCE query',
       'VALIDATION_ERROR',
@@ -144,7 +155,7 @@ function buildSearchCriteria(query: string): any {
   }
 
   // Compound: UNREAD FROM x
-  const compoundUnreadFrom = query.match(/^UNREAD\s+FROM\s+(.+)$/i)
+  const compoundUnreadFrom = query.match(REGEX_UNREAD_FROM)
   if (compoundUnreadFrom) return { seen: false, from: compoundUnreadFrom[1]!.trim().replace(/^["']|["']$/g, '') }
 
   // Default: treat as subject search
