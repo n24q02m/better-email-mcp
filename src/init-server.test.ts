@@ -98,7 +98,7 @@ describe('initServer', () => {
     )
     expect(registerTools).toHaveBeenCalledWith(server, mockAccounts)
     expect(StdioServerTransport).toHaveBeenCalled()
-    expect(server.connect).toHaveBeenCalledWith(expect.anything())
+    expect(server!.connect).toHaveBeenCalledWith(expect.anything())
   })
 
   it('uses fallback version 0.0.0 when package.json not found', async () => {
