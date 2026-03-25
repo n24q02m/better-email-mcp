@@ -106,6 +106,15 @@ async function setupServer(accounts: AccountConfig[]): Promise<Server> {
 }
 
 export async function initServer() {
+  const transport = process.env.TRANSPORT_MODE || 'stdio'
+
+  if (transport === 'http') {
+    const { startHttp } = await import('./transports/http.js')
+    await startHttp()
+    return
+  }
+
+  // Default: stdio mode (unchanged)
   const accounts = await setupEnvironment()
   return setupServer(accounts)
 }
