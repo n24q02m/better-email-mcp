@@ -42,6 +42,8 @@ mise run fix       # bun run check:fix
 ```
 src/
   init-server.ts                 # Entry point, env validation
+  relay-setup.ts                 # Zero-config relay: create session, poll for config
+  relay-schema.ts                # Relay form schema (email credential fields)
   docs/                          # Markdown docs phuc vu qua MCP resources
   tools/
     registry.ts                  # Tool registration + routing
