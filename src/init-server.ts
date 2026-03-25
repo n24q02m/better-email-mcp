@@ -8,6 +8,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
+import { ensureConfig } from './relay-setup.js'
 import { type AccountConfig, loadConfig } from './tools/helpers/config.js'
 import { ensureValidToken } from './tools/helpers/oauth2.js'
 import { registerTools } from './tools/registry.js'
@@ -40,6 +41,14 @@ function getVersion(): string {
 }
 
 async function setupEnvironment(): Promise<AccountConfig[]> {
+  // If EMAIL_CREDENTIALS is not set, try relay setup (config file or browser form)
+  if (!process.env.EMAIL_CREDENTIALS) {
+    const credentials = await ensureConfig()
+    if (credentials) {
+      process.env.EMAIL_CREDENTIALS = credentials
+    }
+  }
+
   // Load email accounts from environment
   const accounts = await loadConfig()
 
@@ -97,6 +106,15 @@ async function setupServer(accounts: AccountConfig[]): Promise<Server> {
 }
 
 export async function initServer() {
+  const transport = process.env.TRANSPORT_MODE || 'stdio'
+
+  if (transport === 'http') {
+    const { startHttp } = await import('./transports/http.js')
+    await startHttp()
+    return
+  }
+
+  // Default: stdio mode (unchanged)
   const accounts = await setupEnvironment()
   return setupServer(accounts)
 }

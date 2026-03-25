@@ -3,6 +3,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { initServer } from './init-server.js'
+import { ensureConfig } from './relay-setup.js'
 import { loadConfig } from './tools/helpers/config.js'
 import { ensureValidToken } from './tools/helpers/oauth2.js'
 import { registerTools } from './tools/registry.js'
@@ -11,6 +12,9 @@ import { registerTools } from './tools/registry.js'
 vi.mock('node:fs', () => ({
   existsSync: vi.fn(),
   readFileSync: vi.fn()
+}))
+vi.mock('./relay-setup.js', () => ({
+  ensureConfig: vi.fn()
 }))
 vi.mock('./tools/helpers/config.js', () => ({
   loadConfig: vi.fn(),
@@ -36,6 +40,12 @@ describe('initServer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+
+    // Set EMAIL_CREDENTIALS so ensureConfig is skipped in existing tests
+    process.env.EMAIL_CREDENTIALS = 'test@example.com:password'
+
+    // Default: ensureConfig resolves to null (not called when env var is set)
+    vi.mocked(ensureConfig).mockResolvedValue(null)
 
     // Mock process.exit
     // @ts-expect-error
@@ -67,6 +77,7 @@ describe('initServer', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    delete process.env.EMAIL_CREDENTIALS
   })
 
   it('initializes server successfully when accounts are loaded', async () => {
@@ -87,7 +98,7 @@ describe('initServer', () => {
     )
     expect(registerTools).toHaveBeenCalledWith(server, mockAccounts)
     expect(StdioServerTransport).toHaveBeenCalled()
-    expect(server.connect).toHaveBeenCalledWith(expect.anything())
+    expect(server!.connect).toHaveBeenCalledWith(expect.anything())
   })
 
   it('uses fallback version 0.0.0 when package.json not found', async () => {
@@ -176,5 +187,40 @@ describe('initServer', () => {
     await initServer()
 
     expect(ensureValidToken).not.toHaveBeenCalled()
+  })
+
+  it('calls ensureConfig when EMAIL_CREDENTIALS is not set', async () => {
+    delete process.env.EMAIL_CREDENTIALS
+    vi.mocked(ensureConfig).mockResolvedValue('user@gmail.com:app-pass')
+    const mockAccounts = [{ email: 'user@gmail.com', authType: 'password' }]
+    vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
+
+    await initServer()
+
+    expect(ensureConfig).toHaveBeenCalledTimes(1)
+    expect(process.env.EMAIL_CREDENTIALS).toBe('user@gmail.com:app-pass')
+    expect(loadConfig).toHaveBeenCalled()
+  })
+
+  it('skips ensureConfig when EMAIL_CREDENTIALS is already set', async () => {
+    process.env.EMAIL_CREDENTIALS = 'existing@gmail.com:pass'
+    const mockAccounts = [{ email: 'existing@gmail.com', authType: 'password' }]
+    vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
+
+    await initServer()
+
+    expect(ensureConfig).not.toHaveBeenCalled()
+  })
+
+  it('starts server even when ensureConfig returns null', async () => {
+    delete process.env.EMAIL_CREDENTIALS
+    vi.mocked(ensureConfig).mockResolvedValue(null)
+    vi.mocked(loadConfig).mockReturnValue(Promise.resolve([]))
+
+    await initServer()
+
+    expect(ensureConfig).toHaveBeenCalledTimes(1)
+    expect(Server).toHaveBeenCalled()
+    expect(consoleSpy).toHaveBeenCalledWith('Warning: No email accounts configured')
   })
 })

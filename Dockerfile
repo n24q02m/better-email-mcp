@@ -39,6 +39,9 @@ RUN ln -s /usr/local/lib/node_modules/@n24q02m/better-email-mcp/bin/cli.mjs /usr
 # Set default environment variables
 ENV NODE_ENV=production
 
+# Expose HTTP port (used when TRANSPORT_MODE=http)
+EXPOSE 8080
+
 # Run as non-root user for security
 USER node
 

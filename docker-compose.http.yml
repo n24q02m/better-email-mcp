@@ -1,0 +1,13 @@
+# HTTP mode overlay — use with:
+# docker compose -f docker-compose.yml -f docker-compose.http.yml up
+services:
+  better-email-mcp:
+    environment:
+      - TRANSPORT_MODE=http
+      - CREDENTIAL_SECRET=${CREDENTIAL_SECRET}
+    ports:
+      - "8082:8080"
+    volumes:
+      - email-data:/data
+volumes:
+  email-data:
