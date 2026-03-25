@@ -59,6 +59,7 @@
 	],
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.1",
+		"@n24q02m/mcp-relay-core": "file:../mcp-relay-core/packages/core-ts",
 		"html-to-text": "^9.0.5",
 		"imapflow": "^1.2.16",
 		"mailparser": "^3.9.4",
