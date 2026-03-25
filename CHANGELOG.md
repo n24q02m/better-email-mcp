@@ -2,6 +2,101 @@
 
 <!-- version list -->
 
+## v1.15.0-beta.1 (2026-03-25)
+
+### Bug Fixes
+
+- Add mcp-name line to README
+  ([`41db999`](https://github.com/n24q02m/better-email-mcp/commit/41db999ba517d8ef7b7399a402aa12ab6caa971a))
+
+- Align gemini-extension.json mcpServers key with plugin.json
+  ([`c5fdd4e`](https://github.com/n24q02m/better-email-mcp/commit/c5fdd4e5c7357c43ed21715fa10b77884a7d427d))
+
+- Auto-sync plugin.json version via PSR
+  ([`8d26349`](https://github.com/n24q02m/better-email-mcp/commit/8d2634925950bbe1685143c5a05f8d457a1714a9))
+
+- Correct plugin install commands per official docs
+  ([`c30302b`](https://github.com/n24q02m/better-email-mcp/commit/c30302b9b60a8a2cc66837ebd7ddf092a3e80418))
+
+- Format gemini-extension.json for biome
+  ([`e5795f6`](https://github.com/n24q02m/better-email-mcp/commit/e5795f6f8b0e61d49a065ecfe149f6ccedc5cd8c))
+
+- Pin third-party GitHub Actions to SHA hashes
+  ([`1ff3533`](https://github.com/n24q02m/better-email-mcp/commit/1ff3533dbb12afe068314a0285a590ed59008b58))
+
+- Remove empty env vars from plugin configs to prevent empty-string bugs
+  ([`2582043`](https://github.com/n24q02m/better-email-mcp/commit/25820431641c48a92cd709579be8dda3b2aceb8b))
+
+- Remove env from README MCP config examples
+  ([`f05681d`](https://github.com/n24q02m/better-email-mcp/commit/f05681d10131b045729f7e60db50db8f28cb3a6f))
+
+- Remove env vars from plugin.json to prevent overwriting user config
+  ([`d9374a0`](https://github.com/n24q02m/better-email-mcp/commit/d9374a036b77d41435ecf59733e0a21ae79dffb2))
+
+- Remove pr-title-check job from CI
+  ([`3f040c0`](https://github.com/n24q02m/better-email-mcp/commit/3f040c0458c1c7017f23252704fa420222b87d9c))
+
+- Resolve biome lint errors
+  ([`73454f8`](https://github.com/n24q02m/better-email-mcp/commit/73454f8d6d946c63bef71ee85587ce5b3bab001a))
+
+- Resolve TypeScript strict null check in init-server test
+  ([#243](https://github.com/n24q02m/better-email-mcp/pull/243),
+  [`9887ea6`](https://github.com/n24q02m/better-email-mcp/commit/9887ea6689a4b5d5db8b5eafce6e161b94dd6512))
+
+- Switch mcp-relay-core from file dep to published npm package
+  ([#243](https://github.com/n24q02m/better-email-mcp/pull/243),
+  [`9887ea6`](https://github.com/n24q02m/better-email-mcp/commit/9887ea6689a4b5d5db8b5eafce6e161b94dd6512))
+
+- Sync plugin.json version and add skills/hooks references
+  ([`89a301e`](https://github.com/n24q02m/better-email-mcp/commit/89a301e00ba78566f99670f436a29457cfe1eca2))
+
+- Unify Plugin install section with marketplace + individual options
+  ([`8872dad`](https://github.com/n24q02m/better-email-mcp/commit/8872dad1dd45bd24657e4135a4110b831ba9135b))
+
+### Chores
+
+- Add docker-compose overlay for HTTP mode deployment
+  ([#243](https://github.com/n24q02m/better-email-mcp/pull/243),
+  [`9887ea6`](https://github.com/n24q02m/better-email-mcp/commit/9887ea6689a4b5d5db8b5eafce6e161b94dd6512))
+
+### Documentation
+
+- Add relay files to CLAUDE.md file structure
+  ([`529dcf1`](https://github.com/n24q02m/better-email-mcp/commit/529dcf1417ba66b4cf8b8bd52dac580c1ef19595))
+
+- Add zero-config relay setup section to README
+  ([`1b40ec0`](https://github.com/n24q02m/better-email-mcp/commit/1b40ec04f1292aca9097dc750e69d3b90f8e8cbf))
+
+### Features
+
+- Add EMAIL_CREDENTIALS env var and bunx mode to plugin config
+  ([`4946a2f`](https://github.com/n24q02m/better-email-mcp/commit/4946a2f6d3092c7530d8df16ca8c981d6c0eb5be))
+
+- Add Gemini CLI extension config with PSR version sync
+  ([`5e24293`](https://github.com/n24q02m/better-email-mcp/commit/5e2429301d8b2572ca3dd3819163eed463e3fe5c))
+
+- Add HTTP transport mode with encrypted credential store
+  ([#243](https://github.com/n24q02m/better-email-mcp/pull/243),
+  [`9887ea6`](https://github.com/n24q02m/better-email-mcp/commit/9887ea6689a4b5d5db8b5eafce6e161b94dd6512))
+
+- Add pnpx and yarn dlx modes to plugin config
+  ([`46f909d`](https://github.com/n24q02m/better-email-mcp/commit/46f909d1f74ec85cd044c59ec2be07afc567bc3f))
+
+- Add zero-env-config relay setup via mcp-relay-core
+  ([#243](https://github.com/n24q02m/better-email-mcp/pull/243),
+  [`9887ea6`](https://github.com/n24q02m/better-email-mcp/commit/9887ea6689a4b5d5db8b5eafce6e161b94dd6512))
+
+- Multi-mode plugin config (stdio + docker + http)
+  ([`b17be43`](https://github.com/n24q02m/better-email-mcp/commit/b17be4363cd7b61b78adcc012c1507d498744694))
+
+- Standardize README with MCP Resources, Security, collapsible clients
+  ([`7fe433c`](https://github.com/n24q02m/better-email-mcp/commit/7fe433c1e31dd6054c34c917f7670c2ea0b31bd7))
+
+- Zero-env-config relay setup + HTTP transport mode
+  ([#243](https://github.com/n24q02m/better-email-mcp/pull/243),
+  [`9887ea6`](https://github.com/n24q02m/better-email-mcp/commit/9887ea6689a4b5d5db8b5eafce6e161b94dd6512))
+
+
 ## v1.14.0 (2026-03-24)
 
 ### Bug Fixes
