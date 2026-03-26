@@ -5,8 +5,18 @@
   "mcpServers": {
     "better-email-mcp": {
       "command": "npx",
-      "args": ["-y", "@n24q02m/better-email-mcp"]
+      "args": [
+        "-y",
+        "@n24q02m/better-email-mcp"
+      ]
     }
   },
-  "contextFileName": "GEMINI.md"
+  "settings": [
+    {
+      "name": "Email Credentials",
+      "description": "Email credentials (format: user@gmail.com:app-password)",
+      "envVar": "EMAIL_CREDENTIALS",
+      "sensitive": true
+    }
+  ]
 }

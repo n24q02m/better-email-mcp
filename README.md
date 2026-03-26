@@ -39,15 +39,10 @@ Via marketplace (includes skills: /inbox-review, /follow-up):
 
 ```bash
 /plugin marketplace add n24q02m/claude-plugins
-/plugin install better-email-mcp@claude-plugins
+/plugin install better-email-mcp@n24q02m-plugins
 ```
 
-Or install this plugin only:
 
-```bash
-/plugin marketplace add n24q02m/better-email-mcp
-/plugin install better-email-mcp
-```
 
 Set credentials in `~/.claude/settings.local.json` or shell profile. See [Prerequisites](#mcp-server).
 
