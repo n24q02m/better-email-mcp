@@ -2,6 +2,25 @@
 
 <!-- version list -->
 
+## v1.15.0 (2026-03-26)
+
+### Chores
+
+- Add server.json to PSR version_variables, sync version
+  ([`bbeba81`](https://github.com/n24q02m/better-email-mcp/commit/bbeba81e0d6131e8f91e498c1160513a83d7aa71))
+
+- Clean up plugin manifest for best practices
+  ([`563bd8c`](https://github.com/n24q02m/better-email-mcp/commit/563bd8cc481928d7ed0b90610c3f1f258a3bac21))
+
+### Documentation
+
+- Fix marketplace references, improve Gemini CLI extension config
+  ([`ff1f4d7`](https://github.com/n24q02m/better-email-mcp/commit/ff1f4d7d2cfc00f6b0839bc7a77c035031ce7fa4))
+
+- Standardize README structure
+  ([`092ef71`](https://github.com/n24q02m/better-email-mcp/commit/092ef71ac3888003842f8ec45064a700293c30a3))
+
+
 ## v1.15.0-beta.1 (2026-03-25)
 
 ### Bug Fixes
