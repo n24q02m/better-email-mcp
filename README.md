@@ -46,6 +46,22 @@ Via marketplace (includes skills: /inbox-review, /follow-up):
 
 Set credentials in `~/.claude/settings.local.json` or shell profile. See [Prerequisites](#mcp-server).
 
+### Gemini CLI Extension
+
+```bash
+gemini extensions install https://github.com/n24q02m/better-email-mcp
+```
+
+### Codex CLI
+
+Add to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.better-email-mcp]
+command = "npx"
+args = ["-y", "@n24q02m/better-email-mcp"]
+```
+
 ### MCP Server
 
 **Prerequisites:** Create App Passwords (NOT your regular password):
@@ -69,30 +85,6 @@ Set credentials in `~/.claude/settings.local.json` or shell profile. See [Prereq
 
 Other runners: `bun x`, `pnpm dlx`, `yarn dlx` also work.
 
-<details>
-<summary>Other MCP clients (Cursor, Codex, Gemini CLI)</summary>
-
-```jsonc
-// Cursor, Windsurf, Cline, Amp, OpenCode
-{
-  "mcpServers": {
-    "better-email": {
-      "command": "npx",
-      "args": ["-y", "@n24q02m/better-email-mcp@latest"]
-    }
-  }
-}
-```
-
-```toml
-# Codex (~/.codex/config.toml)
-[mcp_servers.better-email]
-command = "npx"
-args = ["-y", "@n24q02m/better-email-mcp@latest"]
-```
-
-</details>
-
 #### Option 2: Docker
 
 ```jsonc
@@ -112,18 +104,6 @@ args = ["-y", "@n24q02m/better-email-mcp@latest"]
 
 Configure `EMAIL_CREDENTIALS` in `~/.claude/settings.local.json` or your shell profile. See [Environment Variables](#environment-variables) below.
 
-### Multiple Accounts
-
-```bash
-EMAIL_CREDENTIALS=user1@gmail.com:pass1,user2@outlook.com:pass2,user3@yahoo.com:pass3
-```
-
-### Custom IMAP Host
-
-```bash
-EMAIL_CREDENTIALS=user@custom.com:password:imap.custom.com
-```
-
 ## Tools
 
 | Tool | Actions | Description |
@@ -133,17 +113,6 @@ EMAIL_CREDENTIALS=user@custom.com:password:imap.custom.com
 | `attachments` | `list`, `download` | List and download email attachments |
 | `send` | `new`, `reply`, `forward` | Compose, reply, and forward emails |
 | `help` | - | Get full documentation for any tool |
-
-### Search Query Language
-
-| Query | Description |
-|:------|:------------|
-| `UNREAD` | Unread emails |
-| `FLAGGED` | Starred emails |
-| `SINCE 2024-01-01` | Emails after date |
-| `FROM boss@company.com` | Emails from sender |
-| `SUBJECT meeting` | Emails matching subject |
-| `UNREAD SINCE 2024-06-01` | Compound filter |
 
 ### MCP Resources
 
@@ -175,6 +144,29 @@ For CI/automation, you can still use environment variables (see below).
 | `EMAIL_CREDENTIALS` | Yes | - | Email credentials (`user@gmail.com:app-password`, comma-separated for multi-account) |
 | `OUTLOOK_CLIENT_ID` | No | - | Custom Azure AD client ID for self-hosted Outlook OAuth2 |
 
+### Multiple Accounts
+
+```bash
+EMAIL_CREDENTIALS=user1@gmail.com:pass1,user2@outlook.com:pass2,user3@yahoo.com:pass3
+```
+
+### Custom IMAP Host
+
+```bash
+EMAIL_CREDENTIALS=user@custom.com:password:imap.custom.com
+```
+
+### Search Query Language
+
+| Query | Description |
+|:------|:------------|
+| `UNREAD` | Unread emails |
+| `FLAGGED` | Starred emails |
+| `SINCE 2024-01-01` | Emails after date |
+| `FROM boss@company.com` | Emails from sender |
+| `SUBJECT meeting` | Emails matching subject |
+| `UNREAD SINCE 2024-06-01` | Compound filter |
+
 ### Supported Providers
 
 | Provider | Auth | Save-to-Sent |
@@ -187,7 +179,7 @@ For CI/automation, you can still use environment variables (see below).
 | ProtonMail | ProtonMail Bridge | IMAP APPEND |
 | Custom | Via `email:pass:imap.host` | IMAP APPEND |
 
-### Security
+## Security
 
 - **Credential sanitization** -- Passwords never leaked in error messages
 - **App Passwords** -- Uses app-specific passwords, not regular passwords
@@ -202,32 +194,6 @@ cd better-email-mcp
 bun install
 bun run dev
 ```
-
-## Compatible With
-
-[![Claude Code](https://img.shields.io/badge/Claude_Code-000000?logo=anthropic&logoColor=white)](#quick-start)
-[![Claude Desktop](https://img.shields.io/badge/Claude_Desktop-F9DC7C?logo=anthropic&logoColor=black)](#quick-start)
-[![Cursor](https://img.shields.io/badge/Cursor-000000?logo=cursor&logoColor=white)](#quick-start)
-[![VS Code Copilot](https://img.shields.io/badge/VS_Code_Copilot-007ACC?logo=visualstudiocode&logoColor=white)](#quick-start)
-[![Antigravity](https://img.shields.io/badge/Antigravity-4285F4?logo=google&logoColor=white)](#quick-start)
-[![Gemini CLI](https://img.shields.io/badge/Gemini_CLI-8E75B2?logo=googlegemini&logoColor=white)](#quick-start)
-[![OpenAI Codex](https://img.shields.io/badge/Codex-412991?logo=openai&logoColor=white)](#quick-start)
-[![OpenCode](https://img.shields.io/badge/OpenCode-F7DF1E?logoColor=black)](#quick-start)
-
-## Also by n24q02m
-
-| Server | Description |
-|--------|-------------|
-| [wet-mcp](https://github.com/n24q02m/wet-mcp) | Web search, content extraction, and documentation indexing |
-| [mnemo-mcp](https://github.com/n24q02m/mnemo-mcp) | Persistent AI memory with hybrid search and cross-machine sync |
-| [better-notion-mcp](https://github.com/n24q02m/better-notion-mcp) | Markdown-first Notion API with 9 composite tools |
-| [better-godot-mcp](https://github.com/n24q02m/better-godot-mcp) | Godot Engine 4.x with 18 tools for scenes, scripts, and shaders |
-| [better-telegram-mcp](https://github.com/n24q02m/better-telegram-mcp) | Telegram dual-mode (Bot API + MTProto) with 6 composite tools |
-| [better-code-review-graph](https://github.com/n24q02m/better-code-review-graph) | Knowledge graph for token-efficient code reviews |
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
