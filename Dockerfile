@@ -20,7 +20,7 @@ COPY . .
 RUN bun run build
 
 # Minimal image for runtime
-FROM node:24.14.0-alpine
+FROM node:24.14.1-alpine
 
 LABEL org.opencontainers.image.source="https://github.com/n24q02m/better-email-mcp"
 LABEL io.modelcontextprotocol.server.name="io.github.n24q02m/better-email-mcp"
