@@ -1,16 +1,12 @@
 /**
- * Relay-first setup flow for better-email-mcp.
+ * Credential resolution for better-email-mcp.
  *
- * Always shows the relay URL at startup so users can configure email
- * credentials via browser. If the user skips, the server starts in
- * degraded mode (help tool only).
- *
- * Resolution order:
- * 1. Environment variables (EMAIL_CREDENTIALS -- checked by caller)
- * 2. Encrypted config file (~/.config/mcp/config.enc)
- * 3. Relay setup (browser-based form via relay server)
- * 4. Saved OAuth2 tokens (~/.better-email-mcp/tokens.json)
- * 5. Degraded mode (no email tools)
+ * Resolution order (relay only when ALL local sources are empty):
+ * 1. ENV VARS          -- EMAIL_CREDENTIALS (checked by caller in init-server.ts)
+ * 2. RELAY CONFIG      -- Saved from previous relay setup (~/.config/mcp/config.enc)
+ * 3. LOCAL CREDENTIALS -- Saved OAuth2 tokens (~/.better-email-mcp/tokens.json)
+ * 4. RELAY SETUP       -- Interactive, ONLY when steps 1-2-3 are ALL empty
+ * 5. DEGRADED MODE     -- No email tools
  */
 
 import { existsSync, readFileSync } from 'node:fs'
@@ -84,29 +80,33 @@ export function formatCredentials(config: Record<string, string>): string {
 }
 
 /**
- * Resolve config or trigger relay setup (relay-first design).
+ * Resolve config: config file -> saved OAuth tokens -> relay setup -> degraded.
  *
- * Resolution order:
+ * Relay is ONLY triggered when steps 1-2-3 are ALL empty (first-time setup).
+ *
+ * Resolution order (env vars already checked by caller in init-server.ts):
  * 1. Encrypted config file (~/.config/mcp/config.enc)
- * 2. Relay setup (browser-based form via relay server)
- * 3. Saved OAuth2 tokens (~/.better-email-mcp/tokens.json)
+ * 2. Saved OAuth2 tokens (~/.better-email-mcp/tokens.json)
+ * 3. Relay setup (interactive, only when no local credentials exist)
+ * 4. Degraded mode (no email tools)
  *
- * Returns the formatted EMAIL_CREDENTIALS string, or null if setup
- * fails/times out/skipped AND no saved tokens exist.
- *
- * Note: Environment variables are NOT checked here -- loadConfig() in
- * init-server.ts already handles that. This function is only called
- * when EMAIL_CREDENTIALS is not set.
+ * Returns the formatted EMAIL_CREDENTIALS string, or null for degraded mode.
  */
 export async function ensureConfig(): Promise<string | null> {
-  // Check config file
+  // 1. Check saved relay config file
   const result = await resolveConfig(SERVER_NAME, REQUIRED_FIELDS)
   if (result.config !== null) {
     console.error(`Email config loaded from ${result.source}`)
     return formatCredentials(result.config)
   }
 
-  // No config found -- always trigger relay setup (relay-first)
+  // 2. Check saved OAuth2 tokens (local credentials)
+  const savedTokens = checkSavedOAuthTokens()
+  if (savedTokens) {
+    return savedTokens
+  }
+
+  // 3. No local credentials found -- trigger relay setup
   console.error('No email credentials found. Starting relay setup...')
 
   const relayUrl = DEFAULT_RELAY_URL
@@ -117,8 +117,7 @@ export async function ensureConfig(): Promise<string | null> {
     console.error(
       `Cannot reach relay server at ${relayUrl}. Set EMAIL_CREDENTIALS manually.\nFormat: email1:password1,email2:password2`
     )
-    // Fall through to saved token check
-    return checkSavedOAuthTokens()
+    return null
   }
 
   // Log URL to stderr (visible to user in MCP client)
@@ -130,21 +129,11 @@ export async function ensureConfig(): Promise<string | null> {
     config = await pollForResult(relayUrl, session)
   } catch (err: any) {
     if (err?.message === 'RELAY_SKIPPED') {
-      console.error('Relay setup skipped by user.')
-      // Check for saved OAuth tokens before degrading
-      const savedTokens = checkSavedOAuthTokens()
-      if (!savedTokens) {
-        console.error('No saved OAuth tokens found. Email tools will be unavailable.')
-      }
-      return savedTokens
+      console.error('Relay setup skipped by user. Email tools will be unavailable.')
+    } else {
+      console.error('Relay setup timed out or session expired. Email tools will be unavailable.')
     }
-    console.error('Relay setup timed out or session expired.')
-    // Check for saved OAuth tokens before degrading
-    const savedTokens = checkSavedOAuthTokens()
-    if (!savedTokens) {
-      console.error('No saved OAuth tokens found. Email tools will be unavailable.')
-    }
-    return savedTokens
+    return null
   }
 
   // Save to config file for future use
