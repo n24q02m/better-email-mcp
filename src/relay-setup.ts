@@ -145,6 +145,7 @@ export async function ensureConfig(): Promise<string | null> {
   const credentials = formatCredentials(config)
 
   // Check if any Outlook accounts need OAuth — send device code via relay messaging
+  let hasOAuthPending = false
   try {
     const accounts = await parseCredentials(credentials)
     for (const account of accounts) {
@@ -157,28 +158,32 @@ export async function ensureConfig(): Promise<string | null> {
           const urlMatch = message.match(/Visit:\s*(https?:\/\/\S+)/)
           const codeMatch = message.match(/Enter code:\s*(\S+)/)
           if (urlMatch && codeMatch) {
+            hasOAuthPending = true
             await sendMessage(relayUrl, session.sessionId, {
               type: 'oauth_device_code',
               text: `Sign in to Microsoft for ${account.email}`,
               data: { url: urlMatch[1], code: codeMatch[1], email: account.email }
             })
-            // Wait for user to complete OAuth (ensureValidToken polls in background)
-            // The background poll in oauth2.ts saves tokens to disk automatically
             console.error(`OAuth device code sent to relay page for ${account.email}`)
           }
         }
       }
     }
-    // Send complete message to relay page
-    await sendMessage(relayUrl, session.sessionId, {
-      type: 'complete',
-      text: 'Setup complete! All accounts configured.'
-    })
+
+    if (!hasOAuthPending) {
+      // No OAuth needed — all accounts ready
+      await sendMessage(relayUrl, session.sessionId, {
+        type: 'complete',
+        text: 'Setup complete! All accounts configured.'
+      })
+    }
+    // If OAuth pending: DON'T send complete yet.
+    // The background poll in oauth2.ts will save tokens to disk.
+    // Relay page stays open showing the device code.
   } catch {
-    // Non-critical: messaging failure doesn't break credential setup
     await sendMessage(relayUrl, session.sessionId, {
-      type: 'complete',
-      text: 'Credentials saved. Check server logs for any OAuth sign-in steps.'
+      type: 'info',
+      text: 'Credentials saved. If you added Outlook accounts, check back later for OAuth sign-in.'
     }).catch(() => {})
   }
 
