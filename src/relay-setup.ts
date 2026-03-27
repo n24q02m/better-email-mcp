@@ -13,19 +13,25 @@ import { RELAY_SCHEMA } from './relay-schema.js'
 
 const SERVER_NAME = 'better-email-mcp'
 const DEFAULT_RELAY_URL = 'https://better-email-mcp.n24q02m.com'
-const REQUIRED_FIELDS = ['email', 'password']
+const REQUIRED_FIELDS = ['EMAIL_CREDENTIALS']
 
 /**
  * Format relay config into EMAIL_CREDENTIALS string.
  *
- * The relay returns individual fields { email, password, imap_host? }.
- * This formats them back into the EMAIL_CREDENTIALS format that the
- * existing parseCredentials() function expects.
+ * Supports two formats from the relay page:
+ * - New (multi-account): { EMAIL_CREDENTIALS: "email1:pass1,email2:pass2" }
+ * - Legacy (single account): { email, password, imap_host? }
  */
 export function formatCredentials(config: Record<string, string>): string {
+  // New format: relay page sends EMAIL_CREDENTIALS directly
+  if (config.EMAIL_CREDENTIALS) {
+    return config.EMAIL_CREDENTIALS
+  }
+
+  // Legacy format: individual fields from old relay page
   const { email, password, imap_host } = config
   if (!email || !password) {
-    throw new Error('Relay config missing required fields: email, password')
+    throw new Error('Relay config missing required fields: EMAIL_CREDENTIALS or email+password')
   }
   if (imap_host) {
     return `${email}:${password}:${imap_host}`
