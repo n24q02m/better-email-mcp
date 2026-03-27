@@ -233,6 +233,16 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   help: (_, args) => handleHelp(args)
 }
 
+// Pre-compute derived values to avoid redundant allocations on every request
+const FORMATTED_RESOURCES = RESOURCES.map((r) => ({
+  uri: r.uri,
+  name: r.name,
+  mimeType: 'text/markdown'
+}))
+const AVAILABLE_RESOURCE_URIS_STRING = RESOURCES.map((r) => r.uri).join(', ')
+const VALID_TOOL_NAMES = TOOLS.map((t) => t.name)
+const AVAILABLE_TOOLS_STRING = VALID_TOOL_NAMES.join(', ')
+
 export function registerTools(server: Server, accounts: AccountConfig[]) {
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: TOOLS
@@ -240,11 +250,7 @@ export function registerTools(server: Server, accounts: AccountConfig[]) {
 
   // Resources handlers for full documentation
   server.setRequestHandler(ListResourcesRequestSchema, async () => ({
-    resources: RESOURCES.map((r) => ({
-      uri: r.uri,
-      name: r.name,
-      mimeType: 'text/markdown'
-    }))
+    resources: FORMATTED_RESOURCES
   }))
 
   server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
@@ -255,7 +261,7 @@ export function registerTools(server: Server, accounts: AccountConfig[]) {
       throw new EmailMCPError(
         `Resource not found: ${uri}`,
         'RESOURCE_NOT_FOUND',
-        `Available: ${RESOURCES.map((r) => r.uri).join(', ')}`
+        `Available: ${AVAILABLE_RESOURCE_URIS_STRING}`
       )
     }
 
@@ -283,13 +289,12 @@ export function registerTools(server: Server, accounts: AccountConfig[]) {
     try {
       const handler = TOOL_HANDLERS[name]
       if (!handler) {
-        const validTools = TOOLS.map((t) => t.name)
-        const closest = findClosestMatch(name, validTools)
+        const closest = findClosestMatch(name, VALID_TOOL_NAMES)
         const suggestion = closest ? ` Did you mean '${closest}'?` : ''
         throw new EmailMCPError(
           `Unknown tool: ${name}.${suggestion}`,
           'UNKNOWN_TOOL',
-          `Available tools: ${validTools.join(', ')}`
+          `Available tools: ${AVAILABLE_TOOLS_STRING}`
         )
       }
 
