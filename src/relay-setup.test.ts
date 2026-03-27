@@ -15,8 +15,7 @@ vi.mock('@n24q02m/mcp-relay-core/storage', () => ({
 }))
 vi.mock('@n24q02m/mcp-relay-core/relay', () => ({
   createSession: vi.fn(),
-  pollForResult: vi.fn(),
-  sendMessage: vi.fn().mockResolvedValue(undefined)
+  pollForResult: vi.fn()
 }))
 vi.mock('@n24q02m/mcp-relay-core', () => ({
   writeConfig: vi.fn().mockResolvedValue(undefined)
@@ -32,7 +31,7 @@ vi.mock('./tools/helpers/oauth2.js', () => ({
 }))
 
 import { writeConfig } from '@n24q02m/mcp-relay-core'
-import { createSession, pollForResult, sendMessage } from '@n24q02m/mcp-relay-core/relay'
+import { createSession, pollForResult } from '@n24q02m/mcp-relay-core/relay'
 // Import after mocks
 import { resolveConfig } from '@n24q02m/mcp-relay-core/storage'
 
@@ -205,11 +204,18 @@ describe('ensureConfig', () => {
       EMAIL_CREDENTIALS: 'test@gmail.com:pass'
     })
 
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}'))
+
     await ensureConfig()
 
-    expect(sendMessage).toHaveBeenCalledWith('https://better-email-mcp.n24q02m.com', 'sid-123', {
-      type: 'complete',
-      text: 'Setup complete! All accounts configured.'
-    })
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://better-email-mcp.n24q02m.com/api/sessions/sid-123/messages',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('"type":"complete"')
+      })
+    )
+
+    fetchSpy.mockRestore()
   })
 })

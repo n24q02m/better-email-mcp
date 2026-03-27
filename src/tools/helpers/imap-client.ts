@@ -348,11 +348,11 @@ export async function readEmail(account: AccountConfig, uid: number, folder: str
     }
   })
 
-  if (!fetchResult?.source) {
+  if (!fetchResult || !fetchResult.source) {
     throw new EmailMCPError(`Email UID ${uid} not found in ${folder}`, 'NOT_FOUND', 'Check the UID and folder')
   }
 
-  const parsed = await simpleParser(fetchResult.source!)
+  const parsed = await simpleParser(fetchResult.source)
   const bodyText = parsed.text || (parsed.html ? htmlToCleanText(parsed.html as string) : '(Empty body)')
 
   return {
@@ -479,7 +479,7 @@ export async function getAttachment(
     }
   })
 
-  if (!fetchResult?.source) {
+  if (!fetchResult || !fetchResult.source) {
     throw new EmailMCPError(`Email UID ${uid} not found`, 'NOT_FOUND', 'Check the UID and folder')
   }
 

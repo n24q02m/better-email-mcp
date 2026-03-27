@@ -13,7 +13,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { writeConfig } from '@n24q02m/mcp-relay-core'
-import { createSession, pollForResult, sendMessage } from '@n24q02m/mcp-relay-core/relay'
+import { createSession, pollForResult } from '@n24q02m/mcp-relay-core/relay'
 import { resolveConfig } from '@n24q02m/mcp-relay-core/storage'
 import { RELAY_SCHEMA } from './relay-schema.js'
 import { parseCredentials } from './tools/helpers/config.js'
@@ -159,10 +159,14 @@ export async function ensureConfig(): Promise<string | null> {
           const codeMatch = message.match(/Enter code:\s*(\S+)/)
           if (urlMatch && codeMatch) {
             hasOAuthPending = true
-            await sendMessage(relayUrl, session.sessionId, {
-              type: 'oauth_device_code',
-              text: `Sign in to Microsoft for ${account.email}`,
-              data: { url: urlMatch[1], code: codeMatch[1], email: account.email }
+            await fetch(`${relayUrl}/api/sessions/${session.sessionId}/messages`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'oauth_device_code',
+                text: `Sign in to Microsoft for ${account.email}`,
+                data: { url: urlMatch[1], code: codeMatch[1], email: account.email }
+              })
             })
             console.error(`OAuth device code sent to relay page for ${account.email}`)
           }
@@ -172,18 +176,26 @@ export async function ensureConfig(): Promise<string | null> {
 
     if (!hasOAuthPending) {
       // No OAuth needed — all accounts ready
-      await sendMessage(relayUrl, session.sessionId, {
-        type: 'complete',
-        text: 'Setup complete! All accounts configured.'
+      await fetch(`${relayUrl}/api/sessions/${session.sessionId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'complete',
+          text: 'Setup complete! All accounts configured.'
+        })
       })
     }
     // If OAuth pending: DON'T send complete yet.
     // The background poll in oauth2.ts will save tokens to disk.
     // Relay page stays open showing the device code.
   } catch {
-    await sendMessage(relayUrl, session.sessionId, {
-      type: 'info',
-      text: 'Credentials saved. If you added Outlook accounts, check back later for OAuth sign-in.'
+    await fetch(`${relayUrl}/api/sessions/${session.sessionId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'info',
+        text: 'Credentials saved. If you added Outlook accounts, check back later for OAuth sign-in.'
+      })
     }).catch(() => {})
   }
 
