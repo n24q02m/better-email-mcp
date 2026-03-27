@@ -13,9 +13,11 @@ import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { writeConfig } from '@n24q02m/mcp-relay-core'
-import { createSession, pollForResult } from '@n24q02m/mcp-relay-core/relay'
+import { createSession, pollForResult, sendMessage } from '@n24q02m/mcp-relay-core/relay'
 import { resolveConfig } from '@n24q02m/mcp-relay-core/storage'
 import { RELAY_SCHEMA } from './relay-schema.js'
+import { parseCredentials } from './tools/helpers/config.js'
+import { ensureValidToken, isOutlookDomain } from './tools/helpers/oauth2.js'
 
 const SERVER_NAME = 'better-email-mcp'
 const DEFAULT_RELAY_URL = 'https://better-email-mcp.n24q02m.com'
@@ -140,5 +142,45 @@ export async function ensureConfig(): Promise<string | null> {
   await writeConfig(SERVER_NAME, config)
   console.error('Email config saved successfully')
 
-  return formatCredentials(config)
+  const credentials = formatCredentials(config)
+
+  // Check if any Outlook accounts need OAuth — send device code via relay messaging
+  try {
+    const accounts = await parseCredentials(credentials)
+    for (const account of accounts) {
+      if (isOutlookDomain(account.email) && !account.oauth2) {
+        try {
+          await ensureValidToken(account)
+        } catch (err: any) {
+          // ensureValidToken throws with device code info — extract and send via relay
+          const message = err?.message || ''
+          const urlMatch = message.match(/Visit:\s*(https?:\/\/\S+)/)
+          const codeMatch = message.match(/Enter code:\s*(\S+)/)
+          if (urlMatch && codeMatch) {
+            await sendMessage(relayUrl, session.sessionId, {
+              type: 'oauth_device_code',
+              text: `Sign in to Microsoft for ${account.email}`,
+              data: { url: urlMatch[1], code: codeMatch[1], email: account.email }
+            })
+            // Wait for user to complete OAuth (ensureValidToken polls in background)
+            // The background poll in oauth2.ts saves tokens to disk automatically
+            console.error(`OAuth device code sent to relay page for ${account.email}`)
+          }
+        }
+      }
+    }
+    // Send complete message to relay page
+    await sendMessage(relayUrl, session.sessionId, {
+      type: 'complete',
+      text: 'Setup complete! All accounts configured.'
+    })
+  } catch {
+    // Non-critical: messaging failure doesn't break credential setup
+    await sendMessage(relayUrl, session.sessionId, {
+      type: 'complete',
+      text: 'Credentials saved. Check server logs for any OAuth sign-in steps.'
+    }).catch(() => {})
+  }
+
+  return credentials
 }
