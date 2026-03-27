@@ -1,9 +1,15 @@
 /**
- * Zero-env-config relay setup flow.
+ * Relay-first setup flow for better-email-mcp.
  *
- * When EMAIL_CREDENTIALS is not set, this module resolves config from the
- * encrypted config file or triggers the relay page setup to collect
- * credentials from the user via a browser-based form.
+ * Always shows the relay URL at startup so users can configure email
+ * credentials via browser. If the user skips, the server starts in
+ * degraded mode (help tool only).
+ *
+ * Resolution order:
+ * 1. Environment variables (EMAIL_CREDENTIALS -- checked by caller)
+ * 2. Encrypted config file (~/.config/mcp/config.enc)
+ * 3. Relay setup (browser-based form via relay server)
+ * 4. Degraded mode (no email tools)
  */
 
 import { writeConfig } from '@n24q02m/mcp-relay-core'
@@ -40,14 +46,14 @@ export function formatCredentials(config: Record<string, string>): string {
 }
 
 /**
- * Resolve config or trigger relay setup.
+ * Resolve config or trigger relay setup (relay-first design).
  *
  * Resolution order:
  * 1. Encrypted config file (~/.config/mcp/config.enc)
  * 2. Relay setup (browser-based form via relay server)
  *
  * Returns the formatted EMAIL_CREDENTIALS string, or null if setup
- * fails/times out.
+ * fails/times out/skipped.
  *
  * Note: Environment variables are NOT checked here -- loadConfig() in
  * init-server.ts already handles that. This function is only called
@@ -61,7 +67,7 @@ export async function ensureConfig(): Promise<string | null> {
     return formatCredentials(result.config)
   }
 
-  // No config found -- trigger relay setup
+  // No config found -- always trigger relay setup (relay-first)
   console.error('No email credentials found. Starting relay setup...')
 
   const relayUrl = DEFAULT_RELAY_URL
@@ -82,7 +88,11 @@ export async function ensureConfig(): Promise<string | null> {
   let config: Record<string, string>
   try {
     config = await pollForResult(relayUrl, session)
-  } catch {
+  } catch (err: any) {
+    if (err?.message === 'RELAY_SKIPPED') {
+      console.error('Relay setup skipped by user. Email tools will be unavailable.')
+      return null
+    }
     console.error('Relay setup timed out or session expired')
     return null
   }
