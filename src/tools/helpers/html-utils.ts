@@ -123,7 +123,12 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   }
 
   // Strip all remaining HTML tags
-  text = text.replace(ANY_TAG_REGEX, '')
+  // ⚡ Bolt: Iteratively remove tags to prevent nested tag injection (e.g., `<<script>script>` -> `<script>`)
+  // This addresses CodeQL's HTML element injection vulnerability warning.
+  do {
+    prev = text
+    text = text.replace(ANY_TAG_REGEX, '')
+  } while (text !== prev)
 
   // Collapse whitespace
   text = text.replace(WHITESPACE_REGEX, ' ').trim()
