@@ -66,7 +66,10 @@ export function htmlToCleanText(html: string): string {
 const STRIP_SCRIPT_STYLE_REGEX = /<(style|script)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi
 const BLOCK_TAG_REGEX = /<\/(p|div|br|tr|li|h[1-6])>/gi
 const BR_REGEX = /<br\s*\/?>/gi
-const ANY_TAG_REGEX = /<[^>]+>/g
+// ⚡ Bolt: Use a stricter regex to avoid stripping valid plain text '<' characters.
+// We require an opening tag bracket to be followed by a letter, a slash (for closing tags),
+// or an exclamation mark (for comments) to prevent "1 < 2" from being treated as a tag.
+const ANY_TAG_REGEX = /<[a-zA-Z/!][^>]*>/g
 const ENTITY_REGEX = /&(#x?[\da-fA-F]+|[a-zA-Z]+);/g
 const WHITESPACE_REGEX = /\s+/g
 
@@ -98,12 +101,11 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   text = text.replace(BLOCK_TAG_REGEX, ' ')
   text = text.replace(BR_REGEX, ' ')
 
-  // Strip all remaining HTML tags
-  text = text.replace(ANY_TAG_REGEX, '')
-
   // ⚡ Bolt: Decode HTML entities in a single pass only if entities are actually present.
   // We use the capture group `p1` (which contains the entity name or number without the `&` and `;`)
   // to avoid invoking `entity.match(...)` internally, which creates secondary string allocations.
+  // Note: We perform entity decoding *before* stripping HTML tags so that injected malicious tags
+  // like &lt;script&gt; get properly stripped by ANY_TAG_REGEX.
   if (text.indexOf('&') !== -1) {
     text = text.replace(ENTITY_REGEX, (entity, p1) => {
       const lower = entity.toLowerCase()
@@ -119,6 +121,9 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
       return entity
     })
   }
+
+  // Strip all remaining HTML tags
+  text = text.replace(ANY_TAG_REGEX, '')
 
   // Collapse whitespace
   text = text.replace(WHITESPACE_REGEX, ' ').trim()
