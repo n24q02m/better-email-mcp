@@ -122,12 +122,30 @@ export async function parseCredentials(envValue: string): Promise<AccountConfig[
     if (!trimmed) continue
 
     const parts = trimmed.split(':')
+    const email = parts[0]!.trim()
+
+    // Outlook/Hotmail/Live: email-only entry is valid (OAuth2, no password needed)
     if (parts.length < 2) {
+      if (isOutlookDomain(email)) {
+        const discovered = discoverSettings(email)
+        if (!discovered) continue
+        const account: AccountConfig = {
+          id: emailToId(email),
+          email,
+          password: '',
+          authType: 'oauth2',
+          imap: discovered.imap,
+          smtp: discovered.smtp
+        }
+        const tokens = await loadStoredTokens(email)
+        if (tokens) account.oauth2 = tokens
+        accounts.push(account)
+        continue
+      }
       console.error('Skipping invalid credential entry (expected email:password)')
       continue
     }
 
-    const email = parts[0]!.trim()
     let password: string
     let customImapHost: string | undefined
 
