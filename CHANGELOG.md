@@ -2,6 +2,105 @@
 
 <!-- version list -->
 
+## v1.16.0 (2026-03-28)
+
+### Bug Fixes
+
+- Check saved OAuth tokens after relay skip
+  ([`405f56a`](https://github.com/n24q02m/better-email-mcp/commit/405f56afe8a3f5cbbf2cc2bc0bf7c5ea435f1f11))
+
+- Credential resolution order -- relay only when no local credentials
+  ([`9ca07e7`](https://github.com/n24q02m/better-email-mcp/commit/9ca07e736295c8d3c7137749b6455705a4db225c))
+
+- Don't send complete message when OAuth is pending
+  ([`d2eda2a`](https://github.com/n24q02m/better-email-mcp/commit/d2eda2a9d79e23a33e1c87a2a33558ae26642e98))
+
+- Handle Outlook email-only entries in parseCredentials
+  ([`34997d4`](https://github.com/n24q02m/better-email-mcp/commit/34997d4d31e79c64f7248193aff8f9a176c17c12))
+
+- Pin Docker base images to SHA digests
+  ([`9da817b`](https://github.com/n24q02m/better-email-mcp/commit/9da817bcd6d0251762f44dc69a2e3c9f166c5386))
+
+- Pin pre-commit hooks to commit SHA
+  ([`c6a7132`](https://github.com/n24q02m/better-email-mcp/commit/c6a7132f41dab8c7209f15209b40ad259a3ed415))
+
+- Replace sendMessage with inline fetch, fix TS errors
+  ([`1f18cb2`](https://github.com/n24q02m/better-email-mcp/commit/1f18cb2031c3f01d0aa2ac61c6a1040ec80ad40e))
+
+- Update relay-setup tests and apply biome lint fixes
+  ([`f148ddc`](https://github.com/n24q02m/better-email-mcp/commit/f148ddcd829152ea680b895337a85740faad611a))
+
+- **cd**: Remove empty env blocks from OIDC migration
+  ([`49c0470`](https://github.com/n24q02m/better-email-mcp/commit/49c0470a95e1393fb7474138b578b958605a7743))
+
+- **cd**: Replace GH_PAT with GitHub App installation token
+  ([`b3e0235`](https://github.com/n24q02m/better-email-mcp/commit/b3e02357aa73f0bd65612da7e88c8c1f44b894bd))
+
+- **cd**: Use npm OIDC provenance instead of NPM_TOKEN
+  ([`dbe28a3`](https://github.com/n24q02m/better-email-mcp/commit/dbe28a33193bbb5b3e40efd529ef142f06728361))
+
+- **ci**: Consolidate SMTP_USERNAME and NOTIFY_EMAIL into one secret
+  ([`1c46f45`](https://github.com/n24q02m/better-email-mcp/commit/1c46f4520ca020198fe36b2a553ad00725588e63))
+
+- **ci**: Consolidate SMTP_USERNAME+PASSWORD into SMTP_CREDENTIAL
+  ([`a9b527c`](https://github.com/n24q02m/better-email-mcp/commit/a9b527cf5e6eae7dcc785b7f3120693bc53c508e))
+
+- **ci**: Remove CODECOV_TOKEN, use tokenless upload
+  ([`2fa032f`](https://github.com/n24q02m/better-email-mcp/commit/2fa032f6ca6f18792dc1d3ab785f4e93480540fe))
+
+- **ci**: Use Vertex AI WIF instead of GEMINI_API_KEY for code review
+  ([`4960c8f`](https://github.com/n24q02m/better-email-mcp/commit/4960c8f4ed503dc61ad0e026f9ed468d065b4ac4))
+
+- **deps**: Update dependency @n24q02m/mcp-relay-core to v1
+  ([`6decbc8`](https://github.com/n24q02m/better-email-mcp/commit/6decbc8bdfa7368a08647ba5e45f98955bda361b))
+
+- **deps**: Update non-major dependencies
+  ([#225](https://github.com/n24q02m/better-email-mcp/pull/225),
+  [`e2231d4`](https://github.com/n24q02m/better-email-mcp/commit/e2231d411eb6d2fa0069c4a597342d73fee35acf))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#255](https://github.com/n24q02m/better-email-mcp/pull/255),
+  [`6606c55`](https://github.com/n24q02m/better-email-mcp/commit/6606c55f59a0b0684dfecd3daa2dd1cbecc43452))
+
+- **deps**: Lock file maintenance ([#249](https://github.com/n24q02m/better-email-mcp/pull/249),
+  [`a6012ec`](https://github.com/n24q02m/better-email-mcp/commit/a6012ec9d039735a22d380077f027ed197b529fc))
+
+- **deps**: Update actions/create-github-app-token action to v3
+  ([#251](https://github.com/n24q02m/better-email-mcp/pull/251),
+  [`64d761f`](https://github.com/n24q02m/better-email-mcp/commit/64d761f527d11fcab697e19f83709a3aa684c753))
+
+- **deps**: Update codecov/codecov-action action to v6
+  ([#247](https://github.com/n24q02m/better-email-mcp/pull/247),
+  [`1a5c27a`](https://github.com/n24q02m/better-email-mcp/commit/1a5c27ad25f605ae735c5e5ebdc73a6aab1bd781))
+
+- **deps**: Update google-github-actions/auth action to v3
+  ([#252](https://github.com/n24q02m/better-email-mcp/pull/252),
+  [`3ad603b`](https://github.com/n24q02m/better-email-mcp/commit/3ad603b4952654ba022f44dd3ff2dfbad17fb412))
+
+### Code Style
+
+- Fix Biome formatting in plugin/extension JSON files
+  ([`64a9f75`](https://github.com/n24q02m/better-email-mcp/commit/64a9f75618bc9e4775c4a79739d1d2ea763de026))
+
+### Features
+
+- Relay-first startup — always show relay URL
+  ([`f8f90f5`](https://github.com/n24q02m/better-email-mcp/commit/f8f90f56b212c081730778085b7c37247ffaec8e))
+
+- Send OAuth device code via relay messaging
+  ([`e3a7323`](https://github.com/n24q02m/better-email-mcp/commit/e3a7323ebd3f1b94bf190619f1fa94105422488b))
+
+- **relay**: Support multi-account setup via relay page
+  ([`fe9e3f8`](https://github.com/n24q02m/better-email-mcp/commit/fe9e3f8c77bfe4aed79789181f3c53ab3ed58588))
+
+### Performance Improvements
+
+- **registry**: Pre-compute static arrays and strings in request handlers
+  ([#250](https://github.com/n24q02m/better-email-mcp/pull/250),
+  [`57970d4`](https://github.com/n24q02m/better-email-mcp/commit/57970d4023e85695cba8fe3fe075b0f29497ad1b))
+
+
 ## v1.15.0 (2026-03-26)
 
 ### Chores
