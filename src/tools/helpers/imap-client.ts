@@ -348,7 +348,7 @@ export async function readEmail(account: AccountConfig, uid: number, folder: str
     }
   })
 
-  if (!fetchResult || !fetchResult.source) {
+  if (!fetchResult || typeof fetchResult === 'boolean' || !fetchResult.source) {
     throw new EmailMCPError(`Email UID ${uid} not found in ${folder}`, 'NOT_FOUND', 'Check the UID and folder')
   }
 
@@ -479,7 +479,7 @@ export async function getAttachment(
     }
   })
 
-  if (!fetchResult || !fetchResult.source) {
+  if (!fetchResult || typeof fetchResult === 'boolean' || !fetchResult.source) {
     throw new EmailMCPError(`Email UID ${uid} not found`, 'NOT_FOUND', 'Check the UID and folder')
   }
 

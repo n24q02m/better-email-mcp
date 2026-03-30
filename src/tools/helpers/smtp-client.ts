@@ -50,17 +50,23 @@ function createSmtpTransport(account: AccountConfig) {
   })
 }
 
+// ⚡ Bolt: Extract `marked` and `sanitize-html` options into module-scoped constants.
+// This prevents recreating configuration objects and evaluating `Array.prototype.concat`
+// on every function call, significantly reducing allocation overhead during high-frequency email parsing.
+const MARKED_OPTIONS: import('marked').MarkedOptions = { async: false, breaks: true }
+const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img'])
+}
+
 /**
  * Convert markdown text to simple HTML for email.
  * Uses sanitize-html to sanitize the output HTML against XSS vectors like javascript: links.
  */
 export function textToHtml(text: string): string {
   // marked.parse can return a Promise if async: true, but we use async: false
-  const rawHtml = marked.parse(text, { async: false, breaks: true }) as string
+  const rawHtml = marked.parse(text, MARKED_OPTIONS) as string
 
-  return sanitizeHtml(rawHtml, {
-    allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img'])
-  })
+  return sanitizeHtml(rawHtml, SANITIZE_OPTIONS)
 }
 
 /**
