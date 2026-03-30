@@ -22,6 +22,10 @@ mcp-name: io.github.n24q02m/better-email-mcp
   <img width="380" height="200" src="https://glama.ai/mcp/servers/n24q02m/better-email-mcp/badge" alt="Better Email MCP server" />
 </a>
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/n24q02m-better-email-mcp).
+
 ## Features
 
 - **Multi-account support** -- manage 6+ email accounts (Gmail, Outlook, Yahoo, iCloud, Zoho, ProtonMail, custom IMAP)
