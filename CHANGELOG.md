@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v1.17.0-beta.2 (2026-03-30)
+
+### Performance Improvements
+
+- Pre-compute PROVIDER_MAP entries in config
+  ([#259](https://github.com/n24q02m/better-email-mcp/pull/259),
+  [`7981b6c`](https://github.com/n24q02m/better-email-mcp/commit/7981b6c3975eaeade38d249475826309331596dd))
+
+
 ## v1.17.0-beta.1 (2026-03-30)
 
 ### Features

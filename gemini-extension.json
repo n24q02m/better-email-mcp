@@ -1,6 +1,6 @@
 {
   "name": "better-email-mcp",
-  "version": "1.17.0-beta.1",
+  "version": "1.17.0-beta.2",
   "description": "Email management via IMAP/SMTP — multi-account",
   "mcpServers": {
     "better-email-mcp": {
