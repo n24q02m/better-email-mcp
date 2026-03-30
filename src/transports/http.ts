@@ -225,7 +225,7 @@ export async function startHttp(): Promise<void> {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            state: '${state}',
+            state: ${JSON.stringify(state)},
             credentials: document.getElementById('credentials').value
           })
         });
