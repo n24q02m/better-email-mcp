@@ -68,14 +68,25 @@ export function htmlToCleanText(html: string): string {
 export function fastExtractSnippet(html: string, maxLength = 200): string {
   if (!html) return ''
 
+  // ⚡ Bolt: Fast path for plain text.
+  // Bypasses complex regex operations entirely if the input string contains no HTML tags or entities.
+  if (html.indexOf('<') === -1 && html.indexOf('&') === -1) {
+    const cleaned = html.replace(/\s+/g, ' ').trim()
+    if (cleaned.length <= maxLength) return cleaned
+    return `${cleaned.substring(0, maxLength)}...`
+  }
+
   // ⚡ Bolt: Iteratively remove style/script blocks using a combined regex with a backreference.
   // This reduces string parsing overhead compared to running separate passes for style and script tags.
   let text = html
-  let prev: string
-  do {
-    prev = text
-    text = text.replace(/<(style|script)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi, '')
-  } while (text !== prev)
+
+  if (/<(?:style|script)/i.test(text)) {
+    let prev: string
+    do {
+      prev = text
+      text = text.replace(/<(style|script)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi, '')
+    } while (text !== prev)
+  }
 
   // Replace block elements with spaces
   text = text.replace(/<\/(p|div|br|tr|li|h[1-6])>/gi, ' ')
@@ -87,19 +98,21 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   // ⚡ Bolt: Decode HTML entities in a single pass.
   // We use the capture group `p1` (which contains the entity name or number without the `&` and `;`)
   // to avoid invoking `entity.match(...)` internally, which creates secondary string allocations.
-  text = text.replace(/&(#x?[\da-fA-F]+|[a-zA-Z]+);/g, (entity, p1) => {
-    const lower = entity.toLowerCase()
-    if (lower in ENTITY_MAP) return ENTITY_MAP[lower]
+  if (text.indexOf('&') !== -1) {
+    text = text.replace(/&(#x?[\da-fA-F]+|[a-zA-Z]+);/g, (entity, p1) => {
+      const lower = entity.toLowerCase()
+      if (lower in ENTITY_MAP) return ENTITY_MAP[lower]
 
-    // Check if it's a numeric entity starting with '#'
-    if (p1[0] === '#') {
-      const isHex = p1[1] === 'x' || p1[1] === 'X'
-      // Parse using radix 16 or 10 depending on whether it has an 'x'
-      const code = isHex ? Number.parseInt(p1.substring(2), 16) : Number.parseInt(p1.substring(1), 10)
-      if (!Number.isNaN(code)) return String.fromCharCode(code)
-    }
-    return entity
-  })
+      // Check if it's a numeric entity starting with '#'
+      if (p1[0] === '#') {
+        const isHex = p1[1] === 'x' || p1[1] === 'X'
+        // Parse using radix 16 or 10 depending on whether it has an 'x'
+        const code = isHex ? Number.parseInt(p1.substring(2), 16) : Number.parseInt(p1.substring(1), 10)
+        if (!Number.isNaN(code)) return String.fromCharCode(code)
+      }
+      return entity
+    })
+  }
 
   // Collapse whitespace
   text = text.replace(/\s+/g, ' ').trim()
