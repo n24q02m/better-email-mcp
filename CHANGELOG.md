@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v1.17.0-beta.1 (2026-03-30)
+
+### Features
+
+- Add multi-user HTTP mode with OAuth 2.1 auth
+  ([#261](https://github.com/n24q02m/better-email-mcp/pull/261),
+  [`ea03e43`](https://github.com/n24q02m/better-email-mcp/commit/ea03e43fca719909401555a54d77aa933669febc))
+
+
 ## v1.16.0 (2026-03-28)
 
 ### Bug Fixes
