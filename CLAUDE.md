@@ -44,6 +44,13 @@ src/
   init-server.ts                 # Entry point, env validation
   relay-setup.ts                 # Zero-config relay: create session, poll for config
   relay-schema.ts                # Relay form schema (email credential fields)
+  auth/                          # OAuth 2.1 + DCR, per-user credential store
+    stateless-client-store.ts    # HMAC-based stateless DCR (shared with Notion MCP)
+    email-auth-provider.ts       # OAuthServerProvider for multi-user HTTP mode
+    per-user-credential-store.ts # AES-256-GCM encrypted per-user credential storage
+  transports/
+    http.ts                      # Multi-user HTTP transport with OAuth 2.1
+    credential-store.ts          # Single-user encrypted credential store (stdio mode)
   docs/                          # Markdown docs phuc vu qua MCP resources
   tools/
     registry.ts                  # Tool registration + routing
@@ -53,9 +60,11 @@ src/
 
 ## Env vars
 
-- `EMAIL_CREDENTIALS` -- bat buoc. Format: `user@gmail.com:app-password`
+- **stdio mode** (default): `EMAIL_CREDENTIALS` (bat buoc). Format: `user@gmail.com:app-password`
   - Multi-account: `user1@gmail.com:pass1,user2@outlook.com:pass2`
   - Custom IMAP host: `user@custom.com:password:imap.custom.com`
+- **http mode**: `TRANSPORT_MODE=http`, `PUBLIC_URL`, `DCR_SERVER_SECRET`
+- `PORT` (default 8080)
 - `OUTLOOK_CLIENT_ID` -- tu chon, cho self-hosted OAuth2 client
 
 ## Code conventions
