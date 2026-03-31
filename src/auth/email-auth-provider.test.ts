@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { createHash } from 'node:crypto'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AccountConfig } from '../tools/helpers/config.js'
 import { createEmailAuthProvider, requestContext } from './email-auth-provider.js'
 
@@ -78,6 +79,99 @@ describe('EmailAuthProvider', () => {
       result.boundTokens.set('bound-1', { userId: 'user-b', createdAt: Date.now() })
       expect(result.resolveUserId('bound-1')).toBe('user-b')
     })
+
+    it('should resolve via pending bind with matching IP', () => {
+      result.pendingAuths.set('pending-state', {
+        clientId: 'client-1',
+        clientRedirectUri: 'http://localhost/cb',
+        codeChallenge: 'challenge',
+        codeChallengeMethod: 'S256',
+        createdAt: Date.now()
+      })
+
+      // Set up a pending bind that can be claimed
+      // We need to use the internal structure -- pending binds are IP-scoped
+      // Simulating via exchangeAuthorizationCode which creates pending binds
+
+      // Direct approach: manually insert into internal state via the Maps
+      // The pendingBinds map is not exposed, but we can test via exchangeAuthorizationCode
+      const client = result.clientStore.registerClient({
+        redirect_uris: ['http://localhost:3000/cb']
+      } as any)
+
+      result.userAccounts.set('bind-user', [makeAccount('bind@gmail.com')])
+      result.authCodes.set('bind-code', {
+        userId: 'bind-user',
+        clientId: client.client_id,
+        createdAt: Date.now()
+      })
+
+      // Exchange auth code (this creates a pending bind)
+      const sourceIp = '192.168.1.100'
+
+      return requestContext.run({ ip: sourceIp }, async () => {
+        await result.provider.exchangeAuthorizationCode(client, 'bind-code')
+
+        // Now try resolving an external token from the same IP
+        // The pending bind should match
+        const resolvedUserId = result.resolveUserId('sk-ant-external-token')
+        expect(resolvedUserId).toBe('bind-user')
+
+        // Verify the external token is now bound
+        expect(result.boundTokens.has('sk-ant-external-token')).toBe(true)
+
+        // Second resolution of the same external token should use bound tokens
+        const resolvedAgain = result.resolveUserId('sk-ant-external-token')
+        expect(resolvedAgain).toBe('bind-user')
+      })
+    })
+
+    it('should skip expired pending binds', () => {
+      const client = result.clientStore.registerClient({
+        redirect_uris: ['http://localhost:3000/cb']
+      } as any)
+
+      result.userAccounts.set('expired-user', [makeAccount('expired@gmail.com')])
+      result.authCodes.set('expired-code', {
+        userId: 'expired-user',
+        clientId: client.client_id,
+        createdAt: Date.now()
+      })
+
+      return requestContext.run({ ip: '10.0.0.1' }, async () => {
+        await result.provider.exchangeAuthorizationCode(client, 'expired-code')
+
+        // Fast-forward time to expire the pending bind (30 seconds TTL)
+        vi.useFakeTimers()
+        vi.advanceTimersByTime(31_000)
+
+        const resolved = result.resolveUserId('new-external-token')
+        expect(resolved).toBeUndefined()
+
+        vi.useRealTimers()
+      })
+    })
+
+    it('should skip pending bind with mismatched IP', () => {
+      const client = result.clientStore.registerClient({
+        redirect_uris: ['http://localhost:3000/cb']
+      } as any)
+
+      result.userAccounts.set('ip-user', [makeAccount('ip@gmail.com')])
+      result.authCodes.set('ip-code', {
+        userId: 'ip-user',
+        clientId: client.client_id,
+        createdAt: Date.now()
+      })
+
+      return requestContext.run({ ip: '10.0.0.1' }, async () => {
+        await result.provider.exchangeAuthorizationCode(client, 'ip-code')
+
+        // Try to claim from different IP
+        const resolved = requestContext.run({ ip: '10.0.0.2' }, () => result.resolveUserId('different-ip-token'))
+        expect(resolved).toBeUndefined()
+      })
+    })
   })
 
   describe('verifyAccessToken', () => {
@@ -116,6 +210,31 @@ describe('EmailAuthProvider', () => {
       const authInfo = await result.provider.verifyAccessToken('cached-token')
       expect(authInfo.extra?.userId).toBe('cached-user')
     })
+
+    it('should return cached result with correct structure', async () => {
+      result.userAccounts.set('cache-test', [makeAccount('cache@gmail.com')])
+      result.bearerTokens.set('cache-token', { userId: 'cache-test', createdAt: Date.now() })
+
+      // First call to populate cache
+      await result.provider.verifyAccessToken('cache-token')
+
+      // Second call uses cache -- verify the full response structure
+      const authInfo = await result.provider.verifyAccessToken('cache-token')
+      expect(authInfo.token).toBe('cache-token')
+      expect(authInfo.clientId).toBe('email-mcp')
+      expect(authInfo.scopes).toEqual(['email:read', 'email:write'])
+      expect(authInfo.expiresAt).toBeGreaterThan(0)
+      expect(authInfo.extra?.userId).toBe('cache-test')
+    })
+
+    it('should throw when user has no accounts in userAccounts map', async () => {
+      // User exists in bearerTokens but has NO entry in userAccounts at all
+      result.bearerTokens.set('orphan-token', { userId: 'orphan-user', createdAt: Date.now() })
+
+      await expect(result.provider.verifyAccessToken('orphan-token')).rejects.toThrow(
+        'No email accounts found for this user'
+      )
+    })
   })
 
   describe('exchangeRefreshToken', () => {
@@ -125,6 +244,50 @@ describe('EmailAuthProvider', () => {
       } as any)
 
       await expect(result.provider.exchangeRefreshToken(client, 'any-refresh')).rejects.toThrow('Refresh not supported')
+    })
+  })
+
+  describe('challengeForAuthorizationCode', () => {
+    it('should return code challenge for valid auth code', async () => {
+      const client = result.clientStore.registerClient({
+        redirect_uris: ['http://localhost:3000/cb']
+      } as any)
+
+      result.authCodes.set('challenge-code', {
+        userId: 'user-1',
+        codeChallenge: 'test-challenge-value',
+        codeChallengeMethod: 'S256',
+        clientId: client.client_id,
+        createdAt: Date.now()
+      })
+
+      const challenge = await result.provider.challengeForAuthorizationCode(client, 'challenge-code')
+      expect(challenge).toBe('test-challenge-value')
+    })
+
+    it('should return empty string when no challenge stored', async () => {
+      const client = result.clientStore.registerClient({
+        redirect_uris: ['http://localhost:3000/cb']
+      } as any)
+
+      result.authCodes.set('no-challenge-code', {
+        userId: 'user-1',
+        clientId: client.client_id,
+        createdAt: Date.now()
+      })
+
+      const challenge = await result.provider.challengeForAuthorizationCode(client, 'no-challenge-code')
+      expect(challenge).toBe('')
+    })
+
+    it('should throw for invalid auth code', async () => {
+      const client = result.clientStore.registerClient({
+        redirect_uris: ['http://localhost:3000/cb']
+      } as any)
+
+      await expect(result.provider.challengeForAuthorizationCode(client, 'nonexistent-code')).rejects.toThrow(
+        'Invalid or expired authorization code'
+      )
     })
   })
 
@@ -222,6 +385,52 @@ describe('EmailAuthProvider', () => {
         'code_verifier is required'
       )
     })
+
+    it('should accept valid PKCE S256 challenge', async () => {
+      const client = result.clientStore.registerClient({
+        redirect_uris: ['http://localhost:3000/cb']
+      } as any)
+
+      // Generate valid PKCE pair
+      const codeVerifier = 'test-code-verifier-1234567890-abcdefghijklmnop'
+      const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url')
+
+      result.authCodes.set('valid-pkce-code', {
+        userId: 'pkce-user',
+        codeChallenge,
+        codeChallengeMethod: 'S256',
+        clientId: client.client_id,
+        createdAt: Date.now()
+      })
+
+      result.userAccounts.set('pkce-user', [makeAccount('pkce@gmail.com')])
+
+      const tokens = await requestContext.run({ ip: '127.0.0.1' }, () =>
+        result.provider.exchangeAuthorizationCode(client, 'valid-pkce-code', codeVerifier)
+      )
+
+      expect(tokens.access_token).toBeTruthy()
+      expect(tokens.token_type).toBe('bearer')
+    })
+
+    it('should exchange auth code without clientId binding', async () => {
+      const client = result.clientStore.registerClient({
+        redirect_uris: ['http://localhost:3000/cb']
+      } as any)
+
+      result.userAccounts.set('user-no-bind', [makeAccount('nobind@gmail.com')])
+      result.authCodes.set('no-bind-code', {
+        userId: 'user-no-bind',
+        createdAt: Date.now()
+        // No clientId binding
+      })
+
+      const tokens = await requestContext.run({ ip: '127.0.0.1' }, () =>
+        result.provider.exchangeAuthorizationCode(client, 'no-bind-code')
+      )
+
+      expect(tokens.access_token).toBeTruthy()
+    })
   })
 
   describe('authorize', () => {
@@ -275,6 +484,120 @@ describe('EmailAuthProvider', () => {
 
       const resolved = result.resolveUserId('external-token')
       expect(resolved).toBe('ext-user')
+    })
+  })
+
+  describe('cleanup interval', () => {
+    it('should clean up expired pendingAuths', async () => {
+      vi.useFakeTimers()
+
+      // Re-create provider with fake timers active
+      clearInterval(result.cleanupInterval)
+      result = createEmailAuthProvider(TEST_CONFIG)
+
+      // Add an expired pending auth (TTL is 10 minutes = 600000ms)
+      result.pendingAuths.set('expired-pending', {
+        clientId: 'client-1',
+        clientRedirectUri: 'http://localhost/cb',
+        codeChallenge: 'challenge',
+        codeChallengeMethod: 'S256',
+        createdAt: Date.now() - 700_000 // 11+ minutes ago
+      })
+
+      // Add a fresh pending auth
+      result.pendingAuths.set('fresh-pending', {
+        clientId: 'client-2',
+        clientRedirectUri: 'http://localhost/cb',
+        codeChallenge: 'challenge',
+        codeChallengeMethod: 'S256',
+        createdAt: Date.now()
+      })
+
+      expect(result.pendingAuths.size).toBe(2)
+
+      // Trigger cleanup (runs every 60 seconds)
+      vi.advanceTimersByTime(61_000)
+
+      expect(result.pendingAuths.has('expired-pending')).toBe(false)
+      expect(result.pendingAuths.has('fresh-pending')).toBe(true)
+
+      clearInterval(result.cleanupInterval)
+      vi.useRealTimers()
+    })
+
+    it('should clean up expired authCodes', async () => {
+      vi.useFakeTimers()
+      clearInterval(result.cleanupInterval)
+      result = createEmailAuthProvider(TEST_CONFIG)
+
+      // Add expired auth code (TTL is 10 minutes)
+      result.authCodes.set('expired-code', {
+        userId: 'user-1',
+        createdAt: Date.now() - 700_000
+      })
+
+      result.authCodes.set('fresh-code', {
+        userId: 'user-2',
+        createdAt: Date.now()
+      })
+
+      vi.advanceTimersByTime(61_000)
+
+      expect(result.authCodes.has('expired-code')).toBe(false)
+      expect(result.authCodes.has('fresh-code')).toBe(true)
+
+      clearInterval(result.cleanupInterval)
+      vi.useRealTimers()
+    })
+
+    it('should clean up expired bearerTokens', async () => {
+      vi.useFakeTimers()
+      clearInterval(result.cleanupInterval)
+      result = createEmailAuthProvider(TEST_CONFIG)
+
+      // Add expired bearer token (TTL is 24 hours = 86400000ms)
+      result.bearerTokens.set('expired-bearer', {
+        userId: 'user-1',
+        createdAt: Date.now() - 87_000_000
+      })
+
+      result.bearerTokens.set('fresh-bearer', {
+        userId: 'user-2',
+        createdAt: Date.now()
+      })
+
+      vi.advanceTimersByTime(61_000)
+
+      expect(result.bearerTokens.has('expired-bearer')).toBe(false)
+      expect(result.bearerTokens.has('fresh-bearer')).toBe(true)
+
+      clearInterval(result.cleanupInterval)
+      vi.useRealTimers()
+    })
+
+    it('should clean up expired boundTokens', async () => {
+      vi.useFakeTimers()
+      clearInterval(result.cleanupInterval)
+      result = createEmailAuthProvider(TEST_CONFIG)
+
+      // Add expired bound token (TTL is 24 hours)
+      result.boundTokens.set('expired-bound', {
+        userId: 'user-1',
+        createdAt: Date.now() - 87_000_000
+      })
+
+      result.boundTokens.set('fresh-bound', {
+        userId: 'user-2',
+        createdAt: Date.now()
+      })
+
+      vi.advanceTimersByTime(61_000)
+
+      expect(result.boundTokens.has('expired-bound')).toBe(false)
+      expect(result.boundTokens.has('fresh-bound')).toBe(true)
+
+      clearInterval(result.cleanupInterval)
+      vi.useRealTimers()
     })
   })
 })

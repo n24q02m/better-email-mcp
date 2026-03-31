@@ -660,4 +660,228 @@ describe('deviceCodeAuth', () => {
 
     await expect(deviceCodeAuth('user@outlook.com', 'cid')).rejects.toThrow('User declined')
   })
+
+  it('handles slow_down response by increasing poll interval', async () => {
+    let callCount = 0
+    mockFetch.mockImplementation(async () => {
+      callCount++
+      if (callCount === 1) {
+        // Device code request
+        return {
+          json: async () => ({
+            device_code: 'dc-slow',
+            user_code: 'SLOW-CODE',
+            verification_uri: 'https://microsoft.com/devicelogin',
+            expires_in: 900,
+            interval: 0.01
+          })
+        }
+      }
+      if (callCount === 2) {
+        // First poll: slow_down
+        return { json: async () => ({ error: 'slow_down' }) }
+      }
+      // Subsequent polls: success
+      return {
+        json: async () => ({
+          access_token: 'at-after-slow',
+          refresh_token: 'rt-after-slow',
+          expires_in: 3600
+        })
+      }
+    })
+
+    const tokens = await deviceCodeAuth('slow@outlook.com', 'cid')
+
+    expect(tokens.accessToken).toBe('at-after-slow')
+    expect(callCount).toBeGreaterThanOrEqual(3)
+  }, 15_000)
+
+  it('uses default client ID when none provided', async () => {
+    delete process.env.OUTLOOK_CLIENT_ID
+
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        device_code: 'dc-default',
+        user_code: 'DEFAULT-CODE',
+        verification_uri: 'https://microsoft.com/devicelogin',
+        expires_in: 900,
+        interval: 0.01
+      })
+    })
+
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        access_token: 'at-default',
+        refresh_token: 'rt-default',
+        expires_in: 3600
+      })
+    })
+
+    const tokens = await deviceCodeAuth('user@outlook.com')
+
+    expect(tokens.clientId).toBe('d56f8c71-9f7c-43f4-9934-be29cb6e77b0')
+  })
+
+  it('throws on device code request with no user_code', async () => {
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        device_code: 'dc',
+        verification_uri: 'https://microsoft.com/devicelogin',
+        expires_in: 900,
+        interval: 5
+        // No user_code
+      })
+    })
+
+    await expect(deviceCodeAuth('user@outlook.com', 'cid')).rejects.toThrow('Device code request failed')
+  })
+
+  it('throws on device code request with error but no description', async () => {
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        error: 'server_error'
+      })
+    })
+
+    await expect(deviceCodeAuth('user@outlook.com', 'cid')).rejects.toThrow('server_error')
+  })
+
+  it('throws on other token error without error_description', async () => {
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        device_code: 'dc-badcode',
+        user_code: 'BAD-CODE',
+        verification_uri: 'https://microsoft.com/devicelogin',
+        expires_in: 900,
+        interval: 0.01
+      })
+    })
+
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        error: 'bad_verification_code'
+      })
+    })
+
+    await expect(deviceCodeAuth('bad@outlook.com', 'cid')).rejects.toThrow('bad_verification_code')
+  })
+})
+
+// ============================================================================
+// saveTokens edge cases
+// ============================================================================
+
+describe('saveTokens edge cases', () => {
+  beforeEach(() => {
+    _resetTokenCache()
+    vi.clearAllMocks()
+  })
+
+  it('starts fresh store if existing token file is corrupted JSON', () => {
+    mockExistsSync.mockImplementation((path) => {
+      if (String(path).endsWith('tokens.json')) return true
+      return true // config dir exists
+    })
+    mockReadFileSync.mockImplementation(() => {
+      throw new SyntaxError('Unexpected token')
+    })
+
+    const tokens: OAuth2Tokens = {
+      accessToken: 'at',
+      refreshToken: 'rt',
+      expiresAt: 1000,
+      clientId: 'cid'
+    }
+
+    saveTokens('user@outlook.com', tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['user@outlook.com']).toEqual(tokens)
+    // Should only have the new token, not corrupted data
+    expect(Object.keys(written)).toEqual(['user@outlook.com'])
+  })
+
+  it('uses cached token store on subsequent saves', () => {
+    mockExistsSync.mockReturnValue(false)
+
+    const tokens1: OAuth2Tokens = {
+      accessToken: 'at1',
+      refreshToken: 'rt1',
+      expiresAt: 1000,
+      clientId: 'cid'
+    }
+    const tokens2: OAuth2Tokens = {
+      accessToken: 'at2',
+      refreshToken: 'rt2',
+      expiresAt: 2000,
+      clientId: 'cid'
+    }
+
+    // First save populates cache
+    saveTokens('first@outlook.com', tokens1)
+    // Second save should use cache, not read from disk
+    saveTokens('second@outlook.com', tokens2)
+
+    // readFileSync should NOT be called for second save (cache is used)
+    const written = JSON.parse(mockWriteFileSync.mock.calls[1]![1] as string)
+    expect(written['first@outlook.com']).toEqual(tokens1)
+    expect(written['second@outlook.com']).toEqual(tokens2)
+  })
+})
+
+// ============================================================================
+// loadStoredTokens with cached store
+// ============================================================================
+
+describe('loadStoredTokens cached', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('uses cached store on subsequent loads', async () => {
+    _resetTokenCache()
+    const tokens: OAuth2Tokens = {
+      accessToken: 'cached-at',
+      refreshToken: 'cached-rt',
+      expiresAt: 9999999999,
+      clientId: 'cached-cid'
+    }
+    mockReadFile.mockResolvedValue(JSON.stringify({ 'user@outlook.com': tokens }))
+
+    // First load reads from file
+    const first = await loadStoredTokens('user@outlook.com')
+    expect(first).toEqual(tokens)
+
+    // Second load should use cache
+    mockReadFile.mockRejectedValue(new Error('should not read again'))
+    const second = await loadStoredTokens('user@outlook.com')
+    expect(second).toEqual(tokens)
+  })
+})
+
+// ============================================================================
+// refreshAccessToken edge cases
+// ============================================================================
+
+describe('refreshAccessToken edge cases', () => {
+  const mockFetch = vi.fn()
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', mockFetch)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('throws with error code when no error_description', async () => {
+    mockFetch.mockResolvedValue({
+      json: async () => ({
+        error: 'invalid_grant'
+      })
+    })
+
+    await expect(refreshAccessToken('cid', 'bad-rt')).rejects.toThrow('invalid_grant')
+  })
 })

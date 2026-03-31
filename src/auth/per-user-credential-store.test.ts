@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AccountConfig } from '../tools/helpers/config.js'
 import {
   _paths,
@@ -160,6 +160,91 @@ describe('per-user-credential-store', () => {
       process.env.CREDENTIAL_SECRET = 'wrong-secret'
 
       await expect(loadUserCredentials('enc-user')).rejects.toThrow()
+    })
+  })
+
+  describe('getSecret auto-generation', () => {
+    it('should auto-generate secret when no env var set', async () => {
+      delete process.env.CREDENTIAL_SECRET
+
+      const accounts = [makeAccount('auto@gmail.com')]
+      await storeUserCredentials('auto-user', accounts)
+
+      // Secret file should be created
+      expect(existsSync(_paths.SECRET_PATH)).toBe(true)
+
+      // Should be able to load back
+      const loaded = await loadUserCredentials('auto-user')
+      expect(loaded).toEqual(accounts)
+    })
+
+    it('should reuse existing secret file', async () => {
+      delete process.env.CREDENTIAL_SECRET
+
+      // First store creates the secret
+      await storeUserCredentials('first-user', [makeAccount('first@gmail.com')])
+
+      // Second store uses same secret
+      await storeUserCredentials('second-user', [makeAccount('second@gmail.com')])
+
+      // Both should be loadable
+      const first = await loadUserCredentials('first-user')
+      const second = await loadUserCredentials('second-user')
+      expect(first![0]!.email).toBe('first@gmail.com')
+      expect(second![0]!.email).toBe('second@gmail.com')
+    })
+  })
+
+  describe('loadAll edge cases', () => {
+    it('should skip corrupted credential entries', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      // Store a valid entry
+      await storeUserCredentials('good-user', [makeAccount('good@gmail.com')])
+
+      // Create a corrupted entry
+      const corruptDir = join(_paths.DATA_DIR, 'corrupted')
+      mkdirSync(corruptDir, { recursive: true })
+      const { writeFileSync } = await import('node:fs')
+      writeFileSync(join(corruptDir, 'credentials.enc'), 'not-encrypted-data')
+
+      const all = await loadAllUserCredentials()
+
+      // Should have the good entry but not the corrupted one
+      expect(all.size).toBe(1)
+      expect(all.get('good-user')![0]!.email).toBe('good@gmail.com')
+
+      // Should have logged an error for the corrupted entry
+      expect(spy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to load credentials from corrupted'),
+        expect.any(Error)
+      )
+
+      spy.mockRestore()
+    })
+
+    it('should skip directories without credentials.enc', async () => {
+      // Store a valid entry
+      await storeUserCredentials('valid-user', [makeAccount('valid@gmail.com')])
+
+      // Create an empty directory (no credentials.enc)
+      const emptyDir = join(_paths.DATA_DIR, 'empty-dir')
+      mkdirSync(emptyDir, { recursive: true })
+
+      const all = await loadAllUserCredentials()
+      expect(all.size).toBe(1)
+      expect(all.get('valid-user')).toBeDefined()
+    })
+
+    it('should skip non-directory entries', async () => {
+      await storeUserCredentials('dir-user', [makeAccount('dir@gmail.com')])
+
+      // Create a file in the DATA_DIR (not a directory)
+      const { writeFileSync } = await import('node:fs')
+      writeFileSync(join(_paths.DATA_DIR, 'random-file.txt'), 'not a dir')
+
+      const all = await loadAllUserCredentials()
+      expect(all.size).toBe(1)
     })
   })
 })

@@ -112,6 +112,27 @@ describe('parseCredentials', () => {
     expect(result[0]!.password).toBe('pass:with:colons:nohostname')
   })
 
+  it('parses Outlook email-only entry as OAuth2 account', async () => {
+    const result = await parseCredentials('user@outlook.com')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.email).toBe('user@outlook.com')
+    expect(result[0]!.password).toBe('')
+    expect(result[0]!.authType).toBe('oauth2')
+    expect(result[0]!.imap.host).toBe('outlook.office365.com')
+  })
+
+  it('parses Hotmail email-only entry as OAuth2 account', async () => {
+    const result = await parseCredentials('user@hotmail.com')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.authType).toBe('oauth2')
+  })
+
+  it('parses Live email-only entry as OAuth2 account', async () => {
+    const result = await parseCredentials('user@live.com')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.authType).toBe('oauth2')
+  })
+
   it('skips invalid entries with only one part', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const result = await parseCredentials('justanemail')
@@ -237,6 +258,28 @@ describe('resolveAccount', () => {
       expect(e).toBeInstanceOf(EmailMCPError)
       expect((e as EmailMCPError).code).toBe('AMBIGUOUS_ACCOUNT')
     }
+  })
+
+  it('returns first match when multiple exact matches exist (edge case)', () => {
+    // This edge case should not happen with well-formed IDs, but the code handles it
+    const duplicateAccounts: AccountConfig[] = [
+      {
+        id: 'dup_gmail_com',
+        email: 'dup@gmail.com',
+        password: 'pass1',
+        imap: { host: 'imap.gmail.com', port: 993, secure: true },
+        smtp: { host: 'smtp.gmail.com', port: 465, secure: true }
+      },
+      {
+        id: 'dup_gmail_com',
+        email: 'dup@gmail.com',
+        password: 'pass2',
+        imap: { host: 'imap.gmail.com', port: 993, secure: true },
+        smtp: { host: 'smtp.gmail.com', port: 465, secure: true }
+      }
+    ]
+    const result = resolveAccount(duplicateAccounts, 'dup@gmail.com')
+    expect(result.password).toBe('pass1')
   })
 })
 

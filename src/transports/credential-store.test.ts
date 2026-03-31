@@ -101,4 +101,35 @@ describe('credential-store', () => {
 
     await expect(loadCredentials()).rejects.toThrow()
   })
+
+  it('should auto-generate secret file when no env var set', async () => {
+    // Remove env secret to trigger auto-generation
+    delete process.env.CREDENTIAL_SECRET
+
+    const creds = { email: 'test@gmail.com', password: 'auto-secret-pass' }
+    await storeCredentials(creds)
+
+    // Verify secret file was created
+    expect(existsSync(_paths.SECRET_PATH)).toBe(true)
+
+    // Should be able to load back
+    const loaded = await loadCredentials()
+    expect(loaded).toEqual(creds)
+  })
+
+  it('should reuse existing secret file on subsequent calls', async () => {
+    delete process.env.CREDENTIAL_SECRET
+
+    // First call creates the secret file
+    const creds = { email: 'first@gmail.com', password: 'pass1' }
+    await storeCredentials(creds)
+
+    // Second call should reuse the same secret
+    const creds2 = { email: 'second@gmail.com', password: 'pass2' }
+    await storeCredentials(creds2)
+
+    // Can still load back
+    const loaded = await loadCredentials()
+    expect(loaded).toEqual(creds2)
+  })
 })
