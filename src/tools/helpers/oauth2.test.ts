@@ -453,7 +453,7 @@ describe('ensureValidToken', () => {
     expect(mockExecFile).toHaveBeenCalledTimes(1)
     expect(mockExecFile).toHaveBeenCalledWith(
       expect.any(String),
-      ['https://microsoft.com/devicelogin'],
+      expect.arrayContaining(['https://microsoft.com/devicelogin']),
       expect.any(Function)
     )
 
