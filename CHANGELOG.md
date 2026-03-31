@@ -2,6 +2,47 @@
 
 <!-- version list -->
 
+## v1.17.0 (2026-03-31)
+
+### Bug Fixes
+
+- Send relay complete message after OAuth device code flow
+  ([#267](https://github.com/n24q02m/better-email-mcp/pull/267),
+  [`cbf7fb7`](https://github.com/n24q02m/better-email-mcp/commit/cbf7fb7af89e0a1cb992f0f9c440194ebea38736))
+
+- **deps**: Update non-major dependencies
+  ([#257](https://github.com/n24q02m/better-email-mcp/pull/257),
+  [`c41e2e2`](https://github.com/n24q02m/better-email-mcp/commit/c41e2e2a93b0b2e59daba46552dcea16989fee16))
+
+- **security**: Mitigate XSS vulnerability in HTTP relay authentication form
+  ([#264](https://github.com/n24q02m/better-email-mcp/pull/264),
+  [`a667c62`](https://github.com/n24q02m/better-email-mcp/commit/a667c62201ac9e45cdbd123c17f80d53555321d7))
+
+- **test**: Make OAuth2 browser test platform-aware
+  ([#265](https://github.com/n24q02m/better-email-mcp/pull/265),
+  [`443e004`](https://github.com/n24q02m/better-email-mcp/commit/443e004e20e82f12f3a3a57407a23ea732b3221d))
+
+### Continuous Integration
+
+- Fix Qodo vertex_ai config and VERTEXAI_LOCATION
+  ([`707dd0b`](https://github.com/n24q02m/better-email-mcp/commit/707dd0bc3c38a59c23d174a960db8b406c688f1f))
+
+- **cd**: Add plugin marketplace sync on stable release
+  ([`d0c2940`](https://github.com/n24q02m/better-email-mcp/commit/d0c2940359a9bc1bbd8c28650a70ab2d93a04d69))
+
+### Performance Improvements
+
+- Add case-insensitive fast-paths to html snippet extraction
+  ([#263](https://github.com/n24q02m/better-email-mcp/pull/263),
+  [`ea7375c`](https://github.com/n24q02m/better-email-mcp/commit/ea7375cf202d64de406adf29300c6982c98b9492))
+
+### Testing
+
+- Improve coverage to 96.47% statements (+62 tests)
+  ([#266](https://github.com/n24q02m/better-email-mcp/pull/266),
+  [`5732af8`](https://github.com/n24q02m/better-email-mcp/commit/5732af861e57c37ab0b8166e41821e448d5a35ac))
+
+
 ## v1.17.0-beta.2 (2026-03-30)
 
 ### Performance Improvements
