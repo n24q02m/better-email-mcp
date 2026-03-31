@@ -4,6 +4,7 @@ import {
   createUnknownActionError,
   EmailMCPError,
   enhanceError,
+  findClosestMatch,
   suggestFixes,
   withErrorHandling
 } from './errors.js'
@@ -247,6 +248,38 @@ describe('withErrorHandling', () => {
     const wrapped = withErrorHandling(fn)
     const result = await wrapped(2, 3)
     expect(result).toBe(5)
+  })
+})
+
+describe('findClosestMatch', () => {
+  it('returns null for empty input', () => {
+    expect(findClosestMatch('', ['option1', 'option2'])).toBeNull()
+  })
+
+  it('returns null for empty options', () => {
+    expect(findClosestMatch('test', [])).toBeNull()
+  })
+
+  it('finds exact prefix match (option starts with input)', () => {
+    expect(findClosestMatch('mes', ['messages', 'folders', 'send'])).toBe('messages')
+  })
+
+  it('finds exact prefix match (input starts with option)', () => {
+    expect(findClosestMatch('messages_extended', ['messages', 'folders'])).toBe('messages')
+  })
+
+  it('finds match by bigram similarity', () => {
+    // "mesages" is similar to "messages" (missing one 's')
+    expect(findClosestMatch('mesages', ['messages', 'folders', 'send'])).toBe('messages')
+  })
+
+  it('returns null when bigram score is too low', () => {
+    expect(findClosestMatch('xyz', ['messages', 'folders', 'send'])).toBeNull()
+  })
+
+  it('selects the best scoring match', () => {
+    // "attach" should match "attachments" better than "send"
+    expect(findClosestMatch('attach', ['send', 'attachments', 'folders'])).toBe('attachments')
   })
 })
 

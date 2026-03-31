@@ -179,4 +179,57 @@ describe('fastExtractSnippet', () => {
   it('collapses whitespace', () => {
     expect(fastExtractSnippet('<p>hello   \n\t  world</p>')).toBe('hello world')
   })
+
+  it('fast path: plain text without HTML tags or entities (short)', () => {
+    expect(fastExtractSnippet('Just plain text here')).toBe('Just plain text here')
+  })
+
+  it('fast path: plain text truncated when exceeding maxLength', () => {
+    const long = 'x'.repeat(250)
+    const result = fastExtractSnippet(long, 200)
+    expect(result).toBe(`${'x'.repeat(200)}...`)
+  })
+
+  it('fast path: plain text not truncated when exactly maxLength', () => {
+    const exact = 'y'.repeat(200)
+    expect(fastExtractSnippet(exact, 200)).toBe(exact)
+  })
+
+  it('fast path: collapses whitespace in plain text', () => {
+    expect(fastExtractSnippet('hello   \n\t   world')).toBe('hello world')
+  })
+
+  it('decodes numeric HTML entity (decimal)', () => {
+    expect(fastExtractSnippet('&#65;&#66;&#67;')).toBe('ABC')
+  })
+
+  it('decodes numeric HTML entity (hex)', () => {
+    expect(fastExtractSnippet('&#x41;&#x42;&#x43;')).toBe('ABC')
+  })
+
+  it('preserves invalid uppercase hex entity (regex only matches lowercase x)', () => {
+    // The regex uses #x? (lowercase x only), so &#X41; is not matched as a hex entity
+    expect(fastExtractSnippet('&#X41;')).toBe('&#X41;')
+  })
+
+  it('preserves unknown named entities', () => {
+    expect(fastExtractSnippet('&unknownentity;')).toBe('&unknownentity;')
+  })
+
+  it('decodes &nbsp; entity', () => {
+    expect(fastExtractSnippet('hello&nbsp;world')).toBe('hello world')
+  })
+
+  it('handles nested style and script blocks', () => {
+    const html = '<style>.a{}</style><style>.b{}</style><p>Content</p><script>x()</script><script>y()</script>'
+    expect(fastExtractSnippet(html)).toBe('Content')
+  })
+
+  it('handles block elements like div, p, br, tr, li, h1-h6', () => {
+    const html = '<div>A</div><p>B</p><br/>C<tr>D</tr><li>E</li><h1>F</h1>'
+    const result = fastExtractSnippet(html)
+    expect(result).toContain('A')
+    expect(result).toContain('B')
+    expect(result).toContain('C')
+  })
 })
