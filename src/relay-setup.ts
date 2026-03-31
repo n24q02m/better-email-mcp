@@ -17,7 +17,7 @@ import { createSession, pollForResult } from '@n24q02m/mcp-relay-core/relay'
 import { resolveConfig } from '@n24q02m/mcp-relay-core/storage'
 import { RELAY_SCHEMA } from './relay-schema.js'
 import { parseCredentials } from './tools/helpers/config.js'
-import { ensureValidToken, isOutlookDomain } from './tools/helpers/oauth2.js'
+import { _getPendingAuths, ensureValidToken, isOutlookDomain } from './tools/helpers/oauth2.js'
 
 const SERVER_NAME = 'better-email-mcp'
 const DEFAULT_RELAY_URL = 'https://better-email-mcp.n24q02m.com'
@@ -184,10 +184,25 @@ export async function ensureConfig(): Promise<string | null> {
           text: 'Setup complete! All accounts configured.'
         })
       })
+    } else {
+      // Wait for OAuth background poll to complete (tokens saved to disk)
+      const pendingAuths = _getPendingAuths()
+      const deadline = Date.now() + 10 * 60 * 1000 // 10 min timeout
+      while (pendingAuths.size > 0 && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 2000))
+      }
+      await fetch(`${relayUrl}/api/sessions/${session.sessionId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'complete',
+          text:
+            pendingAuths.size === 0
+              ? 'Setup complete! All accounts configured including OAuth.'
+              : 'Credentials saved. OAuth sign-in may still be in progress.'
+        })
+      }).catch(() => {})
     }
-    // If OAuth pending: DON'T send complete yet.
-    // The background poll in oauth2.ts will save tokens to disk.
-    // Relay page stays open showing the device code.
   } catch {
     await fetch(`${relayUrl}/api/sessions/${session.sessionId}/messages`, {
       method: 'POST',
