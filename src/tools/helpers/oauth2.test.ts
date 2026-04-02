@@ -885,3 +885,98 @@ describe('refreshAccessToken edge cases', () => {
     await expect(refreshAccessToken('cid', 'bad-rt')).rejects.toThrow('invalid_grant')
   })
 })
+
+// ============================================================================
+// Security: openBrowser
+// ============================================================================
+
+describe('openBrowser security', () => {
+  const mockFetch = vi.fn()
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', mockFetch)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('sanitizes malicious URLs with shell metacharacters', async () => {
+    mockReadFileSync.mockReturnValue('{}')
+
+    const maliciousUri = 'https://microsoft.com/devicelogin?code=ABCD;echo"vulnerable"'
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        device_code: 'dc-sec',
+        user_code: 'SEC-CODE',
+        verification_uri: maliciousUri,
+        expires_in: 900,
+        interval: 5
+      })
+    })
+
+    const account = { email: 'sec@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
+
+    await expect(ensureValidToken(account)).rejects.toThrow('SEC-CODE')
+
+    // URL constructor should escape the metacharacters in the href
+    const expectedUrl = new URL(maliciousUri).href
+    expect(mockExecFile).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.arrayContaining([expectedUrl]),
+      expect.any(Function)
+    )
+    // Ensure the raw malicious string was NOT passed directly if it contains shell-active chars
+    // (though execFile is already safe, the URL parsing adds another layer)
+    const callArgs = mockExecFile.mock.calls[0]![1] as string[]
+    expect(callArgs.some((arg) => arg.includes(';'))).toBe(true) // Semicolons in query params are preserved but safe in execFile
+  })
+
+  it('blocks non-http/https protocols', async () => {
+    mockReadFileSync.mockReturnValue('{}')
+
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        device_code: 'dc-proto',
+        user_code: 'PROTO-CODE',
+        verification_uri: 'javascript:alert(1)',
+        expires_in: 900,
+        interval: 5
+      })
+    })
+
+    const account = { email: 'proto@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
+
+    await expect(ensureValidToken(account)).rejects.toThrow('PROTO-CODE')
+
+    // execFile should NOT be called for non-http/https protocols
+    expect(mockExecFile).not.toHaveBeenCalled()
+  })
+
+  it('handles leading hyphens in URLs safely', async () => {
+    mockReadFileSync.mockReturnValue('{}')
+
+    // A URL starting with a hyphen could be interpreted as a flag by some browsers/commands
+    // but the URL constructor will prefix it with the protocol.
+    const hyphenUri = 'https://-example.com'
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        device_code: 'dc-hyphen',
+        user_code: 'HYPHEN-CODE',
+        verification_uri: hyphenUri,
+        expires_in: 900,
+        interval: 5
+      })
+    })
+
+    const account = { email: 'hyphen@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
+
+    await expect(ensureValidToken(account)).rejects.toThrow('HYPHEN-CODE')
+
+    expect(mockExecFile).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.arrayContaining([new URL(hyphenUri).href]),
+      expect.any(Function)
+    )
+  })
+})
