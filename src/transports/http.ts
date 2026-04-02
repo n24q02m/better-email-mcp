@@ -20,7 +20,7 @@ import { mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
-import type { Request, Response } from 'express'
+import type { Request, RequestHandler, Response } from 'express'
 import express from 'express'
 import rateLimit from 'express-rate-limit'
 import { ImapFlow } from 'imapflow'
@@ -103,7 +103,7 @@ const RELAY_PAGE_TEMPLATE = `<!DOCTYPE html>
           btn.disabled = false;
           btn.textContent = "Connect";
         }
-      } catch (err) {\
+      } catch (err) {
         errEl.textContent = "Network error. Please try again.";
         errEl.style.display = "block";
         btn.disabled = false;
@@ -113,6 +113,22 @@ const RELAY_PAGE_TEMPLATE = `<!DOCTYPE html>
   </script>
 </body>
 </html>`
+
+// Rate limit MCP endpoints per IP
+const mcpRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false
+})
+
+// Rate limit auth endpoints per IP to prevent abuse/brute-force
+const authRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false
+})
 
 function loadConfig(): HttpConfig {
   const required = ['PUBLIC_URL', 'DCR_SERVER_SECRET'] as const
@@ -186,11 +202,9 @@ async function testImapConnection(account: AccountConfig): Promise<boolean> {
  */
 function registerAuthRelayRoutes(
   app: express.Express,
-  authRateLimit: any,
   pendingAuths: Map<string, PendingAuth>,
   authCodes: Map<string, StoredAuthCode>,
-  userAccounts: Map<string, AccountConfig[]>,
-  _config: HttpConfig
+  userAccounts: Map<string, AccountConfig[]>
 ): void {
   // Relay credential entry page -- simple HTML form for email credentials
   app.get('/auth/relay', authRateLimit, (req, res) => {
@@ -200,8 +214,10 @@ function registerAuthRelayRoutes(
       return
     }
 
+    // Prevent XSS via script tags in serialized state
+    const safeState = JSON.stringify(state).replace(/</g, '\\u003c')
     // Serve a simple credential entry form
-    res.type('html').send(RELAY_PAGE_TEMPLATE.replace('{{STATE}}', JSON.stringify(state)))
+    res.type('html').send(RELAY_PAGE_TEMPLATE.replace('{{STATE}}', safeState))
   })
 
   // Credential submission endpoint -- validates and issues auth code
@@ -296,9 +312,7 @@ function registerAuthRelayRoutes(
  */
 function registerMcpRoutes(
   app: express.Express,
-  mcpRateLimit: any,
-  authMiddleware: any,
-  _userAccounts: Map<string, AccountConfig[]>,
+  authMiddleware: RequestHandler,
   resolveAccounts: (token: string) => AccountConfig[] | undefined
 ): void {
   const jsonParser = express.json()
@@ -452,22 +466,6 @@ export async function startHttp(): Promise<void> {
   app.set('trust proxy', 2)
   app.disable('x-powered-by')
 
-  // Rate limit MCP endpoints per IP
-  const mcpRateLimit = rateLimit({
-    windowMs: 60 * 1000,
-    limit: 120,
-    standardHeaders: 'draft-7',
-    legacyHeaders: false
-  })
-
-  // Rate limit auth endpoints per IP to prevent abuse/brute-force
-  const authRateLimit = rateLimit({
-    windowMs: 60 * 1000,
-    limit: 20,
-    standardHeaders: 'draft-7',
-    legacyHeaders: false
-  })
-
   // Propagate request IP via AsyncLocalStorage for IP-scoped pending binds
   app.use((req, _res, next) => {
     const ip = req.ip || req.socket.remoteAddress || undefined
@@ -488,8 +486,8 @@ export async function startHttp(): Promise<void> {
   const authMiddleware = requireBearerAuth({ verifier: provider })
 
   // Register routes
-  registerAuthRelayRoutes(app, authRateLimit, pendingAuths, authCodes, userAccounts, config)
-  registerMcpRoutes(app, mcpRateLimit, authMiddleware, userAccounts, resolveAccounts)
+  registerAuthRelayRoutes(app, pendingAuths, authCodes, userAccounts)
+  registerMcpRoutes(app, authMiddleware, resolveAccounts)
   registerHealthCheck(app, userAccounts)
 
   app.listen(config.port, '0.0.0.0', () => {
