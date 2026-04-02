@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AccountConfig } from '../tools/helpers/config.js'
 import {
   _paths,
+  _resetSecretCache,
   deleteUserCredentials,
   hashUserId,
   loadAllUserCredentials,
@@ -37,12 +38,14 @@ describe('per-user-credential-store', () => {
     _paths.SECRET_PATH = join(testDir, '.user-secret')
 
     process.env.CREDENTIAL_SECRET = 'test-per-user-secret'
+    _resetSecretCache()
   })
 
   afterEach(() => {
     _paths.DATA_DIR = originalDataDir
     _paths.SECRET_PATH = originalSecretPath
     delete process.env.CREDENTIAL_SECRET
+    _resetSecretCache()
 
     if (existsSync(testDir)) {
       rmSync(testDir, { recursive: true, force: true })
@@ -158,6 +161,7 @@ describe('per-user-credential-store', () => {
       await storeUserCredentials('enc-user', [makeAccount('enc@gmail.com')])
 
       process.env.CREDENTIAL_SECRET = 'wrong-secret'
+      _resetSecretCache()
 
       await expect(loadUserCredentials('enc-user')).rejects.toThrow()
     })
@@ -166,6 +170,7 @@ describe('per-user-credential-store', () => {
   describe('getSecret auto-generation', () => {
     it('should auto-generate secret when no env var set', async () => {
       delete process.env.CREDENTIAL_SECRET
+      _resetSecretCache()
 
       const accounts = [makeAccount('auto@gmail.com')]
       await storeUserCredentials('auto-user', accounts)
@@ -180,6 +185,7 @@ describe('per-user-credential-store', () => {
 
     it('should reuse existing secret file', async () => {
       delete process.env.CREDENTIAL_SECRET
+      _resetSecretCache()
 
       // First store creates the secret
       await storeUserCredentials('first-user', [makeAccount('first@gmail.com')])
