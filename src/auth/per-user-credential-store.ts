@@ -12,6 +12,7 @@
 
 import { createHash, randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { AccountConfig } from '../tools/helpers/config.js'
@@ -115,30 +116,34 @@ export async function loadAllUserCredentials(): Promise<Map<string, AccountConfi
   const entries = readdirSync(_paths.DATA_DIR, { withFileTypes: true })
   const key = await deriveKey(getSecret())
 
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue
+  // ⚡ Bolt: Use Promise.all with fs/promises to allow concurrent file I/O
+  // and CPU-bound decryption operations to overlap, reducing startup time.
+  await Promise.all(
+    entries.map(async (entry) => {
+      if (!entry.isDirectory()) return
 
-    const credPath = join(_paths.DATA_DIR, entry.name, 'credentials.enc')
-    if (!existsSync(credPath)) continue
+      const credPath = join(_paths.DATA_DIR, entry.name, 'credentials.enc')
+      if (!existsSync(credPath)) return
 
-    try {
-      const data = readFileSync(credPath)
-      const iv = data.subarray(0, 12)
-      const ciphertext = data.subarray(12)
-      const decrypted = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: new Uint8Array(iv) },
-        key,
-        new Uint8Array(ciphertext)
-      )
-      const parsed = JSON.parse(new TextDecoder().decode(decrypted))
-      if (parsed.userId && Array.isArray(parsed.accounts)) {
-        result.set(parsed.userId, parsed.accounts)
+      try {
+        const data = await readFile(credPath)
+        const iv = data.subarray(0, 12)
+        const ciphertext = data.subarray(12)
+        const decrypted = await crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv: new Uint8Array(iv) },
+          key,
+          new Uint8Array(ciphertext)
+        )
+        const parsed = JSON.parse(new TextDecoder().decode(decrypted))
+        if (parsed.userId && Array.isArray(parsed.accounts)) {
+          result.set(parsed.userId, parsed.accounts)
+        }
+      } catch (err) {
+        // Skip corrupted entries -- log and continue
+        console.error(`Failed to load credentials from ${entry.name}:`, err)
       }
-    } catch (err) {
-      // Skip corrupted entries -- log and continue
-      console.error(`Failed to load credentials from ${entry.name}:`, err)
-    }
-  }
+    })
+  )
 
   return result
 }
