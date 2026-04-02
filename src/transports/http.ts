@@ -194,6 +194,7 @@ export async function startHttp(): Promise<void> {
              border-radius: 6px; font-size: 0.875rem; font-weight: 500; cursor: pointer; }
     button:hover { background: #1d4ed8; }
     button:disabled { background: #93c5fd; cursor: not-allowed; }
+    button:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
     .error { color: #dc2626; font-size: 0.8rem; margin-bottom: 1rem; display: none; }
     .help { color: #666; font-size: 0.75rem; margin-top: -0.5rem; margin-bottom: 1rem; }
   </style>
@@ -202,12 +203,12 @@ export async function startHttp(): Promise<void> {
   <div class="card">
     <h1>Email MCP Server</h1>
     <p>Enter your email credentials to connect. Use an App Password for Gmail/Yahoo/iCloud.</p>
-    <div class="error" id="error"></div>
+    <div class="error" id="error" role="alert" aria-live="assertive"></div>
     <form id="form">
       <label for="credentials">Email Credentials</label>
       <input type="text" id="credentials" name="credentials" required
-             placeholder="user@gmail.com:app-password" autocomplete="off">
-      <div class="help">Format: email:password. Multiple: email1:pass1,email2:pass2</div>
+             placeholder="user@gmail.com:app-password" autocomplete="off" aria-describedby="credentials-help">
+      <div class="help" id="credentials-help">Format: email:password. Multiple: email1:pass1,email2:pass2</div>
       <button type="submit" id="submit">Connect</button>
     </form>
   </div>
