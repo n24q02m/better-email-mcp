@@ -347,23 +347,10 @@ export async function startHttp(): Promise<void> {
 
     // Existing session -- verify the authenticated user owns this session
     if (sessionId && transports.has(sessionId)) {
-      const authInfo = (req as any).auth
-      const ownerUserId = sessionOwners.get(sessionId)
-      if (ownerUserId) {
-        const currentUserId = authInfo?.extra?.userId
-        if (currentUserId !== ownerUserId) {
-          res.status(403).json({
-            jsonrpc: '2.0',
-            error: { code: -32000, message: 'Session belongs to a different user' },
-            id: null
-          })
-          return
-        }
-      }
+      if (!verifySessionOwner(req, res, sessionId, true)) return
       await transports.get(sessionId)!.handleRequest(req, res, req.body)
       return
     }
-
     // New session -- must be initialize request
     if (!sessionId && isInitializeRequest(req.body)) {
       const authInfo = (req as any).auth
@@ -409,13 +396,26 @@ export async function startHttp(): Promise<void> {
   })
 
   // Verify session ownership for GET/DELETE endpoints
-  function verifySessionOwner(req: express.Request, res: express.Response, sessionId: string): boolean {
+  function verifySessionOwner(
+    req: express.Request,
+    res: express.Response,
+    sessionId: string,
+    useJsonRpc = false
+  ): boolean {
     const authInfo = (req as any).auth
     const ownerUserId = sessionOwners.get(sessionId)
     if (ownerUserId) {
       const currentUserId = authInfo?.extra?.userId
       if (currentUserId !== ownerUserId) {
-        res.status(403).json({ error: 'Session belongs to a different user' })
+        if (useJsonRpc) {
+          res.status(403).json({
+            jsonrpc: '2.0',
+            error: { code: -32000, message: 'Session belongs to a different user' },
+            id: null
+          })
+        } else {
+          res.status(403).json({ error: 'Session belongs to a different user' })
+        }
         return false
       }
     }
