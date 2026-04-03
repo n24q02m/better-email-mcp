@@ -15,16 +15,21 @@
  */
 
 import { randomBytes, randomUUID } from 'node:crypto'
-import { createSession, pollForResult, sendMessage } from '@n24q02m/mcp-relay-core/relay'
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js'
 import { mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
+import { createSession, pollForResult, sendMessage } from '@n24q02m/mcp-relay-core/relay'
 import express from 'express'
 import rateLimit from 'express-rate-limit'
 import { ImapFlow } from 'imapflow'
-import { createEmailAuthProvider, requestContext } from '../auth/email-auth-provider.js'
+import {
+  createEmailAuthProvider,
+  type PendingAuth,
+  requestContext,
+  type StoredAuthCode
+} from '../auth/email-auth-provider.js'
 import { loadAllUserCredentials, storeUserCredentials } from '../auth/per-user-credential-store.js'
 import { RELAY_SCHEMA } from '../relay-schema.js'
 import type { AccountConfig } from '../tools/helpers/config.js'
@@ -105,81 +110,18 @@ async function testImapConnection(account: AccountConfig): Promise<boolean> {
   }
 }
 
-export async function startHttp(): Promise<void> {
-  const config = loadConfig()
-  const serverUrl = new URL(config.publicUrl)
+/**
+ * Start a background relay poller that watches for new relay sessions in pendingAuths
+ * and completes the OAuth flow when credentials are submitted via the relay page.
+ */
+function startRelayPoller(params: {
+  relayBaseUrl: string
+  pendingAuths: Map<string, PendingAuth>
+  authCodes: Map<string, StoredAuthCode>
+  userAccounts: Map<string, AccountConfig[]>
+}) {
+  const { relayBaseUrl, pendingAuths, authCodes, userAccounts } = params
 
-  const SERVER_NAME = 'better-email-mcp'
-  const DEFAULT_RELAY_URL = 'https://better-email-mcp.n24q02m.com'
-  // Relay URL: use PUBLIC_URL in production (Caddy proxies /api/sessions to relay server),
-  // fall back to DEFAULT_RELAY_URL for local dev
-  const relayBaseUrl = config.publicUrl.startsWith('http://127.0.0.1') || config.publicUrl.startsWith('http://localhost')
-    ? DEFAULT_RELAY_URL
-    : config.publicUrl
-
-  const { provider, pendingAuths, authCodes, userAccounts, resolveAccounts } = createEmailAuthProvider({
-    dcrSecret: config.dcrSecret,
-    publicUrl: config.publicUrl,
-    createRelaySession: async () => {
-      const session = await createSession(relayBaseUrl, SERVER_NAME, RELAY_SCHEMA)
-      return { relayUrl: session.relayUrl, session }
-    }
-  })
-
-  // Restore persisted per-user credentials on startup
-  try {
-    const stored = await loadAllUserCredentials()
-    for (const [userId, accounts] of stored) {
-      userAccounts.set(userId, accounts)
-    }
-    if (stored.size > 0) {
-      console.info(`Restored ${stored.size} user credential set(s) from disk`)
-    }
-  } catch (err) {
-    console.error('Failed to restore user credentials:', err)
-  }
-
-  const app = express()
-
-  // Trust exactly 2 reverse proxies (Cloudflare + Caddy) for correct req.ip
-  app.set('trust proxy', 2)
-  app.disable('x-powered-by')
-
-  // Rate limit MCP endpoints per IP
-  const mcpRateLimit = rateLimit({
-    windowMs: 60 * 1000,
-    limit: 120,
-    standardHeaders: 'draft-7',
-    legacyHeaders: false
-  })
-
-  // Rate limit auth endpoints per IP to prevent abuse/brute-force
-  const authRateLimit = rateLimit({
-    windowMs: 60 * 1000,
-    limit: 20,
-    standardHeaders: 'draft-7',
-    legacyHeaders: false
-  })
-
-  // Propagate request IP via AsyncLocalStorage for IP-scoped pending binds
-  app.use((req, _res, next) => {
-    const ip = req.ip || req.socket.remoteAddress || undefined
-    requestContext.run({ ip }, next)
-  })
-
-  // OAuth endpoints (/.well-known/*, /authorize, /token, /register)
-  app.use(
-    mcpAuthRouter({
-      provider,
-      issuerUrl: serverUrl,
-      serviceDocumentationUrl: new URL('https://github.com/n24q02m/better-email-mcp'),
-      scopesSupported: ['email:read', 'email:write'],
-      resourceName: 'Better Email MCP Server'
-    })
-  )
-
-  // Background relay poller: polls mcp-relay-core for credentials when a relay session is active
-  // Runs for each pending auth that has a relay session
   async function pollRelayAndCompleteAuth(ourState: string) {
     const pending = pendingAuths.get(ourState)
     if (!pending?.relaySession) return
@@ -299,13 +241,37 @@ export async function startHttp(): Promise<void> {
     }
     return result
   }
+}
 
-  const jsonParser = express.json()
+/**
+ * Register MCP JSON-RPC routes (/mcp) for handling client requests.
+ */
+function registerMcpRoutes(params: {
+  app: express.Express
+  mcpRateLimit: express.RequestHandler
+  jsonParser: express.RequestHandler
+  authMiddleware: express.RequestHandler
+  resolveAccounts: (token: string) => AccountConfig[] | undefined
+}) {
+  const { app, mcpRateLimit, jsonParser, authMiddleware, resolveAccounts } = params
 
-  const authMiddleware = requireBearerAuth({ verifier: provider })
   const transports: Map<string, StreamableHTTPServerTransport> = new Map()
   // Session owner binding -- prevents cross-user session hijacking
   const sessionOwners: Map<string, string> = new Map() // sessionId -> userId
+
+  // Verify session ownership for GET/DELETE endpoints
+  function verifySessionOwner(req: express.Request, res: express.Response, sessionId: string): boolean {
+    const authInfo = (req as any).auth
+    const ownerUserId = sessionOwners.get(sessionId)
+    if (ownerUserId) {
+      const currentUserId = authInfo?.extra?.userId
+      if (currentUserId !== ownerUserId) {
+        res.status(403).json({ error: 'Session belongs to a different user' })
+        return false
+      }
+    }
+    return true
+  }
 
   // MCP endpoint -- POST (new session or existing)
   app.post('/mcp', mcpRateLimit, jsonParser, authMiddleware, async (req, res) => {
@@ -374,20 +340,6 @@ export async function startHttp(): Promise<void> {
     })
   })
 
-  // Verify session ownership for GET/DELETE endpoints
-  function verifySessionOwner(req: express.Request, res: express.Response, sessionId: string): boolean {
-    const authInfo = (req as any).auth
-    const ownerUserId = sessionOwners.get(sessionId)
-    if (ownerUserId) {
-      const currentUserId = authInfo?.extra?.userId
-      if (currentUserId !== ownerUserId) {
-        res.status(403).json({ error: 'Session belongs to a different user' })
-        return false
-      }
-    }
-    return true
-  }
-
   // MCP endpoint -- GET (SSE streaming for existing session)
   app.get('/mcp', mcpRateLimit, authMiddleware, async (req, res) => {
     const sessionId = req.headers['mcp-session-id'] as string
@@ -409,8 +361,12 @@ export async function startHttp(): Promise<void> {
       res.status(400).json({ error: 'Invalid or missing session' })
     }
   })
+}
 
-  // Health check (no auth required)
+/**
+ * Register a simple health check route.
+ */
+function registerHealthCheck(app: express.Express, userAccounts: Map<string, any>) {
   app.get('/health', (_req, res) => {
     res.json({
       status: 'ok',
@@ -419,6 +375,82 @@ export async function startHttp(): Promise<void> {
       timestamp: new Date().toISOString()
     })
   })
+}
+export async function startHttp(): Promise<void> {
+  const config = loadConfig()
+  const serverUrl = new URL(config.publicUrl)
+
+  const SERVER_NAME = 'better-email-mcp'
+  const DEFAULT_RELAY_URL = 'https://better-email-mcp.n24q02m.com'
+  // Relay URL: use PUBLIC_URL in production (Caddy proxies /api/sessions to relay server),
+  // fall back to DEFAULT_RELAY_URL for local dev
+  const relayBaseUrl =
+    config.publicUrl.startsWith('http://127.0.0.1') || config.publicUrl.startsWith('http://localhost')
+      ? DEFAULT_RELAY_URL
+      : config.publicUrl
+
+  const { provider, pendingAuths, authCodes, userAccounts, resolveAccounts } = createEmailAuthProvider({
+    dcrSecret: config.dcrSecret,
+    publicUrl: config.publicUrl,
+    createRelaySession: async () => {
+      const session = await createSession(relayBaseUrl, SERVER_NAME, RELAY_SCHEMA)
+      return { relayUrl: session.relayUrl, session }
+    }
+  })
+
+  // Start background relay poller
+  startRelayPoller({ relayBaseUrl, pendingAuths, authCodes, userAccounts })
+
+  // Restore persisted per-user credentials on startup
+  try {
+    const stored = await loadAllUserCredentials()
+    for (const [userId, accounts] of stored) {
+      userAccounts.set(userId, accounts)
+    }
+    if (stored.size > 0) {
+      console.info(`Restored ${stored.size} user credential set(s) from disk`)
+    }
+  } catch (err) {
+    console.error('Failed to restore user credentials:', err)
+  }
+
+  const app = express()
+
+  // Trust exactly 2 reverse proxies (Cloudflare + Caddy) for correct req.ip
+  app.set('trust proxy', 2)
+  app.disable('x-powered-by')
+
+  // Rate limit MCP endpoints per IP
+  const mcpRateLimit = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 120,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false
+  })
+
+  // Propagate request IP via AsyncLocalStorage for IP-scoped pending binds
+  app.use((req, _res, next) => {
+    const ip = req.ip || req.socket.remoteAddress || undefined
+    requestContext.run({ ip }, next)
+  })
+
+  // OAuth endpoints (/.well-known/*, /authorize, /token, /register)
+  app.use(
+    mcpAuthRouter({
+      provider,
+      issuerUrl: serverUrl,
+      serviceDocumentationUrl: new URL('https://github.com/n24q02m/better-email-mcp'),
+      scopesSupported: ['email:read', 'email:write'],
+      resourceName: 'Better Email MCP Server'
+    })
+  )
+
+  const jsonParser = express.json()
+  const authMiddleware = requireBearerAuth({ verifier: provider })
+
+  // Register MCP and health routes
+  registerMcpRoutes({ app, mcpRateLimit, jsonParser, authMiddleware, resolveAccounts })
+  registerHealthCheck(app, userAccounts)
 
   app.listen(config.port, '0.0.0.0', () => {
     console.info(`Email MCP HTTP server listening on port ${config.port}`)

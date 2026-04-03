@@ -18,11 +18,11 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
-import type { RelaySession } from '@n24q02m/mcp-relay-core/relay'
 import type { OAuthRegisteredClientsStore } from '@modelcontextprotocol/sdk/server/auth/clients.js'
 import { InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js'
 import type { AuthorizationParams, OAuthServerProvider } from '@modelcontextprotocol/sdk/server/auth/provider.js'
 import type { OAuthClientInformationFull, OAuthTokens } from '@modelcontextprotocol/sdk/shared/auth.js'
+import type { RelaySession } from '@n24q02m/mcp-relay-core/relay'
 import type { Response } from 'express'
 import type { AccountConfig } from '../tools/helpers/config.js'
 import { StatelessClientStore } from './stateless-client-store.js'
@@ -54,7 +54,7 @@ export interface PendingAuth {
   relaySession?: RelaySession
 }
 
-interface StoredAuthCode {
+export interface StoredAuthCode {
   userId: string
   codeChallenge?: string
   codeChallengeMethod?: string
