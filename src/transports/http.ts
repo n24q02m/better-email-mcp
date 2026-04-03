@@ -15,6 +15,7 @@
  */
 
 import { randomBytes, randomUUID } from 'node:crypto'
+import { createSession, pollForResult, sendMessage } from '@n24q02m/mcp-relay-core/relay'
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js'
 import { mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
@@ -25,8 +26,10 @@ import rateLimit from 'express-rate-limit'
 import { ImapFlow } from 'imapflow'
 import { createEmailAuthProvider, requestContext } from '../auth/email-auth-provider.js'
 import { loadAllUserCredentials, storeUserCredentials } from '../auth/per-user-credential-store.js'
+import { RELAY_SCHEMA } from '../relay-schema.js'
 import type { AccountConfig } from '../tools/helpers/config.js'
 import { parseCredentials } from '../tools/helpers/config.js'
+import { _getPendingAuths, ensureValidToken, isOutlookDomain } from '../tools/helpers/oauth2.js'
 import { registerTools } from '../tools/registry.js'
 
 interface HttpConfig {
@@ -106,9 +109,21 @@ export async function startHttp(): Promise<void> {
   const config = loadConfig()
   const serverUrl = new URL(config.publicUrl)
 
+  const SERVER_NAME = 'better-email-mcp'
+  const DEFAULT_RELAY_URL = 'https://better-email-mcp.n24q02m.com'
+  // Relay URL: use PUBLIC_URL in production (Caddy proxies /api/sessions to relay server),
+  // fall back to DEFAULT_RELAY_URL for local dev
+  const relayBaseUrl = config.publicUrl.startsWith('http://127.0.0.1') || config.publicUrl.startsWith('http://localhost')
+    ? DEFAULT_RELAY_URL
+    : config.publicUrl
+
   const { provider, pendingAuths, authCodes, userAccounts, resolveAccounts } = createEmailAuthProvider({
     dcrSecret: config.dcrSecret,
-    publicUrl: config.publicUrl
+    publicUrl: config.publicUrl,
+    createRelaySession: async () => {
+      const session = await createSession(relayBaseUrl, SERVER_NAME, RELAY_SCHEMA)
+      return { relayUrl: session.relayUrl, session }
+    }
   })
 
   // Restore persisted per-user credentials on startup
@@ -163,148 +178,84 @@ export async function startHttp(): Promise<void> {
     })
   )
 
-  // Relay credential entry page -- simple HTML form for email credentials
-  app.get('/auth/relay', authRateLimit, (req, res) => {
-    const state = req.query.state as string
-    if (!state) {
-      res.status(400).json({ error: 'missing_state', error_description: 'Missing state parameter' })
-      return
-    }
-
-    // Serve a simple credential entry form
-    res.type('html').send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Email MCP - Sign In</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f5; min-height: 100vh;
-           display: flex; align-items: center; justify-content: center; padding: 1rem; }
-    .card { background: white; border-radius: 12px; padding: 2rem; max-width: 480px; width: 100%;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    h1 { font-size: 1.25rem; margin-bottom: 0.5rem; }
-    p { color: #666; font-size: 0.875rem; margin-bottom: 1.5rem; }
-    label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.25rem; }
-    input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #ddd; border-radius: 6px;
-            font-size: 0.875rem; margin-bottom: 1rem; }
-    input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }
-    button { width: 100%; padding: 0.625rem; background: #2563eb; color: white; border: none;
-             border-radius: 6px; font-size: 0.875rem; font-weight: 500; cursor: pointer; }
-    button:hover { background: #1d4ed8; }
-    button:disabled { background: #93c5fd; cursor: not-allowed; }
-    .error { color: #dc2626; font-size: 0.8rem; margin-bottom: 1rem; display: none; }
-    .help { color: #666; font-size: 0.75rem; margin-top: -0.5rem; margin-bottom: 1rem; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>Email MCP Server</h1>
-    <p>Enter your email credentials to connect. Use an App Password for Gmail/Yahoo/iCloud.</p>
-    <div class="error" id="error"></div>
-    <form id="form">
-      <label for="credentials">Email Credentials</label>
-      <input type="text" id="credentials" name="credentials" required
-             placeholder="user@gmail.com:app-password" autocomplete="off">
-      <div class="help">Format: email:password. Multiple: email1:pass1,email2:pass2</div>
-      <button type="submit" id="submit">Connect</button>
-    </form>
-  </div>
-  <script>
-    const form = document.getElementById('form');
-    const btn = document.getElementById('submit');
-    const errEl = document.getElementById('error');
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      btn.disabled = true;
-      btn.textContent = 'Validating...';
-      errEl.style.display = 'none';
-      try {
-        const res = await fetch('/auth/credentials', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            state: ${JSON.stringify(state)},
-            credentials: document.getElementById('credentials').value
-          })
-        });
-        const data = await res.json();
-        if (data.redirect) {
-          window.location.href = data.redirect;
-        } else {
-          errEl.textContent = data.error_description || data.error || 'Unknown error';
-          errEl.style.display = 'block';
-          btn.disabled = false;
-          btn.textContent = 'Connect';
-        }
-      } catch (err) {
-        errEl.textContent = 'Network error. Please try again.';
-        errEl.style.display = 'block';
-        btn.disabled = false;
-        btn.textContent = 'Connect';
-      }
-    });
-  </script>
-</body>
-</html>`)
-  })
-
-  // Credential submission endpoint -- validates and issues auth code
-  const jsonParser = express.json()
-  app.post('/auth/credentials', authRateLimit, jsonParser, async (req, res) => {
-    const { state, credentials } = req.body as { state?: string; credentials?: string }
-
-    if (!state || !credentials) {
-      res.status(400).json({ error: 'invalid_request', error_description: 'Missing state or credentials' })
-      return
-    }
-
-    // Look up the pending auth
-    const pending = pendingAuths.get(state)
-    if (!pending) {
-      res.status(400).json({ error: 'invalid_state', error_description: 'Unknown or expired state' })
-      return
-    }
+  // Background relay poller: polls mcp-relay-core for credentials when a relay session is active
+  // Runs for each pending auth that has a relay session
+  async function pollRelayAndCompleteAuth(ourState: string) {
+    const pending = pendingAuths.get(ourState)
+    if (!pending?.relaySession) return
 
     try {
-      // Parse credentials into AccountConfig[]
-      const accounts = await parseCredentials(credentials)
-      if (accounts.length === 0) {
-        res.status(400).json({
-          error: 'invalid_credentials',
-          error_description: 'No valid email accounts found. Check format: email:password'
-        })
+      const config = await pollForResult(relayBaseUrl, pending.relaySession, 2000, 300_000)
+      const credentials = config.EMAIL_CREDENTIALS
+      if (!credentials) {
+        console.error(`Relay session ${pending.relaySession.sessionId}: no EMAIL_CREDENTIALS in result`)
         return
       }
 
-      // Validate at least the first account via IMAP
-      const firstAccount = accounts[0]!
-      // Skip IMAP test for OAuth2 accounts (Outlook) -- they use device code flow
-      if (firstAccount.authType !== 'oauth2') {
-        const valid = await testImapConnection(firstAccount)
-        if (!valid) {
-          res.status(400).json({
-            error: 'invalid_credentials',
-            error_description: `IMAP connection failed for ${firstAccount.email}. Check email and password (use App Password for Gmail).`
-          })
-          return
+      // Parse and validate credentials (same flow as stdio relay-setup.ts)
+      const accounts = await parseCredentials(credentials)
+      if (accounts.length === 0) {
+        await sendMessage(relayBaseUrl, pending.relaySession.sessionId, {
+          type: 'error',
+          text: 'No valid email accounts found. Check format: email:password'
+        }).catch(() => {})
+        return
+      }
+
+      const sessionId = pending.relaySession.sessionId
+
+      // Validate non-OAuth accounts via IMAP
+      for (const account of accounts) {
+        if (!isOutlookDomain(account.email) && account.authType !== 'oauth2') {
+          const valid = await testImapConnection(account)
+          if (!valid) {
+            await sendMessage(relayBaseUrl, sessionId, {
+              type: 'error',
+              text: `IMAP connection failed for ${account.email}. Check email and app password.`
+            }).catch(() => {})
+            return
+          }
         }
       }
 
-      // Generate a userId based on the credentials
+      // Trigger Outlook OAuth Device Code flow for Outlook accounts (same as stdio)
+      let hasOAuthPending = false
+      for (const account of accounts) {
+        if (isOutlookDomain(account.email) && !account.oauth2) {
+          try {
+            await ensureValidToken(account)
+          } catch (err: any) {
+            const message = err?.message || ''
+            const urlMatch = message.match(/Visit:\s*(https?:\/\/\S+)/)
+            const codeMatch = message.match(/Enter code:\s*(\S+)/)
+            if (urlMatch && codeMatch) {
+              hasOAuthPending = true
+              await sendMessage(relayBaseUrl, sessionId, {
+                type: 'oauth_device_code',
+                text: `Sign in to Microsoft for ${account.email}`,
+                data: { url: urlMatch[1], code: codeMatch[1], email: account.email }
+              }).catch(() => {})
+              console.info(`OAuth device code sent to relay page for ${account.email}`)
+            }
+          }
+        }
+      }
+
+      // Wait for OAuth to complete if needed
+      if (hasOAuthPending) {
+        const pendingOAuths = _getPendingAuths()
+        const oauthDeadline = Date.now() + 10 * 60 * 1000
+        while (pendingOAuths.size > 0 && Date.now() < oauthDeadline) {
+          await new Promise((r) => setTimeout(r, 2000))
+        }
+      }
+
+      // Issue auth code
       const userId = randomBytes(16).toString('hex')
-
-      // Store accounts for this user
       userAccounts.set(userId, accounts)
-
-      // Persist to disk
       await storeUserCredentials(userId, accounts)
+      pendingAuths.delete(ourState)
 
-      // Consume the pending auth
-      pendingAuths.delete(state)
-
-      // Issue our own auth code
       const ourAuthCode = randomBytes(32).toString('hex')
       authCodes.set(ourAuthCode, {
         userId,
@@ -314,27 +265,42 @@ export async function startHttp(): Promise<void> {
         createdAt: Date.now()
       })
 
-      // Build redirect URL back to MCP client
+      // Build redirect URL
       const clientRedirect = new URL(pending.clientRedirectUri)
-
-      // Prevent XSS and Open Redirect via unsafe protocols
-      const protocol = clientRedirect.protocol.toLowerCase()
-      if (['javascript:', 'data:', 'vbscript:', 'file:'].includes(protocol)) {
-        res.status(400).json({ error: 'invalid_request', error_description: 'Unsafe redirect URI' })
-        return
-      }
-
       clientRedirect.searchParams.set('code', ourAuthCode)
-      if (pending.clientState) {
-        clientRedirect.searchParams.set('state', pending.clientState)
-      }
+      if (pending.clientState) clientRedirect.searchParams.set('state', pending.clientState)
 
-      res.json({ redirect: clientRedirect.toString() })
+      // Send redirect URL to relay page via bidirectional messaging
+      await sendMessage(relayBaseUrl, sessionId, {
+        type: 'complete',
+        text: hasOAuthPending
+          ? 'All accounts configured including OAuth! Redirecting...'
+          : 'Email credentials validated! Redirecting...',
+        data: { redirect: clientRedirect.toString() }
+      }).catch(() => {})
+
+      console.info(`Relay auth completed for user (userId: ${userId.substring(0, 8)}...)`)
     } catch (err: any) {
-      console.error('Credential submission error:', err)
-      res.status(500).json({ error: 'server_error', error_description: 'Failed to validate credentials' })
+      if (err?.message === 'RELAY_SKIPPED') {
+        console.info('Relay setup skipped by user')
+      } else {
+        console.error('Relay poll error:', err?.message ?? err)
+      }
+      pendingAuths.delete(ourState)
     }
-  })
+  }
+
+  // Watch for new relay sessions and start polling
+  const originalSet = pendingAuths.set.bind(pendingAuths)
+  pendingAuths.set = (key: string, value: any) => {
+    const result = originalSet(key, value)
+    if (value.relaySession) {
+      pollRelayAndCompleteAuth(key).catch(console.error)
+    }
+    return result
+  }
+
+  const jsonParser = express.json()
 
   const authMiddleware = requireBearerAuth({ verifier: provider })
   const transports: Map<string, StreamableHTTPServerTransport> = new Map()

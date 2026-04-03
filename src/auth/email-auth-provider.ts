@@ -18,6 +18,7 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
+import type { RelaySession } from '@n24q02m/mcp-relay-core/relay'
 import type { OAuthRegisteredClientsStore } from '@modelcontextprotocol/sdk/server/auth/clients.js'
 import { InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js'
 import type { AuthorizationParams, OAuthServerProvider } from '@modelcontextprotocol/sdk/server/auth/provider.js'
@@ -38,9 +39,11 @@ const VERIFY_CACHE_TTL = 5 * 60 * 1000 // 5 minutes cache for token verification
 export interface EmailAuthConfig {
   dcrSecret: string
   publicUrl: string
+  /** Create a relay session and return the browser URL. If not provided, falls back to built-in /auth/relay form. */
+  createRelaySession?: () => Promise<{ relayUrl: string; session: RelaySession }>
 }
 
-interface PendingAuth {
+export interface PendingAuth {
   clientId: string
   clientRedirectUri: string
   clientState?: string
@@ -48,6 +51,7 @@ interface PendingAuth {
   codeChallengeMethod: string
   scopes?: string[]
   createdAt: number
+  relaySession?: RelaySession
 }
 
 interface StoredAuthCode {
@@ -134,7 +138,7 @@ export function createEmailAuthProvider(config: EmailAuthConfig) {
     ): Promise<void> => {
       const ourState = randomBytes(32).toString('hex')
 
-      pendingAuths.set(ourState, {
+      const pending: PendingAuth = {
         clientId: client.client_id,
         clientRedirectUri: params.redirectUri,
         clientState: params.state,
@@ -142,12 +146,18 @@ export function createEmailAuthProvider(config: EmailAuthConfig) {
         codeChallengeMethod: 'S256',
         scopes: params.scopes,
         createdAt: Date.now()
-      })
+      }
 
-      // Redirect to relay credential entry page with our state
-      const relayUrl = new URL(`${config.publicUrl}/auth/relay`)
-      relayUrl.searchParams.set('state', ourState)
-      res.redirect(relayUrl.toString())
+      // Use mcp-relay-core relay page — no fallback to built-in form
+      if (!config.createRelaySession) {
+        res.status(500).json({ error: 'server_error', error_description: 'Relay session creator not configured' })
+        return
+      }
+
+      const { relayUrl, session } = await config.createRelaySession()
+      pending.relaySession = session
+      pendingAuths.set(ourState, pending)
+      res.redirect(relayUrl)
     },
 
     challengeForAuthorizationCode: async (
@@ -176,11 +186,8 @@ export function createEmailAuthProvider(config: EmailAuthConfig) {
         throw new InvalidTokenError('Auth code was not issued to this client')
       }
 
-      // Verify PKCE S256
-      if (stored.codeChallenge && stored.codeChallengeMethod === 'S256') {
-        if (!codeVerifier) {
-          throw new InvalidTokenError('code_verifier is required')
-        }
+      // Verify PKCE S256 (only when SDK passes codeVerifier — SDK validates locally by default)
+      if (codeVerifier && stored.codeChallenge && stored.codeChallengeMethod === 'S256') {
         const expectedChallenge = createHash('sha256').update(codeVerifier).digest('base64url')
 
         const expectedBuffer = Buffer.from(expectedChallenge, 'utf8')

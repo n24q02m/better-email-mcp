@@ -126,22 +126,64 @@ Configure `EMAIL_CREDENTIALS` in `~/.claude/settings.local.json` or your shell p
 
 ## Zero-Config Setup
 
-No environment variables needed. On first start, the server opens a setup page in your browser:
+No environment variables needed. On first start, the server opens a relay setup page:
 
 1. Start the server (via plugin, `npx`, or Docker)
-2. A setup URL appears -- open it in any browser
-3. Fill in your credentials on the guided form
+2. A setup URL appears -- open it in any browser (relay: `https://better-email-mcp.n24q02m.com`)
+3. Enter your credentials in `email:app-password` format (comma-separated for multi-account)
 4. Credentials are encrypted and stored locally
 
 Your credentials never leave your machine. The relay server only sees encrypted data.
 
 For CI/automation, you can still use environment variables (see below).
 
+## Remote (HTTP Mode)
+
+Run as a multi-user HTTP server with OAuth 2.1 authentication:
+
+```jsonc
+{
+  "mcpServers": {
+    "better-email": {
+      "type": "http",
+      "url": "https://better-email-mcp.n24q02m.com/mcp"
+    }
+  }
+}
+```
+
+### Self-Hosting (HTTP Mode)
+
+```bash
+docker run -p 8080:8080 \
+  -e TRANSPORT_MODE=http \
+  -e PUBLIC_URL=https://your-domain.com \
+  -e DCR_SERVER_SECRET=$(openssl rand -hex 32) \
+  n24q02m/better-email-mcp:latest
+```
+
+Users provide their own email credentials through the OAuth flow. No server-side `EMAIL_CREDENTIALS` needed.
+
+## Outlook OAuth Device Code
+
+Outlook, Hotmail, and Live accounts use OAuth2 automatically. On first use with an Outlook account:
+
+1. The server prints a device code and a Microsoft login URL
+2. Open the URL in a browser and enter the code
+3. Sign in and authorize the app
+4. Tokens are saved locally at `~/.better-email-mcp/tokens.json`
+
+No App Password is needed for Outlook accounts.
+
 ## Configuration
 
 | Variable | Required | Default | Description |
 |:---------|:---------|:--------|:------------|
-| `EMAIL_CREDENTIALS` | Yes | - | Email credentials (`user@gmail.com:app-password`, comma-separated for multi-account) |
+| `EMAIL_CREDENTIALS` | Yes (stdio) | - | Email credentials (`user@gmail.com:app-password`, comma-separated for multi-account) |
+| `TRANSPORT_MODE` | No | `stdio` | Set to `http` for remote mode |
+| `PUBLIC_URL` | Yes (http) | - | Server's public URL for OAuth redirects |
+| `DCR_SERVER_SECRET` | Yes (http) | - | HMAC secret for stateless client registration |
+| `PORT` | No | `8080` | Server port |
 | `OUTLOOK_CLIENT_ID` | No | - | Custom Azure AD client ID for self-hosted Outlook OAuth2 |
 
 ### Multiple Accounts
