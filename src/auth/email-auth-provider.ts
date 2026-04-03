@@ -39,6 +39,14 @@ export interface EmailAuthConfig {
   dcrSecret: string
   publicUrl: string
 }
+/** Generic helper to cleanup expired entries from a Map */
+function cleanupMap<K, V>(map: Map<K, V>, shouldDelete: (val: V) => boolean) {
+  for (const [key, val] of map) {
+    if (shouldDelete(val)) {
+      map.delete(key)
+    }
+  }
+}
 
 interface PendingAuth {
   clientId: string
@@ -265,24 +273,12 @@ export function createEmailAuthProvider(config: EmailAuthConfig) {
   // Cleanup expired entries periodically
   const cleanupInterval = setInterval(() => {
     const now = Date.now()
-    for (const [key, val] of pendingAuths) {
-      if (now - val.createdAt > PENDING_AUTH_TTL) pendingAuths.delete(key)
-    }
-    for (const [key, val] of authCodes) {
-      if (now - val.createdAt > AUTH_CODE_TTL) authCodes.delete(key)
-    }
-    for (const [key, val] of bearerTokens) {
-      if (now - val.createdAt > BEARER_TOKEN_TTL) bearerTokens.delete(key)
-    }
-    for (const [key, val] of pendingBinds) {
-      if (now > val.expiresAt) pendingBinds.delete(key)
-    }
-    for (const [key, val] of boundTokens) {
-      if (now - val.createdAt > BEARER_TOKEN_TTL) boundTokens.delete(key)
-    }
-    for (const [key, val] of verifyCache) {
-      if (now > val.expiresAt) verifyCache.delete(key)
-    }
+    cleanupMap(pendingAuths, (val) => now - val.createdAt > PENDING_AUTH_TTL)
+    cleanupMap(authCodes, (val) => now - val.createdAt > AUTH_CODE_TTL)
+    cleanupMap(bearerTokens, (val) => now - val.createdAt > BEARER_TOKEN_TTL)
+    cleanupMap(pendingBinds, (val) => now > val.expiresAt)
+    cleanupMap(boundTokens, (val) => now - val.createdAt > BEARER_TOKEN_TTL)
+    cleanupMap(verifyCache, (val) => now > val.expiresAt)
   }, 60_000)
 
   return {
