@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.18.0 (2026-04-03)
+
+### Features
+
+- Remove deprecated Gemini CLI extension support
+  ([`064755f`](https://github.com/n24q02m/better-email-mcp/commit/064755f206d8ec4a07d0e03dba81082be6657299))
+
+
 ## v1.18.0-beta.1 (2026-04-03)
 
 ### Bug Fixes
