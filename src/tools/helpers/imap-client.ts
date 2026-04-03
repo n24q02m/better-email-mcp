@@ -97,58 +97,85 @@ async function withConnection<T>(account: AccountConfig, fn: (client: ImapFlow) 
 }
 
 /**
- * Build IMAP search criteria from query string
+ * Build IMAP search criteria from a query string.
+ *
+ * Supports arbitrary combinations of clauses in any order:
+ *   FROM x, TO x, SUBJECT x, SINCE YYYY-MM-DD, BEFORE YYYY-MM-DD,
+ *   UNREAD/UNSEEN, READ/SEEN, FLAGGED/STARRED, UNFLAGGED/UNSTARRED, ALL/*
+ *
+ * Examples:
+ *   "FROM user@test.com SINCE 2026-01-01"  -> { from: 'user@test.com', since: Date }
+ *   "UNREAD FROM boss SINCE 2026-03-01"    -> { seen: false, from: 'boss', since: Date }
+ *   "meeting notes"                         -> { subject: 'meeting notes' }
  */
 function buildSearchCriteria(query: string): any {
-  const upper = query.toUpperCase().trim()
+  const trimmed = query.trim()
+  if (!trimmed) return {}
 
-  // Simple keyword shortcuts
-  if (upper === 'UNREAD' || upper === 'UNSEEN') return { seen: false }
-  if (upper === 'READ' || upper === 'SEEN') return { seen: true }
-  if (upper === 'FLAGGED' || upper === 'STARRED') return { flagged: true }
-  if (upper === 'UNFLAGGED' || upper === 'UNSTARRED') return { flagged: false }
+  const upper = trimmed.toUpperCase()
   if (upper === 'ALL' || upper === '*') return {}
 
-  // Date-based: SINCE YYYY-MM-DD
-  const sinceMatch = query.match(/^SINCE\s+(\d{4}-\d{2}-\d{2})$/i)
-  if (sinceMatch) return { since: new Date(sinceMatch[1]!) }
+  const criteria: Record<string, any> = {}
+  let remaining = trimmed
 
-  // Detect wrong date format for SINCE (e.g. "SINCE 01/15/2026", "SINCE Jan 15")
-  if (/^SINCE\s+/i.test(query) && !sinceMatch) {
-    throw new EmailMCPError(
-      'Invalid date format in SINCE query',
-      'VALIDATION_ERROR',
-      'Date must be YYYY-MM-DD format. Example: SINCE 2026-01-15'
-    )
+  // 1. Extract standalone flag keywords (no arguments).
+  //    Check longer prefixes first to avoid partial matches (UNFLAGGED before FLAGGED, etc.)
+  const flagMap: [string, string, boolean][] = [
+    ['UNFLAGGED', 'flagged', false],
+    ['UNSTARRED', 'flagged', false],
+    ['UNREAD', 'seen', false],
+    ['UNSEEN', 'seen', false],
+    ['FLAGGED', 'flagged', true],
+    ['STARRED', 'flagged', true],
+    ['READ', 'seen', true],
+    ['SEEN', 'seen', true]
+  ]
+
+  for (const [keyword, key, value] of flagMap) {
+    const pattern = new RegExp(`\\b${keyword}\\b`, 'i')
+    if (pattern.test(remaining)) {
+      criteria[key] = value
+      remaining = remaining.replace(pattern, ' ').trim()
+    }
   }
 
-  // From filter: FROM email@example.com (strip optional surrounding quotes)
-  const fromMatch = query.match(/^FROM\s+(.+)$/i)
-  if (fromMatch) return { from: fromMatch[1]!.trim().replace(/^["']|["']$/g, '') }
-
-  // Subject filter: SUBJECT keyword (strip optional surrounding quotes)
-  const subjectMatch = query.match(/^SUBJECT\s+(.+)$/i)
-  if (subjectMatch) return { subject: subjectMatch[1]!.trim().replace(/^["']|["']$/g, '') }
-
-  // Compound: UNREAD SINCE 2024-01-01
-  const compoundUnreadSince = query.match(/^UNREAD\s+SINCE\s+(\d{4}-\d{2}-\d{2})$/i)
-  if (compoundUnreadSince) return { seen: false, since: new Date(compoundUnreadSince[1]!) }
-
-  // Detect wrong date format in compound UNREAD SINCE query
-  if (/^UNREAD\s+SINCE\s+/i.test(query) && !compoundUnreadSince) {
-    throw new EmailMCPError(
-      'Invalid date format in UNREAD SINCE query',
-      'VALIDATION_ERROR',
-      'Date must be YYYY-MM-DD format. Example: UNREAD SINCE 2026-01-15'
-    )
+  // 2. Extract date clauses: SINCE YYYY-MM-DD, BEFORE YYYY-MM-DD
+  for (const keyword of ['SINCE', 'BEFORE'] as const) {
+    const dateMatch = remaining.match(new RegExp(`\\b${keyword}\\s+(\\d{4}-\\d{2}-\\d{2})\\b`, 'i'))
+    if (dateMatch) {
+      criteria[keyword.toLowerCase()] = new Date(dateMatch[1]!)
+      remaining = remaining.replace(dateMatch[0], ' ').trim()
+    } else if (new RegExp(`\\b${keyword}\\s+\\S`, 'i').test(remaining)) {
+      throw new EmailMCPError(
+        `Invalid date format in ${keyword} query`,
+        'VALIDATION_ERROR',
+        `Date must be YYYY-MM-DD format. Example: ${keyword} 2026-01-15`
+      )
+    }
   }
 
-  // Compound: UNREAD FROM x
-  const compoundUnreadFrom = query.match(/^UNREAD\s+FROM\s+(.+)$/i)
-  if (compoundUnreadFrom) return { seen: false, from: compoundUnreadFrom[1]!.trim().replace(/^["']|["']$/g, '') }
+  // 3. Extract FROM / TO (single token or quoted string)
+  for (const keyword of ['FROM', 'TO'] as const) {
+    const kvMatch = remaining.match(new RegExp(`\\b${keyword}\\s+("[^"]+"|'[^']+'|\\S+)`, 'i'))
+    if (kvMatch) {
+      criteria[keyword.toLowerCase()] = kvMatch[1]!.replace(/^["']|["']$/g, '')
+      remaining = remaining.replace(kvMatch[0], ' ').trim()
+    }
+  }
 
-  // Default: treat as subject search
-  return { subject: query }
+  // 4. Extract explicit SUBJECT (captures until end -- all other keywords already consumed)
+  const subjectMatch = remaining.match(/\bSUBJECT\s+(.+)/i)
+  if (subjectMatch) {
+    criteria.subject = subjectMatch[1]!.trim().replace(/^["']|["']$/g, '')
+    remaining = remaining.replace(subjectMatch[0], ' ').trim()
+  }
+
+  // 5. Any remaining text that wasn't consumed -> implicit subject search
+  if (remaining && !criteria.subject) {
+    criteria.subject = remaining
+  }
+
+  return Object.keys(criteria).length > 0 ? criteria : {}
 }
 
 /**
