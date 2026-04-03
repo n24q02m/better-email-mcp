@@ -368,11 +368,13 @@ describe('EmailAuthProvider', () => {
       )
     })
 
-    it('should require code_verifier when challenge is present', async () => {
+    it('should succeed without code_verifier when SDK validates locally', async () => {
+      // SDK validates PKCE locally and passes codeVerifier=undefined to provider
       const client = result.clientStore.registerClient({
         redirect_uris: ['http://localhost:3000/cb']
       } as any)
 
+      result.userAccounts.set('user-1', [makeAccount('test@gmail.com')])
       result.authCodes.set('pkce-code-2', {
         userId: 'user-1',
         codeChallenge: 'some-challenge',
@@ -381,9 +383,9 @@ describe('EmailAuthProvider', () => {
         createdAt: Date.now()
       })
 
-      await expect(result.provider.exchangeAuthorizationCode(client, 'pkce-code-2')).rejects.toThrow(
-        'code_verifier is required'
-      )
+      // No codeVerifier — SDK already validated locally, provider skips redundant check
+      const tokens = await result.provider.exchangeAuthorizationCode(client, 'pkce-code-2')
+      expect(tokens.access_token).toBeTruthy()
     })
 
     it('should accept valid PKCE S256 challenge', async () => {
@@ -435,6 +437,16 @@ describe('EmailAuthProvider', () => {
 
   describe('authorize', () => {
     it('should redirect to relay page with state', async () => {
+      // Re-create provider with createRelaySession mock
+      clearInterval(result.cleanupInterval)
+      result = createEmailAuthProvider({
+        ...TEST_CONFIG,
+        createRelaySession: async () => ({
+          relayUrl: 'https://relay.example.com/setup?s=mock-session#k=key&p=pass',
+          session: { sessionId: 'mock-session', keyPair: {} as any, passphrase: 'pass', relayUrl: '' }
+        })
+      })
+
       const client = result.clientStore.registerClient({
         redirect_uris: ['http://localhost:3000/cb']
       } as any)
@@ -457,15 +469,16 @@ describe('EmailAuthProvider', () => {
         mockRes
       )
 
-      expect(redirectUrl).toContain('https://test.example.com/auth/relay')
-      expect(redirectUrl).toContain('state=')
+      expect(redirectUrl).toContain('https://relay.example.com/setup')
+      expect(redirectUrl).toContain('s=mock-session')
 
-      // Should have stored a pending auth
+      // Should have stored a pending auth with relay session
       expect(result.pendingAuths.size).toBe(1)
       const pending = [...result.pendingAuths.values()][0]!
       expect(pending.clientId).toBe(client.client_id)
       expect(pending.clientRedirectUri).toBe('http://localhost:3000/cb')
       expect(pending.clientState).toBe('client-state')
+      expect(pending.relaySession?.sessionId).toBe('mock-session')
     })
   })
 
