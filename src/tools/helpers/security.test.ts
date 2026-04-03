@@ -53,6 +53,34 @@ describe('isSafeUrl', () => {
   it('returns false for invalid URLs that fail to parse', () => {
     expect(isSafeUrl('not-a-url')).toBe(false)
   })
+
+  it('blocks relative paths without protocol', () => {
+    expect(isSafeUrl('/path/to/resource')).toBe(false)
+  })
+
+  it('blocks protocol-relative URLs without allowlisted protocol', () => {
+    expect(isSafeUrl('//example.com')).toBe(false)
+  })
+
+  it('blocks javascript: with newline bypass', () => {
+    expect(isSafeUrl('java\nscript:alert(1)')).toBe(false)
+  })
+
+  it('blocks javascript: with carriage return bypass', () => {
+    expect(isSafeUrl('java\rscript:alert(1)')).toBe(false)
+  })
+
+  it('blocks javascript: with multiple whitespace characters', () => {
+    expect(isSafeUrl('  javascript  :  alert(1)')).toBe(false)
+  })
+
+  it('blocks blob: URLs', () => {
+    expect(isSafeUrl('blob:https://example.com/uuid')).toBe(false)
+  })
+
+  it('blocks file: URLs', () => {
+    expect(isSafeUrl('file:///etc/passwd')).toBe(false)
+  })
 })
 
 // ============================================================================
