@@ -15,12 +15,12 @@
  */
 
 import { randomBytes, randomUUID } from 'node:crypto'
-import { createSession, pollForResult, sendMessage } from '@n24q02m/mcp-relay-core/relay'
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js'
 import { mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
+import { createSession, pollForResult, sendMessage } from '@n24q02m/mcp-relay-core/relay'
 import express from 'express'
 import rateLimit from 'express-rate-limit'
 import { ImapFlow } from 'imapflow'
@@ -113,9 +113,10 @@ export async function startHttp(): Promise<void> {
   const DEFAULT_RELAY_URL = 'https://better-email-mcp.n24q02m.com'
   // Relay URL: use PUBLIC_URL in production (Caddy proxies /api/sessions to relay server),
   // fall back to DEFAULT_RELAY_URL for local dev
-  const relayBaseUrl = config.publicUrl.startsWith('http://127.0.0.1') || config.publicUrl.startsWith('http://localhost')
-    ? DEFAULT_RELAY_URL
-    : config.publicUrl
+  const relayBaseUrl =
+    config.publicUrl.startsWith('http://127.0.0.1') || config.publicUrl.startsWith('http://localhost')
+      ? DEFAULT_RELAY_URL
+      : config.publicUrl
 
   const { provider, pendingAuths, authCodes, userAccounts, resolveAccounts } = createEmailAuthProvider({
     dcrSecret: config.dcrSecret,
@@ -154,7 +155,7 @@ export async function startHttp(): Promise<void> {
   })
 
   // Rate limit auth endpoints per IP to prevent abuse/brute-force
-  const authRateLimit = rateLimit({
+  const _authRateLimit = rateLimit({
     windowMs: 60 * 1000,
     limit: 20,
     standardHeaders: 'draft-7',
@@ -205,41 +206,49 @@ export async function startHttp(): Promise<void> {
       const sessionId = pending.relaySession.sessionId
 
       // Validate non-OAuth accounts via IMAP
-      for (const account of accounts) {
-        if (!isOutlookDomain(account.email) && account.authType !== 'oauth2') {
-          const valid = await testImapConnection(account)
-          if (!valid) {
-            await sendMessage(relayBaseUrl, sessionId, {
-              type: 'error',
-              text: `IMAP connection failed for ${account.email}. Check email and app password.`
-            }).catch(() => {})
-            return
+      const imapResults = await Promise.all(
+        accounts.map(async (account) => {
+          if (!isOutlookDomain(account.email) && account.authType !== 'oauth2') {
+            const valid = await testImapConnection(account)
+            return { email: account.email, valid }
           }
-        }
+          return { email: account.email, valid: true }
+        })
+      )
+
+      const failed = imapResults.find((r) => !r.valid)
+      if (failed) {
+        await sendMessage(relayBaseUrl, sessionId, {
+          type: 'error',
+          text: `IMAP connection failed for ${failed.email}. Check email and app password.`
+        }).catch(() => {})
+        return
       }
 
       // Trigger Outlook OAuth Device Code flow for Outlook accounts (same as stdio)
       let hasOAuthPending = false
-      for (const account of accounts) {
-        if (isOutlookDomain(account.email) && !account.oauth2) {
-          try {
-            await ensureValidToken(account)
-          } catch (err: any) {
-            const message = err?.message || ''
-            const urlMatch = message.match(/Visit:\s*(https?:\/\/\S+)/)
-            const codeMatch = message.match(/Enter code:\s*(\S+)/)
-            if (urlMatch && codeMatch) {
-              hasOAuthPending = true
-              await sendMessage(relayBaseUrl, sessionId, {
-                type: 'oauth_device_code',
-                text: `Sign in to Microsoft for ${account.email}`,
-                data: { url: urlMatch[1], code: codeMatch[1], email: account.email }
-              }).catch(() => {})
-              console.info(`OAuth device code sent to relay page for ${account.email}`)
+      await Promise.all(
+        accounts.map(async (account) => {
+          if (isOutlookDomain(account.email) && !account.oauth2) {
+            try {
+              await ensureValidToken(account)
+            } catch (err: any) {
+              const message = err?.message || ''
+              const urlMatch = message.match(/Visit:\s*(https?:\/\/\S+)/)
+              const codeMatch = message.match(/Enter code:\s*(\S+)/)
+              if (urlMatch && codeMatch) {
+                hasOAuthPending = true
+                await sendMessage(relayBaseUrl, sessionId, {
+                  type: 'oauth_device_code',
+                  text: `Sign in to Microsoft for ${account.email}`,
+                  data: { url: urlMatch[1], code: codeMatch[1], email: account.email }
+                }).catch(() => {})
+                console.info(`OAuth device code sent to relay page for ${account.email}`)
+              }
             }
           }
-        }
-      }
+        })
+      )
 
       // Wait for OAuth to complete if needed
       if (hasOAuthPending) {
