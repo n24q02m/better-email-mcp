@@ -31,72 +31,14 @@ mcp-name: io.github.n24q02m/better-email-mcp
 - **Thread-aware** -- reply/forward maintains In-Reply-To and References headers
 - **Tiered token optimization** -- compressed descriptions + on-demand `help` tool + MCP Resources
 
-## Quick Start
+## Setup
 
-### Claude Code Plugin (Recommended)
+**With AI Agent** -- copy and send this to your AI agent:
 
-Via marketplace (includes skills: /inbox-review, /follow-up):
+> Please set up @n24q02m/better-email-mcp for me. Follow this guide:
+> https://raw.githubusercontent.com/n24q02m/better-email-mcp/main/docs/setup-with-agent.md
 
-```bash
-/plugin marketplace add n24q02m/claude-plugins
-/plugin install better-email-mcp@n24q02m-plugins
-```
-
-
-
-Set credentials in `~/.claude/settings.local.json` or shell profile. See [Prerequisites](#mcp-server).
-
-### Codex CLI
-
-Add to `~/.codex/config.toml`:
-
-```toml
-[mcp_servers.better-email-mcp]
-command = "npx"
-args = ["-y", "@n24q02m/better-email-mcp"]
-```
-
-### MCP Server
-
-**Prerequisites:** Create App Passwords (NOT your regular password):
-- **Gmail**: Enable 2FA, then <https://myaccount.google.com/apppasswords>
-- **Yahoo**: Enable 2FA, then <https://login.yahoo.com/account/security/app-passwords>
-- **iCloud**: <https://appleid.apple.com> > Sign-In and Security > App-Specific Passwords
-- **Outlook/Hotmail/Live**: OAuth2 built-in (server guides you on first use)
-
-#### Option 1: npx
-
-```jsonc
-{
-  "mcpServers": {
-    "better-email": {
-      "command": "npx",
-      "args": ["-y", "@n24q02m/better-email-mcp@latest"]
-    }
-  }
-}
-```
-
-Other runners: `bun x`, `pnpm dlx`, `yarn dlx` also work.
-
-#### Option 2: Docker
-
-```jsonc
-{
-  "mcpServers": {
-    "better-email": {
-      "command": "docker",
-      "args": [
-        "run", "-i", "--rm",
-        "-e", "EMAIL_CREDENTIALS",
-        "n24q02m/better-email-mcp:latest"
-      ]
-    }
-  }
-}
-```
-
-Configure `EMAIL_CREDENTIALS` in `~/.claude/settings.local.json` or your shell profile. See [Environment Variables](#environment-variables) below.
+**Manual Setup** -- follow [docs/setup-manual.md](docs/setup-manual.md)
 
 ## Tools
 
