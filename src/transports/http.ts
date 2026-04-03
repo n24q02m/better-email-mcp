@@ -15,12 +15,12 @@
  */
 
 import { randomBytes, randomUUID } from 'node:crypto'
-import { createSession, pollForResult, sendMessage } from '@n24q02m/mcp-relay-core/relay'
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js'
 import { mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
+import { createSession, pollForResult, sendMessage } from '@n24q02m/mcp-relay-core/relay'
 import express from 'express'
 import rateLimit from 'express-rate-limit'
 import { ImapFlow } from 'imapflow'
@@ -113,9 +113,10 @@ export async function startHttp(): Promise<void> {
   const DEFAULT_RELAY_URL = 'https://better-email-mcp.n24q02m.com'
   // Relay URL: use PUBLIC_URL in production (Caddy proxies /api/sessions to relay server),
   // fall back to DEFAULT_RELAY_URL for local dev
-  const relayBaseUrl = config.publicUrl.startsWith('http://127.0.0.1') || config.publicUrl.startsWith('http://localhost')
-    ? DEFAULT_RELAY_URL
-    : config.publicUrl
+  const relayBaseUrl =
+    config.publicUrl.startsWith('http://127.0.0.1') || config.publicUrl.startsWith('http://localhost')
+      ? DEFAULT_RELAY_URL
+      : config.publicUrl
 
   const { provider, pendingAuths, authCodes, userAccounts, resolveAccounts } = createEmailAuthProvider({
     dcrSecret: config.dcrSecret,
@@ -169,6 +170,7 @@ export async function startHttp(): Promise<void> {
 
   // OAuth endpoints (/.well-known/*, /authorize, /token, /register)
   app.use(
+    authRateLimit,
     mcpAuthRouter({
       provider,
       issuerUrl: serverUrl,
@@ -313,19 +315,7 @@ export async function startHttp(): Promise<void> {
 
     // Existing session -- verify the authenticated user owns this session
     if (sessionId && transports.has(sessionId)) {
-      const authInfo = (req as any).auth
-      const ownerUserId = sessionOwners.get(sessionId)
-      if (ownerUserId) {
-        const currentUserId = authInfo?.extra?.userId
-        if (currentUserId !== ownerUserId) {
-          res.status(403).json({
-            jsonrpc: '2.0',
-            error: { code: -32000, message: 'Session belongs to a different user' },
-            id: null
-          })
-          return
-        }
-      }
+      if (!verifySessionOwner(req, res, sessionId, true)) return
       await transports.get(sessionId)!.handleRequest(req, res, req.body)
       return
     }
@@ -374,14 +364,27 @@ export async function startHttp(): Promise<void> {
     })
   })
 
-  // Verify session ownership for GET/DELETE endpoints
-  function verifySessionOwner(req: express.Request, res: express.Response, sessionId: string): boolean {
+  // Verify session ownership for GET/POST/DELETE endpoints
+  function verifySessionOwner(
+    req: express.Request,
+    res: express.Response,
+    sessionId: string,
+    useJsonRpc: boolean = false
+  ): boolean {
     const authInfo = (req as any).auth
     const ownerUserId = sessionOwners.get(sessionId)
     if (ownerUserId) {
       const currentUserId = authInfo?.extra?.userId
       if (currentUserId !== ownerUserId) {
-        res.status(403).json({ error: 'Session belongs to a different user' })
+        if (useJsonRpc) {
+          res.status(403).json({
+            jsonrpc: '2.0',
+            error: { code: -32000, message: 'Session belongs to a different user' },
+            id: null
+          })
+        } else {
+          res.status(403).json({ error: 'Session belongs to a different user' })
+        }
         return false
       }
     }
