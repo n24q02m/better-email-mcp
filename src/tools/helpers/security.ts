@@ -25,7 +25,7 @@ export function isSafeUrl(url: string): boolean {
     const parsed = new URL(url)
     return ['http:', 'https:', 'mailto:', 'tel:'].includes(parsed.protocol)
   } catch {
-    return false
+    return false // Security: Always return false on parse error to avoid insecure fallback bypasses
   }
 }
 
