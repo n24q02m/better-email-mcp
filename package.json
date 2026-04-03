@@ -17,8 +17,7 @@
 		"copilot",
 		"antigravity",
 		"codex",
-		"opencode",
-		"gemini-cli"
+		"opencode"
 	],
 	"version": "1.18.0-beta.1",
 	"license": "MIT",

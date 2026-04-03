@@ -46,12 +46,6 @@ Via marketplace (includes skills: /inbox-review, /follow-up):
 
 Set credentials in `~/.claude/settings.local.json` or shell profile. See [Prerequisites](#mcp-server).
 
-### Gemini CLI Extension
-
-```bash
-gemini extensions install https://github.com/n24q02m/better-email-mcp
-```
-
 ### Codex CLI
 
 Add to `~/.codex/config.toml`:
