@@ -68,176 +68,228 @@ interface StoredToken {
 }
 
 /**
- * Create the Email auth provider for multi-user HTTP mode.
- *
- * Returns the provider + internal maps needed by the HTTP transport
- * to handle credential submission and token resolution.
+ * Generic helper to clean up expired entries in a Map.
  */
-export function createEmailAuthProvider(config: EmailAuthConfig) {
-  const clientStore = new StatelessClientStore(config.dcrSecret)
+function cleanupMap<K, V>(map: Map<K, V>, shouldDelete: (val: V) => boolean) {
+  for (const [key, val] of map) {
+    if (shouldDelete(val)) {
+      map.delete(key)
+    }
+  }
+}
+
+/**
+ * Internal implementation of the Email auth provider.
+ */
+class EmailAuthProviderImpl {
+  readonly clientStore: StatelessClientStore
 
   // Temporary stores for the auth relay flow
-  const pendingAuths = new Map<string, PendingAuth>()
-  const authCodes = new Map<string, StoredAuthCode>()
+  readonly pendingAuths = new Map<string, PendingAuth>()
+  readonly authCodes = new Map<string, StoredAuthCode>()
 
   // Bearer token -> userId mapping
-  const bearerTokens = new Map<string, StoredToken>()
+  readonly bearerTokens = new Map<string, StoredToken>()
   // Bound external tokens (e.g., Claude Code's sk-ant-*) -> userId
-  const boundTokens = new Map<string, StoredToken>()
+  readonly boundTokens = new Map<string, StoredToken>()
   // Per-user account configs (userId -> AccountConfig[])
-  const userAccounts = new Map<string, AccountConfig[]>()
+  readonly userAccounts = new Map<string, AccountConfig[]>()
   // Verification cache
-  const verifyCache = new Map<string, { expiresAt: number; userId: string }>()
+  readonly verifyCache = new Map<string, { expiresAt: number; userId: string }>()
   // Pending bind slots (one-shot, IP-scoped)
-  const pendingBinds = new Map<string, { token: StoredToken; expiresAt: number; sourceIp?: string }>()
+  readonly pendingBinds = new Map<string, { token: StoredToken; expiresAt: number; sourceIp?: string }>()
+
+  readonly cleanupInterval: any
+
+  private cleanup() {
+    const now = Date.now()
+    cleanupMap(this.pendingAuths, (val) => now - val.createdAt > PENDING_AUTH_TTL)
+    cleanupMap(this.authCodes, (val) => now - val.createdAt > AUTH_CODE_TTL)
+    cleanupMap(this.bearerTokens, (val) => now - val.createdAt > BEARER_TOKEN_TTL)
+    cleanupMap(this.boundTokens, (val) => now - val.createdAt > BEARER_TOKEN_TTL)
+    cleanupMap(this.pendingBinds, (val) => now > val.expiresAt)
+    cleanupMap(this.verifyCache, (val) => now > val.expiresAt)
+  }
 
   /** Resolve a bearer token to a userId */
-  function resolveUserId(bearerToken: string): string | undefined {
+  resolveUserId(bearerToken: string): string | undefined {
     // 1. Direct lookup by our opaque access token
-    const byToken = bearerTokens.get(bearerToken)
+    const byToken = this.bearerTokens.get(bearerToken)
     if (byToken) return byToken.userId
 
     // 2. Previously bound external token
-    const bound = boundTokens.get(bearerToken)
+    const bound = this.boundTokens.get(bearerToken)
     if (bound) return bound.userId
 
     // 3. One-shot pending bind (IP-scoped)
     const now = Date.now()
     const claimIp = requestContext.getStore()?.ip
-    for (const [clientId, pending] of pendingBinds) {
+    for (const [clientId, pending] of this.pendingBinds) {
       if (now > pending.expiresAt) {
-        pendingBinds.delete(clientId)
+        this.pendingBinds.delete(clientId)
         continue
       }
       if (!pending.sourceIp || !claimIp || pending.sourceIp !== claimIp) {
         continue
       }
-      pendingBinds.delete(clientId)
-      boundTokens.set(bearerToken, pending.token)
+      this.pendingBinds.delete(clientId)
+      this.boundTokens.set(bearerToken, pending.token)
       return pending.token.userId
     }
     return undefined
   }
 
   /** Resolve a bearer token to per-user AccountConfig[] */
-  function resolveAccounts(bearerToken: string): AccountConfig[] | undefined {
-    const userId = resolveUserId(bearerToken)
+  resolveAccounts(bearerToken: string): AccountConfig[] | undefined {
+    const userId = this.resolveUserId(bearerToken)
     if (!userId) return undefined
-    return userAccounts.get(userId)
+    return this.userAccounts.get(userId)
   }
 
-  const provider: OAuthServerProvider = {
-    get clientsStore(): OAuthRegisteredClientsStore {
-      return clientStore
-    },
+  readonly provider: OAuthServerProvider
 
-    authorize: async (
-      client: OAuthClientInformationFull,
-      params: AuthorizationParams,
-      res: Response
-    ): Promise<void> => {
-      const ourState = randomBytes(32).toString('hex')
+  constructor(private readonly config: EmailAuthConfig) {
+    this.clientStore = new StatelessClientStore(config.dcrSecret)
 
-      const pending: PendingAuth = {
-        clientId: client.client_id,
-        clientRedirectUri: params.redirectUri,
-        clientState: params.state,
-        codeChallenge: params.codeChallenge,
-        codeChallengeMethod: 'S256',
-        scopes: params.scopes,
-        createdAt: Date.now()
-      }
+    // Capture `this` to avoid scope issues in the provider object literal
+    const self = this
 
-      // Use mcp-relay-core relay page — no fallback to built-in form
-      if (!config.createRelaySession) {
-        res.status(500).json({ error: 'server_error', error_description: 'Relay session creator not configured' })
-        return
-      }
+    this.provider = {
+      get clientsStore(): OAuthRegisteredClientsStore {
+        return self.clientStore
+      },
 
-      const { relayUrl, session } = await config.createRelaySession()
-      pending.relaySession = session
-      pendingAuths.set(ourState, pending)
-      res.redirect(relayUrl)
-    },
+      authorize: async (
+        client: OAuthClientInformationFull,
+        params: AuthorizationParams,
+        res: Response
+      ): Promise<void> => {
+        const ourState = randomBytes(32).toString('hex')
 
-    challengeForAuthorizationCode: async (
-      _client: OAuthClientInformationFull,
-      authorizationCode: string
-    ): Promise<string> => {
-      const stored = authCodes.get(authorizationCode)
-      if (!stored) {
-        throw new InvalidTokenError('Invalid or expired authorization code')
-      }
-      return stored.codeChallenge ?? ''
-    },
-
-    exchangeAuthorizationCode: async (
-      client: OAuthClientInformationFull,
-      authorizationCode: string,
-      codeVerifier?: string
-    ): Promise<OAuthTokens> => {
-      const stored = authCodes.get(authorizationCode)
-      if (!stored) {
-        throw new InvalidTokenError('Invalid or expired authorization code')
-      }
-
-      // Verify client binding
-      if (stored.clientId && stored.clientId !== client.client_id) {
-        throw new InvalidTokenError('Auth code was not issued to this client')
-      }
-
-      // Verify PKCE S256 (only when SDK passes codeVerifier — SDK validates locally by default)
-      if (codeVerifier && stored.codeChallenge && stored.codeChallengeMethod === 'S256') {
-        const expectedChallenge = createHash('sha256').update(codeVerifier).digest('base64url')
-
-        const expectedBuffer = Buffer.from(expectedChallenge, 'utf8')
-        const storedBuffer = Buffer.from(stored.codeChallenge, 'utf8')
-
-        if (expectedBuffer.byteLength !== storedBuffer.byteLength || !timingSafeEqual(expectedBuffer, storedBuffer)) {
-          throw new InvalidTokenError('code_verifier does not match the challenge')
+        const pending: PendingAuth = {
+          clientId: client.client_id,
+          clientRedirectUri: params.redirectUri,
+          clientState: params.state,
+          codeChallenge: params.codeChallenge,
+          codeChallengeMethod: 'S256',
+          scopes: params.scopes,
+          createdAt: Date.now()
         }
-      }
 
-      authCodes.delete(authorizationCode)
+        // Use mcp-relay-core relay page — no fallback to built-in form
+        if (!self.config.createRelaySession) {
+          res.status(500).json({ error: 'server_error', error_description: 'Relay session creator not configured' })
+          return
+        }
 
-      // Issue opaque access token
-      const opaqueToken = randomBytes(48).toString('hex')
-      const entry: StoredToken = {
-        userId: stored.userId,
-        createdAt: Date.now()
-      }
+        const { relayUrl, session } = await self.config.createRelaySession()
+        pending.relaySession = session
+        self.pendingAuths.set(ourState, pending)
+        res.redirect(relayUrl)
+      },
 
-      bearerTokens.set(opaqueToken, entry)
+      challengeForAuthorizationCode: async (
+        _client: OAuthClientInformationFull,
+        authorizationCode: string
+      ): Promise<string> => {
+        const stored = self.authCodes.get(authorizationCode)
+        if (!stored) {
+          throw new InvalidTokenError('Invalid or expired authorization code')
+        }
+        return stored.codeChallenge ?? ''
+      },
 
-      // Create one-shot pending bind for clients using their own identity tokens
-      pendingBinds.set(client.client_id, {
-        token: entry,
-        expiresAt: Date.now() + PENDING_BIND_TTL,
-        sourceIp: requestContext.getStore()?.ip
-      })
+      exchangeAuthorizationCode: async (
+        client: OAuthClientInformationFull,
+        authorizationCode: string,
+        codeVerifier?: string
+      ): Promise<OAuthTokens> => {
+        const stored = self.authCodes.get(authorizationCode)
+        if (!stored) {
+          throw new InvalidTokenError('Invalid or expired authorization code')
+        }
 
-      return {
-        access_token: opaqueToken,
-        token_type: 'bearer',
-        expires_in: 86400
-      }
-    },
+        // Verify client binding
+        if (stored.clientId && stored.clientId !== client.client_id) {
+          throw new InvalidTokenError('Auth code was not issued to this client')
+        }
 
-    exchangeRefreshToken: async (_client: OAuthClientInformationFull, _refreshToken: string): Promise<OAuthTokens> => {
-      // Email credentials don't expire like OAuth tokens.
-      // Refresh is not applicable -- clients should re-authenticate.
-      throw new InvalidTokenError('Refresh not supported. Please re-authenticate.')
-    },
+        // Verify PKCE S256 (only when SDK passes codeVerifier — SDK validates locally by default)
+        if (codeVerifier && stored.codeChallenge && stored.codeChallengeMethod === 'S256') {
+          const expectedChallenge = createHash('sha256').update(codeVerifier).digest('base64url')
 
-    verifyAccessToken: async (token: string) => {
-      const userId = resolveUserId(token)
-      if (!userId) {
-        throw new InvalidTokenError('No email credentials found. Please authenticate.')
-      }
+          const expectedBuffer = Buffer.from(expectedChallenge, 'utf8')
+          const storedBuffer = Buffer.from(stored.codeChallenge, 'utf8')
 
-      // Check verification cache
-      const cached = verifyCache.get(userId)
-      if (cached && Date.now() < cached.expiresAt) {
+          if (expectedBuffer.byteLength !== storedBuffer.byteLength || !timingSafeEqual(expectedBuffer, storedBuffer)) {
+            throw new InvalidTokenError('code_verifier does not match the challenge')
+          }
+        }
+
+        self.authCodes.delete(authorizationCode)
+
+        // Issue opaque access token
+        const opaqueToken = randomBytes(48).toString('hex')
+        const entry: StoredToken = {
+          userId: stored.userId,
+          createdAt: Date.now()
+        }
+
+        self.bearerTokens.set(opaqueToken, entry)
+
+        // Create one-shot pending bind for clients using their own identity tokens
+        self.pendingBinds.set(client.client_id, {
+          token: entry,
+          expiresAt: Date.now() + PENDING_BIND_TTL,
+          sourceIp: requestContext.getStore()?.ip
+        })
+
+        return {
+          access_token: opaqueToken,
+          token_type: 'bearer',
+          expires_in: 86400
+        }
+      },
+
+      exchangeRefreshToken: async (
+        _client: OAuthClientInformationFull,
+        _refreshToken: string
+      ): Promise<OAuthTokens> => {
+        // Email credentials don't expire like OAuth tokens.
+        // Refresh is not applicable -- clients should re-authenticate.
+        throw new InvalidTokenError('Refresh not supported. Please re-authenticate.')
+      },
+
+      verifyAccessToken: async (token: string) => {
+        const userId = self.resolveUserId(token)
+        if (!userId) {
+          throw new InvalidTokenError('No email credentials found. Please authenticate.')
+        }
+
+        // Check verification cache
+        const cached = self.verifyCache.get(userId)
+        if (cached && Date.now() < cached.expiresAt) {
+          return {
+            token,
+            clientId: 'email-mcp',
+            scopes: ['email:read', 'email:write'],
+            expiresAt: Math.floor(Date.now() / 1000) + 3600,
+            extra: { userId }
+          }
+        }
+
+        // Verify user has accounts configured
+        const accounts = self.userAccounts.get(userId)
+        if (!accounts || accounts.length === 0) {
+          throw new InvalidTokenError('No email accounts found for this user')
+        }
+
+        // Cache the verification result
+        self.verifyCache.set(userId, {
+          expiresAt: Date.now() + VERIFY_CACHE_TTL,
+          userId
+        })
+
         return {
           token,
           clientId: 'email-mcp',
@@ -246,62 +298,32 @@ export function createEmailAuthProvider(config: EmailAuthConfig) {
           extra: { userId }
         }
       }
-
-      // Verify user has accounts configured
-      const accounts = userAccounts.get(userId)
-      if (!accounts || accounts.length === 0) {
-        throw new InvalidTokenError('No email accounts found for this user')
-      }
-
-      // Cache the verification result
-      verifyCache.set(userId, {
-        expiresAt: Date.now() + VERIFY_CACHE_TTL,
-        userId
-      })
-
-      return {
-        token,
-        clientId: 'email-mcp',
-        scopes: ['email:read', 'email:write'],
-        expiresAt: Math.floor(Date.now() / 1000) + 3600,
-        extra: { userId }
-      }
     }
+
+    // Cleanup expired entries periodically
+    this.cleanupInterval = setInterval(() => this.cleanup(), 60_000)
   }
+}
 
-  // Cleanup expired entries periodically
-  const cleanupInterval = setInterval(() => {
-    const now = Date.now()
-    for (const [key, val] of pendingAuths) {
-      if (now - val.createdAt > PENDING_AUTH_TTL) pendingAuths.delete(key)
-    }
-    for (const [key, val] of authCodes) {
-      if (now - val.createdAt > AUTH_CODE_TTL) authCodes.delete(key)
-    }
-    for (const [key, val] of bearerTokens) {
-      if (now - val.createdAt > BEARER_TOKEN_TTL) bearerTokens.delete(key)
-    }
-    for (const [key, val] of pendingBinds) {
-      if (now > val.expiresAt) pendingBinds.delete(key)
-    }
-    for (const [key, val] of boundTokens) {
-      if (now - val.createdAt > BEARER_TOKEN_TTL) boundTokens.delete(key)
-    }
-    for (const [key, val] of verifyCache) {
-      if (now > val.expiresAt) verifyCache.delete(key)
-    }
-  }, 60_000)
+/**
+ * Create the Email auth provider for multi-user HTTP mode.
+ *
+ * Returns the provider + internal maps needed by the HTTP transport
+ * to handle credential submission and token resolution.
+ */
+export function createEmailAuthProvider(config: EmailAuthConfig) {
+  const impl = new EmailAuthProviderImpl(config)
 
   return {
-    provider,
-    clientStore,
-    pendingAuths,
-    authCodes,
-    bearerTokens,
-    boundTokens,
-    userAccounts,
-    resolveAccounts,
-    resolveUserId,
-    cleanupInterval
+    provider: impl.provider,
+    clientStore: impl.clientStore,
+    pendingAuths: impl.pendingAuths,
+    authCodes: impl.authCodes,
+    bearerTokens: impl.bearerTokens,
+    boundTokens: impl.boundTokens,
+    userAccounts: impl.userAccounts,
+    resolveAccounts: (token: string) => impl.resolveAccounts(token),
+    resolveUserId: (token: string) => impl.resolveUserId(token),
+    cleanupInterval: impl.cleanupInterval
   }
 }
