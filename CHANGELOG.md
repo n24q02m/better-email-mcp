@@ -2,6 +2,54 @@
 
 <!-- version list -->
 
+## v1.18.0-beta.1 (2026-04-03)
+
+### Bug Fixes
+
+- Support compound IMAP search queries
+  ([#299](https://github.com/n24q02m/better-email-mcp/pull/299),
+  [`31954c4`](https://github.com/n24q02m/better-email-mcp/commit/31954c4972a21a7f3917b400bd4272ced36dc4b0))
+
+- **deps**: Update non-major dependencies
+  ([#270](https://github.com/n24q02m/better-email-mcp/pull/270),
+  [`8a4094d`](https://github.com/n24q02m/better-email-mcp/commit/8a4094d5c5f42de79050b8c1e1e1973d44ea57ee))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#258](https://github.com/n24q02m/better-email-mcp/pull/258),
+  [`78fd570`](https://github.com/n24q02m/better-email-mcp/commit/78fd570501933eded69fd131c4663f3672bc316f))
+
+- **deps**: Update qodo-ai/pr-agent digest to d82f7d3
+  ([#269](https://github.com/n24q02m/better-email-mcp/pull/269),
+  [`58c9f59`](https://github.com/n24q02m/better-email-mcp/commit/58c9f59e82437e96dea79976b992ecf97c0bd6ff))
+
+### Features
+
+- Replace inline HTML relay with mcp-relay-core in HTTP mode
+  ([#301](https://github.com/n24q02m/better-email-mcp/pull/301),
+  [`332e31e`](https://github.com/n24q02m/better-email-mcp/commit/332e31e3a240e339c78e9923b42ee936825cb63f))
+
+### Performance Improvements
+
+- Extract regular expressions to module-scoped constants in messages.ts
+  ([#268](https://github.com/n24q02m/better-email-mcp/pull/268),
+  [`aa702f3`](https://github.com/n24q02m/better-email-mcp/commit/aa702f3e0aae0055283eecdb16e139ee7c069d91))
+
+- Optimize user credentials loading with concurrent async I/O
+  ([#278](https://github.com/n24q02m/better-email-mcp/pull/278),
+  [`bb268f6`](https://github.com/n24q02m/better-email-mcp/commit/bb268f656a8e03b0d802f5cd40ab23a200dc6fd6))
+
+- Parallelize OAuth token validation in relay setup
+  ([#279](https://github.com/n24q02m/better-email-mcp/pull/279),
+  [`dd233bf`](https://github.com/n24q02m/better-email-mcp/commit/dd233bf5619dd29e38c4d75a844b8136fe4b4f30))
+
+### Testing
+
+- Add error test for CallToolRequestSchema handler
+  ([#281](https://github.com/n24q02m/better-email-mcp/pull/281),
+  [`c56c367`](https://github.com/n24q02m/better-email-mcp/commit/c56c3679b1c2262fafaed84ce9f97642b7735538))
+
+
 ## v1.17.0 (2026-03-31)
 
 ### Bug Fixes
