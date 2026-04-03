@@ -148,31 +148,33 @@ export async function ensureConfig(): Promise<string | null> {
   let hasOAuthPending = false
   try {
     const accounts = await parseCredentials(credentials)
-    for (const account of accounts) {
-      if (isOutlookDomain(account.email) && !account.oauth2) {
-        try {
-          await ensureValidToken(account)
-        } catch (err: any) {
-          // ensureValidToken throws with device code info — extract and send via relay
-          const message = err?.message || ''
-          const urlMatch = message.match(/Visit:\s*(https?:\/\/\S+)/)
-          const codeMatch = message.match(/Enter code:\s*(\S+)/)
-          if (urlMatch && codeMatch) {
-            hasOAuthPending = true
-            await fetch(`${relayUrl}/api/sessions/${session.sessionId}/messages`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                type: 'oauth_device_code',
-                text: `Sign in to Microsoft for ${account.email}`,
-                data: { url: urlMatch[1], code: codeMatch[1], email: account.email }
-              })
-            })
-            console.error(`OAuth device code sent to relay page for ${account.email}`)
+    await Promise.all(
+      accounts.map(async (account) => {
+        if (isOutlookDomain(account.email) && !account.oauth2) {
+          try {
+            await ensureValidToken(account)
+          } catch (err: any) {
+            // ensureValidToken throws with device code info — extract and send via relay
+            const message = err?.message || ''
+            const urlMatch = message.match(/Visit:\s*(https?:\/\/\S+)/)
+            const codeMatch = message.match(/Enter code:\s*(\S+)/)
+            if (urlMatch && codeMatch) {
+              hasOAuthPending = true
+              await fetch(`${relayUrl}/api/sessions/${session.sessionId}/messages`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'oauth_device_code',
+                  text: `Sign in to Microsoft for ${account.email}`,
+                  data: { url: urlMatch[1], code: codeMatch[1], email: account.email }
+                })
+              }).catch(() => {}) // Best effort
+              console.error(`OAuth device code sent to relay page for ${account.email}`)
+            }
           }
         }
-      }
-    }
+      })
+    )
 
     if (!hasOAuthPending) {
       // No OAuth needed — all accounts ready
