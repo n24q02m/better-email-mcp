@@ -20,9 +20,11 @@ import { mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
+import type { Request, RequestHandler, Response } from 'express'
 import express from 'express'
 import rateLimit from 'express-rate-limit'
 import { ImapFlow } from 'imapflow'
+import type { PendingAuth, StoredAuthCode } from '../auth/email-auth-provider.js'
 import { createEmailAuthProvider, requestContext } from '../auth/email-auth-provider.js'
 import { loadAllUserCredentials, storeUserCredentials } from '../auth/per-user-credential-store.js'
 import type { AccountConfig } from '../tools/helpers/config.js'
@@ -34,6 +36,99 @@ interface HttpConfig {
   publicUrl: string
   dcrSecret: string
 }
+
+const RELAY_PAGE_TEMPLATE = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Email MCP - Sign In</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f5; min-height: 100vh;
+           display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .card { background: white; border-radius: 12px; padding: 2rem; max-width: 480px; width: 100%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    h1 { font-size: 1.25rem; margin-bottom: 0.5rem; }
+    p { color: #666; font-size: 0.875rem; margin-bottom: 1.5rem; }
+    label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.25rem; }
+    input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #ddd; border-radius: 6px;
+            font-size: 0.875rem; margin-bottom: 1rem; }
+    input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }
+    button { width: 100%; padding: 0.625rem; background: #2563eb; color: white; border: none;
+             border-radius: 6px; font-size: 0.875rem; font-weight: 500; cursor: pointer; }
+    button:hover { background: #1d4ed8; }
+    button:disabled { background: #93c5fd; cursor: not-allowed; }
+    .error { color: #dc2626; font-size: 0.8rem; margin-bottom: 1rem; display: none; }
+    .help { color: #666; font-size: 0.75rem; margin-top: -0.5rem; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Email MCP Server</h1>
+    <p>Enter your email credentials to connect. Use an App Password for Gmail/Yahoo/iCloud.</p>
+    <div class="error" id="error"></div>
+    <form id="form">
+      <label for="credentials">Email Credentials</label>
+      <input type="text" id="credentials" name="credentials" required
+             placeholder="user@gmail.com:app-password" autocomplete="off">
+      <div class="help">Format: email:password. Multiple: email1:pass1,email2:pass2</div>
+      <button type="submit" id="submit">Connect</button>
+    </form>
+  </div>
+  <script>
+    const form = document.getElementById("form");
+    const btn = document.getElementById("submit");
+    const errEl = document.getElementById("error");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      btn.disabled = true;
+      btn.textContent = "Validating...";
+      errEl.style.display = "none";
+      try {
+        const res = await fetch("/auth/credentials", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            state: {{STATE}},
+            credentials: document.getElementById("credentials").value
+          })
+        });
+        const data = await res.json();
+        if (data.redirect) {
+          window.location.href = data.redirect;
+        } else {
+          errEl.textContent = data.error_description || data.error || "Unknown error";
+          errEl.style.display = "block";
+          btn.disabled = false;
+          btn.textContent = "Connect";
+        }
+      } catch (err) {
+        errEl.textContent = "Network error. Please try again.";
+        errEl.style.display = "block";
+        btn.disabled = false;
+        btn.textContent = "Connect";
+      }
+    });
+  </script>
+</body>
+</html>`
+
+// Rate limit MCP endpoints per IP
+const mcpRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false
+})
+
+// Rate limit auth endpoints per IP to prevent abuse/brute-force
+const authRateLimit = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false
+})
 
 function loadConfig(): HttpConfig {
   const required = ['PUBLIC_URL', 'DCR_SERVER_SECRET'] as const
@@ -102,67 +197,15 @@ async function testImapConnection(account: AccountConfig): Promise<boolean> {
   }
 }
 
-export async function startHttp(): Promise<void> {
-  const config = loadConfig()
-  const serverUrl = new URL(config.publicUrl)
-
-  const { provider, pendingAuths, authCodes, userAccounts, resolveAccounts } = createEmailAuthProvider({
-    dcrSecret: config.dcrSecret,
-    publicUrl: config.publicUrl
-  })
-
-  // Restore persisted per-user credentials on startup
-  try {
-    const stored = await loadAllUserCredentials()
-    for (const [userId, accounts] of stored) {
-      userAccounts.set(userId, accounts)
-    }
-    if (stored.size > 0) {
-      console.info(`Restored ${stored.size} user credential set(s) from disk`)
-    }
-  } catch (err) {
-    console.error('Failed to restore user credentials:', err)
-  }
-
-  const app = express()
-
-  // Trust exactly 2 reverse proxies (Cloudflare + Caddy) for correct req.ip
-  app.set('trust proxy', 2)
-  app.disable('x-powered-by')
-
-  // Rate limit MCP endpoints per IP
-  const mcpRateLimit = rateLimit({
-    windowMs: 60 * 1000,
-    limit: 120,
-    standardHeaders: 'draft-7',
-    legacyHeaders: false
-  })
-
-  // Rate limit auth endpoints per IP to prevent abuse/brute-force
-  const authRateLimit = rateLimit({
-    windowMs: 60 * 1000,
-    limit: 20,
-    standardHeaders: 'draft-7',
-    legacyHeaders: false
-  })
-
-  // Propagate request IP via AsyncLocalStorage for IP-scoped pending binds
-  app.use((req, _res, next) => {
-    const ip = req.ip || req.socket.remoteAddress || undefined
-    requestContext.run({ ip }, next)
-  })
-
-  // OAuth endpoints (/.well-known/*, /authorize, /token, /register)
-  app.use(
-    mcpAuthRouter({
-      provider,
-      issuerUrl: serverUrl,
-      serviceDocumentationUrl: new URL('https://github.com/n24q02m/better-email-mcp'),
-      scopesSupported: ['email:read', 'email:write'],
-      resourceName: 'Better Email MCP Server'
-    })
-  )
-
+/**
+ * Register auth relay routes for credential submission.
+ */
+function registerAuthRelayRoutes(
+  app: express.Express,
+  pendingAuths: Map<string, PendingAuth>,
+  authCodes: Map<string, StoredAuthCode>,
+  userAccounts: Map<string, AccountConfig[]>
+): void {
   // Relay credential entry page -- simple HTML form for email credentials
   app.get('/auth/relay', authRateLimit, (req, res) => {
     const state = req.query.state as string
@@ -171,88 +214,15 @@ export async function startHttp(): Promise<void> {
       return
     }
 
+    // Prevent XSS via script tags in serialized state
+    const safeState = JSON.stringify(state).replace(/</g, '\\u003c')
     // Serve a simple credential entry form
-    res.type('html').send(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Email MCP - Sign In</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f5; min-height: 100vh;
-           display: flex; align-items: center; justify-content: center; padding: 1rem; }
-    .card { background: white; border-radius: 12px; padding: 2rem; max-width: 480px; width: 100%;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    h1 { font-size: 1.25rem; margin-bottom: 0.5rem; }
-    p { color: #666; font-size: 0.875rem; margin-bottom: 1.5rem; }
-    label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.25rem; }
-    input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #ddd; border-radius: 6px;
-            font-size: 0.875rem; margin-bottom: 1rem; }
-    input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }
-    button { width: 100%; padding: 0.625rem; background: #2563eb; color: white; border: none;
-             border-radius: 6px; font-size: 0.875rem; font-weight: 500; cursor: pointer; }
-    button:hover { background: #1d4ed8; }
-    button:disabled { background: #93c5fd; cursor: not-allowed; }
-    .error { color: #dc2626; font-size: 0.8rem; margin-bottom: 1rem; display: none; }
-    .help { color: #666; font-size: 0.75rem; margin-top: -0.5rem; margin-bottom: 1rem; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>Email MCP Server</h1>
-    <p>Enter your email credentials to connect. Use an App Password for Gmail/Yahoo/iCloud.</p>
-    <div class="error" id="error"></div>
-    <form id="form">
-      <label for="credentials">Email Credentials</label>
-      <input type="text" id="credentials" name="credentials" required
-             placeholder="user@gmail.com:app-password" autocomplete="off">
-      <div class="help">Format: email:password. Multiple: email1:pass1,email2:pass2</div>
-      <button type="submit" id="submit">Connect</button>
-    </form>
-  </div>
-  <script>
-    const form = document.getElementById('form');
-    const btn = document.getElementById('submit');
-    const errEl = document.getElementById('error');
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      btn.disabled = true;
-      btn.textContent = 'Validating...';
-      errEl.style.display = 'none';
-      try {
-        const res = await fetch('/auth/credentials', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            state: ${JSON.stringify(state)},
-            credentials: document.getElementById('credentials').value
-          })
-        });
-        const data = await res.json();
-        if (data.redirect) {
-          window.location.href = data.redirect;
-        } else {
-          errEl.textContent = data.error_description || data.error || 'Unknown error';
-          errEl.style.display = 'block';
-          btn.disabled = false;
-          btn.textContent = 'Connect';
-        }
-      } catch (err) {
-        errEl.textContent = 'Network error. Please try again.';
-        errEl.style.display = 'block';
-        btn.disabled = false;
-        btn.textContent = 'Connect';
-      }
-    });
-  </script>
-</body>
-</html>`)
+    res.type('html').send(RELAY_PAGE_TEMPLATE.replace('{{STATE}}', safeState))
   })
 
   // Credential submission endpoint -- validates and issues auth code
   const jsonParser = express.json()
-  app.post('/auth/credentials', authRateLimit, jsonParser, async (req, res) => {
+  app.post('/auth/credentials', authRateLimit, jsonParser, async (req: Request, res: Response) => {
     const { state, credentials } = req.body as { state?: string; credentials?: string }
 
     if (!state || !credentials) {
@@ -335,14 +305,37 @@ export async function startHttp(): Promise<void> {
       res.status(500).json({ error: 'server_error', error_description: 'Failed to validate credentials' })
     }
   })
+}
 
-  const authMiddleware = requireBearerAuth({ verifier: provider })
+/**
+ * Register MCP routes for session management and request handling.
+ */
+function registerMcpRoutes(
+  app: express.Express,
+  authMiddleware: RequestHandler,
+  resolveAccounts: (token: string) => AccountConfig[] | undefined
+): void {
+  const jsonParser = express.json()
   const transports: Map<string, StreamableHTTPServerTransport> = new Map()
   // Session owner binding -- prevents cross-user session hijacking
   const sessionOwners: Map<string, string> = new Map() // sessionId -> userId
 
+  // Verify session ownership for GET/DELETE endpoints
+  function verifySessionOwner(req: Request, res: Response, sessionId: string): boolean {
+    const authInfo = (req as any).auth
+    const ownerUserId = sessionOwners.get(sessionId)
+    if (ownerUserId) {
+      const currentUserId = authInfo?.extra?.userId
+      if (currentUserId !== ownerUserId) {
+        res.status(403).json({ error: 'Session belongs to a different user' })
+        return false
+      }
+    }
+    return true
+  }
+
   // MCP endpoint -- POST (new session or existing)
-  app.post('/mcp', mcpRateLimit, jsonParser, authMiddleware, async (req, res) => {
+  app.post('/mcp', mcpRateLimit, jsonParser, authMiddleware, async (req: Request, res: Response) => {
     const sessionId = req.headers['mcp-session-id'] as string | undefined
 
     // Existing session -- verify the authenticated user owns this session
@@ -408,22 +401,8 @@ export async function startHttp(): Promise<void> {
     })
   })
 
-  // Verify session ownership for GET/DELETE endpoints
-  function verifySessionOwner(req: express.Request, res: express.Response, sessionId: string): boolean {
-    const authInfo = (req as any).auth
-    const ownerUserId = sessionOwners.get(sessionId)
-    if (ownerUserId) {
-      const currentUserId = authInfo?.extra?.userId
-      if (currentUserId !== ownerUserId) {
-        res.status(403).json({ error: 'Session belongs to a different user' })
-        return false
-      }
-    }
-    return true
-  }
-
   // MCP endpoint -- GET (SSE streaming for existing session)
-  app.get('/mcp', mcpRateLimit, authMiddleware, async (req, res) => {
+  app.get('/mcp', mcpRateLimit, authMiddleware, async (req: Request, res: Response) => {
     const sessionId = req.headers['mcp-session-id'] as string
     if (sessionId && transports.has(sessionId)) {
       if (!verifySessionOwner(req, res, sessionId)) return
@@ -434,7 +413,7 @@ export async function startHttp(): Promise<void> {
   })
 
   // MCP endpoint -- DELETE (close session)
-  app.delete('/mcp', mcpRateLimit, authMiddleware, async (req, res) => {
+  app.delete('/mcp', mcpRateLimit, authMiddleware, async (req: Request, res: Response) => {
     const sessionId = req.headers['mcp-session-id'] as string
     if (sessionId && transports.has(sessionId)) {
       if (!verifySessionOwner(req, res, sessionId)) return
@@ -443,8 +422,12 @@ export async function startHttp(): Promise<void> {
       res.status(400).json({ error: 'Invalid or missing session' })
     }
   })
+}
 
-  // Health check (no auth required)
+/**
+ * Register health check route.
+ */
+function registerHealthCheck(app: express.Express, userAccounts: Map<string, AccountConfig[]>): void {
   app.get('/health', (_req, res) => {
     res.json({
       status: 'ok',
@@ -453,6 +436,59 @@ export async function startHttp(): Promise<void> {
       timestamp: new Date().toISOString()
     })
   })
+}
+
+export async function startHttp(): Promise<void> {
+  const config = loadConfig()
+  const serverUrl = new URL(config.publicUrl)
+
+  const { provider, pendingAuths, authCodes, userAccounts, resolveAccounts } = createEmailAuthProvider({
+    dcrSecret: config.dcrSecret,
+    publicUrl: config.publicUrl
+  })
+
+  // Restore persisted per-user credentials on startup
+  try {
+    const stored = await loadAllUserCredentials()
+    for (const [userId, accounts] of stored) {
+      userAccounts.set(userId, accounts)
+    }
+    if (stored.size > 0) {
+      console.info(`Restored ${stored.size} user credential set(s) from disk`)
+    }
+  } catch (err) {
+    console.error('Failed to restore user credentials:', err)
+  }
+
+  const app = express()
+
+  // Trust exactly 2 reverse proxies (Cloudflare + Caddy) for correct req.ip
+  app.set('trust proxy', 2)
+  app.disable('x-powered-by')
+
+  // Propagate request IP via AsyncLocalStorage for IP-scoped pending binds
+  app.use((req, _res, next) => {
+    const ip = req.ip || req.socket.remoteAddress || undefined
+    requestContext.run({ ip }, next)
+  })
+
+  // OAuth endpoints (/.well-known/*, /authorize, /token, /register)
+  app.use(
+    mcpAuthRouter({
+      provider,
+      issuerUrl: serverUrl,
+      serviceDocumentationUrl: new URL('https://github.com/n24q02m/better-email-mcp'),
+      scopesSupported: ['email:read', 'email:write'],
+      resourceName: 'Better Email MCP Server'
+    })
+  )
+
+  const authMiddleware = requireBearerAuth({ verifier: provider })
+
+  // Register routes
+  registerAuthRelayRoutes(app, pendingAuths, authCodes, userAccounts)
+  registerMcpRoutes(app, authMiddleware, resolveAccounts)
+  registerHealthCheck(app, userAccounts)
 
   app.listen(config.port, '0.0.0.0', () => {
     console.info(`Email MCP HTTP server listening on port ${config.port}`)

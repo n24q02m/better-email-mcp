@@ -40,7 +40,7 @@ export interface EmailAuthConfig {
   publicUrl: string
 }
 
-interface PendingAuth {
+export interface PendingAuth {
   clientId: string
   clientRedirectUri: string
   clientState?: string
@@ -50,7 +50,7 @@ interface PendingAuth {
   createdAt: number
 }
 
-interface StoredAuthCode {
+export interface StoredAuthCode {
   userId: string
   codeChallenge?: string
   codeChallengeMethod?: string
