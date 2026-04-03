@@ -20,11 +20,11 @@
  *   E2E_SETUP=http E2E_BROWSER=chrome bun run vitest run tests/e2e.test.ts
  */
 
-import { createHash, randomBytes } from 'node:crypto'
-import { execSync } from 'node:child_process'
-import { createServer } from 'node:http'
 import type { ChildProcess } from 'node:child_process'
+import { execSync } from 'node:child_process'
+import { createHash, randomBytes } from 'node:crypto'
 import type { Server as HttpServer } from 'node:http'
+import { createServer } from 'node:http'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
@@ -34,9 +34,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 function pluginCommand(pkg: string): { command: string; args: string[] } {
   if (process.platform === 'win32') {
     const binName = pkg.split('/').pop()!
-    try { execSync(`npx -y ${pkg} --help`, { stdio: 'ignore', timeout: 30_000 }) } catch { /* install */ }
-    const npxCache = (process.env.LOCALAPPDATA ?? '') + '/npm-cache/_npx'
-    const cacheHit = execSync(`find "${npxCache}" -path "*/${binName}/bin/cli.mjs" -print -quit`, { encoding: 'utf-8' }).trim()
+    try {
+      execSync(`npx -y ${pkg} --help`, { stdio: 'ignore', timeout: 30_000 })
+    } catch {
+      /* install */
+    }
+    const npxCache = `${process.env.LOCALAPPDATA ?? ''}/npm-cache/_npx`
+    const cacheHit = execSync(`find "${npxCache}" -path "*/${binName}/bin/cli.mjs" -print -quit`, {
+      encoding: 'utf-8'
+    }).trim()
     if (cacheHit) return { command: process.execPath, args: [cacheHit] }
   }
   return { command: 'npx', args: ['-y', pkg] }
@@ -55,7 +61,7 @@ const HAS_CREDS = !!EMAIL_CREDS || E2E_SETUP === 'relay' || E2E_SETUP === 'http'
 let TEST_ACCOUNT = EMAIL_CREDS.split(',')[0]?.split(':')[0] ?? ''
 
 const EXPECTED_TOOLS = ['messages', 'folders', 'attachments', 'send', 'help'] as const
-const EMAIL_DEPENDENT_TOOLS = ['messages', 'folders', 'attachments', 'send'] as const
+const _EMAIL_DEPENDENT_TOOLS = ['messages', 'folders', 'attachments', 'send'] as const
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -111,8 +117,6 @@ function createStdioTransport(): StdioClientTransport {
         },
         stderr: 'pipe'
       })
-
-    case 'env':
     default:
       return new StdioClientTransport({
         command: 'node',
@@ -171,7 +175,9 @@ function startCallbackServer(): { server: HttpServer; codePromise: Promise<strin
       const code = url.searchParams.get('code')
       if (code) {
         res.writeHead(200, { 'Content-Type': 'text/html' })
-        res.end('<html><body><h1>Authorization successful</h1><p>You can close this tab.</p></body></html>')
+        res.end(
+          '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Authorization Successful</title><style>body{font-family:system-ui,-apple-system,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background-color:#f9fafb}main{text-align:center;padding:2rem;background:#fff;border-radius:8px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1)}h1{color:#10b981;margin-bottom:1rem;display:flex;align-items:center;justify-content:center;gap:0.5rem}p{color:#4b5563;margin:0}</style></head><body><main role="main"><h1><span aria-hidden="true">✓</span> Authorization successful</h1><p>You can securely close this tab and return to your application.</p></main></body></html>'
+        )
         resolveCode(code)
       } else {
         const error = url.searchParams.get('error') ?? 'no code received'
@@ -296,21 +302,24 @@ async function performHttpOAuthFlow(): Promise<{
  */
 function openBrowser(url: string): void {
   const commands: Record<string, string> = {
-    chrome: process.platform === 'win32'
-      ? `start "" "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" "${url}"`
-      : process.platform === 'darwin'
-        ? `open -a "Google Chrome" "${url}"`
-        : `google-chrome "${url}"`,
-    firefox: process.platform === 'win32'
-      ? `start "" "C:\\Program Files\\Mozilla Firefox\\firefox.exe" "${url}"`
-      : process.platform === 'darwin'
-        ? `open -a Firefox "${url}"`
-        : `firefox "${url}"`,
-    default: process.platform === 'win32'
-      ? `start "" "${url}"`
-      : process.platform === 'darwin'
-        ? `open "${url}"`
-        : `xdg-open "${url}"`
+    chrome:
+      process.platform === 'win32'
+        ? `start "" "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" "${url}"`
+        : process.platform === 'darwin'
+          ? `open -a "Google Chrome" "${url}"`
+          : `google-chrome "${url}"`,
+    firefox:
+      process.platform === 'win32'
+        ? `start "" "C:\\Program Files\\Mozilla Firefox\\firefox.exe" "${url}"`
+        : process.platform === 'darwin'
+          ? `open -a Firefox "${url}"`
+          : `firefox "${url}"`,
+    default:
+      process.platform === 'win32'
+        ? `start "" "${url}"`
+        : process.platform === 'darwin'
+          ? `open "${url}"`
+          : `xdg-open "${url}"`
   }
   const cmd = commands[E2E_BROWSER] ?? commands.default
   try {
@@ -325,7 +334,7 @@ function openBrowser(url: string): void {
  * For relay mode: wait until the server has credentials by polling folders.list.
  * When the "No email accounts configured" error stops appearing, config is ready.
  */
-async function waitForRelayConfig(client: Client, timeoutMs = 120_000): Promise<void> {
+async function _waitForRelayConfig(client: Client, timeoutMs = 120_000): Promise<void> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     try {
@@ -402,16 +411,13 @@ beforeAll(async () => {
     const { accessToken } = await performHttpOAuthFlow()
 
     // Create StreamableHTTPClientTransport with bearer token
-    transport = new StreamableHTTPClientTransport(
-      new URL(`${HTTP_E2E_URL}/mcp`),
-      {
-        requestInit: {
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
+    transport = new StreamableHTTPClientTransport(new URL(`${HTTP_E2E_URL}/mcp`), {
+      requestInit: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
         }
       }
-    )
+    })
 
     await client.connect(transport)
     console.error('HTTP mode: MCP client connected via StreamableHTTPClientTransport')
@@ -444,8 +450,12 @@ beforeAll(async () => {
         break
       }
       // Check for degraded mode or saved tokens (no relay needed)
-      if (combined.includes('Cannot reach relay server') || combined.includes('No email accounts configured')
-        || combined.includes('Found saved OAuth2 tokens') || combined.includes('config loaded from')) {
+      if (
+        combined.includes('Cannot reach relay server') ||
+        combined.includes('No email accounts configured') ||
+        combined.includes('Found saved OAuth2 tokens') ||
+        combined.includes('config loaded from')
+      ) {
         break
       }
       await new Promise((r) => setTimeout(r, 500))
@@ -786,7 +796,8 @@ describe.skipIf(!HAS_CREDS)('messages -- send + lifecycle', () => {
     const folderPaths: string[] = (foldersData.accounts?.[0]?.folders ?? []).map((f: any) => f.path)
 
     // Pick destination: prefer Drafts (works on all providers)
-    const destination = folderPaths.find((f: string) => /drafts/i.test(f)) ?? folderPaths.find((f: string) => f !== 'INBOX') ?? 'Drafts'
+    const destination =
+      folderPaths.find((f: string) => /drafts/i.test(f)) ?? folderPaths.find((f: string) => f !== 'INBOX') ?? 'Drafts'
 
     const moveResult = await client.callTool({
       name: 'messages',
@@ -1287,19 +1298,23 @@ describe('error handling', () => {
     })
   })
 
-  it.skipIf(!HAS_CREDS)('should reject operations for unconfigured account', async () => {
-    const result = await client.callTool({
-      name: 'messages',
-      arguments: {
-        action: 'search',
-        account: 'nonexistent@example.com'
-      }
-    })
+  it.skipIf(!HAS_CREDS)(
+    'should reject operations for unconfigured account',
+    async () => {
+      const result = await client.callTool({
+        name: 'messages',
+        arguments: {
+          action: 'search',
+          account: 'nonexistent@example.com'
+        }
+      })
 
-    expect(result.isError).toBe(true)
-    const text = (result.content as Array<{ type: string; text: string }>)[0]?.text
-    expect(text).toBeTruthy()
-  }, 30_000)
+      expect(result.isError).toBe(true)
+      const text = (result.content as Array<{ type: string; text: string }>)[0]?.text
+      expect(text).toBeTruthy()
+    },
+    30_000
+  )
 })
 
 // ===========================================================================
@@ -1315,9 +1330,7 @@ describe('connection stability', () => {
   it('should handle rapid sequential calls without failure', async () => {
     // Fire 5 rapid help calls to verify stability under load
     const results = await Promise.all(
-      EXPECTED_TOOLS.map((toolName) =>
-        client.callTool({ name: 'help', arguments: { tool_name: toolName } })
-      )
+      EXPECTED_TOOLS.map((toolName) => client.callTool({ name: 'help', arguments: { tool_name: toolName } }))
     )
 
     for (const result of results) {
