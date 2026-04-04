@@ -115,20 +115,23 @@ export async function loadUserCredentials(userId: string): Promise<AccountConfig
   const dirHash = hashUserId(userId)
   const credPath = join(_paths.DATA_DIR, dirHash, 'credentials.enc')
 
-  if (!existsSync(credPath)) return null
-
-  const data = await readFile(credPath)
-  const iv = data.subarray(0, 12)
-  const ciphertext = data.subarray(12)
-  const secret = await getSecret()
-  const key = await deriveKey(secret)
-  const decrypted = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: new Uint8Array(iv) },
-    key,
-    new Uint8Array(ciphertext)
-  )
-  const parsed = JSON.parse(new TextDecoder().decode(decrypted))
-  return parsed.accounts as AccountConfig[]
+  try {
+    const data = await readFile(credPath)
+    const iv = data.subarray(0, 12)
+    const ciphertext = data.subarray(12)
+    const secret = await getSecret()
+    const key = await deriveKey(secret)
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: new Uint8Array(iv) },
+      key,
+      new Uint8Array(ciphertext)
+    )
+    const parsed = JSON.parse(new TextDecoder().decode(decrypted))
+    return parsed.accounts as AccountConfig[]
+  } catch (err: any) {
+    if (err.code === 'ENOENT') return null
+    throw err
+  }
 }
 
 /**
@@ -150,8 +153,6 @@ export async function loadAllUserCredentials(): Promise<Map<string, AccountConfi
       if (!entry.isDirectory()) return
 
       const credPath = join(_paths.DATA_DIR, entry.name, 'credentials.enc')
-      if (!existsSync(credPath)) return
-
       try {
         const data = await readFile(credPath)
         const iv = data.subarray(0, 12)
@@ -165,9 +166,11 @@ export async function loadAllUserCredentials(): Promise<Map<string, AccountConfi
         if (parsed.userId && Array.isArray(parsed.accounts)) {
           result.set(parsed.userId, parsed.accounts)
         }
-      } catch (err) {
-        // Skip corrupted entries -- log and continue
-        console.error(`Failed to load credentials from ${entry.name}:`, err)
+      } catch (err: any) {
+        // Skip missing or corrupted entries
+        if (err.code !== 'ENOENT') {
+          console.error(`Failed to load credentials from ${entry.name}:`, err)
+        }
       }
     })
   )

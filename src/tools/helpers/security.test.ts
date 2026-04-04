@@ -81,6 +81,10 @@ describe('isSafeUrl', () => {
   it('blocks file: URLs', () => {
     expect(isSafeUrl('file:///etc/passwd')).toBe(false)
   })
+
+  it('blocks URLs with null bytes in protocol (XPIA vector)', () => {
+    expect(isSafeUrl('ht\0tp://example.com')).toBe(false)
+  })
 })
 
 // ============================================================================
