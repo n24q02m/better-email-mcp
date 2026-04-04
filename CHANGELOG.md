@@ -2,6 +2,23 @@
 
 <!-- version list -->
 
+## v1.19.0 (2026-04-04)
+
+### Bug Fixes
+
+- Consolidated improvements from Jules PR review
+  ([#317](https://github.com/n24q02m/better-email-mcp/pull/317),
+  [`f847467`](https://github.com/n24q02m/better-email-mcp/commit/f8474673fd5e53b4a788358333b0348861558fcc))
+
+- Scope marketplace sync token to claude-plugins repo
+  ([`5d8ba6f`](https://github.com/n24q02m/better-email-mcp/commit/5d8ba6fdf11be9c3cdcd84ee7a2e2cd9bfff9e2e))
+
+### Features
+
+- Add agent/manual setup guides, simplify README, cleanup root
+  ([`23e1b91`](https://github.com/n24q02m/better-email-mcp/commit/23e1b91ae10d7f6d0a9bbc74e1ed2f0ce27ec8fc))
+
+
 ## v1.18.0 (2026-04-03)
 
 ### Features
