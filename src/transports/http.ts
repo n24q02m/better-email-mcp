@@ -155,7 +155,7 @@ export async function startHttp(): Promise<void> {
   })
 
   // Rate limit auth endpoints per IP to prevent abuse/brute-force
-  const _authRateLimit = rateLimit({
+  const authRateLimit = rateLimit({
     windowMs: 60 * 1000,
     limit: 20,
     standardHeaders: 'draft-7',
@@ -170,6 +170,7 @@ export async function startHttp(): Promise<void> {
 
   // OAuth endpoints (/.well-known/*, /authorize, /token, /register)
   app.use(
+    authRateLimit,
     mcpAuthRouter({
       provider,
       issuerUrl: serverUrl,

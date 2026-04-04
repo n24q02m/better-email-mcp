@@ -68,18 +68,6 @@ interface StoredToken {
 }
 
 /**
- * Generic helper to clean up expired entries from a Map.
- * Iterating and deleting during iteration is safe in JS for Map/Set.
- */
-function cleanupMap<K, V>(map: Map<K, V>, shouldDelete: (val: V) => boolean) {
-  for (const [key, val] of map) {
-    if (shouldDelete(val)) {
-      map.delete(key)
-    }
-  }
-}
-
-/**
  * Create the Email auth provider for multi-user HTTP mode.
  *
  * Returns the provider + internal maps needed by the HTTP transport
@@ -284,12 +272,24 @@ export function createEmailAuthProvider(config: EmailAuthConfig) {
   // Cleanup expired entries periodically
   const cleanupInterval = setInterval(() => {
     const now = Date.now()
-    cleanupMap(pendingAuths, (val) => now - val.createdAt > PENDING_AUTH_TTL)
-    cleanupMap(authCodes, (val) => now - val.createdAt > AUTH_CODE_TTL)
-    cleanupMap(bearerTokens, (val) => now - val.createdAt > BEARER_TOKEN_TTL)
-    cleanupMap(pendingBinds, (val) => now > val.expiresAt)
-    cleanupMap(boundTokens, (val) => now - val.createdAt > BEARER_TOKEN_TTL)
-    cleanupMap(verifyCache, (val) => now > val.expiresAt)
+    for (const [key, val] of pendingAuths) {
+      if (now - val.createdAt > PENDING_AUTH_TTL) pendingAuths.delete(key)
+    }
+    for (const [key, val] of authCodes) {
+      if (now - val.createdAt > AUTH_CODE_TTL) authCodes.delete(key)
+    }
+    for (const [key, val] of bearerTokens) {
+      if (now - val.createdAt > BEARER_TOKEN_TTL) bearerTokens.delete(key)
+    }
+    for (const [key, val] of pendingBinds) {
+      if (now > val.expiresAt) pendingBinds.delete(key)
+    }
+    for (const [key, val] of boundTokens) {
+      if (now - val.createdAt > BEARER_TOKEN_TTL) boundTokens.delete(key)
+    }
+    for (const [key, val] of verifyCache) {
+      if (now > val.expiresAt) verifyCache.delete(key)
+    }
   }, 60_000)
 
   return {
