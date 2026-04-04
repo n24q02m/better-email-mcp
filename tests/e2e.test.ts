@@ -175,9 +175,7 @@ function startCallbackServer(): { server: HttpServer; codePromise: Promise<strin
       const code = url.searchParams.get('code')
       if (code) {
         res.writeHead(200, { 'Content-Type': 'text/html' })
-        res.end(
-          '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Authorization Successful</title><style>body{font-family:system-ui,-apple-system,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background-color:#f9fafb}main{text-align:center;padding:2rem;background:#fff;border-radius:8px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1)}h1{color:#10b981;margin-bottom:1rem;display:flex;align-items:center;justify-content:center;gap:0.5rem}p{color:#4b5563;margin:0}</style></head><body><main role="main"><h1><span aria-hidden="true">✓</span> Authorization successful</h1><p>You can securely close this tab and return to your application.</p></main></body></html>'
-        )
+        res.end('<html><body><h1>Authorization successful</h1><p>You can close this tab.</p></body></html>')
         resolveCode(code)
       } else {
         const error = url.searchParams.get('error') ?? 'no code received'
