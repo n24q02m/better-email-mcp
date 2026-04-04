@@ -25,6 +25,12 @@ export const _paths = { DATA_DIR, SECRET_PATH }
 
 let secretPromise: Promise<string> | null = null
 
+// ⚡ Bolt: Hoist TextEncoder and TextDecoder instances to module scope.
+// This eliminates repeated object allocations during high-throughput operations
+// like bulk cryptographic operations and `loadAllUserCredentials`.
+const sharedEncoder = new TextEncoder()
+const sharedDecoder = new TextDecoder()
+
 /**
  * Reset the cached secret promise.
  * Internal helper for testing when environment or file secrets change.
@@ -62,14 +68,12 @@ async function getSecret(): Promise<string> {
 }
 
 async function deriveKey(secret: string): Promise<CryptoKey> {
-  const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), 'PBKDF2', false, [
-    'deriveKey'
-  ])
+  const keyMaterial = await crypto.subtle.importKey('raw', sharedEncoder.encode(secret), 'PBKDF2', false, ['deriveKey'])
   return crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
       hash: 'SHA-256',
-      salt: new TextEncoder().encode('mcp-email-per-user'),
+      salt: sharedEncoder.encode('mcp-email-per-user'),
       iterations: 100_000
     },
     keyMaterial,
@@ -100,7 +104,7 @@ export async function storeUserCredentials(userId: string, accounts: AccountConf
 
   // Store userId alongside accounts so we can reconstruct the mapping on loadAll()
   const payload = JSON.stringify({ userId, accounts })
-  const plaintext = new TextEncoder().encode(payload)
+  const plaintext = sharedEncoder.encode(payload)
   const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext)
   const combined = Buffer.concat([iv, Buffer.from(encrypted)])
 
@@ -126,7 +130,7 @@ export async function loadUserCredentials(userId: string): Promise<AccountConfig
       key,
       new Uint8Array(ciphertext)
     )
-    const parsed = JSON.parse(new TextDecoder().decode(decrypted))
+    const parsed = JSON.parse(sharedDecoder.decode(decrypted))
     return parsed.accounts as AccountConfig[]
   } catch (err: any) {
     if (err.code === 'ENOENT') return null
@@ -162,7 +166,7 @@ export async function loadAllUserCredentials(): Promise<Map<string, AccountConfi
           key,
           new Uint8Array(ciphertext)
         )
-        const parsed = JSON.parse(new TextDecoder().decode(decrypted))
+        const parsed = JSON.parse(sharedDecoder.decode(decrypted))
         if (parsed.userId && Array.isArray(parsed.accounts)) {
           result.set(parsed.userId, parsed.accounts)
         }

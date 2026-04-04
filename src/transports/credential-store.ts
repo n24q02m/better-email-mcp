@@ -18,6 +18,11 @@ const SECRET_PATH = join(DATA_DIR, '.secret')
 /** Exposed for testing — override storage paths */
 export const _paths = { DATA_DIR, CREDS_PATH, SECRET_PATH }
 
+// ⚡ Bolt: Hoist TextEncoder and TextDecoder instances to module scope.
+// This prevents reallocation during high-throughput operations (e.g., bulk cryptographic calls).
+const sharedEncoder = new TextEncoder()
+const sharedDecoder = new TextDecoder()
+
 function getSecret(): string {
   if (!existsSync(_paths.DATA_DIR)) mkdirSync(_paths.DATA_DIR, { recursive: true, mode: 0o700 })
 
@@ -32,14 +37,12 @@ function getSecret(): string {
 }
 
 async function deriveKey(secret: string): Promise<CryptoKey> {
-  const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), 'PBKDF2', false, [
-    'deriveKey'
-  ])
+  const keyMaterial = await crypto.subtle.importKey('raw', sharedEncoder.encode(secret), 'PBKDF2', false, ['deriveKey'])
   return crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
       hash: 'SHA-256',
-      salt: new TextEncoder().encode('mcp-email-creds'),
+      salt: sharedEncoder.encode('mcp-email-creds'),
       iterations: 100_000
     },
     keyMaterial,
@@ -53,7 +56,7 @@ export async function storeCredentials(creds: Record<string, string>): Promise<v
   if (!existsSync(_paths.DATA_DIR)) mkdirSync(_paths.DATA_DIR, { recursive: true, mode: 0o700 })
   const key = await deriveKey(getSecret())
   const iv = crypto.getRandomValues(new Uint8Array(12))
-  const plaintext = new TextEncoder().encode(JSON.stringify(creds))
+  const plaintext = sharedEncoder.encode(JSON.stringify(creds))
   const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext)
   const combined = Buffer.concat([iv, Buffer.from(encrypted)])
   writeFileSync(_paths.CREDS_PATH, combined, { mode: 0o600 })
@@ -70,7 +73,7 @@ export async function loadCredentials(): Promise<Record<string, string> | null> 
     key,
     new Uint8Array(ciphertext)
   )
-  return JSON.parse(new TextDecoder().decode(decrypted))
+  return JSON.parse(sharedDecoder.decode(decrypted))
 }
 
 export async function deleteCredentials(): Promise<void> {
