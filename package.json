@@ -75,7 +75,7 @@
 		"@types/mailparser": "^3.4.6",
 		"@types/marked": "^6.0.0",
 		"@types/node": "^25.5.2",
-		"@types/nodemailer": "^6.4.23",
+		"@types/nodemailer": "^8.0.0",
 		"@types/sanitize-html": "^2.16.1",
 		"@vitest/coverage-v8": "^4.1.2",
 		"esbuild": "^0.28.0",
