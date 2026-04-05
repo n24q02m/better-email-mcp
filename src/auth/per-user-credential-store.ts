@@ -66,9 +66,7 @@ async function getSecret(): Promise<string> {
 }
 
 async function deriveKey(secret: string): Promise<CryptoKey> {
-  const keyMaterial = await crypto.subtle.importKey('raw', TEXT_ENCODER.encode(secret), 'PBKDF2', false, [
-    'deriveKey'
-  ])
+  const keyMaterial = await crypto.subtle.importKey('raw', TEXT_ENCODER.encode(secret), 'PBKDF2', false, ['deriveKey'])
   return crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
