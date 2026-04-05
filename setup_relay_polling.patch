@@ -1,0 +1,144 @@
+<<<<<<< SEARCH
+export async function startHttp(): Promise<void> {
+=======
+/**
+ * Background relay poller: polls mcp-relay-core for credentials when a relay session is active.
+ * Sets up a proxy hook on pendingAuths.set to automatically start polling for new relay sessions.
+ */
+function setupRelayPolling(
+  relayBaseUrl: string,
+  pendingAuths: Map<string, any>,
+  userAccounts: Map<string, AccountConfig[]>,
+  authCodes: Map<string, any>
+) {
+  async function pollRelayAndCompleteAuth(ourState: string) {
+    const pending = pendingAuths.get(ourState)
+    if (!pending?.relaySession) return
+
+    try {
+      const config = await pollForResult(relayBaseUrl, pending.relaySession, 2000, 300_000)
+      const credentials = config.EMAIL_CREDENTIALS
+      if (!credentials) {
+        console.error(`Relay session ${pending.relaySession.sessionId}: no EMAIL_CREDENTIALS in result`)
+        return
+      }
+
+      // Parse and validate credentials (same flow as stdio relay-setup.ts)
+      const accounts = await parseCredentials(credentials)
+      if (accounts.length === 0) {
+        await sendMessage(relayBaseUrl, pending.relaySession.sessionId, {
+          type: 'error',
+          text: 'No valid email accounts found. Check format: email:password'
+        }).catch(() => {})
+        return
+      }
+
+      const sessionId = pending.relaySession.sessionId
+
+      // Validate non-OAuth accounts via IMAP (parallel for multi-account)
+      const imapResults = await Promise.all(
+        accounts.map(async (account) => {
+          if (!isOutlookDomain(account.email) && account.authType !== 'oauth2') {
+            const valid = await testImapConnection(account)
+            return { email: account.email, valid }
+          }
+          return { email: account.email, valid: true }
+        })
+      )
+
+      const failed = imapResults.find((r) => !r.valid)
+      if (failed) {
+        await sendMessage(relayBaseUrl, sessionId, {
+          type: 'error',
+          text: `IMAP connection failed for ${failed.email}. Check email and app password.`
+        }).catch(() => {})
+        return
+      }
+
+      // Trigger Outlook OAuth Device Code flow for Outlook accounts (parallel for multi-account)
+      let hasOAuthPending = false
+      await Promise.all(
+        accounts.map(async (account) => {
+          if (isOutlookDomain(account.email) && !account.oauth2) {
+            try {
+              await ensureValidToken(account)
+            } catch (err: any) {
+              const message = err?.message || ''
+              const urlMatch = message.match(/Visit:\s*(https?:\/\/\S+)/)
+              const codeMatch = message.match(/Enter code:\s*(\S+)/)
+              if (urlMatch && codeMatch) {
+                hasOAuthPending = true
+                await sendMessage(relayBaseUrl, sessionId, {
+                  type: 'oauth_device_code',
+                  text: `Sign in to Microsoft for ${account.email}`,
+                  data: { url: urlMatch[1], code: codeMatch[1], email: account.email }
+                }).catch(() => {})
+                console.info(`OAuth device code sent to relay page for ${account.email}`)
+              }
+            }
+          }
+        })
+      )
+
+      // Wait for OAuth to complete if needed
+      if (hasOAuthPending) {
+        const pendingOAuths = _getPendingAuths()
+        const oauthDeadline = Date.now() + 10 * 60 * 1000
+        while (pendingOAuths.size > 0 && Date.now() < oauthDeadline) {
+          await new Promise((r) => setTimeout(r, 2000))
+        }
+      }
+
+      // Issue auth code
+      const userId = randomBytes(16).toString('hex')
+      userAccounts.set(userId, accounts)
+      await storeUserCredentials(userId, accounts)
+      pendingAuths.delete(ourState)
+
+      const ourAuthCode = randomBytes(32).toString('hex')
+      authCodes.set(ourAuthCode, {
+        userId,
+        codeChallenge: pending.codeChallenge,
+        codeChallengeMethod: pending.codeChallengeMethod,
+        clientId: pending.clientId,
+        createdAt: Date.now()
+      })
+
+      // Build redirect URL
+      const clientRedirect = new URL(pending.clientRedirectUri)
+      clientRedirect.searchParams.set('code', ourAuthCode)
+      if (pending.clientState) clientRedirect.searchParams.set('state', pending.clientState)
+
+      // Send redirect URL to relay page via bidirectional messaging
+      await sendMessage(relayBaseUrl, sessionId, {
+        type: 'complete',
+        text: hasOAuthPending
+          ? 'All accounts configured including OAuth! Redirecting...'
+          : 'Email credentials validated! Redirecting...',
+        data: { redirect: clientRedirect.toString() }
+      }).catch(() => {})
+
+      console.info(`Relay auth completed for user (userId: ${userId.substring(0, 8)}...)`)
+    } catch (err: any) {
+      if (err?.message === 'RELAY_SKIPPED') {
+        console.info('Relay setup skipped by user')
+      } else {
+        console.error('Relay poll error:', err?.message ?? err)
+      }
+      pendingAuths.delete(ourState)
+    }
+  }
+
+  // Watch for new relay sessions and start polling
+  const originalSet = pendingAuths.set.bind(pendingAuths)
+  pendingAuths.set = (key: string, value: any) => {
+    const result = originalSet(key, value)
+    if (value.relaySession) {
+      pollRelayAndCompleteAuth(key).catch(console.error)
+    }
+    return result
+  }
+}
+
+export async function startHttp(): Promise<void> {
+>>>>>>> REPLACE
