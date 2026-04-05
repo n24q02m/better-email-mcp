@@ -20,11 +20,11 @@
  *   E2E_SETUP=http E2E_BROWSER=chrome bun run vitest run tests/e2e.test.ts
  */
 
-import { createHash, randomBytes } from 'node:crypto'
-import { execSync } from 'node:child_process'
-import { createServer } from 'node:http'
 import type { ChildProcess } from 'node:child_process'
+import { execSync, spawnSync } from 'node:child_process'
+import { createHash, randomBytes } from 'node:crypto'
 import type { Server as HttpServer } from 'node:http'
+import { createServer } from 'node:http'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
@@ -34,9 +34,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 function pluginCommand(pkg: string): { command: string; args: string[] } {
   if (process.platform === 'win32') {
     const binName = pkg.split('/').pop()!
-    try { execSync(`npx -y ${pkg} --help`, { stdio: 'ignore', timeout: 30_000 }) } catch { /* install */ }
-    const npxCache = (process.env.LOCALAPPDATA ?? '') + '/npm-cache/_npx'
-    const cacheHit = execSync(`find "${npxCache}" -path "*/${binName}/bin/cli.mjs" -print -quit`, { encoding: 'utf-8' }).trim()
+    try {
+      execSync(`npx -y ${pkg} --help`, { stdio: 'ignore', timeout: 30_000 })
+    } catch {
+      /* install */
+    }
+    const npxCache = `${process.env.LOCALAPPDATA ?? ''}/npm-cache/_npx`
+    const cacheHit = execSync(`find "${npxCache}" -path "*/${binName}/bin/cli.mjs" -print -quit`, {
+      encoding: 'utf-8'
+    }).trim()
     if (cacheHit) return { command: process.execPath, args: [cacheHit] }
   }
   return { command: 'npx', args: ['-y', pkg] }
@@ -55,7 +61,7 @@ const HAS_CREDS = !!EMAIL_CREDS || E2E_SETUP === 'relay' || E2E_SETUP === 'http'
 let TEST_ACCOUNT = EMAIL_CREDS.split(',')[0]?.split(':')[0] ?? ''
 
 const EXPECTED_TOOLS = ['messages', 'folders', 'attachments', 'send', 'help'] as const
-const EMAIL_DEPENDENT_TOOLS = ['messages', 'folders', 'attachments', 'send'] as const
+const _EMAIL_DEPENDENT_TOOLS = ['messages', 'folders', 'attachments', 'send'] as const
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -111,8 +117,6 @@ function createStdioTransport(): StdioClientTransport {
         },
         stderr: 'pipe'
       })
-
-    case 'env':
     default:
       return new StdioClientTransport({
         command: 'node',
@@ -291,30 +295,63 @@ async function performHttpOAuthFlow(): Promise<{
 }
 
 /**
- * Open a URL in the browser for manual credential entry.
+ * Open a URL in the browser for manual credential entry safely.
  * Used by relay mode (stdio relay form) and http mode (OAuth relay form).
+ * Uses spawnSync with argument arrays to prevent command injection.
  */
 function openBrowser(url: string): void {
-  const commands: Record<string, string> = {
-    chrome: process.platform === 'win32'
-      ? `start "" "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" "${url}"`
-      : process.platform === 'darwin'
-        ? `open -a "Google Chrome" "${url}"`
-        : `google-chrome "${url}"`,
-    firefox: process.platform === 'win32'
-      ? `start "" "C:\\Program Files\\Mozilla Firefox\\firefox.exe" "${url}"`
-      : process.platform === 'darwin'
-        ? `open -a Firefox "${url}"`
-        : `firefox "${url}"`,
-    default: process.platform === 'win32'
-      ? `start "" "${url}"`
-      : process.platform === 'darwin'
-        ? `open "${url}"`
-        : `xdg-open "${url}"`
-  }
-  const cmd = commands[E2E_BROWSER] ?? commands.default
+  let safeUrl: string
   try {
-    execSync(cmd, { stdio: 'ignore' })
+    const parsed = new URL(url)
+    // Security: Only allow web protocols to prevent javascript: or file: attacks
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return
+    }
+    // URL.href canonicalizes the string, neutering leading hyphens or shell metacharacters
+    safeUrl = parsed.href
+  } catch {
+    return
+  }
+
+  const browser = E2E_BROWSER || 'default'
+
+  if (process.platform === 'win32') {
+    let cmd = 'rundll32'
+    let args = ['url.dll,FileProtocolHandler', safeUrl]
+
+    if (browser === 'chrome') {
+      cmd = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+      args = [safeUrl]
+    } else if (browser === 'firefox') {
+      cmd = 'C:\\Program Files\\Mozilla Firefox\\firefox.exe'
+      args = [safeUrl]
+    }
+
+    try {
+      spawnSync(cmd, args, { stdio: 'ignore' })
+    } catch {
+      console.error(`Failed to open browser with: ${cmd}`)
+      console.error(`Please open manually: ${url}`)
+    }
+    return
+  }
+
+  if (process.platform === 'darwin') {
+    const args = browser === 'chrome' ? ['-a', 'Google Chrome'] : browser === 'firefox' ? ['-a', 'Firefox'] : []
+    args.push(safeUrl)
+    try {
+      spawnSync('open', args, { stdio: 'ignore' })
+    } catch {
+      console.error('Failed to open browser on macOS')
+      console.error(`Please open manually: ${url}`)
+    }
+    return
+  }
+
+  // Linux / Other
+  const cmd = browser === 'chrome' ? 'google-chrome' : browser === 'firefox' ? 'firefox' : 'xdg-open'
+  try {
+    spawnSync(cmd, [safeUrl], { stdio: 'ignore' })
   } catch {
     console.error(`Failed to open browser with: ${cmd}`)
     console.error(`Please open manually: ${url}`)
@@ -325,7 +362,7 @@ function openBrowser(url: string): void {
  * For relay mode: wait until the server has credentials by polling folders.list.
  * When the "No email accounts configured" error stops appearing, config is ready.
  */
-async function waitForRelayConfig(client: Client, timeoutMs = 120_000): Promise<void> {
+async function _waitForRelayConfig(client: Client, timeoutMs = 120_000): Promise<void> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     try {
@@ -402,16 +439,13 @@ beforeAll(async () => {
     const { accessToken } = await performHttpOAuthFlow()
 
     // Create StreamableHTTPClientTransport with bearer token
-    transport = new StreamableHTTPClientTransport(
-      new URL(`${HTTP_E2E_URL}/mcp`),
-      {
-        requestInit: {
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
+    transport = new StreamableHTTPClientTransport(new URL(`${HTTP_E2E_URL}/mcp`), {
+      requestInit: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
         }
       }
-    )
+    })
 
     await client.connect(transport)
     console.error('HTTP mode: MCP client connected via StreamableHTTPClientTransport')
@@ -444,8 +478,12 @@ beforeAll(async () => {
         break
       }
       // Check for degraded mode or saved tokens (no relay needed)
-      if (combined.includes('Cannot reach relay server') || combined.includes('No email accounts configured')
-        || combined.includes('Found saved OAuth2 tokens') || combined.includes('config loaded from')) {
+      if (
+        combined.includes('Cannot reach relay server') ||
+        combined.includes('No email accounts configured') ||
+        combined.includes('Found saved OAuth2 tokens') ||
+        combined.includes('config loaded from')
+      ) {
         break
       }
       await new Promise((r) => setTimeout(r, 500))
@@ -786,7 +824,8 @@ describe.skipIf(!HAS_CREDS)('messages -- send + lifecycle', () => {
     const folderPaths: string[] = (foldersData.accounts?.[0]?.folders ?? []).map((f: any) => f.path)
 
     // Pick destination: prefer Drafts (works on all providers)
-    const destination = folderPaths.find((f: string) => /drafts/i.test(f)) ?? folderPaths.find((f: string) => f !== 'INBOX') ?? 'Drafts'
+    const destination =
+      folderPaths.find((f: string) => /drafts/i.test(f)) ?? folderPaths.find((f: string) => f !== 'INBOX') ?? 'Drafts'
 
     const moveResult = await client.callTool({
       name: 'messages',
@@ -1287,19 +1326,23 @@ describe('error handling', () => {
     })
   })
 
-  it.skipIf(!HAS_CREDS)('should reject operations for unconfigured account', async () => {
-    const result = await client.callTool({
-      name: 'messages',
-      arguments: {
-        action: 'search',
-        account: 'nonexistent@example.com'
-      }
-    })
+  it.skipIf(!HAS_CREDS)(
+    'should reject operations for unconfigured account',
+    async () => {
+      const result = await client.callTool({
+        name: 'messages',
+        arguments: {
+          action: 'search',
+          account: 'nonexistent@example.com'
+        }
+      })
 
-    expect(result.isError).toBe(true)
-    const text = (result.content as Array<{ type: string; text: string }>)[0]?.text
-    expect(text).toBeTruthy()
-  }, 30_000)
+      expect(result.isError).toBe(true)
+      const text = (result.content as Array<{ type: string; text: string }>)[0]?.text
+      expect(text).toBeTruthy()
+    },
+    30_000
+  )
 })
 
 // ===========================================================================
@@ -1315,9 +1358,7 @@ describe('connection stability', () => {
   it('should handle rapid sequential calls without failure', async () => {
     // Fire 5 rapid help calls to verify stability under load
     const results = await Promise.all(
-      EXPECTED_TOOLS.map((toolName) =>
-        client.callTool({ name: 'help', arguments: { tool_name: toolName } })
-      )
+      EXPECTED_TOOLS.map((toolName) => client.callTool({ name: 'help', arguments: { tool_name: toolName } }))
     )
 
     for (const result of results) {
