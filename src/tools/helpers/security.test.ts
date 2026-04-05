@@ -85,6 +85,24 @@ describe('isSafeUrl', () => {
   it('blocks URLs with null bytes in protocol (XPIA vector)', () => {
     expect(isSafeUrl('ht\0tp://example.com')).toBe(false)
   })
+
+  it('blocks URLs with mixed control characters and suspicious protocols', () => {
+    expect(isSafeUrl('java\r\nscript:alert(1)')).toBe(false)
+    expect(isSafeUrl('javascript\x01:alert(1)')).toBe(false)
+    expect(isSafeUrl('data\x1F:text/html,xss')).toBe(false)
+  })
+
+  it('blocks URLs with whitespace bypasses that fail new URL()', () => {
+    // Some environments might parse ' http://...' but not others
+    // We want to ensure that even if it fails parsing, it's blocked if it's not explicitly safe
+    expect(isSafeUrl('   ')).toBe(false)
+    expect(isSafeUrl('\t\t\t')).toBe(false)
+  })
+
+  it('blocks encoded javascript: equivalents', () => {
+    expect(isSafeUrl('javascript&colon;alert(1)')).toBe(false)
+    expect(isSafeUrl('java&#13;script:alert(1)')).toBe(false)
+  })
 })
 
 // ============================================================================
