@@ -135,17 +135,14 @@ export async function parseCredentials(envValue: string): Promise<AccountConfig[
       if (isOutlookDomain(email)) {
         const discovered = discoverSettings(email)
         if (!discovered) continue
-        const account: AccountConfig = {
+        accounts.push({
           id: emailToId(email),
           email,
           password: '',
           authType: 'oauth2',
           imap: discovered.imap,
           smtp: discovered.smtp
-        }
-        const tokens = await loadStoredTokens(email)
-        if (tokens) account.oauth2 = tokens
-        accounts.push(account)
+        })
         continue
       }
       console.error('Skipping invalid credential entry (expected email:password)')
@@ -200,27 +197,28 @@ export async function parseCredentials(envValue: string): Promise<AccountConfig[
       smtp = discovered.smtp
     }
 
-    const account: AccountConfig = {
+    accounts.push({
       id: emailToId(email),
       email,
       password,
-      authType: 'password',
+      authType: isOutlookDomain(email) ? 'oauth2' : 'password',
       imap,
       smtp
-    }
-
-    // For Outlook domains, always use OAuth2 — password auth is not supported.
-    // ensureValidToken handles auto-auth (Device Code flow) when tokens are missing.
-    if (isOutlookDomain(email)) {
-      account.authType = 'oauth2'
-      const tokens = await loadStoredTokens(email)
-      if (tokens) {
-        account.oauth2 = tokens
-      }
-    }
-
-    accounts.push(account)
+    })
   }
+
+  // ⚡ Bolt: Load stored tokens in parallel for all OAuth2 accounts to minimize disk I/O latency.
+  // This is especially beneficial when multiple Outlook accounts are configured.
+  await Promise.all(
+    accounts.map(async (account) => {
+      if (account.authType === 'oauth2') {
+        const tokens = await loadStoredTokens(account.email)
+        if (tokens) {
+          account.oauth2 = tokens
+        }
+      }
+    })
+  )
 
   return accounts
 }
