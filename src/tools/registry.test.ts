@@ -4,16 +4,19 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { EmailMCPError } from './helpers/errors.js'
 import { registerTools } from './registry.js'
+
+// Mock composite tools
+vi.mock('./composite/messages.js', () => ({ messages: vi.fn() }))
+vi.mock('./composite/folders.js', () => ({ folders: vi.fn() }))
+vi.mock('./composite/attachments.js', () => ({ attachments: vi.fn() }))
+vi.mock('./composite/send.js', () => ({ send: vi.fn() }))
 
 /**
  * Registry tests - validate TOOLS definitions, input schemas, and help tool structure.
- * These are pure data-structure tests (no server mocking needed).
  */
-
-// We cannot directly import the module without triggering file system operations
-// (readFileSync for DOCS_DIR), so we test the TOOLS structure independently.
 
 // ============================================================================
 // TOOLS definition validation
@@ -168,25 +171,78 @@ describe('help tool enum', () => {
 // ============================================================================
 
 describe('registerTools function', () => {
-  it('should register all required MCP schemas', () => {
-    // 1. Setup mock Server instance
-    const mockServer = {
+  let mockServer: any
+  let callToolHandler: any
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockServer = {
       setRequestHandler: vi.fn()
     }
-
-    // 2. Call the function under test
     registerTools(mockServer as any, [])
+    callToolHandler = mockServer.setRequestHandler.mock.calls.find(
+      (call: any) => call[0] === CallToolRequestSchema
+    )?.[1]
+  })
 
-    // 3. Assert setRequestHandler was called exactly 4 times
+  it('should register all required MCP schemas', () => {
+    // Assert setRequestHandler was called exactly 4 times
     expect(mockServer.setRequestHandler).toHaveBeenCalledTimes(4)
 
-    // 4. Assert the specific schemas were registered
-    const calls = mockServer.setRequestHandler.mock.calls
-    const registeredSchemas = calls.map((call) => call[0])
+    // Assert the specific schemas were registered
+    const registeredSchemas = mockServer.setRequestHandler.mock.calls.map((call: any) => call[0])
 
     expect(registeredSchemas).toContain(ListToolsRequestSchema)
     expect(registeredSchemas).toContain(ListResourcesRequestSchema)
     expect(registeredSchemas).toContain(ReadResourceRequestSchema)
     expect(registeredSchemas).toContain(CallToolRequestSchema)
+  })
+
+  describe('CallToolRequestSchema handler', () => {
+    it('should return error when no arguments are provided', async () => {
+      const result = await callToolHandler({
+        params: { name: 'messages', arguments: undefined }
+      })
+
+      expect(result).toEqual({
+        content: [{ type: 'text', text: 'Error: No arguments provided' }],
+        isError: true
+      })
+    })
+
+    it('should return error for unknown tool', async () => {
+      const result = await callToolHandler({
+        params: { name: 'unknown_tool', arguments: {} }
+      })
+
+      expect(result.isError).toBe(true)
+      expect(result.content[0].text).toContain('Unknown tool: unknown_tool')
+    })
+
+    it('should handle tool execution error (EmailMCPError)', async () => {
+      const { messages } = await import('./composite/messages.js')
+      vi.mocked(messages).mockRejectedValue(new EmailMCPError('Tool failed', 'ERR', 'Suggestion'))
+
+      const result = await callToolHandler({
+        params: { name: 'messages', arguments: { action: 'search' } }
+      })
+
+      expect(result.isError).toBe(true)
+      expect(result.content[0].text).toContain('Error: Tool failed')
+      expect(result.content[0].text).toContain('Suggestion: Suggestion')
+    })
+
+    it('should handle tool execution error (generic Error)', async () => {
+      const { messages } = await import('./composite/messages.js')
+      vi.mocked(messages).mockRejectedValue(new Error('Unexpected error'))
+
+      const result = await callToolHandler({
+        params: { name: 'messages', arguments: { action: 'search' } }
+      })
+
+      expect(result.isError).toBe(true)
+      expect(result.content[0].text).toContain('Error: Unexpected error')
+      expect(result.content[0].text).toContain('Suggestion: Please check your request and try again')
+    })
   })
 })
