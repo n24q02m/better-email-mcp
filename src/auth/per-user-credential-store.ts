@@ -20,6 +20,10 @@ import type { AccountConfig } from '../tools/helpers/config.js'
 const DATA_DIR = join(homedir(), '.better-email-mcp', 'users')
 const SECRET_PATH = join(homedir(), '.better-email-mcp', '.user-secret')
 
+// Hoist instances to reduce GC pressure and instantiation overhead in loops
+const TEXT_ENCODER = new TextEncoder()
+const TEXT_DECODER = new TextDecoder()
+
 /** Exposed for testing -- override storage paths */
 export const _paths = { DATA_DIR, SECRET_PATH }
 
@@ -62,14 +66,14 @@ async function getSecret(): Promise<string> {
 }
 
 async function deriveKey(secret: string): Promise<CryptoKey> {
-  const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), 'PBKDF2', false, [
+  const keyMaterial = await crypto.subtle.importKey('raw', TEXT_ENCODER.encode(secret), 'PBKDF2', false, [
     'deriveKey'
   ])
   return crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
       hash: 'SHA-256',
-      salt: new TextEncoder().encode('mcp-email-per-user'),
+      salt: TEXT_ENCODER.encode('mcp-email-per-user'),
       iterations: 100_000
     },
     keyMaterial,
@@ -100,7 +104,7 @@ export async function storeUserCredentials(userId: string, accounts: AccountConf
 
   // Store userId alongside accounts so we can reconstruct the mapping on loadAll()
   const payload = JSON.stringify({ userId, accounts })
-  const plaintext = new TextEncoder().encode(payload)
+  const plaintext = TEXT_ENCODER.encode(payload)
   const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext)
   const combined = Buffer.concat([iv, Buffer.from(encrypted)])
 
@@ -126,7 +130,7 @@ export async function loadUserCredentials(userId: string): Promise<AccountConfig
       key,
       new Uint8Array(ciphertext)
     )
-    const parsed = JSON.parse(new TextDecoder().decode(decrypted))
+    const parsed = JSON.parse(TEXT_DECODER.decode(decrypted))
     return parsed.accounts as AccountConfig[]
   } catch (err: any) {
     if (err.code === 'ENOENT') return null
@@ -162,7 +166,7 @@ export async function loadAllUserCredentials(): Promise<Map<string, AccountConfi
           key,
           new Uint8Array(ciphertext)
         )
-        const parsed = JSON.parse(new TextDecoder().decode(decrypted))
+        const parsed = JSON.parse(TEXT_DECODER.decode(decrypted))
         if (parsed.userId && Array.isArray(parsed.accounts)) {
           result.set(parsed.userId, parsed.accounts)
         }

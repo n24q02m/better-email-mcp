@@ -15,6 +15,10 @@ const DATA_DIR = join(homedir(), '.better-email-mcp')
 const CREDS_PATH = join(DATA_DIR, 'credentials.enc')
 const SECRET_PATH = join(DATA_DIR, '.secret')
 
+// Hoist instances to reduce GC pressure and instantiation overhead
+const TEXT_ENCODER = new TextEncoder()
+const TEXT_DECODER = new TextDecoder()
+
 /** Exposed for testing — override storage paths */
 export const _paths = { DATA_DIR, CREDS_PATH, SECRET_PATH }
 
@@ -32,14 +36,14 @@ function getSecret(): string {
 }
 
 async function deriveKey(secret: string): Promise<CryptoKey> {
-  const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), 'PBKDF2', false, [
+  const keyMaterial = await crypto.subtle.importKey('raw', TEXT_ENCODER.encode(secret), 'PBKDF2', false, [
     'deriveKey'
   ])
   return crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
       hash: 'SHA-256',
-      salt: new TextEncoder().encode('mcp-email-creds'),
+      salt: TEXT_ENCODER.encode('mcp-email-creds'),
       iterations: 100_000
     },
     keyMaterial,
@@ -53,7 +57,7 @@ export async function storeCredentials(creds: Record<string, string>): Promise<v
   if (!existsSync(_paths.DATA_DIR)) mkdirSync(_paths.DATA_DIR, { recursive: true, mode: 0o700 })
   const key = await deriveKey(getSecret())
   const iv = crypto.getRandomValues(new Uint8Array(12))
-  const plaintext = new TextEncoder().encode(JSON.stringify(creds))
+  const plaintext = TEXT_ENCODER.encode(JSON.stringify(creds))
   const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext)
   const combined = Buffer.concat([iv, Buffer.from(encrypted)])
   writeFileSync(_paths.CREDS_PATH, combined, { mode: 0o600 })
@@ -70,7 +74,7 @@ export async function loadCredentials(): Promise<Record<string, string> | null> 
     key,
     new Uint8Array(ciphertext)
   )
-  return JSON.parse(new TextDecoder().decode(decrypted))
+  return JSON.parse(TEXT_DECODER.decode(decrypted))
 }
 
 export async function deleteCredentials(): Promise<void> {
