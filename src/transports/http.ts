@@ -15,12 +15,12 @@
  */
 
 import { randomBytes, randomUUID } from 'node:crypto'
-import { createSession, pollForResult, sendMessage } from '@n24q02m/mcp-relay-core/relay'
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js'
 import { mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
+import { createSession, pollForResult, sendMessage } from '@n24q02m/mcp-relay-core/relay'
 import express from 'express'
 import rateLimit from 'express-rate-limit'
 import { ImapFlow } from 'imapflow'
@@ -113,9 +113,10 @@ export async function startHttp(): Promise<void> {
   const DEFAULT_RELAY_URL = 'https://better-email-mcp.n24q02m.com'
   // Relay URL: use PUBLIC_URL in production (Caddy proxies /api/sessions to relay server),
   // fall back to DEFAULT_RELAY_URL for local dev
-  const relayBaseUrl = config.publicUrl.startsWith('http://127.0.0.1') || config.publicUrl.startsWith('http://localhost')
-    ? DEFAULT_RELAY_URL
-    : config.publicUrl
+  const relayBaseUrl =
+    config.publicUrl.startsWith('http://127.0.0.1') || config.publicUrl.startsWith('http://localhost')
+      ? DEFAULT_RELAY_URL
+      : config.publicUrl
 
   const { provider, pendingAuths, authCodes, userAccounts, resolveAccounts } = createEmailAuthProvider({
     dcrSecret: config.dcrSecret,
@@ -144,6 +145,15 @@ export async function startHttp(): Promise<void> {
   // Trust exactly 2 reverse proxies (Cloudflare + Caddy) for correct req.ip
   app.set('trust proxy', 2)
   app.disable('x-powered-by')
+
+  // Security headers to protect against common web vulnerabilities
+  app.use((_req, res, next) => {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    res.setHeader('X-Frame-Options', 'DENY')
+    res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'")
+    next()
+  })
 
   // Rate limit MCP endpoints per IP
   const mcpRateLimit = rateLimit({
