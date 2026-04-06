@@ -1,6 +1,10 @@
 /**
  * Tool Registry - 5 Composite Tools
  * Consolidated registration for maximum coverage with minimal tools
+ *
+ * Credential-aware: when state is 'awaiting_setup', tools return setup
+ * instructions with the relay URL instead of failing with cryptic errors.
+ * The relay session is triggered lazily on first tool call.
  */
 
 import { readFile } from 'node:fs/promises'
@@ -13,6 +17,7 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js'
+import { getSetupUrl, getState, triggerRelaySetup } from '../credential-state.js'
 import { type AttachmentsInput, attachments } from './composite/attachments.js'
 import { type FoldersInput, folders } from './composite/folders.js'
 import { type MessagesInput, messages } from './composite/messages.js'
@@ -296,6 +301,27 @@ export function registerTools(server: Server, accounts: AccountConfig[]) {
           'UNKNOWN_TOOL',
           `Available tools: ${AVAILABLE_TOOLS_STRING}`
         )
+      }
+
+      // Credential guard: when not configured, return setup instructions.
+      // Help tool is always available (docs don't need credentials).
+      // The relay session is triggered lazily on first non-help tool call.
+      if (name !== 'help' && accounts.length === 0) {
+        const credState = getState()
+        if (credState !== 'configured') {
+          // Trigger relay setup if not already in progress
+          if (credState === 'awaiting_setup') {
+            await triggerRelaySetup()
+          }
+          const url = getSetupUrl()
+          const setupInstructions = url
+            ? `Email credentials are not configured yet.\n\nTo set up, open this URL in your browser:\n${url}\n\nAfter submitting credentials on the relay page, retry this tool call.`
+            : `Email credentials are not configured.\n\nSet the EMAIL_CREDENTIALS environment variable.\nFormat: email1:password1,email2:password2\n\nOr restart the server to trigger the relay setup page.`
+          return {
+            content: [{ type: 'text', text: setupInstructions }],
+            isError: true
+          }
+        }
       }
 
       const result = await handler(accounts, args)

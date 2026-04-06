@@ -1,6 +1,11 @@
 /**
  * Better Email MCP Server
  * Using composite tools for human-friendly AI agent interactions
+ *
+ * Non-blocking startup: resolveCredentialState() checks env/config/tokens
+ * synchronously (<10ms). If no credentials found, the server starts anyway
+ * and tools return setup instructions with the relay URL.
+ * Relay session + polling happen lazily on first tool call.
  */
 
 import { existsSync, readFileSync } from 'node:fs'
@@ -8,7 +13,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import { ensureConfig } from './relay-setup.js'
+import { resolveCredentialState } from './credential-state.js'
 import { type AccountConfig, loadConfig } from './tools/helpers/config.js'
 import { ensureValidToken } from './tools/helpers/oauth2.js'
 import { registerTools } from './tools/registry.js'
@@ -40,16 +45,26 @@ function getVersion(): string {
   }
 }
 
+/**
+ * Non-blocking environment setup.
+ *
+ * Resolution order (all fast, no network I/O):
+ * 1. ENV VARS -- EMAIL_CREDENTIALS already set
+ * 2. CONFIG FILE -- encrypted config from previous relay setup
+ * 3. SAVED OAUTH TOKENS -- Outlook tokens from previous session
+ * 4. NOTHING -- returns empty accounts, tools will trigger relay lazily
+ */
 async function setupEnvironment(): Promise<AccountConfig[]> {
-  // If EMAIL_CREDENTIALS is not set, try relay setup (config file or browser form)
-  if (!process.env.EMAIL_CREDENTIALS) {
-    const credentials = await ensureConfig()
-    if (credentials) {
-      process.env.EMAIL_CREDENTIALS = credentials
-    }
+  const credState = await resolveCredentialState()
+
+  if (credState !== 'configured') {
+    // No credentials available yet. Server starts without accounts.
+    // Tools will return setup instructions with relay URL on first call.
+    console.error('Server starting without credentials. Tools will guide setup on first call.')
+    return []
   }
 
-  // Load email accounts from environment
+  // Credentials found -- load accounts normally
   const accounts = await loadConfig()
 
   if (accounts.length === 0) {
@@ -69,7 +84,7 @@ async function setupEnvironment(): Promise<AccountConfig[]> {
         try {
           await ensureValidToken(account)
         } catch (err: any) {
-          // ensureValidToken throws with sign-in instructions — log to stderr.
+          // ensureValidToken throws with sign-in instructions -- log to stderr.
           // Background poll is already running; tokens will be saved to disk
           // and picked up on the next tool call.
           console.error(err.message)
@@ -96,7 +111,7 @@ async function setupServer(accounts: AccountConfig[]): Promise<Server> {
     }
   )
 
-  // Register composite tools
+  // Register composite tools (credential-aware: returns setup instructions when unconfigured)
   registerTools(server, accounts)
 
   // Connect stdio transport
@@ -114,7 +129,7 @@ export async function initServer() {
     return
   }
 
-  // Default: stdio mode (unchanged)
+  // Default: stdio mode -- non-blocking startup
   const accounts = await setupEnvironment()
   return setupServer(accounts)
 }

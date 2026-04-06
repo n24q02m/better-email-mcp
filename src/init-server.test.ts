@@ -2,8 +2,8 @@ import { existsSync, readFileSync } from 'node:fs'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { resolveCredentialState } from './credential-state.js'
 import { initServer } from './init-server.js'
-import { ensureConfig } from './relay-setup.js'
 import { loadConfig } from './tools/helpers/config.js'
 import { ensureValidToken } from './tools/helpers/oauth2.js'
 import { registerTools } from './tools/registry.js'
@@ -13,8 +13,8 @@ vi.mock('node:fs', () => ({
   existsSync: vi.fn(),
   readFileSync: vi.fn()
 }))
-vi.mock('./relay-setup.js', () => ({
-  ensureConfig: vi.fn()
+vi.mock('./credential-state.js', () => ({
+  resolveCredentialState: vi.fn()
 }))
 vi.mock('./tools/helpers/config.js', () => ({
   loadConfig: vi.fn(),
@@ -41,11 +41,11 @@ describe('initServer', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    // Set EMAIL_CREDENTIALS so ensureConfig is skipped in existing tests
+    // Set EMAIL_CREDENTIALS so credential state is 'configured' in existing tests
     process.env.EMAIL_CREDENTIALS = 'test@example.com:password'
 
-    // Default: ensureConfig resolves to null (not called when env var is set)
-    vi.mocked(ensureConfig).mockResolvedValue(null)
+    // Default: resolveCredentialState returns 'configured' (env var is set)
+    vi.mocked(resolveCredentialState).mockResolvedValue('configured')
 
     // Mock process.exit
     // @ts-expect-error
@@ -131,8 +131,9 @@ describe('initServer', () => {
     )
   })
 
-  it('starts server with warning when no accounts are loaded', async () => {
-    // Setup mocks
+  it('starts server with warning when credentials set but no accounts loaded', async () => {
+    // Setup mocks -- resolveCredentialState returns configured but loadConfig returns empty
+    vi.mocked(resolveCredentialState).mockResolvedValue('configured')
     vi.mocked(loadConfig).mockReturnValue(Promise.resolve([]))
 
     // Execute
@@ -189,38 +190,46 @@ describe('initServer', () => {
     expect(ensureValidToken).not.toHaveBeenCalled()
   })
 
-  it('calls ensureConfig when EMAIL_CREDENTIALS is not set', async () => {
+  it('calls resolveCredentialState and loads accounts when configured', async () => {
     delete process.env.EMAIL_CREDENTIALS
-    vi.mocked(ensureConfig).mockResolvedValue('user@gmail.com:app-pass')
+    vi.mocked(resolveCredentialState).mockResolvedValue('configured')
+    // Simulate that resolveCredentialState set the env var
+    process.env.EMAIL_CREDENTIALS = 'user@gmail.com:app-pass'
     const mockAccounts = [{ email: 'user@gmail.com', authType: 'password' }]
     vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
 
     await initServer()
 
-    expect(ensureConfig).toHaveBeenCalledTimes(1)
-    expect(process.env.EMAIL_CREDENTIALS).toBe('user@gmail.com:app-pass')
+    expect(resolveCredentialState).toHaveBeenCalledTimes(1)
     expect(loadConfig).toHaveBeenCalled()
   })
 
-  it('skips ensureConfig when EMAIL_CREDENTIALS is already set', async () => {
+  it('skips loadConfig when credentials are already in env', async () => {
     process.env.EMAIL_CREDENTIALS = 'existing@gmail.com:pass'
+    vi.mocked(resolveCredentialState).mockResolvedValue('configured')
     const mockAccounts = [{ email: 'existing@gmail.com', authType: 'password' }]
     vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
 
     await initServer()
 
-    expect(ensureConfig).not.toHaveBeenCalled()
+    expect(resolveCredentialState).toHaveBeenCalledTimes(1)
+    expect(loadConfig).toHaveBeenCalled()
   })
 
-  it('starts server even when ensureConfig returns null', async () => {
+  it('starts server with empty accounts when resolveCredentialState returns awaiting_setup', async () => {
     delete process.env.EMAIL_CREDENTIALS
-    vi.mocked(ensureConfig).mockResolvedValue(null)
-    vi.mocked(loadConfig).mockReturnValue(Promise.resolve([]))
+    vi.mocked(resolveCredentialState).mockResolvedValue('awaiting_setup')
 
     await initServer()
 
-    expect(ensureConfig).toHaveBeenCalledTimes(1)
+    expect(resolveCredentialState).toHaveBeenCalledTimes(1)
     expect(Server).toHaveBeenCalled()
-    expect(consoleSpy).toHaveBeenCalledWith('Warning: No email accounts configured')
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Server starting without credentials. Tools will guide setup on first call.'
+    )
+    // loadConfig should NOT be called when not configured
+    expect(loadConfig).not.toHaveBeenCalled()
+    // registerTools called with empty accounts
+    expect(registerTools).toHaveBeenCalledWith(expect.anything(), [])
   })
 })

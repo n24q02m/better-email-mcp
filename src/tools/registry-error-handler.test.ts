@@ -9,6 +9,13 @@ vi.mock('./composite/folders.js', () => ({ folders: vi.fn() }))
 vi.mock('./composite/messages.js', () => ({ messages: vi.fn() }))
 vi.mock('./composite/send.js', () => ({ send: vi.fn() }))
 
+// Mock credential state to return 'configured' so tools execute normally
+vi.mock('../credential-state.js', () => ({
+  getState: vi.fn(() => 'configured'),
+  getSetupUrl: vi.fn(() => null),
+  triggerRelaySetup: vi.fn()
+}))
+
 describe('CallToolRequestSchema handler - error handling', () => {
   it('should return a properly formatted MCP error response for EmailMCPError', async () => {
     const { messages } = await import('./composite/messages.js')
