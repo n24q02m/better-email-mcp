@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.20.0 (2026-04-06)
+
+### Bug Fixes
+
+- Mark relay as BETA, promote env vars as primary setup method
+  ([`286a4aa`](https://github.com/n24q02m/better-email-mcp/commit/286a4aaae5038b148ee68d49b5063186b679ca7b))
+
+### Features
+
+- Non-blocking relay with credential state machine and lazy trigger
+  ([`49b336e`](https://github.com/n24q02m/better-email-mcp/commit/49b336e2b85583938e38b1cb475a8fe81667fe46))
+
+
 ## v1.19.0 (2026-04-04)
 
 ### Bug Fixes
