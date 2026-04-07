@@ -24,7 +24,7 @@ import { createSession, pollForResult, sendMessage } from '@n24q02m/mcp-relay-co
 import express from 'express'
 import rateLimit from 'express-rate-limit'
 import { ImapFlow } from 'imapflow'
-import { createEmailAuthProvider, requestContext } from '../auth/email-auth-provider.js'
+import { createEmailAuthProvider, type PendingAuth, requestContext } from '../auth/email-auth-provider.js'
 import { loadAllUserCredentials, storeUserCredentials } from '../auth/per-user-credential-store.js'
 import { RELAY_SCHEMA } from '../relay-schema.js'
 import type { AccountConfig } from '../tools/helpers/config.js'
@@ -108,17 +108,35 @@ async function testImapConnection(account: AccountConfig): Promise<boolean> {
 export async function startHttp(): Promise<void> {
   const config = loadConfig()
   const serverUrl = new URL(config.publicUrl)
+  const relayBaseUrl = getRelayBaseUrl(config.publicUrl)
 
-  const SERVER_NAME = 'better-email-mcp'
+  const { provider, pendingAuths, authCodes, userAccounts, resolveAccounts } = setupAuthProvider(config, relayBaseUrl)
+
+  await restoreCredentials(userAccounts)
+
+  const app = express()
+  const { mcpRateLimit } = registerBaseRoutes(app, provider, serverUrl, userAccounts)
+
+  setupRelayPoller(relayBaseUrl, pendingAuths, userAccounts, authCodes)
+  registerMcpRoutes(app, mcpRateLimit, provider, resolveAccounts)
+
+  app.listen(config.port, '0.0.0.0', () => {
+    console.info(`Email MCP HTTP server listening on port ${config.port}`)
+    console.info(`Public URL: ${config.publicUrl}`)
+    console.info(`Users: ${userAccounts.size}`)
+  })
+}
+
+function getRelayBaseUrl(publicUrl: string): string {
   const DEFAULT_RELAY_URL = 'https://better-email-mcp.n24q02m.com'
-  // Relay URL: use PUBLIC_URL in production (Caddy proxies /api/sessions to relay server),
-  // fall back to DEFAULT_RELAY_URL for local dev
-  const relayBaseUrl =
-    config.publicUrl.startsWith('http://127.0.0.1') || config.publicUrl.startsWith('http://localhost')
-      ? DEFAULT_RELAY_URL
-      : config.publicUrl
+  return publicUrl.startsWith('http://127.0.0.1') || publicUrl.startsWith('http://localhost')
+    ? DEFAULT_RELAY_URL
+    : publicUrl
+}
 
-  const { provider, pendingAuths, authCodes, userAccounts, resolveAccounts } = createEmailAuthProvider({
+function setupAuthProvider(config: HttpConfig, relayBaseUrl: string) {
+  const SERVER_NAME = 'better-email-mcp'
+  return createEmailAuthProvider({
     dcrSecret: config.dcrSecret,
     publicUrl: config.publicUrl,
     createRelaySession: async () => {
@@ -126,8 +144,9 @@ export async function startHttp(): Promise<void> {
       return { relayUrl: session.relayUrl, session }
     }
   })
+}
 
-  // Restore persisted per-user credentials on startup
+async function restoreCredentials(userAccounts: Map<string, AccountConfig[]>) {
   try {
     const stored = await loadAllUserCredentials()
     for (const [userId, accounts] of stored) {
@@ -139,9 +158,17 @@ export async function startHttp(): Promise<void> {
   } catch (err) {
     console.error('Failed to restore user credentials:', err)
   }
+}
 
-  const app = express()
-
+/**
+ * Register base routes and middleware (health check, rate limits, OAuth router).
+ */
+function registerBaseRoutes(
+  app: express.Express,
+  provider: any,
+  serverUrl: URL,
+  userAccounts: Map<string, AccountConfig[]>
+) {
   // Trust exactly 2 reverse proxies (Cloudflare + Caddy) for correct req.ip
   app.set('trust proxy', 2)
   app.disable('x-powered-by')
@@ -180,8 +207,148 @@ export async function startHttp(): Promise<void> {
     })
   )
 
-  // Background relay poller: polls mcp-relay-core for credentials when a relay session is active
-  // Runs for each pending auth that has a relay session
+  // Health check (no auth required)
+  app.get('/health', (_req, res) => {
+    res.json({
+      status: 'ok',
+      mode: 'http',
+      users: userAccounts.size,
+      timestamp: new Date().toISOString()
+    })
+  })
+
+  return { mcpRateLimit }
+}
+
+/**
+ * Register MCP routes (POST, GET, DELETE) with per-session management.
+ */
+function registerMcpRoutes(
+  app: express.Express,
+  mcpRateLimit: any,
+  provider: any,
+  resolveAccounts: (token: string) => AccountConfig[] | undefined
+) {
+  const jsonParser = express.json()
+  const authMiddleware = requireBearerAuth({ verifier: provider })
+  const transports: Map<string, StreamableHTTPServerTransport> = new Map()
+  // Session owner binding -- prevents cross-user session hijacking
+  const sessionOwners: Map<string, string> = new Map() // sessionId -> userId
+
+  // Verify session ownership for GET/DELETE endpoints
+  function verifySessionOwner(req: express.Request, res: express.Response, sessionId: string): boolean {
+    const authInfo = (req as any).auth
+    const ownerUserId = sessionOwners.get(sessionId)
+    if (ownerUserId) {
+      const currentUserId = authInfo?.extra?.userId
+      if (currentUserId !== ownerUserId) {
+        res.status(403).json({ error: 'Session belongs to a different user' })
+        return false
+      }
+    }
+    return true
+  }
+
+  // MCP endpoint -- POST (new session or existing)
+  app.post('/mcp', mcpRateLimit, jsonParser, authMiddleware, async (req, res) => {
+    const sessionId = req.headers['mcp-session-id'] as string | undefined
+
+    // Existing session -- verify the authenticated user owns this session
+    if (sessionId && transports.has(sessionId)) {
+      const authInfo = (req as any).auth
+      const ownerUserId = sessionOwners.get(sessionId)
+      if (ownerUserId) {
+        const currentUserId = authInfo?.extra?.userId
+        if (currentUserId !== ownerUserId) {
+          res.status(403).json({
+            jsonrpc: '2.0',
+            error: { code: -32000, message: 'Session belongs to a different user' },
+            id: null
+          })
+          return
+        }
+      }
+      await transports.get(sessionId)!.handleRequest(req, res, req.body)
+      return
+    }
+
+    // New session -- must be initialize request
+    if (!sessionId && isInitializeRequest(req.body)) {
+      const authInfo = (req as any).auth
+      const userId: string = authInfo.extra?.userId
+      const accounts = resolveAccounts(authInfo.token)
+
+      if (!accounts || accounts.length === 0) {
+        res.status(403).json({
+          jsonrpc: '2.0',
+          error: { code: -32000, message: 'No email accounts found. Please re-authenticate.' },
+          id: null
+        })
+        return
+      }
+
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => randomUUID(),
+        onsessioninitialized: (id) => {
+          transports.set(id, transport)
+          sessionOwners.set(id, userId)
+        }
+      })
+
+      transport.onclose = () => {
+        if (transport.sessionId) {
+          transports.delete(transport.sessionId)
+          sessionOwners.delete(transport.sessionId)
+        }
+      }
+
+      // Per-session MCP server with the user's email accounts
+      const server = createMCPServer(accounts)
+      await server.connect(transport)
+      await transport.handleRequest(req, res, req.body)
+      return
+    }
+
+    res.status(400).json({
+      jsonrpc: '2.0',
+      error: { code: -32000, message: 'Bad request: missing session ID or not an initialize request' },
+      id: null
+    })
+  })
+
+  // MCP endpoint -- GET (SSE streaming for existing session)
+  app.get('/mcp', mcpRateLimit, authMiddleware, async (req, res) => {
+    const sessionId = req.headers['mcp-session-id'] as string
+    if (sessionId && transports.has(sessionId)) {
+      if (!verifySessionOwner(req, res, sessionId)) return
+      await transports.get(sessionId)!.handleRequest(req, res)
+    } else {
+      res.status(400).json({ error: 'Invalid or missing session' })
+    }
+  })
+
+  // MCP endpoint -- DELETE (close session)
+  app.delete('/mcp', mcpRateLimit, authMiddleware, async (req, res) => {
+    const sessionId = req.headers['mcp-session-id'] as string
+    if (sessionId && transports.has(sessionId)) {
+      if (!verifySessionOwner(req, res, sessionId)) return
+      await transports.get(sessionId)!.handleRequest(req, res)
+    } else {
+      res.status(400).json({ error: 'Invalid or missing session' })
+    }
+  })
+}
+
+/**
+ * Background relay poller: polls mcp-relay-core for credentials when a relay session is active.
+ * Runs for each pending auth that has a relay session.
+ */
+function setupRelayPoller(
+  relayBaseUrl: string,
+  pendingAuths: Map<string, PendingAuth>,
+  userAccounts: Map<string, AccountConfig[]>,
+  authCodes: Map<string, any>
+) {
   async function pollRelayAndCompleteAuth(ourState: string) {
     const pending = pendingAuths.get(ourState)
     if (!pending?.relaySession) return
@@ -309,130 +476,4 @@ export async function startHttp(): Promise<void> {
     }
     return result
   }
-
-  const jsonParser = express.json()
-
-  const authMiddleware = requireBearerAuth({ verifier: provider })
-  const transports: Map<string, StreamableHTTPServerTransport> = new Map()
-  // Session owner binding -- prevents cross-user session hijacking
-  const sessionOwners: Map<string, string> = new Map() // sessionId -> userId
-
-  // MCP endpoint -- POST (new session or existing)
-  app.post('/mcp', mcpRateLimit, jsonParser, authMiddleware, async (req, res) => {
-    const sessionId = req.headers['mcp-session-id'] as string | undefined
-
-    // Existing session -- verify the authenticated user owns this session
-    if (sessionId && transports.has(sessionId)) {
-      const authInfo = (req as any).auth
-      const ownerUserId = sessionOwners.get(sessionId)
-      if (ownerUserId) {
-        const currentUserId = authInfo?.extra?.userId
-        if (currentUserId !== ownerUserId) {
-          res.status(403).json({
-            jsonrpc: '2.0',
-            error: { code: -32000, message: 'Session belongs to a different user' },
-            id: null
-          })
-          return
-        }
-      }
-      await transports.get(sessionId)!.handleRequest(req, res, req.body)
-      return
-    }
-
-    // New session -- must be initialize request
-    if (!sessionId && isInitializeRequest(req.body)) {
-      const authInfo = (req as any).auth
-      const userId: string = authInfo.extra?.userId
-      const accounts = resolveAccounts(authInfo.token)
-
-      if (!accounts || accounts.length === 0) {
-        res.status(403).json({
-          jsonrpc: '2.0',
-          error: { code: -32000, message: 'No email accounts found. Please re-authenticate.' },
-          id: null
-        })
-        return
-      }
-
-      const transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => randomUUID(),
-        onsessioninitialized: (id) => {
-          transports.set(id, transport)
-          sessionOwners.set(id, userId)
-        }
-      })
-
-      transport.onclose = () => {
-        if (transport.sessionId) {
-          transports.delete(transport.sessionId)
-          sessionOwners.delete(transport.sessionId)
-        }
-      }
-
-      // Per-session MCP server with the user's email accounts
-      const server = createMCPServer(accounts)
-      await server.connect(transport)
-      await transport.handleRequest(req, res, req.body)
-      return
-    }
-
-    res.status(400).json({
-      jsonrpc: '2.0',
-      error: { code: -32000, message: 'Bad request: missing session ID or not an initialize request' },
-      id: null
-    })
-  })
-
-  // Verify session ownership for GET/DELETE endpoints
-  function verifySessionOwner(req: express.Request, res: express.Response, sessionId: string): boolean {
-    const authInfo = (req as any).auth
-    const ownerUserId = sessionOwners.get(sessionId)
-    if (ownerUserId) {
-      const currentUserId = authInfo?.extra?.userId
-      if (currentUserId !== ownerUserId) {
-        res.status(403).json({ error: 'Session belongs to a different user' })
-        return false
-      }
-    }
-    return true
-  }
-
-  // MCP endpoint -- GET (SSE streaming for existing session)
-  app.get('/mcp', mcpRateLimit, authMiddleware, async (req, res) => {
-    const sessionId = req.headers['mcp-session-id'] as string
-    if (sessionId && transports.has(sessionId)) {
-      if (!verifySessionOwner(req, res, sessionId)) return
-      await transports.get(sessionId)!.handleRequest(req, res)
-    } else {
-      res.status(400).json({ error: 'Invalid or missing session' })
-    }
-  })
-
-  // MCP endpoint -- DELETE (close session)
-  app.delete('/mcp', mcpRateLimit, authMiddleware, async (req, res) => {
-    const sessionId = req.headers['mcp-session-id'] as string
-    if (sessionId && transports.has(sessionId)) {
-      if (!verifySessionOwner(req, res, sessionId)) return
-      await transports.get(sessionId)!.handleRequest(req, res)
-    } else {
-      res.status(400).json({ error: 'Invalid or missing session' })
-    }
-  })
-
-  // Health check (no auth required)
-  app.get('/health', (_req, res) => {
-    res.json({
-      status: 'ok',
-      mode: 'http',
-      users: userAccounts.size,
-      timestamp: new Date().toISOString()
-    })
-  })
-
-  app.listen(config.port, '0.0.0.0', () => {
-    console.info(`Email MCP HTTP server listening on port ${config.port}`)
-    console.info(`Public URL: ${config.publicUrl}`)
-    console.info(`Users: ${userAccounts.size}`)
-  })
 }
