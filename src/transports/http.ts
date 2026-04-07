@@ -17,7 +17,7 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js'
 import { mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js'
-import { Server } from '@modelcontextprotocol/sdk/server/index.js'
+
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
 import { createSession, pollForResult, sendMessage } from '@n24q02m/mcp-relay-core/relay'
@@ -30,7 +30,7 @@ import { RELAY_SCHEMA } from '../relay-schema.js'
 import type { AccountConfig } from '../tools/helpers/config.js'
 import { parseCredentials } from '../tools/helpers/config.js'
 import { _getPendingAuths, ensureValidToken, isOutlookDomain } from '../tools/helpers/oauth2.js'
-import { registerTools } from '../tools/registry.js'
+import { createMcpServer } from '../tools/registry.js'
 
 interface HttpConfig {
   port: number
@@ -53,31 +53,6 @@ function loadConfig(): HttpConfig {
     publicUrl: process.env.PUBLIC_URL!,
     dcrSecret: process.env.DCR_SERVER_SECRET!
   }
-}
-
-function getVersion(): string {
-  try {
-    return process.env.npm_package_version ?? '0.0.0'
-  } catch {
-    return '0.0.0'
-  }
-}
-
-function createMCPServer(accounts: AccountConfig[]): Server {
-  const server = new Server(
-    {
-      name: '@n24q02m/better-email-mcp',
-      version: getVersion()
-    },
-    {
-      capabilities: {
-        tools: {},
-        resources: {}
-      }
-    }
-  )
-  registerTools(server, accounts)
-  return server
 }
 
 /**
@@ -371,7 +346,7 @@ export async function startHttp(): Promise<void> {
       }
 
       // Per-session MCP server with the user's email accounts
-      const server = createMCPServer(accounts)
+      const server = createMcpServer(accounts)
       await server.connect(transport)
       await transport.handleRequest(req, res, req.body)
       return

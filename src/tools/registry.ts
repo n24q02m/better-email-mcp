@@ -10,7 +10,7 @@
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { Server } from '@modelcontextprotocol/sdk/server/index.js'
+import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import {
   CallToolRequestSchema,
   ListResourcesRequestSchema,
@@ -26,6 +26,7 @@ import { type SendInput, send } from './composite/send.js'
 import type { AccountConfig } from './helpers/config.js'
 import { aiReadableMessage, EmailMCPError, enhanceError, findClosestMatch } from './helpers/errors.js'
 import { isValidToolName, wrapToolResult } from './helpers/security.js'
+import { getVersion } from './helpers/version.js'
 
 // Get docs directory path - works for both bundled CLI and unbundled code
 const __filename = fileURLToPath(import.meta.url)
@@ -247,6 +248,27 @@ const FORMATTED_RESOURCES = RESOURCES.map((r) => ({
 const AVAILABLE_RESOURCE_URIS_STRING = RESOURCES.map((r) => r.uri).join(', ')
 const VALID_TOOL_NAMES = TOOLS.map((t) => t.name)
 const AVAILABLE_TOOLS_STRING = VALID_TOOL_NAMES.join(', ')
+
+/**
+ * Create and configure a new MCP server instance.
+ */
+export function createMcpServer(accounts: AccountConfig[]): Server {
+  const server = new Server(
+    {
+      name: '@n24q02m/better-email-mcp',
+      version: getVersion()
+    },
+    {
+      capabilities: {
+        tools: {},
+        resources: {}
+      }
+    }
+  )
+
+  registerTools(server, accounts)
+  return server
+}
 
 export function registerTools(server: Server, accounts: AccountConfig[]) {
   server.setRequestHandler(ListToolsRequestSchema, async () => ({

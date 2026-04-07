@@ -6,7 +6,7 @@ import { resolveCredentialState } from './credential-state.js'
 import { initServer } from './init-server.js'
 import { loadConfig } from './tools/helpers/config.js'
 import { ensureValidToken } from './tools/helpers/oauth2.js'
-import { registerTools } from './tools/registry.js'
+import { createMcpServer } from './tools/registry.js'
 
 // Mock dependencies
 vi.mock('node:fs', () => ({
@@ -25,7 +25,10 @@ vi.mock('./tools/helpers/oauth2.js', () => ({
   ensureValidToken: vi.fn()
 }))
 vi.mock('./tools/registry.js', () => ({
-  registerTools: vi.fn()
+  registerTools: vi.fn(),
+  createMcpServer: vi.fn().mockImplementation(() => ({
+    connect: vi.fn().mockResolvedValue(undefined)
+  }))
 }))
 vi.mock('@modelcontextprotocol/sdk/server/index.js', () => ({
   Server: vi.fn()
@@ -90,45 +93,9 @@ describe('initServer', () => {
 
     // Verify
     expect(loadConfig).toHaveBeenCalled()
-    expect(Server).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: '@n24q02m/better-email-mcp'
-      }),
-      expect.any(Object)
-    )
-    expect(registerTools).toHaveBeenCalledWith(server, mockAccounts)
+    expect(createMcpServer).toHaveBeenCalledWith(mockAccounts)
     expect(StdioServerTransport).toHaveBeenCalled()
     expect(server!.connect).toHaveBeenCalledWith(expect.anything())
-  })
-
-  it('uses fallback version 0.0.0 when package.json not found', async () => {
-    const mockAccounts = [{ email: 'test@example.com' }]
-    vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
-    vi.mocked(existsSync).mockReturnValue(false)
-
-    await initServer()
-
-    expect(Server).toHaveBeenCalledWith(
-      expect.objectContaining({
-        version: '0.0.0'
-      }),
-      expect.any(Object)
-    )
-  })
-
-  it('uses fallback version when package.json has no version field', async () => {
-    const mockAccounts = [{ email: 'test@example.com' }]
-    vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
-    vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ name: '@n24q02m/better-email-mcp' }))
-
-    await initServer()
-
-    expect(Server).toHaveBeenCalledWith(
-      expect.objectContaining({
-        version: '0.0.0'
-      }),
-      expect.any(Object)
-    )
   })
 
   it('starts server with warning when credentials set but no accounts loaded', async () => {
@@ -142,7 +109,7 @@ describe('initServer', () => {
     // Verify server still starts
     expect(loadConfig).toHaveBeenCalled()
     expect(consoleSpy).toHaveBeenCalledWith('Warning: No email accounts configured')
-    expect(Server).toHaveBeenCalled()
+    expect(createMcpServer).toHaveBeenCalled()
     expect(exitSpy).not.toHaveBeenCalled()
   })
 
@@ -223,13 +190,11 @@ describe('initServer', () => {
     await initServer()
 
     expect(resolveCredentialState).toHaveBeenCalledTimes(1)
-    expect(Server).toHaveBeenCalled()
+    expect(createMcpServer).toHaveBeenCalledWith([])
     expect(consoleSpy).toHaveBeenCalledWith(
       'Server starting without credentials. Tools will guide setup on first call.'
     )
     // loadConfig should NOT be called when not configured
     expect(loadConfig).not.toHaveBeenCalled()
-    // registerTools called with empty accounts
-    expect(registerTools).toHaveBeenCalledWith(expect.anything(), [])
   })
 })
