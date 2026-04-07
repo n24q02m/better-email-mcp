@@ -372,7 +372,10 @@ export async function startHttp(): Promise<void> {
     })
   })
 
-  // Verify session ownership for MCP endpoints
+  /**
+   * Verifies that the authenticated user owns the given session.
+   * Prevents cross-user session hijacking.
+   */
   function verifySessionOwner(
     req: express.Request,
     res: express.Response,
