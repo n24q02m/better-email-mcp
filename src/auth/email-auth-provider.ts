@@ -18,11 +18,11 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
+import type { RelaySession } from '@n24q02m/mcp-relay-core/relay'
 import type { OAuthRegisteredClientsStore } from '@modelcontextprotocol/sdk/server/auth/clients.js'
 import { InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js'
 import type { AuthorizationParams, OAuthServerProvider } from '@modelcontextprotocol/sdk/server/auth/provider.js'
 import type { OAuthClientInformationFull, OAuthTokens } from '@modelcontextprotocol/sdk/shared/auth.js'
-import type { RelaySession } from '@n24q02m/mcp-relay-core/relay'
 import type { Response } from 'express'
 import type { AccountConfig } from '../tools/helpers/config.js'
 import { StatelessClientStore } from './stateless-client-store.js'
@@ -65,18 +65,6 @@ interface StoredAuthCode {
 interface StoredToken {
   userId: string
   createdAt: number
-}
-
-/**
- * Generic helper to clean up expired entries from a Map.
- *
- * @param map The map to clean up
- * @param isExpired Predicate function that returns true if an entry should be deleted
- */
-function cleanupMap<K, V>(map: Map<K, V>, isExpired: (val: V) => boolean): void {
-  for (const [key, val] of map) {
-    if (isExpired(val)) map.delete(key)
-  }
 }
 
 /**
@@ -284,12 +272,24 @@ export function createEmailAuthProvider(config: EmailAuthConfig) {
   // Cleanup expired entries periodically
   const cleanupInterval = setInterval(() => {
     const now = Date.now()
-    cleanupMap(pendingAuths, (val) => now - val.createdAt > PENDING_AUTH_TTL)
-    cleanupMap(authCodes, (val) => now - val.createdAt > AUTH_CODE_TTL)
-    cleanupMap(bearerTokens, (val) => now - val.createdAt > BEARER_TOKEN_TTL)
-    cleanupMap(pendingBinds, (val) => now > val.expiresAt)
-    cleanupMap(boundTokens, (val) => now - val.createdAt > BEARER_TOKEN_TTL)
-    cleanupMap(verifyCache, (val) => now > val.expiresAt)
+    for (const [key, val] of pendingAuths) {
+      if (now - val.createdAt > PENDING_AUTH_TTL) pendingAuths.delete(key)
+    }
+    for (const [key, val] of authCodes) {
+      if (now - val.createdAt > AUTH_CODE_TTL) authCodes.delete(key)
+    }
+    for (const [key, val] of bearerTokens) {
+      if (now - val.createdAt > BEARER_TOKEN_TTL) bearerTokens.delete(key)
+    }
+    for (const [key, val] of pendingBinds) {
+      if (now > val.expiresAt) pendingBinds.delete(key)
+    }
+    for (const [key, val] of boundTokens) {
+      if (now - val.createdAt > BEARER_TOKEN_TTL) boundTokens.delete(key)
+    }
+    for (const [key, val] of verifyCache) {
+      if (now > val.expiresAt) verifyCache.delete(key)
+    }
   }, 60_000)
 
   return {
