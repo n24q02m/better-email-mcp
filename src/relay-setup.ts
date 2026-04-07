@@ -82,6 +82,132 @@ export function formatCredentials(config: Record<string, string>): string {
 }
 
 /**
+ * Handle post-setup tasks: OAuth verification for Outlook accounts and relay messaging.
+ */
+async function handlePostRelaySetup(
+  relayUrl: string,
+  session: Awaited<ReturnType<typeof createSession>>,
+  config: Record<string, string>
+): Promise<void> {
+  const credentials = formatCredentials(config)
+  const sessionUrl = `${relayUrl}/api/sessions/${session.sessionId}/messages`
+
+  // Check if any Outlook accounts need OAuth — send device code via relay messaging
+  let hasOAuthPending = false
+  try {
+    const accounts = await parseCredentials(credentials)
+    await Promise.all(
+      accounts.map(async (account) => {
+        if (isOutlookDomain(account.email) && !account.oauth2) {
+          try {
+            await ensureValidToken(account)
+          } catch (err: any) {
+            // ensureValidToken throws with device code info — extract and send via relay
+            const message = err?.message || ''
+            const urlMatch = message.match(/Visit:\s*(https?:\/\/\S+)/)
+            const codeMatch = message.match(/Enter code:\s*(\S+)/)
+            if (urlMatch && codeMatch) {
+              hasOAuthPending = true
+              await fetch(sessionUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'oauth_device_code',
+                  text: `Sign in to Microsoft for ${account.email}`,
+                  data: { url: urlMatch[1], code: codeMatch[1], email: account.email }
+                })
+              }).catch(() => {}) // Best effort
+              console.error(`OAuth device code sent to relay page for ${account.email}`)
+            }
+          }
+        }
+      })
+    )
+
+    if (!hasOAuthPending) {
+      // No OAuth needed — all accounts ready
+      await fetch(sessionUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'complete',
+          text: 'Setup complete! All accounts configured.'
+        })
+      }).catch(() => {})
+    } else {
+      // Wait for OAuth background poll to complete (tokens saved to disk)
+      const pendingAuths = _getPendingAuths()
+      const deadline = Date.now() + 10 * 60 * 1000 // 10 min timeout
+      while (pendingAuths.size > 0 && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 2000))
+      }
+      await fetch(sessionUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'complete',
+          text:
+            pendingAuths.size === 0
+              ? 'Setup complete! All accounts configured including OAuth.'
+              : 'Credentials saved. OAuth sign-in may still be in progress.'
+        })
+      }).catch(() => {})
+    }
+  } catch {
+    await fetch(sessionUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'info',
+        text: 'Credentials saved. If you added Outlook accounts, check back later for OAuth sign-in.'
+      })
+    }).catch(() => {})
+  }
+}
+
+/**
+ * Run interactive relay setup: create session, poll for result, and save config.
+ *
+ * Returns the raw config object or null if setup failed/skipped.
+ */
+async function triggerRelaySetup(relayUrl: string): Promise<Record<string, string> | null> {
+  console.error('No email credentials found. Starting relay setup...')
+
+  let session: Awaited<ReturnType<typeof createSession>>
+  try {
+    session = await createSession(relayUrl, SERVER_NAME, RELAY_SCHEMA)
+  } catch {
+    console.error(
+      `Cannot reach relay server at ${relayUrl}. Set EMAIL_CREDENTIALS manually.\nFormat: email1:password1,email2:password2`
+    )
+    return null
+  }
+
+  // Log URL to stderr (visible to user in MCP client)
+  console.error(`\nSetup required. Open this URL to configure:\n${session.relayUrl}\n`)
+
+  // Poll for result
+  try {
+    const config = await pollForResult(relayUrl, session)
+    // Save to config file for future use
+    await writeConfig(SERVER_NAME, config)
+    console.error('Email config saved successfully')
+
+    // Handle post-setup tasks (OAuth, messaging)
+    await handlePostRelaySetup(relayUrl, session, config)
+
+    return config
+  } catch (err: any) {
+    if (err?.message === 'RELAY_SKIPPED') {
+      console.error('Relay setup skipped by user. Email tools will be unavailable.')
+    } else {
+      console.error('Relay setup timed out or session expired. Email tools will be unavailable.')
+    }
+    return null
+  }
+}
+
+/**
  * Resolve config: config file -> saved OAuth tokens -> relay setup -> degraded.
  *
  * Relay is ONLY triggered when steps 1-2-3 are ALL empty (first-time setup).
@@ -109,112 +235,6 @@ export async function ensureConfig(): Promise<string | null> {
   }
 
   // 3. No local credentials found -- trigger relay setup
-  console.error('No email credentials found. Starting relay setup...')
-
-  const relayUrl = DEFAULT_RELAY_URL
-  let session: Awaited<ReturnType<typeof createSession>>
-  try {
-    session = await createSession(relayUrl, SERVER_NAME, RELAY_SCHEMA)
-  } catch {
-    console.error(
-      `Cannot reach relay server at ${relayUrl}. Set EMAIL_CREDENTIALS manually.\nFormat: email1:password1,email2:password2`
-    )
-    return null
-  }
-
-  // Log URL to stderr (visible to user in MCP client)
-  console.error(`\nSetup required. Open this URL to configure:\n${session.relayUrl}\n`)
-
-  // Poll for result
-  let config: Record<string, string>
-  try {
-    config = await pollForResult(relayUrl, session)
-  } catch (err: any) {
-    if (err?.message === 'RELAY_SKIPPED') {
-      console.error('Relay setup skipped by user. Email tools will be unavailable.')
-    } else {
-      console.error('Relay setup timed out or session expired. Email tools will be unavailable.')
-    }
-    return null
-  }
-
-  // Save to config file for future use
-  await writeConfig(SERVER_NAME, config)
-  console.error('Email config saved successfully')
-
-  const credentials = formatCredentials(config)
-
-  // Check if any Outlook accounts need OAuth — send device code via relay messaging
-  let hasOAuthPending = false
-  try {
-    const accounts = await parseCredentials(credentials)
-    await Promise.all(
-      accounts.map(async (account) => {
-        if (isOutlookDomain(account.email) && !account.oauth2) {
-          try {
-            await ensureValidToken(account)
-          } catch (err: any) {
-            // ensureValidToken throws with device code info — extract and send via relay
-            const message = err?.message || ''
-            const urlMatch = message.match(/Visit:\s*(https?:\/\/\S+)/)
-            const codeMatch = message.match(/Enter code:\s*(\S+)/)
-            if (urlMatch && codeMatch) {
-              hasOAuthPending = true
-              await fetch(`${relayUrl}/api/sessions/${session.sessionId}/messages`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  type: 'oauth_device_code',
-                  text: `Sign in to Microsoft for ${account.email}`,
-                  data: { url: urlMatch[1], code: codeMatch[1], email: account.email }
-                })
-              }).catch(() => {}) // Best effort
-              console.error(`OAuth device code sent to relay page for ${account.email}`)
-            }
-          }
-        }
-      })
-    )
-
-    if (!hasOAuthPending) {
-      // No OAuth needed — all accounts ready
-      await fetch(`${relayUrl}/api/sessions/${session.sessionId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'complete',
-          text: 'Setup complete! All accounts configured.'
-        })
-      })
-    } else {
-      // Wait for OAuth background poll to complete (tokens saved to disk)
-      const pendingAuths = _getPendingAuths()
-      const deadline = Date.now() + 10 * 60 * 1000 // 10 min timeout
-      while (pendingAuths.size > 0 && Date.now() < deadline) {
-        await new Promise((r) => setTimeout(r, 2000))
-      }
-      await fetch(`${relayUrl}/api/sessions/${session.sessionId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'complete',
-          text:
-            pendingAuths.size === 0
-              ? 'Setup complete! All accounts configured including OAuth.'
-              : 'Credentials saved. OAuth sign-in may still be in progress.'
-        })
-      }).catch(() => {})
-    }
-  } catch {
-    await fetch(`${relayUrl}/api/sessions/${session.sessionId}/messages`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'info',
-        text: 'Credentials saved. If you added Outlook accounts, check back later for OAuth sign-in.'
-      })
-    }).catch(() => {})
-  }
-
-  return credentials
+  const config = await triggerRelaySetup(DEFAULT_RELAY_URL)
+  return config ? formatCredentials(config) : null
 }
