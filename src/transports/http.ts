@@ -24,6 +24,7 @@ import { createSession, pollForResult, sendMessage } from '@n24q02m/mcp-relay-co
 import express from 'express'
 import rateLimit from 'express-rate-limit'
 import { ImapFlow } from 'imapflow'
+import type { PendingAuth } from '../auth/email-auth-provider.js'
 import { createEmailAuthProvider, requestContext } from '../auth/email-auth-provider.js'
 import { loadAllUserCredentials, storeUserCredentials } from '../auth/per-user-credential-store.js'
 import { RELAY_SCHEMA } from '../relay-schema.js'
@@ -36,6 +37,19 @@ interface HttpConfig {
   port: number
   publicUrl: string
   dcrSecret: string
+}
+
+interface RelayContext {
+  pendingAuths: Map<string, PendingAuth>
+  authCodes: Map<string, any>
+  userAccounts: Map<string, AccountConfig[]>
+  relayBaseUrl: string
+}
+
+interface McpContext {
+  transports: Map<string, StreamableHTTPServerTransport>
+  sessionOwners: Map<string, string>
+  resolveAccounts: (token: string) => AccountConfig[] | undefined
 }
 
 function loadConfig(): HttpConfig {
@@ -102,6 +116,244 @@ async function testImapConnection(account: AccountConfig): Promise<boolean> {
     return true
   } catch {
     return false
+  }
+}
+
+/**
+ * Background relay poller: polls mcp-relay-core for credentials when a relay session is active
+ * Runs for each pending auth that has a relay session
+ */
+async function pollRelayAndCompleteAuth(ourState: string, ctx: RelayContext) {
+  const { pendingAuths, relayBaseUrl, userAccounts, authCodes } = ctx
+  const pending = pendingAuths.get(ourState)
+  if (!pending?.relaySession) return
+
+  try {
+    const config = await pollForResult(relayBaseUrl, pending.relaySession, 2000, 300_000)
+    const credentials = config.EMAIL_CREDENTIALS
+    if (!credentials) {
+      console.error(`Relay session ${pending.relaySession.sessionId}: no EMAIL_CREDENTIALS in result`)
+      return
+    }
+
+    // Parse and validate credentials (same flow as stdio relay-setup.ts)
+    const accounts = await parseCredentials(credentials)
+    if (accounts.length === 0) {
+      await sendMessage(relayBaseUrl, pending.relaySession.sessionId, {
+        type: 'error',
+        text: 'No valid email accounts found. Check format: email:password'
+      }).catch(() => {})
+      return
+    }
+
+    const sessionId = pending.relaySession.sessionId
+
+    // Validate non-OAuth accounts via IMAP (parallel for multi-account)
+    const imapResults = await Promise.all(
+      accounts.map(async (account) => {
+        if (!isOutlookDomain(account.email) && account.authType !== 'oauth2') {
+          const valid = await testImapConnection(account)
+          return { email: account.email, valid }
+        }
+        return { email: account.email, valid: true }
+      })
+    )
+
+    const failed = imapResults.find((r) => !r.valid)
+    if (failed) {
+      await sendMessage(relayBaseUrl, sessionId, {
+        type: 'error',
+        text: `IMAP connection failed for ${failed.email}. Check email and app password.`
+      }).catch(() => {})
+      return
+    }
+
+    // Trigger Outlook OAuth Device Code flow for Outlook accounts (parallel for multi-account)
+    let hasOAuthPending = false
+    await Promise.all(
+      accounts.map(async (account) => {
+        if (isOutlookDomain(account.email) && !account.oauth2) {
+          try {
+            await ensureValidToken(account)
+          } catch (err: any) {
+            const message = err?.message || ''
+            const urlMatch = message.match(/Visit:\s*(https?:\/\/\S+)/)
+            const codeMatch = message.match(/Enter code:\s*(\S+)/)
+            if (urlMatch && codeMatch) {
+              hasOAuthPending = true
+              await sendMessage(relayBaseUrl, sessionId, {
+                type: 'oauth_device_code',
+                text: `Sign in to Microsoft for ${account.email}`,
+                data: { url: urlMatch[1], code: codeMatch[1], email: account.email }
+              }).catch(() => {})
+              console.info(`OAuth device code sent to relay page for ${account.email}`)
+            }
+          }
+        }
+      })
+    )
+
+    // Wait for OAuth to complete if needed
+    if (hasOAuthPending) {
+      const pendingOAuths = _getPendingAuths()
+      const oauthDeadline = Date.now() + 10 * 60 * 1000
+      while (pendingOAuths.size > 0 && Date.now() < oauthDeadline) {
+        await new Promise((r) => setTimeout(r, 2000))
+      }
+    }
+
+    // Issue auth code
+    const userId = randomBytes(16).toString('hex')
+    userAccounts.set(userId, accounts)
+    await storeUserCredentials(userId, accounts)
+    pendingAuths.delete(ourState)
+
+    const ourAuthCode = randomBytes(32).toString('hex')
+    authCodes.set(ourAuthCode, {
+      userId,
+      codeChallenge: pending.codeChallenge,
+      codeChallengeMethod: pending.codeChallengeMethod,
+      clientId: pending.clientId,
+      createdAt: Date.now()
+    })
+
+    // Build redirect URL
+    const clientRedirect = new URL(pending.clientRedirectUri)
+    clientRedirect.searchParams.set('code', ourAuthCode)
+    if (pending.clientState) clientRedirect.searchParams.set('state', pending.clientState)
+
+    // Send redirect URL to relay page via bidirectional messaging
+    await sendMessage(relayBaseUrl, sessionId, {
+      type: 'complete',
+      text: hasOAuthPending
+        ? 'All accounts configured including OAuth! Redirecting...'
+        : 'Email credentials validated! Redirecting...',
+      data: { redirect: clientRedirect.toString() }
+    }).catch(() => {})
+
+    console.info(`Relay auth completed for user (userId: ${userId.substring(0, 8)}...)`)
+  } catch (err: any) {
+    if (err?.message === 'RELAY_SKIPPED') {
+      console.info('Relay setup skipped by user')
+    } else {
+      console.error('Relay poll error:', err?.message ?? err)
+    }
+    pendingAuths.delete(ourState)
+  }
+}
+
+/**
+ * MCP endpoint -- POST (new session or existing)
+ */
+async function handleMcpPost(req: express.Request, res: express.Response, ctx: McpContext) {
+  const { transports, sessionOwners, resolveAccounts } = ctx
+  const sessionId = req.headers['mcp-session-id'] as string | undefined
+
+  // Existing session -- verify the authenticated user owns this session
+  if (sessionId && transports.has(sessionId)) {
+    const authInfo = (req as any).auth
+    const ownerUserId = sessionOwners.get(sessionId)
+    if (ownerUserId) {
+      const currentUserId = authInfo?.extra?.userId
+      if (currentUserId !== ownerUserId) {
+        res.status(403).json({
+          jsonrpc: '2.0',
+          error: { code: -32000, message: 'Session belongs to a different user' },
+          id: null
+        })
+        return
+      }
+    }
+    await transports.get(sessionId)!.handleRequest(req, res, req.body)
+    return
+  }
+
+  // New session -- must be initialize request
+  if (!sessionId && isInitializeRequest(req.body)) {
+    const authInfo = (req as any).auth
+    const userId: string = authInfo.extra?.userId
+    const accounts = resolveAccounts(authInfo.token)
+
+    if (!accounts || accounts.length === 0) {
+      res.status(403).json({
+        jsonrpc: '2.0',
+        error: { code: -32000, message: 'No email accounts found. Please re-authenticate.' },
+        id: null
+      })
+      return
+    }
+
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => randomUUID(),
+      onsessioninitialized: (id) => {
+        transports.set(id, transport)
+        sessionOwners.set(id, userId)
+      }
+    })
+
+    transport.onclose = () => {
+      if (transport.sessionId) {
+        transports.delete(transport.sessionId)
+        sessionOwners.delete(transport.sessionId)
+      }
+    }
+
+    // Per-session MCP server with the user's email accounts
+    const server = createMCPServer(accounts)
+    await server.connect(transport)
+    await transport.handleRequest(req, res, req.body)
+    return
+  }
+
+  res.status(400).json({
+    jsonrpc: '2.0',
+    error: { code: -32000, message: 'Bad request: missing session ID or not an initialize request' },
+    id: null
+  })
+}
+
+/**
+ * Verify session ownership for GET/DELETE endpoints
+ */
+function verifySessionOwner(req: express.Request, res: express.Response, sessionId: string, ctx: McpContext): boolean {
+  const { sessionOwners } = ctx
+  const authInfo = (req as any).auth
+  const ownerUserId = sessionOwners.get(sessionId)
+  if (ownerUserId) {
+    const currentUserId = authInfo?.extra?.userId
+    if (currentUserId !== ownerUserId) {
+      res.status(403).json({ error: 'Session belongs to a different user' })
+      return false
+    }
+  }
+  return true
+}
+
+/**
+ * MCP endpoint -- GET (SSE streaming for existing session)
+ */
+async function handleMcpGet(req: express.Request, res: express.Response, ctx: McpContext) {
+  const { transports } = ctx
+  const sessionId = req.headers['mcp-session-id'] as string
+  if (sessionId && transports.has(sessionId)) {
+    if (!verifySessionOwner(req, res, sessionId, ctx)) return
+    await transports.get(sessionId)!.handleRequest(req, res)
+  } else {
+    res.status(400).json({ error: 'Invalid or missing session' })
+  }
+}
+
+/**
+ * MCP endpoint -- DELETE (close session)
+ */
+async function handleMcpDelete(req: express.Request, res: express.Response, ctx: McpContext) {
+  const { transports } = ctx
+  const sessionId = req.headers['mcp-session-id'] as string
+  if (sessionId && transports.has(sessionId)) {
+    if (!verifySessionOwner(req, res, sessionId, ctx)) return
+    await transports.get(sessionId)!.handleRequest(req, res)
+  } else {
+    res.status(400).json({ error: 'Invalid or missing session' })
   }
 }
 
@@ -180,132 +432,12 @@ export async function startHttp(): Promise<void> {
     })
   )
 
-  // Background relay poller: polls mcp-relay-core for credentials when a relay session is active
-  // Runs for each pending auth that has a relay session
-  async function pollRelayAndCompleteAuth(ourState: string) {
-    const pending = pendingAuths.get(ourState)
-    if (!pending?.relaySession) return
-
-    try {
-      const config = await pollForResult(relayBaseUrl, pending.relaySession, 2000, 300_000)
-      const credentials = config.EMAIL_CREDENTIALS
-      if (!credentials) {
-        console.error(`Relay session ${pending.relaySession.sessionId}: no EMAIL_CREDENTIALS in result`)
-        return
-      }
-
-      // Parse and validate credentials (same flow as stdio relay-setup.ts)
-      const accounts = await parseCredentials(credentials)
-      if (accounts.length === 0) {
-        await sendMessage(relayBaseUrl, pending.relaySession.sessionId, {
-          type: 'error',
-          text: 'No valid email accounts found. Check format: email:password'
-        }).catch(() => {})
-        return
-      }
-
-      const sessionId = pending.relaySession.sessionId
-
-      // Validate non-OAuth accounts via IMAP (parallel for multi-account)
-      const imapResults = await Promise.all(
-        accounts.map(async (account) => {
-          if (!isOutlookDomain(account.email) && account.authType !== 'oauth2') {
-            const valid = await testImapConnection(account)
-            return { email: account.email, valid }
-          }
-          return { email: account.email, valid: true }
-        })
-      )
-
-      const failed = imapResults.find((r) => !r.valid)
-      if (failed) {
-        await sendMessage(relayBaseUrl, sessionId, {
-          type: 'error',
-          text: `IMAP connection failed for ${failed.email}. Check email and app password.`
-        }).catch(() => {})
-        return
-      }
-
-      // Trigger Outlook OAuth Device Code flow for Outlook accounts (parallel for multi-account)
-      let hasOAuthPending = false
-      await Promise.all(
-        accounts.map(async (account) => {
-          if (isOutlookDomain(account.email) && !account.oauth2) {
-            try {
-              await ensureValidToken(account)
-            } catch (err: any) {
-              const message = err?.message || ''
-              const urlMatch = message.match(/Visit:\s*(https?:\/\/\S+)/)
-              const codeMatch = message.match(/Enter code:\s*(\S+)/)
-              if (urlMatch && codeMatch) {
-                hasOAuthPending = true
-                await sendMessage(relayBaseUrl, sessionId, {
-                  type: 'oauth_device_code',
-                  text: `Sign in to Microsoft for ${account.email}`,
-                  data: { url: urlMatch[1], code: codeMatch[1], email: account.email }
-                }).catch(() => {})
-                console.info(`OAuth device code sent to relay page for ${account.email}`)
-              }
-            }
-          }
-        })
-      )
-
-      // Wait for OAuth to complete if needed
-      if (hasOAuthPending) {
-        const pendingOAuths = _getPendingAuths()
-        const oauthDeadline = Date.now() + 10 * 60 * 1000
-        while (pendingOAuths.size > 0 && Date.now() < oauthDeadline) {
-          await new Promise((r) => setTimeout(r, 2000))
-        }
-      }
-
-      // Issue auth code
-      const userId = randomBytes(16).toString('hex')
-      userAccounts.set(userId, accounts)
-      await storeUserCredentials(userId, accounts)
-      pendingAuths.delete(ourState)
-
-      const ourAuthCode = randomBytes(32).toString('hex')
-      authCodes.set(ourAuthCode, {
-        userId,
-        codeChallenge: pending.codeChallenge,
-        codeChallengeMethod: pending.codeChallengeMethod,
-        clientId: pending.clientId,
-        createdAt: Date.now()
-      })
-
-      // Build redirect URL
-      const clientRedirect = new URL(pending.clientRedirectUri)
-      clientRedirect.searchParams.set('code', ourAuthCode)
-      if (pending.clientState) clientRedirect.searchParams.set('state', pending.clientState)
-
-      // Send redirect URL to relay page via bidirectional messaging
-      await sendMessage(relayBaseUrl, sessionId, {
-        type: 'complete',
-        text: hasOAuthPending
-          ? 'All accounts configured including OAuth! Redirecting...'
-          : 'Email credentials validated! Redirecting...',
-        data: { redirect: clientRedirect.toString() }
-      }).catch(() => {})
-
-      console.info(`Relay auth completed for user (userId: ${userId.substring(0, 8)}...)`)
-    } catch (err: any) {
-      if (err?.message === 'RELAY_SKIPPED') {
-        console.info('Relay setup skipped by user')
-      } else {
-        console.error('Relay poll error:', err?.message ?? err)
-      }
-      pendingAuths.delete(ourState)
-    }
-  }
-
   // Watch for new relay sessions and start polling
   const originalSet = pendingAuths.set.bind(pendingAuths)
   pendingAuths.set = (key: string, value: any) => {
     const result = originalSet(key, value)
     if (value.relaySession) {
-      pollRelayAndCompleteAuth(key).catch(console.error)
+      pollRelayAndCompleteAuth(key, { pendingAuths, relayBaseUrl, userAccounts, authCodes }).catch(console.error)
     }
     return result
   }
@@ -317,108 +449,12 @@ export async function startHttp(): Promise<void> {
   // Session owner binding -- prevents cross-user session hijacking
   const sessionOwners: Map<string, string> = new Map() // sessionId -> userId
 
-  // MCP endpoint -- POST (new session or existing)
-  app.post('/mcp', mcpRateLimit, jsonParser, authMiddleware, async (req, res) => {
-    const sessionId = req.headers['mcp-session-id'] as string | undefined
+  const mcpCtx: McpContext = { transports, sessionOwners, resolveAccounts }
 
-    // Existing session -- verify the authenticated user owns this session
-    if (sessionId && transports.has(sessionId)) {
-      const authInfo = (req as any).auth
-      const ownerUserId = sessionOwners.get(sessionId)
-      if (ownerUserId) {
-        const currentUserId = authInfo?.extra?.userId
-        if (currentUserId !== ownerUserId) {
-          res.status(403).json({
-            jsonrpc: '2.0',
-            error: { code: -32000, message: 'Session belongs to a different user' },
-            id: null
-          })
-          return
-        }
-      }
-      await transports.get(sessionId)!.handleRequest(req, res, req.body)
-      return
-    }
-
-    // New session -- must be initialize request
-    if (!sessionId && isInitializeRequest(req.body)) {
-      const authInfo = (req as any).auth
-      const userId: string = authInfo.extra?.userId
-      const accounts = resolveAccounts(authInfo.token)
-
-      if (!accounts || accounts.length === 0) {
-        res.status(403).json({
-          jsonrpc: '2.0',
-          error: { code: -32000, message: 'No email accounts found. Please re-authenticate.' },
-          id: null
-        })
-        return
-      }
-
-      const transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => randomUUID(),
-        onsessioninitialized: (id) => {
-          transports.set(id, transport)
-          sessionOwners.set(id, userId)
-        }
-      })
-
-      transport.onclose = () => {
-        if (transport.sessionId) {
-          transports.delete(transport.sessionId)
-          sessionOwners.delete(transport.sessionId)
-        }
-      }
-
-      // Per-session MCP server with the user's email accounts
-      const server = createMCPServer(accounts)
-      await server.connect(transport)
-      await transport.handleRequest(req, res, req.body)
-      return
-    }
-
-    res.status(400).json({
-      jsonrpc: '2.0',
-      error: { code: -32000, message: 'Bad request: missing session ID or not an initialize request' },
-      id: null
-    })
-  })
-
-  // Verify session ownership for GET/DELETE endpoints
-  function verifySessionOwner(req: express.Request, res: express.Response, sessionId: string): boolean {
-    const authInfo = (req as any).auth
-    const ownerUserId = sessionOwners.get(sessionId)
-    if (ownerUserId) {
-      const currentUserId = authInfo?.extra?.userId
-      if (currentUserId !== ownerUserId) {
-        res.status(403).json({ error: 'Session belongs to a different user' })
-        return false
-      }
-    }
-    return true
-  }
-
-  // MCP endpoint -- GET (SSE streaming for existing session)
-  app.get('/mcp', mcpRateLimit, authMiddleware, async (req, res) => {
-    const sessionId = req.headers['mcp-session-id'] as string
-    if (sessionId && transports.has(sessionId)) {
-      if (!verifySessionOwner(req, res, sessionId)) return
-      await transports.get(sessionId)!.handleRequest(req, res)
-    } else {
-      res.status(400).json({ error: 'Invalid or missing session' })
-    }
-  })
-
-  // MCP endpoint -- DELETE (close session)
-  app.delete('/mcp', mcpRateLimit, authMiddleware, async (req, res) => {
-    const sessionId = req.headers['mcp-session-id'] as string
-    if (sessionId && transports.has(sessionId)) {
-      if (!verifySessionOwner(req, res, sessionId)) return
-      await transports.get(sessionId)!.handleRequest(req, res)
-    } else {
-      res.status(400).json({ error: 'Invalid or missing session' })
-    }
-  })
+  // MCP endpoints
+  app.post('/mcp', mcpRateLimit, jsonParser, authMiddleware, (req, res) => handleMcpPost(req, res, mcpCtx))
+  app.get('/mcp', mcpRateLimit, authMiddleware, (req, res) => handleMcpGet(req, res, mcpCtx))
+  app.delete('/mcp', mcpRateLimit, authMiddleware, (req, res) => handleMcpDelete(req, res, mcpCtx))
 
   // Health check (no auth required)
   app.get('/health', (_req, res) => {
