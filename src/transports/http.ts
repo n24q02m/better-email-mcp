@@ -17,7 +17,6 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js'
 import { mcpAuthRouter } from '@modelcontextprotocol/sdk/server/auth/router.js'
-import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
 import { createSession, pollForResult, sendMessage } from '@n24q02m/mcp-relay-core/relay'

@@ -7,7 +7,6 @@ import { initServer } from './init-server.js'
 import { createMcpServer } from './server-factory.js'
 import { loadConfig } from './tools/helpers/config.js'
 import { ensureValidToken } from './tools/helpers/oauth2.js'
-import { registerTools } from './tools/registry.js'
 
 // Mock dependencies
 vi.mock('node:fs', () => ({
@@ -102,7 +101,6 @@ describe('initServer', () => {
     expect(StdioServerTransport).toHaveBeenCalled()
     expect(server!.connect).toHaveBeenCalledWith(expect.anything())
   })
-
 
   it('starts server with warning when credentials set but no accounts loaded', async () => {
     // Setup mocks -- resolveCredentialState returns configured but loadConfig returns empty
