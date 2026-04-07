@@ -52,6 +52,11 @@ describe('isSafeUrl', () => {
 
   it('returns false for invalid URLs that fail to parse', () => {
     expect(isSafeUrl('not-a-url')).toBe(false)
+    expect(isSafeUrl('http://')).toBe(false)
+    expect(isSafeUrl('://')).toBe(false)
+    expect(isSafeUrl('   ')).toBe(false)
+    expect(isSafeUrl('')).toBe(false)
+    expect(isSafeUrl('http://[::1]]')).toBe(false)
   })
 
   it('blocks relative paths without protocol', () => {
