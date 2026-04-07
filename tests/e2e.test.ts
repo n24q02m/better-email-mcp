@@ -29,6 +29,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { openBrowser } from '../src/tools/helpers/browser-utils.js'
 
 /** Resolve npx command for plugin mode (Windows .mjs bin workaround) */
 function pluginCommand(pkg: string): { command: string; args: string[] } {
@@ -39,7 +40,7 @@ function pluginCommand(pkg: string): { command: string; args: string[] } {
     } catch {
       /* install */
     }
-    const npxCache = (process.env.LOCALAPPDATA ?? '') + '/npm-cache/_npx'
+    const npxCache = `${process.env.LOCALAPPDATA ?? ''}/npm-cache/_npx`
     const cacheHit = execSync(`find "${npxCache}" -path "*/${binName}/bin/cli.mjs" -print -quit`, {
       encoding: 'utf-8'
     }).trim()
@@ -53,7 +54,7 @@ function pluginCommand(pkg: string): { command: string; args: string[] } {
 // ---------------------------------------------------------------------------
 
 const E2E_SETUP = (process.env.E2E_SETUP ?? 'env') as 'env' | 'plugin' | 'relay' | 'http'
-const E2E_BROWSER = process.env.E2E_BROWSER ?? 'chrome'
+const _E2E_BROWSER = process.env.E2E_BROWSER ?? 'chrome'
 const EMAIL_CREDS = process.env.EMAIL_CREDENTIALS ?? ''
 /** Credentials available via env var, relay mode, or http mode (user provides via relay form) */
 const HAS_CREDS = !!EMAIL_CREDS || E2E_SETUP === 'relay' || E2E_SETUP === 'http'
@@ -61,7 +62,7 @@ const HAS_CREDS = !!EMAIL_CREDS || E2E_SETUP === 'relay' || E2E_SETUP === 'http'
 let TEST_ACCOUNT = EMAIL_CREDS.split(',')[0]?.split(':')[0] ?? ''
 
 const EXPECTED_TOOLS = ['messages', 'folders', 'attachments', 'send', 'help'] as const
-const EMAIL_DEPENDENT_TOOLS = ['messages', 'folders', 'attachments', 'send'] as const
+const _EMAIL_DEPENDENT_TOOLS = ['messages', 'folders', 'attachments', 'send'] as const
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -117,8 +118,6 @@ function createStdioTransport(): StdioClientTransport {
         },
         stderr: 'pipe'
       })
-
-    case 'env':
     default:
       return new StdioClientTransport({
         command: 'node',
@@ -297,44 +296,10 @@ async function performHttpOAuthFlow(): Promise<{
 }
 
 /**
- * Open a URL in the browser for manual credential entry.
- * Used by relay mode (stdio relay form) and http mode (OAuth relay form).
- */
-function openBrowser(url: string): void {
-  const commands: Record<string, string> = {
-    chrome:
-      process.platform === 'win32'
-        ? `start "" "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" "${url}"`
-        : process.platform === 'darwin'
-          ? `open -a "Google Chrome" "${url}"`
-          : `google-chrome "${url}"`,
-    firefox:
-      process.platform === 'win32'
-        ? `start "" "C:\\Program Files\\Mozilla Firefox\\firefox.exe" "${url}"`
-        : process.platform === 'darwin'
-          ? `open -a Firefox "${url}"`
-          : `firefox "${url}"`,
-    default:
-      process.platform === 'win32'
-        ? `start "" "${url}"`
-        : process.platform === 'darwin'
-          ? `open "${url}"`
-          : `xdg-open "${url}"`
-  }
-  const cmd = commands[E2E_BROWSER] ?? commands.default
-  try {
-    execSync(cmd, { stdio: 'ignore' })
-  } catch {
-    console.error(`Failed to open browser with: ${cmd}`)
-    console.error(`Please open manually: ${url}`)
-  }
-}
-
-/**
  * For relay mode: wait until the server has credentials by polling folders.list.
  * When the "No email accounts configured" error stops appearing, config is ready.
  */
-async function waitForRelayConfig(client: Client, timeoutMs = 120_000): Promise<void> {
+async function _waitForRelayConfig(client: Client, timeoutMs = 120_000): Promise<void> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     try {

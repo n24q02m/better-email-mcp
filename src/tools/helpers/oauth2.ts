@@ -6,11 +6,11 @@
  * persistent token storage, and automatic token refresh.
  */
 
-import { execFile } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { openBrowser } from './browser-utils.js'
 
 // Microsoft OAuth2 endpoints — "consumers" tenant for personal Microsoft accounts
 const TENANT = 'consumers'
@@ -188,36 +188,6 @@ const pendingAuths = new Map<string, PendingAuth>()
 /** Exposed for testing */
 export function _getPendingAuths(): Map<string, PendingAuth> {
   return pendingAuths
-}
-
-/**
- * Open a URL in the user's default browser safely.
- * Uses execFile with argument arrays to prevent command injection.
- * Filters for http/https protocols only.
- */
-function openBrowser(url: string): void {
-  let safeUrl: string
-  try {
-    const parsed = new URL(url)
-    // Security: Only allow web protocols to prevent javascript: or file: attacks
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      return
-    }
-    // URL.href canonicalizes the string, neutering leading hyphens or shell metacharacters
-    safeUrl = parsed.href
-  } catch {
-    return
-  }
-
-  // Security: Use execFile to bypass the shell and pass arguments directly
-  if (process.platform === 'darwin') {
-    execFile('open', [safeUrl], () => {})
-  } else if (process.platform === 'win32') {
-    // On Windows, use rundll32 to open URLs safely without cmd.exe shell interpretation
-    execFile('rundll32', ['url.dll,FileProtocolHandler', safeUrl], () => {})
-  } else {
-    execFile('xdg-open', [safeUrl], () => {})
-  }
 }
 
 /**
