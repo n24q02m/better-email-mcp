@@ -67,12 +67,17 @@ export async function resolveCredentialState(): Promise<CredentialState> {
 
   // 3. Check saved OAuth2 tokens (from relay-setup's checkSavedOAuthTokens logic)
   try {
-    const { existsSync, readFileSync } = await import('node:fs')
+    const { readFile } = await import('node:fs/promises')
     const { homedir } = await import('node:os')
     const { join } = await import('node:path')
     const tokenFile = join(homedir(), '.better-email-mcp', 'tokens.json')
-    if (existsSync(tokenFile)) {
-      const data = readFileSync(tokenFile, 'utf-8')
+
+    const data = await readFile(tokenFile, 'utf-8').catch((err: any) => {
+      if (err.code === 'ENOENT') return null
+      throw err
+    })
+
+    if (data) {
       const store: Record<string, unknown> = JSON.parse(data)
       const emails = Object.keys(store).filter((key) => key.includes('@'))
       if (emails.length > 0) {

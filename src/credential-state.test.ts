@@ -36,6 +36,10 @@ vi.mock('node:fs', () => ({
   readFileSync: vi.fn()
 }))
 
+vi.mock('node:fs/promises', () => ({
+  readFile: vi.fn().mockRejectedValue({ code: 'ENOENT' })
+}))
+
 vi.mock('node:os', () => ({
   homedir: vi.fn().mockReturnValue('/tmp/test-home')
 }))
@@ -44,7 +48,7 @@ vi.mock('node:path', () => ({
   join: vi.fn((...args: string[]) => args.join('/'))
 }))
 
-import { existsSync, readFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { resolveConfig } from '@n24q02m/mcp-relay-core/storage'
 
 describe('credential-state', () => {
@@ -109,8 +113,7 @@ describe('credential-state', () => {
 
     it('returns configured when saved OAuth tokens exist', async () => {
       vi.mocked(resolveConfig).mockResolvedValue({ config: null, source: '' } as any)
-      vi.mocked(existsSync).mockReturnValue(true)
-      vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ 'user@outlook.com': { accessToken: 'tok' } }))
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify({ 'user@outlook.com': { accessToken: 'tok' } }))
 
       const result = await mod.resolveCredentialState()
       expect(result).toBe('configured')
@@ -119,7 +122,7 @@ describe('credential-state', () => {
 
     it('returns awaiting_setup when nothing found', async () => {
       vi.mocked(resolveConfig).mockResolvedValue({ config: null, source: '' } as any)
-      vi.mocked(existsSync).mockReturnValue(false)
+      vi.mocked(readFile).mockRejectedValue({ code: 'ENOENT' })
 
       const result = await mod.resolveCredentialState()
       expect(result).toBe('awaiting_setup')
@@ -127,7 +130,7 @@ describe('credential-state', () => {
 
     it('handles config read error gracefully', async () => {
       vi.mocked(resolveConfig).mockRejectedValue(new Error('decrypt fail'))
-      vi.mocked(existsSync).mockReturnValue(false)
+      vi.mocked(readFile).mockRejectedValue({ code: 'ENOENT' })
 
       const result = await mod.resolveCredentialState()
       expect(result).toBe('awaiting_setup')
@@ -135,10 +138,7 @@ describe('credential-state', () => {
 
     it('handles token read error gracefully', async () => {
       vi.mocked(resolveConfig).mockResolvedValue({ config: null, source: '' } as any)
-      vi.mocked(existsSync).mockReturnValue(true)
-      vi.mocked(readFileSync).mockImplementation(() => {
-        throw new Error('ENOENT')
-      })
+      vi.mocked(readFile).mockRejectedValue(new Error('Generic Error'))
 
       const result = await mod.resolveCredentialState()
       expect(result).toBe('awaiting_setup')
@@ -146,8 +146,7 @@ describe('credential-state', () => {
 
     it('skips token entries without @ sign', async () => {
       vi.mocked(resolveConfig).mockResolvedValue({ config: null, source: '' } as any)
-      vi.mocked(existsSync).mockReturnValue(true)
-      vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ metadata: { version: 1 } }))
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify({ metadata: { version: 1 } }))
 
       const result = await mod.resolveCredentialState()
       expect(result).toBe('awaiting_setup')
