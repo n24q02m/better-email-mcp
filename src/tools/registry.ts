@@ -218,7 +218,7 @@ async function handleHelp(args: unknown): Promise<{ tool: string; documentation:
   try {
     const content = await readFile(join(DOCS_DIR, resource.file), 'utf-8')
     return { tool: toolName, documentation: content }
-  } catch (_error) {
+  } catch {
     throw new EmailMCPError(`Documentation not found for: ${toolName}`, 'DOC_NOT_FOUND', 'Check tool_name')
   }
 }
