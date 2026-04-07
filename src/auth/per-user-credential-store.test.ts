@@ -252,5 +252,78 @@ describe('per-user-credential-store', () => {
       const all = await loadAllUserCredentials()
       expect(all.size).toBe(1)
     })
+
+    it('should skip entries with JSON parse failure', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const parseSpy = vi.spyOn(JSON, 'parse').mockImplementationOnce(() => {
+        throw new Error('JSON parse error')
+      })
+
+      await storeUserCredentials('parse-fail-user', [makeAccount('fail@gmail.com')])
+
+      const all = await loadAllUserCredentials()
+      expect(all.size).toBe(0)
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to load credentials'), expect.any(Error))
+
+      consoleSpy.mockRestore()
+      parseSpy.mockRestore()
+    })
+
+    it('should skip entries with missing required fields', async () => {
+      const parseSpy = vi.spyOn(JSON, 'parse').mockImplementationOnce(() => ({
+        userId: 'missing-accounts'
+        // accounts is missing
+      }))
+
+      await storeUserCredentials('missing-fields-user', [makeAccount('missing@gmail.com')])
+
+      const all = await loadAllUserCredentials()
+      expect(all.size).toBe(0)
+
+      parseSpy.mockRestore()
+    })
+
+    it('should load valid users even if some are corrupted', async () => {
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      // 1. Valid user
+      await storeUserCredentials('user-1', [makeAccount('user1@gmail.com')])
+
+      // 2. Corrupted user (decryption failure)
+      const corruptDir = join(_paths.DATA_DIR, 'corrupted')
+      mkdirSync(corruptDir, { recursive: true })
+      const { writeFileSync } = await import('node:fs')
+      writeFileSync(join(corruptDir, 'credentials.enc'), Buffer.from('garbage'))
+
+      // 3. User that will fail JSON parse
+      await storeUserCredentials('user-fail-parse', [makeAccount('fail@gmail.com')])
+
+      // 4. User that will miss fields
+      await storeUserCredentials('user-missing-fields', [makeAccount('missing@gmail.com')])
+
+      const originalParse = JSON.parse
+      const parseSpy = vi.spyOn(JSON, 'parse').mockImplementation((text) => {
+        const obj = originalParse(text)
+        if (obj.userId === 'user-fail-parse') {
+          throw new Error('Mock JSON error')
+        }
+        if (obj.userId === 'user-missing-fields') {
+          return { userId: 'user-missing-fields' } // Missing accounts
+        }
+        return obj
+      })
+
+      const all = await loadAllUserCredentials()
+
+      expect(all.size).toBe(1)
+      expect(all.has('user-1')).toBe(true)
+      expect(all.get('user-1')![0]!.email).toBe('user1@gmail.com')
+
+      // Should have logged errors for decryption failure and parse failure
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to load credentials'), expect.any(Error))
+
+      consoleSpy.mockRestore()
+      parseSpy.mockRestore()
+    })
   })
 })
