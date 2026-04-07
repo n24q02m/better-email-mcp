@@ -183,6 +183,22 @@ describe('per-user-credential-store', () => {
       expect(loaded).toEqual(accounts)
     })
 
+    it('should create parent directory if it does not exist', async () => {
+      delete process.env.CREDENTIAL_SECRET
+      _resetSecretCache()
+
+      // Remove the test directory created in beforeEach
+      rmSync(testDir, { recursive: true, force: true })
+      expect(existsSync(testDir)).toBe(false)
+
+      // This should trigger line 46 in getSecret
+      await storeUserCredentials('dir-user', [makeAccount('dir@gmail.com')])
+
+      expect(existsSync(_paths.SECRET_PATH)).toBe(true)
+      const loaded = await loadUserCredentials('dir-user')
+      expect(loaded).toBeDefined()
+    })
+
     it('should reuse existing secret file', async () => {
       delete process.env.CREDENTIAL_SECRET
       _resetSecretCache()
@@ -190,7 +206,10 @@ describe('per-user-credential-store', () => {
       // First store creates the secret
       await storeUserCredentials('first-user', [makeAccount('first@gmail.com')])
 
-      // Second store uses same secret
+      // Reset cache but keep the file to trigger line 53
+      _resetSecretCache()
+
+      // Second store uses same secret from file
       await storeUserCredentials('second-user', [makeAccount('second@gmail.com')])
 
       // Both should be loadable
@@ -208,7 +227,7 @@ describe('per-user-credential-store', () => {
       // Store a valid entry
       await storeUserCredentials('good-user', [makeAccount('good@gmail.com')])
 
-      // Create a corrupted entry
+      // Create a corrupted entry (decryption failure)
       const corruptDir = join(_paths.DATA_DIR, 'corrupted')
       mkdirSync(corruptDir, { recursive: true })
       const { writeFileSync } = await import('node:fs')
@@ -227,6 +246,94 @@ describe('per-user-credential-store', () => {
       )
 
       spy.mockRestore()
+    })
+
+    it('should skip entries with invalid JSON', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      // Store a valid entry
+      await storeUserCredentials('good-user', [makeAccount('good@gmail.com')])
+
+      // Manually create an entry with valid AES-GCM but invalid JSON content
+      const userId = 'bad-json'
+      const dirHash = hashUserId(userId)
+      const userDir = join(_paths.DATA_DIR, dirHash)
+      mkdirSync(userDir, { recursive: true })
+
+      const secret = process.env.CREDENTIAL_SECRET!
+      const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), 'PBKDF2', false, [
+        'deriveKey'
+      ])
+      const key = await crypto.subtle.deriveKey(
+        {
+          name: 'PBKDF2',
+          hash: 'SHA-256',
+          salt: new TextEncoder().encode(`mcp-email-per-user:${dirHash}`),
+          iterations: 600_000
+        },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt']
+      )
+      const iv = crypto.getRandomValues(new Uint8Array(12))
+      const plaintext = new TextEncoder().encode('not a json object')
+      const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext)
+      const combined = Buffer.concat([iv, Buffer.from(encrypted)])
+
+      const { writeFileSync } = await import('node:fs')
+      writeFileSync(join(userDir, 'credentials.enc'), combined)
+
+      const all = await loadAllUserCredentials()
+
+      expect(all.size).toBe(1)
+      expect(all.get('good-user')).toBeDefined()
+      expect(spy).toHaveBeenCalledWith(
+        expect.stringContaining(`Failed to load credentials from ${dirHash}`),
+        expect.any(SyntaxError)
+      )
+
+      spy.mockRestore()
+    })
+
+    it('should skip entries with missing userId or accounts', async () => {
+      // Store a valid entry
+      await storeUserCredentials('good-user', [makeAccount('good@gmail.com')])
+
+      // Manually create an entry with valid JSON but missing fields
+      const userId = 'missing-fields'
+      const dirHash = hashUserId(userId)
+      const userDir = join(_paths.DATA_DIR, dirHash)
+      mkdirSync(userDir, { recursive: true })
+
+      const secret = process.env.CREDENTIAL_SECRET!
+      const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), 'PBKDF2', false, [
+        'deriveKey'
+      ])
+      const key = await crypto.subtle.deriveKey(
+        {
+          name: 'PBKDF2',
+          hash: 'SHA-256',
+          salt: new TextEncoder().encode(`mcp-email-per-user:${dirHash}`),
+          iterations: 600_000
+        },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt']
+      )
+      const iv = crypto.getRandomValues(new Uint8Array(12))
+      const plaintext = new TextEncoder().encode(JSON.stringify({ userId: 'only-id' }))
+      const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext)
+      const combined = Buffer.concat([iv, Buffer.from(encrypted)])
+
+      const { writeFileSync } = await import('node:fs')
+      writeFileSync(join(userDir, 'credentials.enc'), combined)
+
+      const all = await loadAllUserCredentials()
+
+      expect(all.size).toBe(1)
+      expect(all.get('good-user')).toBeDefined()
     })
 
     it('should skip directories without credentials.enc', async () => {
