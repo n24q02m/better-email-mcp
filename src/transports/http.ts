@@ -142,6 +142,15 @@ export async function startHttp(): Promise<void> {
 
   const app = express()
 
+  // Standard security headers
+  app.use((_req, res, next) => {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    res.setHeader('X-Frame-Options', 'DENY')
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'")
+    next()
+  })
+
   // Trust exactly 2 reverse proxies (Cloudflare + Caddy) for correct req.ip
   app.set('trust proxy', 2)
   app.disable('x-powered-by')
