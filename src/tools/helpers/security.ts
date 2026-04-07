@@ -25,6 +25,7 @@ export function isSafeUrl(url: string): boolean {
     const parsed = new URL(url)
     return ['http:', 'https:', 'mailto:', 'tel:'].includes(parsed.protocol)
   } catch {
+    // Treat invalid or un-parsable URLs as unsafe (strict allowlist approach)
     return false
   }
 }

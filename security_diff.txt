@@ -1,0 +1,22 @@
+<<<<<<< SEARCH
+export function isSafeUrl(url: string): boolean {
+  try {
+    // Try parsing as absolute URL
+    const parsed = new URL(url)
+    return ['http:', 'https:', 'mailto:', 'tel:'].includes(parsed.protocol)
+  } catch {
+    return false
+  }
+}
+=======
+export function isSafeUrl(url: string): boolean {
+  try {
+    // Try parsing as absolute URL
+    const parsed = new URL(url)
+    return ['http:', 'https:', 'mailto:', 'tel:'].includes(parsed.protocol)
+  } catch {
+    // Treat invalid or un-parsable URLs as unsafe (strict allowlist approach)
+    return false
+  }
+}
+>>>>>>> REPLACE

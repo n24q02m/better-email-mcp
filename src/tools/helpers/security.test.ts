@@ -50,6 +50,14 @@ describe('isSafeUrl', () => {
     expect(isSafeUrl('javascript&colon;alert(1)')).toBe(false)
   })
 
+  it('blocks data& entity bypass', () => {
+    expect(isSafeUrl('data&colon;text/html,test')).toBe(false)
+  })
+
+  it('blocks vbscript& entity bypass', () => {
+    expect(isSafeUrl('vbscript&colon;test')).toBe(false)
+  })
+
   it('returns false for invalid URLs that fail to parse', () => {
     expect(isSafeUrl('not-a-url')).toBe(false)
   })
