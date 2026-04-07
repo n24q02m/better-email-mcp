@@ -244,5 +244,64 @@ describe('registerTools function', () => {
       expect(result.content[0].text).toContain('Error: Unexpected error')
       expect(result.content[0].text).toContain('Suggestion: Please check your request and try again')
     })
+
+    describe('successful tool calls', () => {
+      it('should successfully call messages and wrap result in untrusted tags', async () => {
+        const { messages } = await import('./composite/messages.js')
+        const mockResult = { success: true, emails: [{ uid: 1, subject: 'Test' }] }
+        vi.mocked(messages).mockResolvedValue(mockResult)
+
+        const result = await callToolHandler({
+          params: { name: 'messages', arguments: { action: 'search', query: 'ALL' } }
+        })
+
+        expect(result.isError).toBeUndefined()
+        expect(result.content[0].text).toContain('<untrusted_email_content>')
+        expect(result.content[0].text).toContain(JSON.stringify(mockResult, null, 2))
+      })
+
+      it('should successfully call folders without wrapping', async () => {
+        const { folders } = await import('./composite/folders.js')
+        const mockResult = { folders: ['INBOX'] }
+        vi.mocked(folders).mockResolvedValue(mockResult)
+
+        const result = await callToolHandler({
+          params: { name: 'folders', arguments: { action: 'list' } }
+        })
+
+        expect(result.isError).toBeUndefined()
+        expect(result.content[0].text).toBe(JSON.stringify(mockResult, null, 2))
+      })
+
+      it('should successfully call send without wrapping', async () => {
+        const { send } = await import('./composite/send.js')
+        const mockResult = { success: true, messageId: '123' }
+        vi.mocked(send).mockResolvedValue(mockResult)
+
+        const result = await callToolHandler({
+          params: {
+            name: 'send',
+            arguments: { action: 'new', account: 't@t.com', to: 'to@t.com', body: 'Hi' }
+          }
+        })
+
+        expect(result.isError).toBeUndefined()
+        expect(result.content[0].text).toBe(JSON.stringify(mockResult, null, 2))
+      })
+
+      it('should successfully call attachments and wrap result in untrusted tags', async () => {
+        const { attachments } = await import('./composite/attachments.js')
+        const mockResult = { success: true, attachments: [{ filename: 'a.txt' }] }
+        vi.mocked(attachments).mockResolvedValue(mockResult)
+
+        const result = await callToolHandler({
+          params: { name: 'attachments', arguments: { action: 'list', account: 't@t.com', uid: 1 } }
+        })
+
+        expect(result.isError).toBeUndefined()
+        expect(result.content[0].text).toContain('<untrusted_email_content>')
+        expect(result.content[0].text).toContain(JSON.stringify(mockResult, null, 2))
+      })
+    })
   })
 })
