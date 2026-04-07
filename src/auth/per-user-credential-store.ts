@@ -61,7 +61,7 @@ async function getSecret(): Promise<string> {
   return secretPromise
 }
 
-async function deriveKey(secret: string): Promise<CryptoKey> {
+async function deriveKey(secret: string, userId = ''): Promise<CryptoKey> {
   const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), 'PBKDF2', false, [
     'deriveKey'
   ])
@@ -69,8 +69,8 @@ async function deriveKey(secret: string): Promise<CryptoKey> {
     {
       name: 'PBKDF2',
       hash: 'SHA-256',
-      salt: new TextEncoder().encode('mcp-email-per-user'),
-      iterations: 100_000
+      salt: new TextEncoder().encode(`mcp-email-per-user:${userId || 'default'}`),
+      iterations: 600_000
     },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
@@ -95,7 +95,7 @@ export async function storeUserCredentials(userId: string, accounts: AccountConf
   }
 
   const secret = await getSecret()
-  const key = await deriveKey(secret)
+  const key = await deriveKey(secret, hashUserId(userId))
   const iv = crypto.getRandomValues(new Uint8Array(12))
 
   // Store userId alongside accounts so we can reconstruct the mapping on loadAll()
@@ -120,7 +120,7 @@ export async function loadUserCredentials(userId: string): Promise<AccountConfig
     const iv = data.subarray(0, 12)
     const ciphertext = data.subarray(12)
     const secret = await getSecret()
-    const key = await deriveKey(secret)
+    const key = await deriveKey(secret, dirHash)
     const decrypted = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv: new Uint8Array(iv) },
       key,
@@ -146,7 +146,6 @@ export async function loadAllUserCredentials(): Promise<Map<string, AccountConfi
 
   const entries = await readdir(_paths.DATA_DIR, { withFileTypes: true })
   const secret = await getSecret()
-  const key = await deriveKey(secret)
 
   await Promise.all(
     entries.map(async (entry) => {
@@ -157,6 +156,7 @@ export async function loadAllUserCredentials(): Promise<Map<string, AccountConfi
         const data = await readFile(credPath)
         const iv = data.subarray(0, 12)
         const ciphertext = data.subarray(12)
+        const key = await deriveKey(secret, entry.name)
         const decrypted = await crypto.subtle.decrypt(
           { name: 'AES-GCM', iv: new Uint8Array(iv) },
           key,
