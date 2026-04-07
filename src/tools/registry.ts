@@ -248,12 +248,10 @@ const AVAILABLE_RESOURCE_URIS_STRING = RESOURCES.map((r) => r.uri).join(', ')
 const VALID_TOOL_NAMES = TOOLS.map((t) => t.name)
 const AVAILABLE_TOOLS_STRING = VALID_TOOL_NAMES.join(', ')
 
-export function registerTools(server: Server, accounts: AccountConfig[]) {
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: TOOLS
-  }))
-
-  // Resources handlers for full documentation
+/**
+ * Register resource handlers for full documentation
+ */
+export function registerResources(server: Server) {
   server.setRequestHandler(ListResourcesRequestSchema, async () => ({
     resources: FORMATTED_RESOURCES
   }))
@@ -275,6 +273,14 @@ export function registerTools(server: Server, accounts: AccountConfig[]) {
       contents: [{ uri, mimeType: 'text/markdown', text: content }]
     }
   })
+}
+
+export function registerTools(server: Server, accounts: AccountConfig[]) {
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: TOOLS
+  }))
+
+  registerResources(server)
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params
