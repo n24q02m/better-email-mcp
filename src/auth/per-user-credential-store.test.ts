@@ -1,10 +1,13 @@
 import { randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, rmSync } from 'node:fs'
+import * as fsPromises from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AccountConfig } from '../tools/helpers/config.js'
 import {
+  _fs,
+  _getSecret,
   _paths,
   _resetSecretCache,
   deleteUserCredentials,
@@ -72,6 +75,35 @@ describe('per-user-credential-store', () => {
     it('should return null when no credentials stored', async () => {
       const result = await loadUserCredentials('nonexistent-user')
       expect(result).toBeNull()
+    })
+
+    it('should handle ENOENT error from readFile explicitly', async () => {
+      const readFileSpy = vi.spyOn(_fs, 'readFile').mockImplementation(async (path, options) => {
+        if (typeof path === 'string' && path.endsWith('credentials.enc')) {
+          const err = new Error('File not found')
+          ;(err as any).code = 'ENOENT'
+          throw err
+        }
+        return fsPromises.readFile(path, options)
+      })
+
+      const result = await loadUserCredentials('any-user')
+      expect(result).toBeNull()
+      readFileSpy.mockRestore()
+    })
+
+    it('should throw non-ENOENT errors from readFile', async () => {
+      const readFileSpy = vi.spyOn(_fs, 'readFile').mockImplementation(async (path, options) => {
+        if (typeof path === 'string' && path.endsWith('credentials.enc')) {
+          const err = new Error('EACCES')
+          ;(err as any).code = 'EACCES'
+          throw err
+        }
+        return fsPromises.readFile(path, options)
+      })
+
+      await expect(loadUserCredentials('any-user')).rejects.toThrow('EACCES')
+      readFileSpy.mockRestore()
     })
 
     it('should store and load single account roundtrip', async () => {
@@ -190,7 +222,10 @@ describe('per-user-credential-store', () => {
       // First store creates the secret
       await storeUserCredentials('first-user', [makeAccount('first@gmail.com')])
 
-      // Second store uses same secret
+      // Reset cache so next call reads from file
+      _resetSecretCache()
+
+      // Second store should now read the secret from the file
       await storeUserCredentials('second-user', [makeAccount('second@gmail.com')])
 
       // Both should be loadable
@@ -198,6 +233,33 @@ describe('per-user-credential-store', () => {
       const second = await loadUserCredentials('second-user')
       expect(first![0]!.email).toBe('first@gmail.com')
       expect(second![0]!.email).toBe('second@gmail.com')
+    })
+
+    it('should create parent directory if it does not exist', async () => {
+      delete process.env.CREDENTIAL_SECRET
+      _resetSecretCache()
+
+      // Re-initialize paths to a non-existent parent
+      const deepDir = join(tmpdir(), `per-user-deep-${randomBytes(4).toString('hex')}`)
+      const parentDir = join(deepDir, 'parent')
+      _paths.DATA_DIR = join(parentDir, 'users')
+      _paths.SECRET_PATH = join(parentDir, '.user-secret')
+
+      // Ensure it doesn't exist
+      if (existsSync(deepDir)) {
+        rmSync(deepDir, { recursive: true, force: true })
+      }
+
+      try {
+        // Trigger getSecret directly to test directory creation logic
+        await _getSecret()
+        expect(existsSync(parentDir)).toBe(true)
+        expect(existsSync(_paths.SECRET_PATH)).toBe(true)
+      } finally {
+        if (existsSync(deepDir)) {
+          rmSync(deepDir, { recursive: true, force: true })
+        }
+      }
     })
   })
 

@@ -12,7 +12,17 @@
 
 import { createHash, randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import * as fsPromises from 'node:fs/promises'
+
+// Exporting fs for easier testing/mocking
+export const _fs = {
+  mkdir: fsPromises.mkdir,
+  readdir: fsPromises.readdir,
+  readFile: fsPromises.readFile,
+  rm: fsPromises.rm,
+  writeFile: fsPromises.writeFile
+}
+
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { AccountConfig } from '../tools/helpers/config.js'
@@ -22,6 +32,11 @@ const SECRET_PATH = join(homedir(), '.better-email-mcp', '.user-secret')
 
 /** Exposed for testing -- override storage paths */
 export const _paths = { DATA_DIR, SECRET_PATH }
+
+/** Exposed for testing */
+export async function _getSecret(): Promise<string> {
+  return getSecret()
+}
 
 let secretPromise: Promise<string> | null = null
 
@@ -43,18 +58,18 @@ async function getSecret(): Promise<string> {
   secretPromise = (async () => {
     const parentDir = join(_paths.DATA_DIR, '..')
     if (!existsSync(parentDir)) {
-      await mkdir(parentDir, { recursive: true, mode: 0o700 })
+      await _fs.mkdir(parentDir, { recursive: true, mode: 0o700 })
     }
 
     const envSecret = process.env.CREDENTIAL_SECRET
     if (envSecret) return envSecret
 
     if (existsSync(_paths.SECRET_PATH)) {
-      return (await readFile(_paths.SECRET_PATH, 'utf-8')).trim()
+      return (await _fs.readFile(_paths.SECRET_PATH, 'utf-8')).trim()
     }
 
     const secret = randomBytes(32).toString('hex')
-    await writeFile(_paths.SECRET_PATH, secret, { mode: 0o600 })
+    await _fs.writeFile(_paths.SECRET_PATH, secret, { mode: 0o600 })
     return secret
   })()
 
@@ -91,7 +106,7 @@ export async function storeUserCredentials(userId: string, accounts: AccountConf
   const dirHash = hashUserId(userId)
   const userDir = join(_paths.DATA_DIR, dirHash)
   if (!existsSync(userDir)) {
-    await mkdir(userDir, { recursive: true, mode: 0o700 })
+    await _fs.mkdir(userDir, { recursive: true, mode: 0o700 })
   }
 
   const secret = await getSecret()
@@ -104,7 +119,7 @@ export async function storeUserCredentials(userId: string, accounts: AccountConf
   const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext)
   const combined = Buffer.concat([iv, Buffer.from(encrypted)])
 
-  await writeFile(join(userDir, 'credentials.enc'), combined, { mode: 0o600 })
+  await _fs.writeFile(join(userDir, 'credentials.enc'), combined, { mode: 0o600 })
 }
 
 /**
@@ -116,7 +131,7 @@ export async function loadUserCredentials(userId: string): Promise<AccountConfig
   const credPath = join(_paths.DATA_DIR, dirHash, 'credentials.enc')
 
   try {
-    const data = await readFile(credPath)
+    const data = await _fs.readFile(credPath)
     const iv = data.subarray(0, 12)
     const ciphertext = data.subarray(12)
     const secret = await getSecret()
@@ -144,7 +159,7 @@ export async function loadAllUserCredentials(): Promise<Map<string, AccountConfi
 
   if (!existsSync(_paths.DATA_DIR)) return result
 
-  const entries = await readdir(_paths.DATA_DIR, { withFileTypes: true })
+  const entries = await _fs.readdir(_paths.DATA_DIR, { withFileTypes: true })
   const secret = await getSecret()
 
   await Promise.all(
@@ -153,7 +168,7 @@ export async function loadAllUserCredentials(): Promise<Map<string, AccountConfi
 
       const credPath = join(_paths.DATA_DIR, entry.name, 'credentials.enc')
       try {
-        const data = await readFile(credPath)
+        const data = await _fs.readFile(credPath)
         const iv = data.subarray(0, 12)
         const ciphertext = data.subarray(12)
         const key = await deriveKey(secret, entry.name)
@@ -186,6 +201,6 @@ export async function deleteUserCredentials(userId: string): Promise<void> {
   const userDir = join(_paths.DATA_DIR, dirHash)
 
   if (existsSync(userDir)) {
-    await rm(userDir, { recursive: true, force: true })
+    await _fs.rm(userDir, { recursive: true, force: true })
   }
 }
