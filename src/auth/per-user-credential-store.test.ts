@@ -1,10 +1,21 @@
 import { randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, rmSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('node:fs/promises', async (importActual) => {
+  const actual = await importActual<typeof import('node:fs/promises')>()
+  return {
+    ...actual,
+    readFile: vi.fn(actual.readFile)
+  }
+})
+
 import type { AccountConfig } from '../tools/helpers/config.js'
 import {
+  _getSecret,
   _paths,
   _resetSecretCache,
   deleteUserCredentials,
@@ -168,6 +179,20 @@ describe('per-user-credential-store', () => {
   })
 
   describe('getSecret auto-generation', () => {
+    it('should create parent directory if it does not exist', async () => {
+      delete process.env.CREDENTIAL_SECRET
+      _resetSecretCache()
+
+      // Point to a non-existent parent directory
+      const newBase = join(testDir, 'deeply', 'nested')
+      _paths.DATA_DIR = join(newBase, 'users')
+      _paths.SECRET_PATH = join(newBase, '.user-secret')
+
+      await _getSecret()
+
+      expect(existsSync(newBase)).toBe(true)
+    })
+
     it('should auto-generate secret when no env var set', async () => {
       delete process.env.CREDENTIAL_SECRET
       _resetSecretCache()
@@ -198,6 +223,18 @@ describe('per-user-credential-store', () => {
       const second = await loadUserCredentials('second-user')
       expect(first![0]!.email).toBe('first@gmail.com')
       expect(second![0]!.email).toBe('second@gmail.com')
+    })
+
+    it('should read existing secret file when cache is reset', async () => {
+      delete process.env.CREDENTIAL_SECRET
+      _resetSecretCache()
+
+      const secret = 'manual-secret-123'
+      const { writeFileSync } = await import('node:fs')
+      writeFileSync(_paths.SECRET_PATH, secret)
+
+      const result = await _getSecret()
+      expect(result).toBe(secret)
     })
   })
 
@@ -251,6 +288,36 @@ describe('per-user-credential-store', () => {
 
       const all = await loadAllUserCredentials()
       expect(all.size).toBe(1)
+    })
+  })
+
+  describe('mocked error paths', () => {
+    afterEach(() => {
+      vi.mocked(readFile).mockRestore()
+    })
+
+    it('loadUserCredentials should return null on ENOENT', async () => {
+      vi.mocked(readFile).mockRejectedValue({ code: 'ENOENT' })
+      const result = await loadUserCredentials('any-user')
+      expect(result).toBeNull()
+    })
+
+    it('loadUserCredentials should throw on other errors', async () => {
+      const error = new Error('READ_ERROR')
+      ;(error as any).code = 'EPERM'
+      vi.mocked(readFile).mockRejectedValue(error)
+      await expect(loadUserCredentials('any-user')).rejects.toThrow('READ_ERROR')
+    })
+
+    it('loadAllUserCredentials should skip ENOENT during processing', async () => {
+      // Setup: ensure DATA_DIR exists and has one entry
+      await storeUserCredentials('user-1', [makeAccount('1@gmail.com')])
+
+      // Mock readFile to throw ENOENT only for the specific file read
+      vi.mocked(readFile).mockRejectedValue({ code: 'ENOENT' })
+
+      const result = await loadAllUserCredentials()
+      expect(result.size).toBe(0)
     })
   })
 })

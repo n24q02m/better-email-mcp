@@ -37,7 +37,7 @@ export function _resetSecretCache(): void {
  * Get the credential secret, either from environment or a managed secret file.
  * Uses a promise lock to ensure the secret is only initialized once even if called concurrently.
  */
-async function getSecret(): Promise<string> {
+export async function _getSecret(): Promise<string> {
   if (secretPromise) return secretPromise
 
   secretPromise = (async () => {
@@ -94,7 +94,7 @@ export async function storeUserCredentials(userId: string, accounts: AccountConf
     await mkdir(userDir, { recursive: true, mode: 0o700 })
   }
 
-  const secret = await getSecret()
+  const secret = await _getSecret()
   const key = await deriveKey(secret, hashUserId(userId))
   const iv = crypto.getRandomValues(new Uint8Array(12))
 
@@ -119,7 +119,7 @@ export async function loadUserCredentials(userId: string): Promise<AccountConfig
     const data = await readFile(credPath)
     const iv = data.subarray(0, 12)
     const ciphertext = data.subarray(12)
-    const secret = await getSecret()
+    const secret = await _getSecret()
     const key = await deriveKey(secret, dirHash)
     const decrypted = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv: new Uint8Array(iv) },
@@ -145,7 +145,7 @@ export async function loadAllUserCredentials(): Promise<Map<string, AccountConfi
   if (!existsSync(_paths.DATA_DIR)) return result
 
   const entries = await readdir(_paths.DATA_DIR, { withFileTypes: true })
-  const secret = await getSecret()
+  const secret = await _getSecret()
 
   await Promise.all(
     entries.map(async (entry) => {
