@@ -27,10 +27,10 @@ import { ImapFlow } from 'imapflow'
 import { createEmailAuthProvider, requestContext } from '../auth/email-auth-provider.js'
 import { loadAllUserCredentials, storeUserCredentials } from '../auth/per-user-credential-store.js'
 import { RELAY_SCHEMA } from '../relay-schema.js'
+import { createMcpServer } from '../server-factory.js'
 import type { AccountConfig } from '../tools/helpers/config.js'
 import { parseCredentials } from '../tools/helpers/config.js'
 import { _getPendingAuths, ensureValidToken, isOutlookDomain } from '../tools/helpers/oauth2.js'
-import { registerTools } from '../tools/registry.js'
 
 interface HttpConfig {
   port: number
@@ -53,31 +53,6 @@ function loadConfig(): HttpConfig {
     publicUrl: process.env.PUBLIC_URL!,
     dcrSecret: process.env.DCR_SERVER_SECRET!
   }
-}
-
-function getVersion(): string {
-  try {
-    return process.env.npm_package_version ?? '0.0.0'
-  } catch {
-    return '0.0.0'
-  }
-}
-
-function createMCPServer(accounts: AccountConfig[]): Server {
-  const server = new Server(
-    {
-      name: '@n24q02m/better-email-mcp',
-      version: getVersion()
-    },
-    {
-      capabilities: {
-        tools: {},
-        resources: {}
-      }
-    }
-  )
-  registerTools(server, accounts)
-  return server
 }
 
 /**
@@ -371,7 +346,7 @@ export async function startHttp(): Promise<void> {
       }
 
       // Per-session MCP server with the user's email accounts
-      const server = createMCPServer(accounts)
+      const server = createMcpServer(accounts)
       await server.connect(transport)
       await transport.handleRequest(req, res, req.body)
       return

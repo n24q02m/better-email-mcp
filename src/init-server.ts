@@ -8,42 +8,12 @@
  * Relay session + polling happen lazily on first tool call.
  */
 
-import { existsSync, readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { Server } from '@modelcontextprotocol/sdk/server/index.js'
+import type { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { resolveCredentialState } from './credential-state.js'
+import { createMcpServer } from './server-factory.js'
 import { type AccountConfig, loadConfig } from './tools/helpers/config.js'
 import { ensureValidToken } from './tools/helpers/oauth2.js'
-import { registerTools } from './tools/registry.js'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
-
-function getVersion(): string {
-  // Walk up from __dirname to find package.json.
-  // Needed because __dirname differs between contexts:
-  //   - src/          (dev via tsx)
-  //   - build/src/    (tsc output, referenced by "main" in package.json)
-  //   - bin/          (esbuild bundle)
-  try {
-    let dir = __dirname
-    for (let i = 0; i < 5; i++) {
-      const pkgPath = join(dir, 'package.json')
-      if (existsSync(pkgPath)) {
-        const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
-        if (pkg.name === '@n24q02m/better-email-mcp') {
-          return pkg.version ?? '0.0.0'
-        }
-      }
-      dir = dirname(dir)
-    }
-    return '0.0.0'
-  } catch {
-    return '0.0.0'
-  }
-}
 
 /**
  * Non-blocking environment setup.
@@ -97,22 +67,7 @@ async function setupEnvironment(): Promise<AccountConfig[]> {
 }
 
 async function setupServer(accounts: AccountConfig[]): Promise<Server> {
-  // Create MCP server
-  const server = new Server(
-    {
-      name: '@n24q02m/better-email-mcp',
-      version: getVersion()
-    },
-    {
-      capabilities: {
-        tools: {},
-        resources: {}
-      }
-    }
-  )
-
-  // Register composite tools (credential-aware: returns setup instructions when unconfigured)
-  registerTools(server, accounts)
+  const server = createMcpServer(accounts)
 
   // Connect stdio transport
   const transport = new StdioServerTransport()
