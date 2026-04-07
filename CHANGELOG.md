@@ -2,6 +2,29 @@
 
 <!-- version list -->
 
+## v1.21.0 (2026-04-07)
+
+### Bug Fixes
+
+- Add credential state tests for coverage improvement
+  ([`e6fa95c`](https://github.com/n24q02m/better-email-mcp/commit/e6fa95c0fe0152ff562a82749e0025cecec6d2b9))
+
+- Per-user encryption key derivation and PBKDF2 600k iterations
+  ([`56e0bcb`](https://github.com/n24q02m/better-email-mcp/commit/56e0bcba8c4b6624fd3d11a4eaf049523b8b35d5))
+
+- Remove BETA markers and promote relay as primary setup method
+  ([`f7b8a49`](https://github.com/n24q02m/better-email-mcp/commit/f7b8a49d397f5835f92df58232f94846f54aaae9))
+
+- Resolve biome formatting errors across project
+  ([`17291a7`](https://github.com/n24q02m/better-email-mcp/commit/17291a74db403f24f807beed8fd580b03f5ebd10))
+
+### Features
+
+- Migrate code review from Qodo to CodeRabbit
+  ([#337](https://github.com/n24q02m/better-email-mcp/pull/337),
+  [`a97bb14`](https://github.com/n24q02m/better-email-mcp/commit/a97bb147cf1cb8faf339f201d700f11ddd5b13a9))
+
+
 ## v1.20.0 (2026-04-06)
 
 ### Bug Fixes
