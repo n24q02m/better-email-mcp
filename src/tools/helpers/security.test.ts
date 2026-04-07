@@ -85,6 +85,20 @@ describe('isSafeUrl', () => {
   it('blocks URLs with null bytes in protocol (XPIA vector)', () => {
     expect(isSafeUrl('ht\0tp://example.com')).toBe(false)
   })
+
+  it('blocks malformed URLs that cause the URL constructor to throw', () => {
+    // These strings are known to throw in Node.js URL constructor
+    expect(isSafeUrl('http://')).toBe(false)
+    expect(isSafeUrl('://')).toBe(false)
+    expect(isSafeUrl(' ')).toBe(false)
+    expect(isSafeUrl('http://[::1]]')).toBe(false)
+  })
+
+  it('blocks entity-encoded javascript: bypasses', () => {
+    // The URL constructor throws on these, and we should return false
+    expect(isSafeUrl('javascript&colon;alert(1)')).toBe(false)
+    expect(isSafeUrl('javascript&#58;alert(1)')).toBe(false)
+  })
 })
 
 // ============================================================================
