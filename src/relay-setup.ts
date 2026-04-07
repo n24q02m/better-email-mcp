@@ -64,54 +64,18 @@ function checkSavedOAuthTokens(): string | null {
  * - New (multi-account): { EMAIL_CREDENTIALS: "email1:pass1,email2:pass2" }
  * - Legacy (single account): { email, password, imap_host? }
  */
-export function formatCredentials(config: Record<string, string>): string {
-  // New format: relay page sends EMAIL_CREDENTIALS directly
-  if (config.EMAIL_CREDENTIALS) {
-    return config.EMAIL_CREDENTIALS
-  }
-
-  // Legacy format: individual fields from old relay page
-  const { email, password, imap_host } = config
-  if (!email || !password) {
-    throw new Error('Relay config missing required fields: EMAIL_CREDENTIALS or email+password')
-  }
-  if (imap_host) {
-    return `${email}:${password}:${imap_host}`
-  }
-  return `${email}:${password}`
-}
-
 /**
- * Resolve config: config file -> saved OAuth tokens -> relay setup -> degraded.
+ * Interactive relay setup flow.
  *
- * Relay is ONLY triggered when steps 1-2-3 are ALL empty (first-time setup).
+ * 1. Creates a session with the relay server.
+ * 2. Prompts user to open the relay URL.
+ * 3. Polls for the resulting configuration.
  *
- * Resolution order (env vars already checked by caller in init-server.ts):
- * 1. Encrypted config file (~/.config/mcp/config.enc)
- * 2. Saved OAuth2 tokens (~/.better-email-mcp/tokens.json)
- * 3. Relay setup (interactive, only when no local credentials exist)
- * 4. Degraded mode (no email tools)
- *
- * Returns the formatted EMAIL_CREDENTIALS string, or null for degraded mode.
+ * Returns the resolved config, or null if setup failed/skipped.
  */
-export async function ensureConfig(): Promise<string | null> {
-  // 1. Check saved relay config file
-  const result = await resolveConfig(SERVER_NAME, REQUIRED_FIELDS)
-  if (result.config !== null) {
-    console.error(`Email config loaded from ${result.source}`)
-    return formatCredentials(result.config)
-  }
-
-  // 2. Check saved OAuth2 tokens (local credentials)
-  const savedTokens = checkSavedOAuthTokens()
-  if (savedTokens) {
-    return savedTokens
-  }
-
-  // 3. No local credentials found -- trigger relay setup
+async function triggerRelaySetup(relayUrl: string): Promise<{ config: Record<string, string>; session: any } | null> {
   console.error('No email credentials found. Starting relay setup...')
 
-  const relayUrl = DEFAULT_RELAY_URL
   let session: Awaited<ReturnType<typeof createSession>>
   try {
     session = await createSession(relayUrl, SERVER_NAME, RELAY_SCHEMA)
@@ -126,9 +90,9 @@ export async function ensureConfig(): Promise<string | null> {
   console.error(`\nSetup required. Open this URL to configure:\n${session.relayUrl}\n`)
 
   // Poll for result
-  let config: Record<string, string>
   try {
-    config = await pollForResult(relayUrl, session)
+    const config = await pollForResult(relayUrl, session)
+    return { config, session }
   } catch (err: any) {
     if (err?.message === 'RELAY_SKIPPED') {
       console.error('Relay setup skipped by user. Email tools will be unavailable.')
@@ -137,7 +101,17 @@ export async function ensureConfig(): Promise<string | null> {
     }
     return null
   }
+}
 
+/**
+ * Post-relay setup processing: save config, format credentials, and handle OAuth.
+ *
+ * If any Outlook accounts are found, it checks if they need OAuth and sends
+ * device code info back to the relay page via relay messaging.
+ *
+ * Returns the final EMAIL_CREDENTIALS string.
+ */
+async function handlePostRelaySetup(config: Record<string, string>, session: any, relayUrl: string): Promise<string> {
   // Save to config file for future use
   await writeConfig(SERVER_NAME, config)
   console.error('Email config saved successfully')
@@ -185,7 +159,7 @@ export async function ensureConfig(): Promise<string | null> {
           type: 'complete',
           text: 'Setup complete! All accounts configured.'
         })
-      })
+      }).catch(() => {})
     } else {
       // Wait for OAuth background poll to complete (tokens saved to disk)
       const pendingAuths = _getPendingAuths()
@@ -217,4 +191,59 @@ export async function ensureConfig(): Promise<string | null> {
   }
 
   return credentials
+}
+
+export function formatCredentials(config: Record<string, string>): string {
+  // New format: relay page sends EMAIL_CREDENTIALS directly
+  if (config.EMAIL_CREDENTIALS) {
+    return config.EMAIL_CREDENTIALS
+  }
+
+  // Legacy format: individual fields from old relay page
+  const { email, password, imap_host } = config
+  if (!email || !password) {
+    throw new Error('Relay config missing required fields: EMAIL_CREDENTIALS or email+password')
+  }
+  if (imap_host) {
+    return `${email}:${password}:${imap_host}`
+  }
+  return `${email}:${password}`
+}
+
+/**
+ * Resolve config: config file -> saved OAuth tokens -> relay setup -> degraded.
+ *
+ * Relay is ONLY triggered when steps 1-2-3 are ALL empty (first-time setup).
+ *
+ * Resolution order (env vars already checked by caller in init-server.ts):
+ * 1. Encrypted config file (~/.config/mcp/config.enc)
+ * 2. Saved OAuth2 tokens (~/.better-email-mcp/tokens.json)
+ * 3. Relay setup (interactive, only when no local credentials exist)
+ * 4. Degraded mode (no email tools)
+ *
+ * Returns the formatted EMAIL_CREDENTIALS string, or null for degraded mode.
+ */
+export async function ensureConfig(): Promise<string | null> {
+  // 1. Check saved relay config file
+  const result = await resolveConfig(SERVER_NAME, REQUIRED_FIELDS)
+  if (result.config !== null) {
+    console.error(`Email config loaded from ${result.source}`)
+    return formatCredentials(result.config)
+  }
+
+  // 2. Check saved OAuth2 tokens (local credentials)
+  const savedTokens = checkSavedOAuthTokens()
+  if (savedTokens) {
+    return savedTokens
+  }
+
+  // 3. No local credentials found -- trigger relay setup
+  const relayUrl = DEFAULT_RELAY_URL
+  const setupResult = await triggerRelaySetup(relayUrl)
+  if (!setupResult) {
+    return null
+  }
+
+  // 4. Handle post-setup processing (save, format, and OAuth)
+  return handlePostRelaySetup(setupResult.config, setupResult.session, relayUrl)
 }
