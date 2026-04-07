@@ -22,7 +22,7 @@ App Passwords are required for most providers (NOT your regular password):
    /plugin marketplace add n24q02m/claude-plugins
    /plugin install better-email-mcp@n24q02m-plugins
    ```
-3. On first start, a relay setup URL appears in the terminal (BETA flow). Open it in a browser and enter your email credentials. **Recommended**: use environment variables (`EMAIL_CREDENTIALS`) instead for stable production use.
+3. On first start, a relay setup URL appears in the terminal. Open it in a browser and enter your email credentials. Credentials are encrypted end-to-end and stored locally.
 4. Alternatively, set `EMAIL_CREDENTIALS` in `~/.claude/settings.local.json` or your shell profile.
 
 ## Method 2: npx (Any MCP Client)

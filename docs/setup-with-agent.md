@@ -168,9 +168,9 @@ No App Password needed for Outlook accounts.
 EMAIL_CREDENTIALS=user@custom.com:password:imap.custom.com
 ```
 
-## Zero-Config Relay (BETA)
+## Zero-Config Relay
 
-> **Note**: Relay is a **BETA** credential provisioning flow. For stable production use, prefer environment variables. The relay blocks server startup on first run and may time out in some MCP clients.
+> **Recommended.** The relay is the primary setup method. Credentials are encrypted end-to-end and stored locally. Environment variables are supported for backward compatibility.
 
 
 If `EMAIL_CREDENTIALS` is not set, the server opens a relay setup page:
