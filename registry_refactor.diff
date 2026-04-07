@@ -1,0 +1,67 @@
+<<<<<<< SEARCH
+export function registerTools(server: Server, accounts: AccountConfig[]) {
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: TOOLS
+  }))
+
+  // Resources handlers for full documentation
+  server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+    resources: FORMATTED_RESOURCES
+  }))
+
+  server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+    const { uri } = request.params
+    const resource = RESOURCES.find((r) => r.uri === uri)
+
+    if (!resource) {
+      throw new EmailMCPError(
+        `Resource not found: ${uri}`,
+        'RESOURCE_NOT_FOUND',
+        `Available: ${AVAILABLE_RESOURCE_URIS_STRING}`
+      )
+    }
+
+    const content = await readFile(join(DOCS_DIR, resource.file), 'utf-8')
+    return {
+      contents: [{ uri, mimeType: 'text/markdown', text: content }]
+    }
+  })
+
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+=======
+/**
+ * Register documentation resources with MCP server
+ */
+export function registerResources(server: Server) {
+  server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+    resources: FORMATTED_RESOURCES
+  }))
+
+  server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+    const { uri } = request.params
+    const resource = RESOURCES.find((r) => r.uri === uri)
+
+    if (!resource) {
+      throw new EmailMCPError(
+        `Resource not found: ${uri}`,
+        'RESOURCE_NOT_FOUND',
+        `Available: ${AVAILABLE_RESOURCE_URIS_STRING}`
+      )
+    }
+
+    const content = await readFile(join(DOCS_DIR, resource.file), 'utf-8')
+    return {
+      contents: [{ uri, mimeType: 'text/markdown', text: content }]
+    }
+  })
+}
+
+export function registerTools(server: Server, accounts: AccountConfig[]) {
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: TOOLS
+  }))
+
+  registerResources(server)
+
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+>>>>>>> REPLACE
