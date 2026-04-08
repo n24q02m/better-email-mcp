@@ -13,20 +13,45 @@ describe('openBrowser', () => {
 
   it('calls execFile with sanitized URL for http protocol', () => {
     const url = 'http://example.com'
+    const expectedUrl = 'http://example.com/'
     openBrowser(url)
-    expect(execFile).toHaveBeenCalledWith(expect.any(String), ['http://example.com/'], expect.any(Function))
+
+    if (process.platform === 'win32') {
+      expect(execFile).toHaveBeenCalledWith(
+        'rundll32',
+        ['url.dll,FileProtocolHandler', expectedUrl],
+        expect.any(Function)
+      )
+    } else {
+      expect(execFile).toHaveBeenCalledWith(expect.any(String), [expectedUrl], expect.any(Function))
+    }
   })
 
   it('calls execFile with sanitized URL for https protocol', () => {
     const url = 'https://example.com/path?query=1'
     openBrowser(url)
-    expect(execFile).toHaveBeenCalledWith(expect.any(String), [url], expect.any(Function))
+
+    if (process.platform === 'win32') {
+      expect(execFile).toHaveBeenCalledWith('rundll32', ['url.dll,FileProtocolHandler', url], expect.any(Function))
+    } else {
+      expect(execFile).toHaveBeenCalledWith(expect.any(String), [url], expect.any(Function))
+    }
   })
 
   it('canonicalizes URLs before passing to execFile', () => {
     const url = 'HTTPS://EXAMPLE.COM'
+    const expectedUrl = 'https://example.com/'
     openBrowser(url)
-    expect(execFile).toHaveBeenCalledWith(expect.any(String), ['https://example.com/'], expect.any(Function))
+
+    if (process.platform === 'win32') {
+      expect(execFile).toHaveBeenCalledWith(
+        'rundll32',
+        ['url.dll,FileProtocolHandler', expectedUrl],
+        expect.any(Function)
+      )
+    } else {
+      expect(execFile).toHaveBeenCalledWith(expect.any(String), [expectedUrl], expect.any(Function))
+    }
   })
 
   it('ignores non-http/https protocols', () => {
@@ -51,12 +76,17 @@ describe('openBrowser', () => {
 
     openBrowser(maliciousUrl)
 
-    expect(execFile).toHaveBeenCalledWith(expect.any(String), [safeUrl], expect.any(Function))
+    if (process.platform === 'win32') {
+      expect(execFile).toHaveBeenCalledWith('rundll32', ['url.dll,FileProtocolHandler', safeUrl], expect.any(Function))
+    } else {
+      expect(execFile).toHaveBeenCalledWith(expect.any(String), [safeUrl], expect.any(Function))
+    }
 
     // execFile passes arguments as an array, so shell injection via ';' is prevented
-    const args = (execFile as any).mock.calls[0][1]
-    expect(args[0]).toBe(safeUrl)
-    expect(args[0]).toContain(';')
+    const args = (execFile as any).mock.calls[0][1] as string[]
+    const finalArg = args[args.length - 1]
+    expect(finalArg).toBe(safeUrl)
+    expect(finalArg).toContain(';')
   })
 
   it('handles malformed URLs gracefully', () => {
