@@ -43,6 +43,10 @@ vi.mock('node:path', () => ({
   join: vi.fn((...args: string[]) => args.join('/'))
 }))
 
+vi.mock('node:child_process', () => ({
+  execFile: vi.fn()
+}))
+
 import { readFile } from 'node:fs/promises'
 import { resolveConfig } from '@n24q02m/mcp-relay-core/storage'
 
