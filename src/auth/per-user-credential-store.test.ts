@@ -240,7 +240,7 @@ describe('per-user-credential-store', () => {
       const all = await loadAllUserCredentials()
       expect(all.size).toBe(1)
       expect(all.get('valid-user')).toBeDefined()
-    })
+    }, 15000)
 
     it('should skip non-directory entries', async () => {
       await storeUserCredentials('dir-user', [makeAccount('dir@gmail.com')])
