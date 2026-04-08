@@ -11,8 +11,10 @@
  */
 
 import { createHash, randomBytes } from 'node:crypto'
-import { existsSync } from 'node:fs'
 import * as fsPromises from 'node:fs/promises'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+import type { AccountConfig } from '../tools/helpers/config.js'
 
 // Exporting fs for easier testing/mocking
 export const _fs = {
@@ -22,10 +24,6 @@ export const _fs = {
   rm: fsPromises.rm,
   writeFile: fsPromises.writeFile
 }
-
-import { homedir } from 'node:os'
-import { join } from 'node:path'
-import type { AccountConfig } from '../tools/helpers/config.js'
 
 const DATA_DIR = join(homedir(), '.better-email-mcp', 'users')
 const SECRET_PATH = join(homedir(), '.better-email-mcp', '.user-secret')
@@ -57,15 +55,19 @@ async function getSecret(): Promise<string> {
 
   secretPromise = (async () => {
     const parentDir = join(_paths.DATA_DIR, '..')
-    if (!existsSync(parentDir)) {
+    try {
       await _fs.mkdir(parentDir, { recursive: true, mode: 0o700 })
+    } catch (_err) {
+      // Ignore directory creation errors (likely already exists)
     }
 
     const envSecret = process.env.CREDENTIAL_SECRET
     if (envSecret) return envSecret
 
-    if (existsSync(_paths.SECRET_PATH)) {
+    try {
       return (await _fs.readFile(_paths.SECRET_PATH, 'utf-8')).trim()
+    } catch (err: any) {
+      if (err.code !== 'ENOENT') throw err
     }
 
     const secret = randomBytes(32).toString('hex')
@@ -105,8 +107,10 @@ export function hashUserId(userId: string): string {
 export async function storeUserCredentials(userId: string, accounts: AccountConfig[]): Promise<void> {
   const dirHash = hashUserId(userId)
   const userDir = join(_paths.DATA_DIR, dirHash)
-  if (!existsSync(userDir)) {
+  try {
     await _fs.mkdir(userDir, { recursive: true, mode: 0o700 })
+  } catch (_err) {
+    // Ignore
   }
 
   const secret = await getSecret()
@@ -157,21 +161,27 @@ export async function loadUserCredentials(userId: string): Promise<AccountConfig
 export async function loadAllUserCredentials(): Promise<Map<string, AccountConfig[]>> {
   const result = new Map<string, AccountConfig[]>()
 
-  if (!existsSync(_paths.DATA_DIR)) return result
+  let entries: any[]
+  try {
+    entries = (await _fs.readdir(_paths.DATA_DIR, { withFileTypes: true })) as any
+  } catch (err: any) {
+    if (err.code === 'ENOENT') return result
+    throw err
+  }
 
-  const entries = await _fs.readdir(_paths.DATA_DIR, { withFileTypes: true })
   const secret = await getSecret()
 
   await Promise.all(
     entries.map(async (entry) => {
       if (!entry.isDirectory()) return
 
-      const credPath = join(_paths.DATA_DIR, entry.name, 'credentials.enc')
+      const entryName = entry.name
+      const credPath = join(_paths.DATA_DIR, entryName, 'credentials.enc')
       try {
         const data = await _fs.readFile(credPath)
         const iv = data.subarray(0, 12)
         const ciphertext = data.subarray(12)
-        const key = await deriveKey(secret, entry.name)
+        const key = await deriveKey(secret, entryName)
         const decrypted = await crypto.subtle.decrypt(
           { name: 'AES-GCM', iv: new Uint8Array(iv) },
           key,
@@ -200,7 +210,5 @@ export async function deleteUserCredentials(userId: string): Promise<void> {
   const dirHash = hashUserId(userId)
   const userDir = join(_paths.DATA_DIR, dirHash)
 
-  if (existsSync(userDir)) {
-    await _fs.rm(userDir, { recursive: true, force: true })
-  }
+  await _fs.rm(userDir, { recursive: true, force: true })
 }

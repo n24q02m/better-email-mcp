@@ -261,6 +261,12 @@ describe('per-user-credential-store', () => {
         }
       }
     })
+
+    it('should throw non-ENOENT errors from readdir in loadAll', async () => {
+      const readdirSpy = vi.spyOn(_fs, 'readdir').mockRejectedValue(new Error('EACCES'))
+      await expect(loadAllUserCredentials()).rejects.toThrow('EACCES')
+      readdirSpy.mockRestore()
+    })
   })
 
   describe('loadAll edge cases', () => {
