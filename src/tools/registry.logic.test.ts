@@ -107,14 +107,15 @@ describe('ListResourcesRequestSchema handler', () => {
 
     const result = await handler({})
 
-    expect(result.resources).toHaveLength(5)
+    expect(result.resources).toHaveLength(6)
 
     const expectedUris = [
       'email://docs/messages',
       'email://docs/folders',
       'email://docs/attachments',
       'email://docs/send',
-      'email://docs/help'
+      'email://docs/help',
+      'email://docs/setup'
     ]
 
     for (const resource of result.resources) {
