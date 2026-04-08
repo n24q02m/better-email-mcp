@@ -39,7 +39,7 @@ function pluginCommand(pkg: string): { command: string; args: string[] } {
     } catch {
       /* install */
     }
-    const npxCache = (process.env.LOCALAPPDATA ?? '') + '/npm-cache/_npx'
+    const npxCache = `${process.env.LOCALAPPDATA ?? ''}/npm-cache/_npx`
     const cacheHit = execSync(`find "${npxCache}" -path "*/${binName}/bin/cli.mjs" -print -quit`, {
       encoding: 'utf-8'
     }).trim()
@@ -61,7 +61,7 @@ const HAS_CREDS = !!EMAIL_CREDS || E2E_SETUP === 'relay' || E2E_SETUP === 'http'
 let TEST_ACCOUNT = EMAIL_CREDS.split(',')[0]?.split(':')[0] ?? ''
 
 const EXPECTED_TOOLS = ['messages', 'folders', 'attachments', 'send', 'help'] as const
-const EMAIL_DEPENDENT_TOOLS = ['messages', 'folders', 'attachments', 'send'] as const
+const _EMAIL_DEPENDENT_TOOLS = ['messages', 'folders', 'attachments', 'send'] as const
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -117,8 +117,6 @@ function createStdioTransport(): StdioClientTransport {
         },
         stderr: 'pipe'
       })
-
-    case 'env':
     default:
       return new StdioClientTransport({
         command: 'node',
@@ -334,7 +332,7 @@ function openBrowser(url: string): void {
  * For relay mode: wait until the server has credentials by polling folders.list.
  * When the "No email accounts configured" error stops appearing, config is ready.
  */
-async function waitForRelayConfig(client: Client, timeoutMs = 120_000): Promise<void> {
+async function _waitForRelayConfig(client: Client, timeoutMs = 120_000): Promise<void> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     try {
