@@ -13,6 +13,9 @@
  * is deferred to triggerRelaySetup(), which runs non-blocking in the background.
  */
 
+import { readFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 import { resolveConfig } from '@n24q02m/mcp-relay-core/storage'
 
 const SERVER_NAME = 'better-email-mcp'
@@ -67,9 +70,6 @@ export async function resolveCredentialState(): Promise<CredentialState> {
 
   // 3. Check saved OAuth2 tokens (from relay-setup's checkSavedOAuthTokens logic)
   try {
-    const { readFile } = await import('node:fs/promises')
-    const { homedir } = await import('node:os')
-    const { join } = await import('node:path')
     const tokenFile = join(homedir(), '.better-email-mcp', 'tokens.json')
 
     const data = await readFile(tokenFile, 'utf-8').catch((err: any) => {

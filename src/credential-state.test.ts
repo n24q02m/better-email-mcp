@@ -31,11 +31,6 @@ vi.mock('./tools/helpers/oauth2.js', () => ({
   _getPendingAuths: vi.fn().mockReturnValue(new Set())
 }))
 
-vi.mock('node:fs', () => ({
-  existsSync: vi.fn().mockReturnValue(false),
-  readFileSync: vi.fn()
-}))
-
 vi.mock('node:fs/promises', () => ({
   readFile: vi.fn().mockRejectedValue({ code: 'ENOENT' })
 }))
