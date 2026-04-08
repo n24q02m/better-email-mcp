@@ -13,6 +13,7 @@
  * is deferred to triggerRelaySetup(), which runs non-blocking in the background.
  */
 
+import { execFile } from 'node:child_process'
 import { resolveConfig } from '@n24q02m/mcp-relay-core/storage'
 
 const SERVER_NAME = 'better-email-mcp'
@@ -116,6 +117,9 @@ export async function triggerRelaySetup(options?: { force?: boolean }): Promise<
 
     const session = await createSession(relayBase, SERVER_NAME, RELAY_SCHEMA)
     setupUrl = session.relayUrl
+
+    // Try to open browser (best-effort, non-blocking)
+    tryOpenBrowser(session.relayUrl)
 
     console.error(`\nSetup required. Open this URL to configure:\n${session.relayUrl}\n`)
 
@@ -232,6 +236,21 @@ async function handlePostRelayOAuth(relayBase: string, session: any, credentials
     } catch {
       // Ignore
     }
+  }
+}
+
+/**
+ * Try to open URL in default browser (best-effort).
+ * Uses execFile (not exec) to avoid shell injection.
+ */
+function tryOpenBrowser(url: string): void {
+  const platform = process.platform
+  if (platform === 'darwin') {
+    execFile('open', [url], () => {})
+  } else if (platform === 'win32') {
+    execFile('cmd', ['/c', 'start', '', url], () => {})
+  } else {
+    execFile('xdg-open', [url], () => {})
   }
 }
 
