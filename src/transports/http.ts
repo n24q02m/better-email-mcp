@@ -24,7 +24,7 @@ import { createSession, pollForResult, sendMessage } from '@n24q02m/mcp-relay-co
 import express from 'express'
 import rateLimit from 'express-rate-limit'
 import { ImapFlow } from 'imapflow'
-import type { PendingAuth } from '../auth/email-auth-provider.js'
+import type { PendingAuth, StoredAuthCode } from '../auth/email-auth-provider.js'
 import { createEmailAuthProvider, requestContext } from '../auth/email-auth-provider.js'
 import { loadAllUserCredentials, storeUserCredentials } from '../auth/per-user-credential-store.js'
 import { RELAY_SCHEMA } from '../relay-schema.js'
@@ -41,7 +41,7 @@ interface HttpConfig {
 
 interface RelayContext {
   pendingAuths: Map<string, PendingAuth>
-  authCodes: Map<string, any>
+  authCodes: Map<string, StoredAuthCode>
   userAccounts: Map<string, AccountConfig[]>
   relayBaseUrl: string
 }

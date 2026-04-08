@@ -54,7 +54,7 @@ export interface PendingAuth {
   relaySession?: RelaySession
 }
 
-interface StoredAuthCode {
+export interface StoredAuthCode {
   userId: string
   codeChallenge?: string
   codeChallengeMethod?: string
