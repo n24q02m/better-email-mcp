@@ -28,7 +28,8 @@ vi.mock('./tools/helpers/config.js', () => ({
 }))
 vi.mock('./tools/helpers/oauth2.js', () => ({
   ensureValidToken: vi.fn(),
-  isOutlookDomain: vi.fn().mockReturnValue(false)
+  isOutlookDomain: vi.fn().mockReturnValue(false),
+  _getPendingAuths: vi.fn().mockReturnValue(new Map())
 }))
 
 import { writeConfig } from '@n24q02m/mcp-relay-core'
@@ -350,11 +351,15 @@ describe('ensureConfig', () => {
     expect(body.data.code).toBe('ABCD-EFGH')
     expect(body.data.email).toBe('user@outlook.com')
 
-    // Should NOT have sent 'complete' message (OAuth pending)
+    // Wait for the simulated timeout loop to complete its 0-size wait
+    await new Promise((r) => setTimeout(r, 0))
+
+    // Because _getPendingAuths returns an empty Map, the timeout loop finishes immediately
+    // and sends a final "complete" message
     const completeCall = fetchSpy.mock.calls.find(
       (call) => typeof call[1]?.body === 'string' && call[1].body.includes('"type":"complete"')
     )
-    expect(completeCall).toBeUndefined()
+    expect(completeCall).toBeDefined()
 
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('OAuth device code sent'))
 
