@@ -304,6 +304,8 @@ async function performHttpOAuthFlow(): Promise<{
  * Used by relay mode (stdio relay form) and http mode (OAuth relay form).
  */
 function openBrowser(url: string): void {
+  if (process.env.E2E_SETUP) return
+
   let safeUrl: string
   try {
     const parsed = new URL(url)
