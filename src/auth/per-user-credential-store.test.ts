@@ -199,6 +199,26 @@ describe('per-user-credential-store', () => {
       expect(first![0]!.email).toBe('first@gmail.com')
       expect(second![0]!.email).toBe('second@gmail.com')
     })
+
+    it('should create parent directory if it does not exist', async () => {
+      delete process.env.CREDENTIAL_SECRET
+      _resetSecretCache()
+
+      // Delete the entire test dir and recreate it so the parent of DATA_DIR is missing
+      if (existsSync(testDir)) {
+        rmSync(testDir, { recursive: true, force: true })
+      }
+
+      // Re-setup _paths since they are absolute
+      // No need to mkdir(testDir) as getSecret should do it recursively
+
+      const accounts = [makeAccount('recursive@gmail.com')]
+      await storeUserCredentials('recursive-user', accounts)
+
+      expect(existsSync(_paths.DATA_DIR)).toBe(true)
+      const loaded = await loadUserCredentials('recursive-user')
+      expect(loaded).toEqual(accounts)
+    })
   })
 
   describe('loadAll edge cases', () => {
@@ -259,14 +279,19 @@ describe('per-user-credential-store', () => {
         throw new Error('JSON parse error')
       })
 
-      await storeUserCredentials('parse-fail-user', [makeAccount('fail@gmail.com')])
+      try {
+        await storeUserCredentials('parse-fail-user', [makeAccount('fail@gmail.com')])
 
-      const all = await loadAllUserCredentials()
-      expect(all.size).toBe(0)
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to load credentials'), expect.any(Error))
-
-      consoleSpy.mockRestore()
-      parseSpy.mockRestore()
+        const all = await loadAllUserCredentials()
+        expect(all.size).toBe(0)
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Failed to load credentials'),
+          expect.any(Error)
+        )
+      } finally {
+        consoleSpy.mockRestore()
+        parseSpy.mockRestore()
+      }
     })
 
     it('should skip entries with missing required fields', async () => {
@@ -275,12 +300,14 @@ describe('per-user-credential-store', () => {
         // accounts is missing
       }))
 
-      await storeUserCredentials('missing-fields-user', [makeAccount('missing@gmail.com')])
+      try {
+        await storeUserCredentials('missing-fields-user', [makeAccount('missing@gmail.com')])
 
-      const all = await loadAllUserCredentials()
-      expect(all.size).toBe(0)
-
-      parseSpy.mockRestore()
+        const all = await loadAllUserCredentials()
+        expect(all.size).toBe(0)
+      } finally {
+        parseSpy.mockRestore()
+      }
     })
 
     it('should load valid users even if some are corrupted', async () => {
@@ -303,27 +330,36 @@ describe('per-user-credential-store', () => {
 
       const originalParse = JSON.parse
       const parseSpy = vi.spyOn(JSON, 'parse').mockImplementation((text) => {
-        const obj = originalParse(text)
-        if (obj.userId === 'user-fail-parse') {
-          throw new Error('Mock JSON error')
+        // Only intercept if it looks like our payload
+        if (text.includes('user-fail-parse') || text.includes('user-missing-fields')) {
+          const obj = originalParse(text)
+          if (obj.userId === 'user-fail-parse') {
+            throw new Error('Mock JSON error')
+          }
+          if (obj.userId === 'user-missing-fields') {
+            return { userId: 'user-missing-fields' } // Missing accounts
+          }
+          return obj
         }
-        if (obj.userId === 'user-missing-fields') {
-          return { userId: 'user-missing-fields' } // Missing accounts
-        }
-        return obj
+        return originalParse(text)
       })
 
-      const all = await loadAllUserCredentials()
+      try {
+        const all = await loadAllUserCredentials()
 
-      expect(all.size).toBe(1)
-      expect(all.has('user-1')).toBe(true)
-      expect(all.get('user-1')![0]!.email).toBe('user1@gmail.com')
+        expect(all.size).toBe(1)
+        expect(all.has('user-1')).toBe(true)
+        expect(all.get('user-1')![0]!.email).toBe('user1@gmail.com')
 
-      // Should have logged errors for decryption failure and parse failure
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to load credentials'), expect.any(Error))
-
-      consoleSpy.mockRestore()
-      parseSpy.mockRestore()
+        // Should have logged errors for decryption failure and parse failure
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Failed to load credentials'),
+          expect.any(Error)
+        )
+      } finally {
+        consoleSpy.mockRestore()
+        parseSpy.mockRestore()
+      }
     })
   })
 })

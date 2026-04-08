@@ -88,13 +88,12 @@ export function hashUserId(userId: string): string {
  * Store per-user email account configs encrypted on disk.
  */
 export async function storeUserCredentials(userId: string, accounts: AccountConfig[]): Promise<void> {
+  const secret = await getSecret()
   const dirHash = hashUserId(userId)
   const userDir = join(_paths.DATA_DIR, dirHash)
   if (!existsSync(userDir)) {
     await mkdir(userDir, { recursive: true, mode: 0o700 })
   }
-
-  const secret = await getSecret()
   const key = await deriveKey(secret, hashUserId(userId))
   const iv = crypto.getRandomValues(new Uint8Array(12))
 
