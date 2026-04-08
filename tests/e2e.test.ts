@@ -21,7 +21,7 @@
  */
 
 import type { ChildProcess } from 'node:child_process'
-import { execSync } from 'node:child_process'
+import { execFile, execSync } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
 import type { Server as HttpServer } from 'node:http'
 import { createServer } from 'node:http'
@@ -39,11 +39,16 @@ function pluginCommand(pkg: string): { command: string; args: string[] } {
     } catch {
       /* install */
     }
-    const npxCache = (process.env.LOCALAPPDATA ?? '') + '/npm-cache/_npx'
-    const cacheHit = execSync(`find "${npxCache}" -path "*/${binName}/bin/cli.mjs" -print -quit`, {
-      encoding: 'utf-8'
-    }).trim()
-    if (cacheHit) return { command: process.execPath, args: [cacheHit] }
+    const npxCache = `${process.env.LOCALAPPDATA ?? ''}/npm-cache/_npx`
+    try {
+      const cacheHit = execSync(`find "${npxCache}" -path "*/${binName}/bin/cli.mjs" -print -quit`, {
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'ignore']
+      }).trim()
+      if (cacheHit) return { command: process.execPath, args: [cacheHit] }
+    } catch {
+      /* find missing or failed */
+    }
   }
   return { command: 'npx', args: ['-y', pkg] }
 }
@@ -61,7 +66,7 @@ const HAS_CREDS = !!EMAIL_CREDS || E2E_SETUP === 'relay' || E2E_SETUP === 'http'
 let TEST_ACCOUNT = EMAIL_CREDS.split(',')[0]?.split(':')[0] ?? ''
 
 const EXPECTED_TOOLS = ['messages', 'folders', 'attachments', 'send', 'help'] as const
-const EMAIL_DEPENDENT_TOOLS = ['messages', 'folders', 'attachments', 'send'] as const
+const _EMAIL_DEPENDENT_TOOLS = ['messages', 'folders', 'attachments', 'send'] as const
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -117,8 +122,6 @@ function createStdioTransport(): StdioClientTransport {
         },
         stderr: 'pipe'
       })
-
-    case 'env':
     default:
       return new StdioClientTransport({
         command: 'node',
@@ -297,36 +300,45 @@ async function performHttpOAuthFlow(): Promise<{
 }
 
 /**
- * Open a URL in the browser for manual credential entry.
+ * Open a URL in the browser for manual credential entry safely.
  * Used by relay mode (stdio relay form) and http mode (OAuth relay form).
  */
 function openBrowser(url: string): void {
-  const commands: Record<string, string> = {
-    chrome:
-      process.platform === 'win32'
-        ? `start "" "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" "${url}"`
-        : process.platform === 'darwin'
-          ? `open -a "Google Chrome" "${url}"`
-          : `google-chrome "${url}"`,
-    firefox:
-      process.platform === 'win32'
-        ? `start "" "C:\\Program Files\\Mozilla Firefox\\firefox.exe" "${url}"`
-        : process.platform === 'darwin'
-          ? `open -a Firefox "${url}"`
-          : `firefox "${url}"`,
-    default:
-      process.platform === 'win32'
-        ? `start "" "${url}"`
-        : process.platform === 'darwin'
-          ? `open "${url}"`
-          : `xdg-open "${url}"`
-  }
-  const cmd = commands[E2E_BROWSER] ?? commands.default
+  let safeUrl: string
   try {
-    execSync(cmd, { stdio: 'ignore' })
+    const parsed = new URL(url)
+    // Security: Only allow web protocols to prevent javascript: or file: attacks
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return
+    }
+    // URL.href canonicalizes the string, neutering leading hyphens or shell metacharacters
+    safeUrl = parsed.href
   } catch {
-    console.error(`Failed to open browser with: ${cmd}`)
-    console.error(`Please open manually: ${url}`)
+    return
+  }
+
+  // Fire-and-forget — errors are silently ignored since stderr instructions
+  // serve as fallback if the browser fails to open.
+  if (process.platform === 'darwin') {
+    if (E2E_BROWSER === 'chrome') {
+      execFile('open', ['-a', 'Google Chrome', safeUrl], () => {})
+    } else if (E2E_BROWSER === 'firefox') {
+      execFile('open', ['-a', 'Firefox', safeUrl], () => {})
+    } else {
+      execFile('open', [safeUrl], () => {})
+    }
+  } else if (process.platform === 'win32') {
+    // On Windows, use rundll32 to open URLs safely without cmd.exe shell interpretation.
+    // This works regardless of which browser is default.
+    execFile('rundll32', ['url.dll,FileProtocolHandler', safeUrl], () => {})
+  } else {
+    if (E2E_BROWSER === 'chrome') {
+      execFile('google-chrome', [safeUrl], () => {})
+    } else if (E2E_BROWSER === 'firefox') {
+      execFile('firefox', [safeUrl], () => {})
+    } else {
+      execFile('xdg-open', [safeUrl], () => {})
+    }
   }
 }
 
@@ -334,7 +346,7 @@ function openBrowser(url: string): void {
  * For relay mode: wait until the server has credentials by polling folders.list.
  * When the "No email accounts configured" error stops appearing, config is ready.
  */
-async function waitForRelayConfig(client: Client, timeoutMs = 120_000): Promise<void> {
+async function _waitForRelayConfig(client: Client, timeoutMs = 120_000): Promise<void> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     try {
