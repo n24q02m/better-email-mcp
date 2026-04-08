@@ -21,7 +21,7 @@
  */
 
 import type { ChildProcess } from 'node:child_process'
-import { execFileSync, execSync } from 'node:child_process'
+import { execFile, execSync } from 'node:child_process'
 import { createHash, randomBytes } from 'node:crypto'
 import type { Server as HttpServer } from 'node:http'
 import { createServer } from 'node:http'
@@ -40,10 +40,15 @@ function pluginCommand(pkg: string): { command: string; args: string[] } {
       /* install */
     }
     const npxCache = `${process.env.LOCALAPPDATA ?? ''}/npm-cache/_npx`
-    const cacheHit = execSync(`find "${npxCache}" -path "*/${binName}/bin/cli.mjs" -print -quit`, {
-      encoding: 'utf-8'
-    }).trim()
-    if (cacheHit) return { command: process.execPath, args: [cacheHit] }
+    try {
+      const cacheHit = execSync(`find "${npxCache}" -path "*/${binName}/bin/cli.mjs" -print -quit`, {
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'ignore']
+      }).trim()
+      if (cacheHit) return { command: process.execPath, args: [cacheHit] }
+    } catch {
+      /* find missing or failed */
+    }
   }
   return { command: 'npx', args: ['-y', pkg] }
 }
@@ -312,43 +317,28 @@ function openBrowser(url: string): void {
     return
   }
 
-  try {
+  // Fire-and-forget — errors are silently ignored since stderr instructions
+  // serve as fallback if the browser fails to open.
+  if (process.platform === 'darwin') {
     if (E2E_BROWSER === 'chrome') {
-      if (process.platform === 'win32') {
-        execFileSync('cmd.exe', [
-          '/c',
-          'start',
-          '',
-          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-          safeUrl
-        ])
-      } else if (process.platform === 'darwin') {
-        execFileSync('open', ['-a', 'Google Chrome', safeUrl])
-      } else {
-        execFileSync('google-chrome', [safeUrl])
-      }
+      execFile('open', ['-a', 'Google Chrome', safeUrl], () => {})
     } else if (E2E_BROWSER === 'firefox') {
-      if (process.platform === 'win32') {
-        execFileSync('cmd.exe', ['/c', 'start', '', 'C:\\Program Files\\Mozilla Firefox\\firefox.exe', safeUrl])
-      } else if (process.platform === 'darwin') {
-        execFileSync('open', ['-a', 'Firefox', safeUrl])
-      } else {
-        execFileSync('firefox', [safeUrl])
-      }
+      execFile('open', ['-a', 'Firefox', safeUrl], () => {})
     } else {
-      // Default browser
-      if (process.platform === 'win32') {
-        // On Windows, use rundll32 to open URLs safely without cmd.exe shell interpretation
-        execFileSync('rundll32', ['url.dll,FileProtocolHandler', safeUrl])
-      } else if (process.platform === 'darwin') {
-        execFileSync('open', [safeUrl])
-      } else {
-        execFileSync('xdg-open', [safeUrl])
-      }
+      execFile('open', [safeUrl], () => {})
     }
-  } catch {
-    console.error(`Failed to open browser: ${E2E_BROWSER || 'default'}`)
-    console.error(`Please open manually: ${safeUrl}`)
+  } else if (process.platform === 'win32') {
+    // On Windows, use rundll32 to open URLs safely without cmd.exe shell interpretation.
+    // This works regardless of which browser is default.
+    execFile('rundll32', ['url.dll,FileProtocolHandler', safeUrl], () => {})
+  } else {
+    if (E2E_BROWSER === 'chrome') {
+      execFile('google-chrome', [safeUrl], () => {})
+    } else if (E2E_BROWSER === 'firefox') {
+      execFile('firefox', [safeUrl], () => {})
+    } else {
+      execFile('xdg-open', [safeUrl], () => {})
+    }
   }
 }
 
