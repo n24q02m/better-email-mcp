@@ -2,7 +2,7 @@
 
 mcp-name: io.github.n24q02m/better-email-mcp
 
-**IMAP/SMTP email server for AI agents -- 5 composite tools with multi-account and auto-discovery**
+**IMAP/SMTP email server for AI agents -- 6 composite tools with multi-account and auto-discovery**
 
 <!-- Badge Row 1: Status -->
 [![CI](https://github.com/n24q02m/better-email-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/n24q02m/better-email-mcp/actions/workflows/ci.yml)
@@ -26,7 +26,7 @@ mcp-name: io.github.n24q02m/better-email-mcp
 
 - **Multi-account support** -- manage 6+ email accounts (Gmail, Outlook, Yahoo, iCloud, Zoho, ProtonMail, custom IMAP)
 - **App Passwords** -- no OAuth2 setup required for most providers; clone and run in 1 minute
-- **5 composite tools** with 15 actions -- search, read, send, reply, forward, organize in single calls
+- **6 composite tools** with 20 actions -- search, read, send, reply, forward, organize, credential setup in single calls
 - **Auto-discovery** -- provider settings detected from email address, custom IMAP host supported
 - **Thread-aware** -- reply/forward maintains In-Reply-To and References headers
 - **Tiered token optimization** -- compressed descriptions + on-demand `help` tool + MCP Resources
@@ -48,6 +48,7 @@ mcp-name: io.github.n24q02m/better-email-mcp
 | `folders` | `list` | List mailbox folders |
 | `attachments` | `list`, `download` | List and download email attachments |
 | `send` | `new`, `reply`, `forward` | Compose, reply, and forward emails |
+| `setup` | `status`, `start`, `reset`, `complete` | Credential setup via browser relay, status check, reset, re-resolve |
 | `help` | - | Get full documentation for any tool |
 
 ### MCP Resources
