@@ -60,7 +60,7 @@ describe('CallToolRequestSchema handler coverage', () => {
 
     expect(result.isError).toBe(true)
     expect(result.content[0].text).toContain("Unknown tool: message. Did you mean 'messages'?")
-    expect(result.content[0].text).toContain('Available tools: messages, folders, attachments, send, help')
+    expect(result.content[0].text).toContain('Available tools: messages, folders, attachments, send, setup, help')
   })
 
   it('should successfully call a tool and wrap the result', async () => {

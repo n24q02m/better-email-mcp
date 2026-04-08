@@ -47,6 +47,12 @@ describe('TOOLS structure', () => {
       readOnly: false
     },
     {
+      name: 'setup',
+      requiredFields: ['action'],
+      actions: ['status', 'start', 'reset', 'complete'],
+      readOnly: false
+    },
+    {
       name: 'help',
       requiredFields: ['tool_name'],
       actions: null,
@@ -54,13 +60,13 @@ describe('TOOLS structure', () => {
     }
   ]
 
-  it('has exactly 5 tools', () => {
-    expect(EXPECTED_TOOLS).toHaveLength(5)
+  it('has exactly 6 tools', () => {
+    expect(EXPECTED_TOOLS).toHaveLength(6)
   })
 
   it('has correct tool names', () => {
     const names = EXPECTED_TOOLS.map((t) => t.name)
-    expect(names).toEqual(['messages', 'folders', 'attachments', 'send', 'help'])
+    expect(names).toEqual(['messages', 'folders', 'attachments', 'send', 'setup', 'help'])
   })
 
   it('messages tool has 9 actions', () => {
@@ -92,6 +98,11 @@ describe('TOOLS structure', () => {
     expect(send.actions).toEqual(['new', 'reply', 'forward'])
   })
 
+  it('setup tool has 4 actions', () => {
+    const setupTool = EXPECTED_TOOLS.find((t) => t.name === 'setup')!
+    expect(setupTool.actions).toEqual(['status', 'start', 'reset', 'complete'])
+  })
+
   it('help tool requires tool_name', () => {
     const help = EXPECTED_TOOLS.find((t) => t.name === 'help')!
     expect(help.requiredFields).toEqual(['tool_name'])
@@ -104,7 +115,7 @@ describe('TOOLS structure', () => {
 
   it('non-read-only tools are correctly marked', () => {
     const writeTools = EXPECTED_TOOLS.filter((t) => !t.readOnly)
-    expect(writeTools.map((t) => t.name)).toEqual(['messages', 'send'])
+    expect(writeTools.map((t) => t.name)).toEqual(['messages', 'send', 'setup'])
   })
 })
 

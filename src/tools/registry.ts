@@ -1,5 +1,5 @@
 /**
- * Tool Registry - 5 Composite Tools
+ * Tool Registry - 6 Composite Tools
  * Consolidated registration for maximum coverage with minimal tools
  *
  * Credential-aware: when state is 'awaiting_setup', tools return setup
@@ -22,6 +22,7 @@ import { type AttachmentsInput, attachments } from './composite/attachments.js'
 import { type FoldersInput, folders } from './composite/folders.js'
 import { type MessagesInput, messages } from './composite/messages.js'
 import { type SendInput, send } from './composite/send.js'
+import { type SetupInput, setup } from './composite/setup.js'
 // Import mega tools
 import { type AccountConfig, loadConfig } from './helpers/config.js'
 import { aiReadableMessage, EmailMCPError, enhanceError, findClosestMatch } from './helpers/errors.js'
@@ -48,7 +49,7 @@ const RESOURCES = [
 ]
 
 /**
- * 5 Tools covering full email operations
+ * 6 Tools covering full email operations
  * Compressed descriptions for token optimization
  */
 const TOOLS = [
@@ -180,6 +181,33 @@ const TOOLS = [
     }
   },
   {
+    name: 'setup',
+    description:
+      'Manage email credential setup and relay configuration.\n\nActions:\n- status: Show current credential state, setup URL, and configured accounts\n- start (-> force): Trigger relay setup session and return the setup URL. Set force=true to restart even if already in progress\n- reset: Clear all saved credentials and reset to awaiting_setup state\n- complete: Re-check credential state after external config changes (e.g. relay submission)',
+    annotations: {
+      title: 'Setup',
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true
+    },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['status', 'start', 'reset', 'complete'],
+          description: 'Action to perform'
+        },
+        force: {
+          type: 'boolean',
+          description: 'Force restart relay setup even if already in progress (for start action)'
+        }
+      },
+      required: ['action']
+    }
+  },
+  {
     name: 'help',
     description: 'Get full documentation for a tool. Use when compressed descriptions are insufficient.',
     annotations: {
@@ -235,6 +263,7 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   folders: (accounts, args) => folders(accounts, args as unknown as FoldersInput),
   attachments: (accounts, args) => attachments(accounts, args as unknown as AttachmentsInput),
   send: (accounts, args) => send(accounts, args as unknown as SendInput),
+  setup: (accounts, args) => setup(accounts, args as unknown as SetupInput),
   help: (_, args) => handleHelp(args)
 }
 
@@ -306,9 +335,10 @@ export function registerTools(server: Server, initialAccounts: AccountConfig[]) 
       }
 
       // Credential guard: when not configured, return setup instructions.
-      // Help tool is always available (docs don't need credentials).
-      // The relay session is triggered lazily on first non-help tool call.
-      if (name !== 'help' && accounts.length === 0) {
+      // Help and setup tools are always available (docs don't need credentials,
+      // setup manages the credential lifecycle itself).
+      // The relay session is triggered lazily on first non-exempt tool call.
+      if (name !== 'help' && name !== 'setup' && accounts.length === 0) {
         const credState = getState()
         if (credState === 'configured') {
           // Hot-reload: relay delivered credentials after startup — reload accounts

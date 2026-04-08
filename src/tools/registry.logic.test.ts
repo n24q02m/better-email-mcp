@@ -84,7 +84,7 @@ function createMockServerWithHandlers() {
 }
 
 describe('ListToolsRequestSchema handler', () => {
-  it('should return exactly 5 tools with correct names', async () => {
+  it('should return exactly 6 tools with correct names', async () => {
     const { getHandler } = createMockServerWithHandlers()
     const handler = getHandler(ListToolsRequestSchema)
 
@@ -92,9 +92,9 @@ describe('ListToolsRequestSchema handler', () => {
 
     const result = await handler({})
 
-    expect(result.tools).toHaveLength(5)
+    expect(result.tools).toHaveLength(6)
     const names = result.tools.map((t: any) => t.name)
-    expect(names).toEqual(['messages', 'folders', 'attachments', 'send', 'help'])
+    expect(names).toEqual(['messages', 'folders', 'attachments', 'send', 'setup', 'help'])
   })
 })
 
