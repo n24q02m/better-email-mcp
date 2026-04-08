@@ -243,11 +243,13 @@ async function handlePostRelayOAuth(relayBase: string, session: any, credentials
  * Uses execFile (not exec) to avoid shell injection.
  */
 function tryOpenBrowser(url: string): void {
+  if (process.env.E2E_SETUP) return
+
   const platform = process.platform
   if (platform === 'darwin') {
     execFile('open', [url], () => {})
   } else if (platform === 'win32') {
-    execFile('cmd', ['/c', 'start', '', url], () => {})
+    execFile('rundll32', ['url.dll,FileProtocolHandler', url], () => {})
   } else {
     execFile('xdg-open', [url], () => {})
   }
