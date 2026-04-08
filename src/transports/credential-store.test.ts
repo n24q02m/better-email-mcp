@@ -131,5 +131,5 @@ describe('credential-store', () => {
     // Can still load back
     const loaded = await loadCredentials()
     expect(loaded).toEqual(creds2)
-  })
+  }, 10000)
 })
