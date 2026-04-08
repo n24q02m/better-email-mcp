@@ -68,24 +68,23 @@ export async function resolveCredentialState(): Promise<CredentialState> {
 
   // 3. Check saved OAuth2 tokens (from relay-setup's checkSavedOAuthTokens logic)
   try {
-    const { existsSync, readFileSync } = await import('node:fs')
+    const { readFile } = await import('node:fs/promises')
     const { homedir } = await import('node:os')
     const { join } = await import('node:path')
     const tokenFile = join(homedir(), '.better-email-mcp', 'tokens.json')
-    if (existsSync(tokenFile)) {
-      const data = readFileSync(tokenFile, 'utf-8')
-      const store: Record<string, unknown> = JSON.parse(data)
-      const emails = Object.keys(store).filter((key) => key.includes('@'))
-      if (emails.length > 0) {
-        const credentials = emails.map((email) => `${email}:oauth2`).join(',')
-        process.env.EMAIL_CREDENTIALS = credentials
-        console.error(`Found saved OAuth2 tokens for: ${emails.join(', ')}`)
-        state = 'configured'
-        return state
-      }
+
+    const data = await readFile(tokenFile, 'utf-8')
+    const store: Record<string, unknown> = JSON.parse(data)
+    const emails = Object.keys(store).filter((key) => key.includes('@'))
+    if (emails.length > 0) {
+      const credentials = emails.map((email) => `${email}:oauth2`).join(',')
+      process.env.EMAIL_CREDENTIALS = credentials
+      console.error(`Found saved OAuth2 tokens for: ${emails.join(', ')}`)
+      state = 'configured'
+      return state
     }
-  } catch {
-    // Token read failed, continue
+  } catch (_err) {
+    // Token read failed or file doesn't exist, continue
   }
 
   // 4. Nothing found
