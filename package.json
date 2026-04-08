@@ -58,14 +58,14 @@
 	],
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.29.0",
-		"@n24q02m/mcp-relay-core": "^1.3.0",
+		"@n24q02m/mcp-relay-core": "^1.4.0",
 		"express": "^5.2.1",
 		"express-rate-limit": "^8.3.2",
 		"html-to-text": "^9.0.5",
 		"imapflow": "^1.2.18",
 		"mailparser": "^3.9.6",
-		"marked": "^17.0.5",
-		"nodemailer": "^8.0.4",
+		"marked": "^17.0.6",
+		"nodemailer": "^8.0.5",
 		"sanitize-html": "^2.17.2"
 	},
 	"devDependencies": {
@@ -77,11 +77,11 @@
 		"@types/node": "^25.5.2",
 		"@types/nodemailer": "^6.4.23",
 		"@types/sanitize-html": "^2.16.1",
-		"@vitest/coverage-v8": "^4.1.2",
+		"@vitest/coverage-v8": "^4.1.3",
 		"esbuild": "^0.28.0",
 		"tsx": "^4.21.0",
 		"typescript": "^5.9.3",
-		"vitest": "^4.1.2"
+		"vitest": "^4.1.3"
 	},
 	"description": "Better MCP server for Email (IMAP/SMTP) with composite tools optimized for AI agents",
 	"main": "build/src/init-server.js",
