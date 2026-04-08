@@ -243,13 +243,27 @@ async function handlePostRelayOAuth(relayBase: string, session: any, credentials
  * Uses execFile (not exec) to avoid shell injection.
  */
 function tryOpenBrowser(url: string): void {
+  // Security: Only allow web protocols to prevent javascript: or file: attacks
+  let safeUrl: string
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return
+    }
+    // URL.href canonicalizes the string, neutering leading hyphens or shell metacharacters
+    safeUrl = parsed.href
+  } catch {
+    return
+  }
+
   const platform = process.platform
   if (platform === 'darwin') {
-    execFile('open', [url], () => {})
+    execFile('open', [safeUrl], () => {})
   } else if (platform === 'win32') {
-    execFile('cmd', ['/c', 'start', '', url], () => {})
+    // Security: On Windows, use rundll32 to open URLs safely without cmd.exe shell interpretation
+    execFile('rundll32', ['url.dll,FileProtocolHandler', safeUrl], () => {})
   } else {
-    execFile('xdg-open', [url], () => {})
+    execFile('xdg-open', [safeUrl], () => {})
   }
 }
 
