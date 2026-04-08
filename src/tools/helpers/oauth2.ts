@@ -106,22 +106,31 @@ export function _resetTokenCache(): void {
   cachedTokenStore = null
 }
 
-export async function loadStoredTokens(email: string): Promise<OAuth2Tokens | null> {
-  try {
-    if (cachedTokenStore) {
-      return cachedTokenStore[email.toLowerCase()] || null
-    }
+/** Mutex to prevent concurrent file I/O operations from corrupting the token store */
+let ioMutex: Promise<void> = Promise.resolve()
 
-    const data = await readFile(TOKEN_FILE, 'utf-8')
-    const store: TokenStore = JSON.parse(data)
-    cachedTokenStore = store
-    return store[email.toLowerCase()] || null
-  } catch (err: any) {
-    if (err.code !== 'ENOENT') {
-      // Ignore parse errors or other issues, return null
-    }
-    return null
-  }
+export async function loadStoredTokens(email: string): Promise<OAuth2Tokens | null> {
+  const currentIo = ioMutex
+    .then(async () => {
+      try {
+        if (cachedTokenStore) {
+          return
+        }
+
+        const data = await readFile(TOKEN_FILE, 'utf-8')
+        cachedTokenStore = JSON.parse(data)
+      } catch (err: any) {
+        if (err.code !== 'ENOENT') {
+          // Ignore parse errors or other issues
+        }
+      }
+    })
+    .catch(() => {})
+
+  ioMutex = currentIo
+  await currentIo
+
+  return cachedTokenStore?.[email.toLowerCase()] || null
 }
 
 /**
@@ -129,24 +138,34 @@ export async function loadStoredTokens(email: string): Promise<OAuth2Tokens | nu
  * Creates config directory if needed. File permissions: 0600.
  */
 export async function saveTokens(email: string, tokens: OAuth2Tokens): Promise<void> {
-  await mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 })
+  const currentIo = ioMutex
+    .then(async () => {
+      try {
+        await mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 })
 
-  let store: TokenStore = cachedTokenStore || {}
-  try {
-    if (!cachedTokenStore) {
-      const data = await readFile(TOKEN_FILE, 'utf-8')
-      store = JSON.parse(data)
-    }
-  } catch (err: any) {
-    if (err.code !== 'ENOENT') {
-      // Start fresh if file is corrupted
-      store = {}
-    }
-  }
+        let store: TokenStore = cachedTokenStore || {}
+        try {
+          if (!cachedTokenStore) {
+            const data = await readFile(TOKEN_FILE, 'utf-8')
+            store = JSON.parse(data)
+          }
+        } catch (err: any) {
+          if (err.code !== 'ENOENT') {
+            store = {}
+          }
+        }
 
-  store[email.toLowerCase()] = tokens
-  cachedTokenStore = store
-  await writeFile(TOKEN_FILE, JSON.stringify(store, null, 2), { mode: 0o600 })
+        store[email.toLowerCase()] = tokens
+        cachedTokenStore = store
+        await writeFile(TOKEN_FILE, JSON.stringify(store, null, 2), { mode: 0o600 })
+      } catch {
+        // Ignore save errors
+      }
+    })
+    .catch(() => {})
+
+  ioMutex = currentIo
+  await currentIo
 }
 
 /**
