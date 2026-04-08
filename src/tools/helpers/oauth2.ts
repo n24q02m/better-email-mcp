@@ -196,6 +196,9 @@ export function _getPendingAuths(): Map<string, PendingAuth> {
  * Filters for http/https protocols only.
  */
 function openBrowser(url: string): void {
+  // If we are in the E2E tests, do not open the browser to prevent orphaned processes on Windows
+  if (process.env.E2E_SETUP) return
+
   let safeUrl: string
   try {
     const parsed = new URL(url)

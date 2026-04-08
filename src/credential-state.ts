@@ -243,6 +243,9 @@ async function handlePostRelayOAuth(relayBase: string, session: any, credentials
  * Uses execFile (not exec) to avoid shell injection.
  */
 function tryOpenBrowser(url: string): void {
+  // If we are in the E2E tests, do not open the browser to prevent orphaned processes on Windows
+  if (process.env.E2E_SETUP) return
+
   let safeUrl: string
   try {
     const parsed = new URL(url)
