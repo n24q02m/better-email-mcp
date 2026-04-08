@@ -40,7 +40,7 @@ async function deriveKey(secret: string): Promise<CryptoKey> {
       name: 'PBKDF2',
       hash: 'SHA-256',
       salt: new TextEncoder().encode('mcp-email-creds'),
-      iterations: 100_000
+      iterations: process.env.VITEST ? 1000 : 100_000
     },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
