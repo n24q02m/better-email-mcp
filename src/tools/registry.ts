@@ -23,7 +23,7 @@ import { type FoldersInput, folders } from './composite/folders.js'
 import { type MessagesInput, messages } from './composite/messages.js'
 import { type SendInput, send } from './composite/send.js'
 // Import mega tools
-import type { AccountConfig } from './helpers/config.js'
+import { type AccountConfig, loadConfig } from './helpers/config.js'
 import { aiReadableMessage, EmailMCPError, enhanceError, findClosestMatch } from './helpers/errors.js'
 import { isValidToolName, wrapToolResult } from './helpers/security.js'
 
@@ -248,7 +248,9 @@ const AVAILABLE_RESOURCE_URIS_STRING = RESOURCES.map((r) => r.uri).join(', ')
 const VALID_TOOL_NAMES = TOOLS.map((t) => t.name)
 const AVAILABLE_TOOLS_STRING = VALID_TOOL_NAMES.join(', ')
 
-export function registerTools(server: Server, accounts: AccountConfig[]) {
+export function registerTools(server: Server, initialAccounts: AccountConfig[]) {
+  // Mutable reference: updated via hot-reload when relay credentials arrive after startup
+  let accounts = initialAccounts
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: TOOLS
   }))
@@ -308,7 +310,10 @@ export function registerTools(server: Server, accounts: AccountConfig[]) {
       // The relay session is triggered lazily on first non-help tool call.
       if (name !== 'help' && accounts.length === 0) {
         const credState = getState()
-        if (credState !== 'configured') {
+        if (credState === 'configured') {
+          // Hot-reload: relay delivered credentials after startup — reload accounts
+          accounts = await loadConfig()
+        } else {
           // Trigger relay setup if not already in progress
           if (credState === 'awaiting_setup') {
             await triggerRelaySetup()
