@@ -58,7 +58,7 @@
 	],
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.29.0",
-		"@n24q02m/mcp-relay-core": "^1.4.0",
+		"@n24q02m/mcp-relay-core": "file:../mcp-relay-core/packages/core-ts",
 		"express": "^5.2.1",
 		"express-rate-limit": "^8.3.2",
 		"html-to-text": "^9.0.5",

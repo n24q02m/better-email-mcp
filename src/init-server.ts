@@ -124,8 +124,8 @@ export async function initServer() {
   const transport = process.env.TRANSPORT_MODE || 'stdio'
 
   if (transport === 'http') {
-    const { startHttp } = await import('./transports/http.js')
-    await startHttp()
+    const { startOAuthHttp } = await import('./transports/oauth-server.js')
+    await startOAuthHttp()
     return
   }
 
