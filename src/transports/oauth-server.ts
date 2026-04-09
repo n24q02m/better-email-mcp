@@ -237,6 +237,11 @@ export async function startOAuthHttp(): Promise<void> {
       return
     }
 
+    if (typeof code_verifier !== 'string') {
+      res.status(400).json({ error: 'invalid_request', description: 'code_verifier must be a string' })
+      return
+    }
+
     const stored = authCodes.get(code)
     if (!stored) {
       res.status(400).json({ error: 'invalid_grant', description: 'Invalid or expired code' })
@@ -246,13 +251,19 @@ export async function startOAuthHttp(): Promise<void> {
     // PKCE verification
     if (stored.challengeMethod === 'S256') {
       const digest = createHash('sha256').update(code_verifier).digest('base64url')
-      if (!timingSafeEqual(Buffer.from(digest), Buffer.from(stored.challenge))) {
+      const digestBuf = Buffer.from(digest)
+      const challengeBuf = Buffer.from(stored.challenge)
+      if (digestBuf.length !== challengeBuf.length || !timingSafeEqual(digestBuf, challengeBuf)) {
         res.status(400).json({ error: 'invalid_grant', description: 'PKCE mismatch' })
         return
       }
-    } else if (code_verifier !== stored.challenge) {
-      res.status(400).json({ error: 'invalid_grant', description: 'PKCE plain mismatch' })
-      return
+    } else {
+      const verifierBuf = Buffer.from(code_verifier)
+      const challengeBuf = Buffer.from(stored.challenge)
+      if (verifierBuf.length !== challengeBuf.length || !timingSafeEqual(verifierBuf, challengeBuf)) {
+        res.status(400).json({ error: 'invalid_grant', description: 'PKCE plain mismatch' })
+        return
+      }
     }
 
     authCodes.delete(code)
