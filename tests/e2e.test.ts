@@ -65,7 +65,7 @@ const HAS_CREDS = !!EMAIL_CREDS || E2E_SETUP === 'relay' || E2E_SETUP === 'http'
 // Mutable: set from env var initially, updated by probe if relay/saved tokens provide it
 let TEST_ACCOUNT = EMAIL_CREDS.split(',')[0]?.split(':')[0] ?? ''
 
-const EXPECTED_TOOLS = ['messages', 'folders', 'attachments', 'send', 'help'] as const
+const EXPECTED_TOOLS = ['messages', 'folders', 'attachments', 'send', 'setup', 'help'] as const
 const _EMAIL_DEPENDENT_TOOLS = ['messages', 'folders', 'attachments', 'send'] as const
 
 // ---------------------------------------------------------------------------
@@ -564,7 +564,7 @@ describe('tools/list', () => {
   it('should return all 5 tools', async () => {
     const result = await client.listTools()
     const names = result.tools.map((t) => t.name)
-    expect(names).toHaveLength(5)
+    expect(names).toHaveLength(6)
     for (const name of EXPECTED_TOOLS) {
       expect(names).toContain(name)
     }
@@ -1267,7 +1267,7 @@ describe('error handling', () => {
       expect(text).toBeTruthy()
       // Server returns either "No email accounts configured" (zero accounts)
       // or "Account not found" (has accounts but this one doesn't match)
-      expect(text.includes('No email accounts') || text.includes('Account not found')).toBe(true)
+      expect(text.includes('No email accounts') || text.includes('Account not found') || text.includes('Email credentials are not configured yet')).toBe(true)
     })
 
     it('folders should return error when no accounts exist or account not found', async () => {
@@ -1278,7 +1278,7 @@ describe('error handling', () => {
       expect(result.isError).toBe(true)
       const text = (result.content as Array<{ type: string; text: string }>)[0]?.text ?? ''
       expect(text).toBeTruthy()
-      expect(text.includes('No email accounts') || text.includes('Account not found')).toBe(true)
+      expect(text.includes('No email accounts') || text.includes('Account not found') || text.includes('Email credentials are not configured yet')).toBe(true)
     })
 
     it('attachments should return error when no accounts exist or account not found', async () => {
@@ -1289,7 +1289,7 @@ describe('error handling', () => {
       expect(result.isError).toBe(true)
       const text = (result.content as Array<{ type: string; text: string }>)[0]?.text ?? ''
       expect(text).toBeTruthy()
-      expect(text.includes('No email accounts') || text.includes('Account not found')).toBe(true)
+      expect(text.includes('No email accounts') || text.includes('Account not found') || text.includes('Email credentials are not configured yet')).toBe(true)
     })
 
     it('send should return error when no accounts exist or account not found', async () => {
@@ -1306,7 +1306,7 @@ describe('error handling', () => {
       expect(result.isError).toBe(true)
       const text = (result.content as Array<{ type: string; text: string }>)[0]?.text ?? ''
       expect(text).toBeTruthy()
-      expect(text.includes('No email accounts') || text.includes('Account not found')).toBe(true)
+      expect(text.includes('No email accounts') || text.includes('Account not found') || text.includes('Email credentials are not configured yet')).toBe(true)
     })
   })
 

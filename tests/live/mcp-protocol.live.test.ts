@@ -10,7 +10,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-const EXPECTED_TOOLS = ['messages', 'folders', 'attachments', 'send', 'help']
+const EXPECTED_TOOLS = ['messages', 'folders', 'attachments', 'send', 'setup', 'help']
 
 const EMAIL_DEPENDENT_TOOLS = ['messages', 'folders', 'attachments', 'send']
 
@@ -62,7 +62,7 @@ describe('MCP Protocol - Live Server (no EMAIL_CREDENTIALS)', () => {
     it('should return all 5 tools', async () => {
       const result = await client.listTools()
       const toolNames = result.tools.map((t) => t.name)
-      expect(toolNames).toHaveLength(5)
+      expect(toolNames).toHaveLength(6)
       for (const name of EXPECTED_TOOLS) {
         expect(toolNames).toContain(name)
       }
