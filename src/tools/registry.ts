@@ -45,7 +45,8 @@ const RESOURCES = [
   { uri: 'email://docs/folders', name: 'Folders Tool Docs', file: 'folders.md' },
   { uri: 'email://docs/attachments', name: 'Attachments Tool Docs', file: 'attachments.md' },
   { uri: 'email://docs/send', name: 'Send Tool Docs', file: 'send.md' },
-  { uri: 'email://docs/help', name: 'Help Tool Docs', file: 'help.md' }
+  { uri: 'email://docs/help', name: 'Help Tool Docs', file: 'help.md' },
+  { uri: 'email://docs/setup', name: 'Setup Tool Docs', file: 'setup.md' }
 ]
 
 /**
@@ -241,7 +242,7 @@ async function handleHelp(args: unknown): Promise<{ tool: string; documentation:
     throw new EmailMCPError(
       `Invalid tool name: ${toolName}`,
       'VALIDATION_ERROR',
-      'Valid: messages, folders, attachments, send, help'
+      'Valid: messages, folders, attachments, send, setup, help'
     )
   }
   const resource = RESOURCES.find((r) => r.uri === `email://docs/${toolName}`)
