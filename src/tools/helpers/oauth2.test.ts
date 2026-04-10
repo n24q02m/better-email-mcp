@@ -13,7 +13,10 @@ vi.mock('node:fs/promises', () => ({
 }))
 
 vi.mock('node:fs', () => ({
-  existsSync: vi.fn()
+  existsSync: vi.fn(),
+  mkdirSync: vi.fn(),
+  readFileSync: vi.fn(),
+  writeFileSync: vi.fn()
 }))
 
 vi.mock('node:os', () => ({
@@ -821,7 +824,7 @@ describe('saveTokens edge cases', () => {
     // Second save should use cache, not read from disk
     await saveTokens('second@outlook.com', tokens2)
 
-    // readFile should NOT be called for second save (cache is used)
+    // readFileSync should NOT be called for second save (cache is used)
     const written = JSON.parse(mockWriteFile.mock.calls[1]![1] as string)
     expect(written['first@outlook.com']).toEqual(tokens1)
     expect(written['second@outlook.com']).toEqual(tokens2)
