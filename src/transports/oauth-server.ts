@@ -1,6 +1,5 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 import path from 'node:path'
-import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
 import {
@@ -14,9 +13,9 @@ import {
 import express from 'express'
 import rateLimit from 'express-rate-limit'
 import { ImapFlow } from 'imapflow'
-
 // Internal imports
 import { RELAY_SCHEMA } from '../relay-schema.js'
+import { createMcpServer } from '../server-factory.js'
 import type { AccountConfig } from '../tools/helpers/config.js'
 import { parseCredentials } from '../tools/helpers/config.js'
 import { _getPendingAuths, ensureValidToken, isOutlookDomain } from '../tools/helpers/oauth2.js'
@@ -342,7 +341,7 @@ export async function startOAuthHttp(): Promise<void> {
         }
       }
 
-      const server = new Server({ name: 'better-email-mcp', version: '1.21.0' }, { capabilities: { tools: {} } })
+      const server = createMcpServer()
       registerTools(server, accounts)
 
       await server.connect(transport)

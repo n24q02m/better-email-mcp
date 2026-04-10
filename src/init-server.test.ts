@@ -1,18 +1,13 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { resolveCredentialState } from './credential-state.js'
 import { initServer } from './init-server.js'
+import { createMcpServer } from './server-factory.js'
 import { loadConfig } from './tools/helpers/config.js'
 import { ensureValidToken } from './tools/helpers/oauth2.js'
 import { registerTools } from './tools/registry.js'
 
 // Mock dependencies
-vi.mock('node:fs', () => ({
-  existsSync: vi.fn(),
-  readFileSync: vi.fn()
-}))
 vi.mock('./credential-state.js', () => ({
   resolveCredentialState: vi.fn()
 }))
@@ -27,8 +22,8 @@ vi.mock('./tools/helpers/oauth2.js', () => ({
 vi.mock('./tools/registry.js', () => ({
   registerTools: vi.fn()
 }))
-vi.mock('@modelcontextprotocol/sdk/server/index.js', () => ({
-  Server: vi.fn()
+vi.mock('./server-factory.js', () => ({
+  createMcpServer: vi.fn()
 }))
 vi.mock('@modelcontextprotocol/sdk/server/stdio.js', () => ({
   StdioServerTransport: vi.fn()
@@ -37,6 +32,7 @@ vi.mock('@modelcontextprotocol/sdk/server/stdio.js', () => ({
 describe('initServer', () => {
   let exitSpy: ReturnType<typeof vi.spyOn>
   let consoleSpy: ReturnType<typeof vi.spyOn>
+  let mockServer: any
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -56,17 +52,11 @@ describe('initServer', () => {
     // Mock console.error to suppress output
     consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    // Default: existsSync finds package.json, readFileSync returns valid version
-    vi.mocked(existsSync).mockReturnValue(true)
-    vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ name: '@n24q02m/better-email-mcp', version: '1.0.0' }))
-
-    // Default mock implementation for Server
-    // biome-ignore lint/complexity/useArrowFunction: Must use function for constructor mocking
-    ;(Server as unknown as Mock).mockImplementation(function () {
-      return {
-        connect: vi.fn().mockResolvedValue(undefined)
-      }
-    })
+    // Mock server instance
+    mockServer = {
+      connect: vi.fn().mockResolvedValue(undefined)
+    }
+    vi.mocked(createMcpServer).mockReturnValue(mockServer)
 
     // Default mock implementation for StdioServerTransport
     // biome-ignore lint/complexity/useArrowFunction: Must use function for constructor mocking
@@ -90,45 +80,11 @@ describe('initServer', () => {
 
     // Verify
     expect(loadConfig).toHaveBeenCalled()
-    expect(Server).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: '@n24q02m/better-email-mcp'
-      }),
-      expect.any(Object)
-    )
-    expect(registerTools).toHaveBeenCalledWith(server, mockAccounts)
+    expect(createMcpServer).toHaveBeenCalled()
+    expect(registerTools).toHaveBeenCalledWith(mockServer, mockAccounts)
     expect(StdioServerTransport).toHaveBeenCalled()
-    expect(server!.connect).toHaveBeenCalledWith(expect.anything())
-  })
-
-  it('uses fallback version 0.0.0 when package.json not found', async () => {
-    const mockAccounts = [{ email: 'test@example.com' }]
-    vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
-    vi.mocked(existsSync).mockReturnValue(false)
-
-    await initServer()
-
-    expect(Server).toHaveBeenCalledWith(
-      expect.objectContaining({
-        version: '0.0.0'
-      }),
-      expect.any(Object)
-    )
-  })
-
-  it('uses fallback version when package.json has no version field', async () => {
-    const mockAccounts = [{ email: 'test@example.com' }]
-    vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
-    vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ name: '@n24q02m/better-email-mcp' }))
-
-    await initServer()
-
-    expect(Server).toHaveBeenCalledWith(
-      expect.objectContaining({
-        version: '0.0.0'
-      }),
-      expect.any(Object)
-    )
+    expect(mockServer.connect).toHaveBeenCalledWith(expect.anything())
+    expect(server).toBe(mockServer)
   })
 
   it('starts server with warning when credentials set but no accounts loaded', async () => {
@@ -142,7 +98,7 @@ describe('initServer', () => {
     // Verify server still starts
     expect(loadConfig).toHaveBeenCalled()
     expect(consoleSpy).toHaveBeenCalledWith('Warning: No email accounts configured')
-    expect(Server).toHaveBeenCalled()
+    expect(createMcpServer).toHaveBeenCalled()
     expect(exitSpy).not.toHaveBeenCalled()
   })
 
@@ -223,7 +179,7 @@ describe('initServer', () => {
     await initServer()
 
     expect(resolveCredentialState).toHaveBeenCalledTimes(1)
-    expect(Server).toHaveBeenCalled()
+    expect(createMcpServer).toHaveBeenCalled()
     expect(consoleSpy).toHaveBeenCalledWith(
       'Server starting without credentials. Tools will guide setup on first call.'
     )
