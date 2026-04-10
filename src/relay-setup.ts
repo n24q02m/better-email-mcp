@@ -112,6 +112,26 @@ export async function ensureConfig(): Promise<string | null> {
   console.error('No email credentials found. Starting relay setup...')
 
   const relayUrl = DEFAULT_RELAY_URL
+  const setup = await triggerRelaySetup(relayUrl)
+  if (!setup) return null
+
+  const { session, credentials } = setup
+
+  // Check if any Outlook accounts need OAuth — send device code via relay messaging
+  await handlePostRelaySetup(session, credentials, relayUrl)
+
+  return credentials
+}
+
+/**
+ * Trigger interactive relay setup: session -> poll -> save.
+ *
+ * Returns the session and formatted credentials, or null if setup failed/skipped.
+ */
+async function triggerRelaySetup(relayUrl: string): Promise<{
+  session: Awaited<ReturnType<typeof createSession>>
+  credentials: string
+} | null> {
   let session: Awaited<ReturnType<typeof createSession>>
   try {
     session = await createSession(relayUrl, SERVER_NAME, RELAY_SCHEMA)
@@ -143,7 +163,17 @@ export async function ensureConfig(): Promise<string | null> {
   console.error('Email config saved successfully')
 
   const credentials = formatCredentials(config)
+  return { session, credentials }
+}
 
+/**
+ * Post-setup: verify Outlook OAuth and send status messages to relay page.
+ */
+async function handlePostRelaySetup(
+  session: Awaited<ReturnType<typeof createSession>>,
+  credentials: string,
+  relayUrl: string
+): Promise<void> {
   // Check if any Outlook accounts need OAuth — send device code via relay messaging
   let hasOAuthPending = false
   try {
@@ -215,6 +245,4 @@ export async function ensureConfig(): Promise<string | null> {
       })
     }).catch(() => {})
   }
-
-  return credentials
 }
