@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMcpServer, getVersion } from './server-factory.js'
 
 vi.mock('node:fs', () => ({
@@ -16,10 +16,10 @@ describe('server-factory', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    // @ts-ignore
-    Server.mockImplementation(function(info, options) {
-      this.info = info;
-      this.options = options;
+    // @ts-expect-error
+    Server.mockImplementation(function (info, options) {
+      this.info = info
+      this.options = options
     })
   })
 
