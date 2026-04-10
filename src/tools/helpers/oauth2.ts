@@ -7,8 +7,7 @@
  */
 
 import { execFile } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
@@ -129,24 +128,27 @@ export async function loadStoredTokens(email: string): Promise<OAuth2Tokens | nu
  * Persist OAuth2 tokens to disk.
  * Creates config directory if needed. File permissions: 0600.
  */
-export function saveTokens(email: string, tokens: OAuth2Tokens): void {
-  if (!existsSync(CONFIG_DIR)) {
-    mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 })
+export async function saveTokens(email: string, tokens: OAuth2Tokens): Promise<void> {
+  try {
+    await mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 })
+  } catch {
+    // Ignore if exists
   }
 
   let store: TokenStore = cachedTokenStore || {}
   try {
-    if (!cachedTokenStore && existsSync(TOKEN_FILE)) {
-      store = JSON.parse(readFileSync(TOKEN_FILE, 'utf-8'))
+    if (!cachedTokenStore) {
+      const data = await readFile(TOKEN_FILE, 'utf-8')
+      store = JSON.parse(data)
     }
   } catch {
-    // Start fresh if file is corrupted
+    // Start fresh if file is corrupted or doesn't exist
     store = {}
   }
 
   store[email.toLowerCase()] = tokens
   cachedTokenStore = store
-  writeFileSync(TOKEN_FILE, JSON.stringify(store, null, 2), { mode: 0o600 })
+  await writeFile(TOKEN_FILE, JSON.stringify(store, null, 2), { mode: 0o600 })
 }
 
 /**
@@ -275,7 +277,7 @@ function startBackgroundPoll(
 
       if (data.access_token) {
         const now = Math.floor(Date.now() / MS_PER_SECOND)
-        saveTokens(email, {
+        await saveTokens(email, {
           accessToken: data.access_token,
           refreshToken: data.refresh_token,
           expiresAt: now + data.expires_in,
@@ -376,7 +378,7 @@ export async function ensureValidToken(account: { email: string; oauth2?: OAuth2
   }
 
   // Persist updated tokens
-  saveTokens(account.email, account.oauth2)
+  await saveTokens(account.email, account.oauth2)
 
   return newTokens.access_token
 }
@@ -422,7 +424,7 @@ export async function deviceCodeAuth(email: string, clientId?: string): Promise<
         clientId: resolvedClientId
       }
 
-      saveTokens(email, tokens)
+      await saveTokens(email, tokens)
       console.error(`\nSuccess! Token saved for ${email}`)
       return tokens
     }

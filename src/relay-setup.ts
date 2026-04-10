@@ -9,7 +9,7 @@
  * 5. DEGRADED MODE     -- No email tools
  */
 
-import { existsSync, readFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { writeConfig } from '@n24q02m/mcp-relay-core'
@@ -36,11 +36,9 @@ const TOKEN_FILE = join(homedir(), '.better-email-mcp', 'tokens.json')
  *
  * Returns EMAIL_CREDENTIALS string or null if no saved tokens.
  */
-function checkSavedOAuthTokens(): string | null {
+async function checkSavedOAuthTokens(): Promise<string | null> {
   try {
-    if (!existsSync(TOKEN_FILE)) return null
-
-    const data = readFileSync(TOKEN_FILE, 'utf-8')
+    const data = await readFile(TOKEN_FILE, 'utf-8')
     const store: Record<string, unknown> = JSON.parse(data)
     const emails = Object.keys(store).filter((key) => key.includes('@'))
 
@@ -103,7 +101,7 @@ export async function ensureConfig(): Promise<string | null> {
   }
 
   // 2. Check saved OAuth2 tokens (local credentials)
-  const savedTokens = checkSavedOAuthTokens()
+  const savedTokens = await checkSavedOAuthTokens()
   if (savedTokens) {
     return savedTokens
   }

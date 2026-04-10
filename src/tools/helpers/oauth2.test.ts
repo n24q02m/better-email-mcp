@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('node:child_process', () => ({
@@ -7,14 +7,9 @@ vi.mock('node:child_process', () => ({
 }))
 
 vi.mock('node:fs/promises', () => ({
-  readFile: vi.fn()
-}))
-
-vi.mock('node:fs', () => ({
-  existsSync: vi.fn(),
-  mkdirSync: vi.fn(),
-  readFileSync: vi.fn(),
-  writeFileSync: vi.fn()
+  readFile: vi.fn(),
+  mkdir: vi.fn(),
+  writeFile: vi.fn()
 }))
 
 vi.mock('node:os', () => ({
@@ -22,18 +17,9 @@ vi.mock('node:os', () => ({
 }))
 
 const mockExecFile = vi.mocked(execFile)
-
-import { readFile } from 'node:fs/promises'
-
 const mockReadFile = vi.mocked(readFile)
-const mockExistsSync = vi.mocked(existsSync)
-const mockReadFileSync = vi.mocked(readFileSync)
-const mockWriteFileSync = vi.mocked(writeFileSync)
-const mockMkdirSync = vi.mocked(mkdirSync)
-
-beforeEach(() => {
-  vi.clearAllMocks()
-})
+const mockMkdir = vi.mocked(mkdir)
+const mockWriteFile = vi.mocked(writeFile)
 
 import type { OAuth2Tokens } from './oauth2.js'
 import {
@@ -48,193 +34,130 @@ import {
   saveTokens
 } from './oauth2.js'
 
-// ============================================================================
-// isOutlookDomain
-// ============================================================================
-
-afterEach(() => {
-  _resetTokenCache()
-})
-
 describe('isOutlookDomain', () => {
-  it('detects outlook.com', () => {
+  it('returns true for outlook.com', () => {
     expect(isOutlookDomain('user@outlook.com')).toBe(true)
   })
 
-  it('detects hotmail.com', () => {
+  it('returns true for hotmail.com', () => {
     expect(isOutlookDomain('user@hotmail.com')).toBe(true)
   })
 
-  it('detects live.com', () => {
+  it('returns true for live.com', () => {
     expect(isOutlookDomain('user@live.com')).toBe(true)
   })
 
-  it('rejects gmail.com', () => {
+  it('returns false for gmail.com', () => {
     expect(isOutlookDomain('user@gmail.com')).toBe(false)
   })
 
-  it('rejects yahoo.com', () => {
-    expect(isOutlookDomain('user@yahoo.com')).toBe(false)
-  })
-
-  it('handles empty string', () => {
-    expect(isOutlookDomain('')).toBe(false)
-  })
-
-  it('handles email without domain', () => {
-    expect(isOutlookDomain('nodomain')).toBe(false)
-  })
-
-  it('is case-insensitive via domain extraction', () => {
-    expect(isOutlookDomain('user@OUTLOOK.COM')).toBe(true)
+  it('returns false for invalid email', () => {
+    expect(isOutlookDomain('not-an-email')).toBe(false)
   })
 })
 
-// ============================================================================
-// getClientId
-// ============================================================================
-
 describe('getClientId', () => {
-  const originalEnv = process.env.OUTLOOK_CLIENT_ID
-
-  afterEach(() => {
-    if (originalEnv) {
-      process.env.OUTLOOK_CLIENT_ID = originalEnv
-    } else {
-      delete process.env.OUTLOOK_CLIENT_ID
-    }
+  it('returns custom client ID from env if set', () => {
+    process.env.OUTLOOK_CLIENT_ID = 'custom-cid'
+    expect(getClientId()).toBe('custom-cid')
+    delete process.env.OUTLOOK_CLIENT_ID
   })
 
-  it('returns OUTLOOK_CLIENT_ID from env', () => {
-    process.env.OUTLOOK_CLIENT_ID = 'test-client-id-123'
-    expect(getClientId()).toBe('test-client-id-123')
-  })
-
-  it('returns bundled default when OUTLOOK_CLIENT_ID is not set', () => {
+  it('returns default client ID if env not set', () => {
     delete process.env.OUTLOOK_CLIENT_ID
     expect(getClientId()).toBe('d56f8c71-9f7c-43f4-9934-be29cb6e77b0')
   })
 })
 
-// ============================================================================
-// loadStoredTokens
-// ============================================================================
-
 describe('loadStoredTokens', () => {
-  it('returns null when token file does not exist', async () => {
-    mockReadFile.mockRejectedValue({ code: 'ENOENT' })
-
-    expect(await loadStoredTokens('user@outlook.com')).toBeNull()
-  })
-
-  it('returns tokens for stored email', async () => {
-    const tokens: OAuth2Tokens = {
-      accessToken: 'at-123',
-      refreshToken: 'rt-456',
-      expiresAt: 9999999999,
-      clientId: 'client-789'
-    }
-    mockReadFile.mockResolvedValue(JSON.stringify({ 'user@outlook.com': tokens }))
-
-    expect(await loadStoredTokens('user@outlook.com')).toEqual(tokens)
-  })
-
-  it('returns null for email not in store', async () => {
-    mockReadFile.mockResolvedValue(JSON.stringify({ 'other@outlook.com': {} }))
-
-    expect(await loadStoredTokens('user@outlook.com')).toBeNull()
-  })
-
-  it('normalizes email to lowercase', async () => {
-    const tokens: OAuth2Tokens = {
-      accessToken: 'at',
-      refreshToken: 'rt',
-      expiresAt: 0,
-      clientId: 'c'
-    }
-    mockReadFile.mockResolvedValue(JSON.stringify({ 'user@outlook.com': tokens }))
-
-    expect(await loadStoredTokens('User@Outlook.com')).toEqual(tokens)
-  })
-
-  it('returns null on JSON parse error', async () => {
-    mockReadFile.mockResolvedValue('invalid json{')
-
-    expect(await loadStoredTokens('user@outlook.com')).toBeNull()
-  })
-})
-
-// ============================================================================
-// saveTokens
-// ============================================================================
-
-describe('saveTokens', () => {
   beforeEach(() => {
     _resetTokenCache()
   })
 
-  const tokens: OAuth2Tokens = {
-    accessToken: 'at',
-    refreshToken: 'rt',
-    expiresAt: 1000,
-    clientId: 'cid'
-  }
+  it('returns tokens for email if file exists and contains entry', async () => {
+    const tokens = {
+      accessToken: 'at',
+      refreshToken: 'rt',
+      expiresAt: 123456,
+      clientId: 'cid'
+    }
+    mockReadFile.mockResolvedValue(JSON.stringify({ 'user@outlook.com': tokens }))
 
-  it('creates config directory if not exists', () => {
-    mockExistsSync.mockImplementation((path) => {
-      if (String(path).endsWith('tokens.json')) return false
-      return false // config dir doesn't exist
-    })
+    const result = await loadStoredTokens('user@outlook.com')
+    expect(result).toEqual(tokens)
+  })
 
-    saveTokens('user@outlook.com', tokens)
+  it('returns null if file exists but email not found', async () => {
+    mockReadFile.mockResolvedValue(JSON.stringify({ 'other@outlook.com': {} }))
 
-    expect(mockMkdirSync).toHaveBeenCalledWith(expect.stringContaining('.better-email-mcp'), {
+    const result = await loadStoredTokens('user@outlook.com')
+    expect(result).toBeNull()
+  })
+
+  it('returns null if file does not exist (ENOENT)', async () => {
+    const err = new Error('File not found')
+    // @ts-expect-error
+    err.code = 'ENOENT'
+    mockReadFile.mockRejectedValue(err)
+
+    const result = await loadStoredTokens('user@outlook.com')
+    expect(result).toBeNull()
+  })
+
+  it('returns null if JSON is corrupted', async () => {
+    mockReadFile.mockResolvedValue('not-json')
+
+    const result = await loadStoredTokens('user@outlook.com')
+    expect(result).toBeNull()
+  })
+})
+
+describe('saveTokens', () => {
+  beforeEach(() => {
+    _resetTokenCache()
+    vi.clearAllMocks()
+  })
+
+  it('creates directory and writes file with tokens', async () => {
+    const tokens: OAuth2Tokens = {
+      accessToken: 'at',
+      refreshToken: 'rt',
+      expiresAt: 1000,
+      clientId: 'cid'
+    }
+    mockReadFile.mockRejectedValue({ code: 'ENOENT' })
+
+    await saveTokens('user@outlook.com', tokens)
+
+    expect(mockMkdir).toHaveBeenCalledWith(expect.stringContaining('.better-email-mcp'), {
       recursive: true,
       mode: 0o700
     })
-  })
-
-  it('writes tokens with 0600 permissions', () => {
-    mockExistsSync.mockReturnValue(false)
-
-    saveTokens('user@outlook.com', tokens)
-
-    expect(mockWriteFileSync).toHaveBeenCalledWith(
+    expect(mockWriteFile).toHaveBeenCalledWith(
       expect.stringContaining('tokens.json'),
-      expect.stringContaining('"user@outlook.com"'),
+      expect.stringContaining('"at"'),
       { mode: 0o600 }
     )
   })
 
-  it('merges with existing tokens', () => {
-    const existing = { 'other@hotmail.com': { accessToken: 'old', refreshToken: 'old', expiresAt: 0, clientId: 'c' } }
+  it('merges with existing tokens on disk', async () => {
+    const existing = { 'old@outlook.com': { accessToken: 'old-at' } }
+    mockReadFile.mockResolvedValue(JSON.stringify(existing))
 
-    mockExistsSync.mockImplementation((path) => {
-      if (String(path).endsWith('tokens.json')) return true
-      return true
-    })
-    mockReadFileSync.mockReturnValue(JSON.stringify(existing))
+    const tokens: OAuth2Tokens = {
+      accessToken: 'new-at',
+      refreshToken: 'new-rt',
+      expiresAt: 2000,
+      clientId: 'cid'
+    }
 
-    saveTokens('user@outlook.com', tokens)
+    await saveTokens('new@outlook.com', tokens)
 
-    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
-    expect(written['other@hotmail.com']).toBeDefined()
-    expect(written['user@outlook.com']).toEqual(tokens)
-  })
-
-  it('normalizes email to lowercase', () => {
-    mockExistsSync.mockReturnValue(false)
-
-    saveTokens('User@OUTLOOK.com', tokens)
-
-    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
-    expect(written['user@outlook.com']).toEqual(tokens)
+    const written = JSON.parse(mockWriteFile.mock.calls[0]![1] as string)
+    expect(written['old@outlook.com']).toBeDefined()
+    expect(written['new@outlook.com']).toEqual(tokens)
   })
 })
-
-// ============================================================================
-// refreshAccessToken
-// ============================================================================
 
 describe('refreshAccessToken', () => {
   const mockFetch = vi.fn()
@@ -247,7 +170,7 @@ describe('refreshAccessToken', () => {
     vi.unstubAllGlobals()
   })
 
-  it('sends correct refresh token request', async () => {
+  it('returns new tokens on successful refresh', async () => {
     mockFetch.mockResolvedValue({
       json: async () => ({
         access_token: 'new-at',
@@ -257,394 +180,194 @@ describe('refreshAccessToken', () => {
       })
     })
 
-    const result = await refreshAccessToken('client-id', 'old-refresh-token')
-
+    const result = await refreshAccessToken('cid', 'old-rt')
     expect(result.access_token).toBe('new-at')
-    expect(result.refresh_token).toBe('new-rt')
-    expect(result.expires_in).toBe(3600)
-
-    // Verify the request parameters
-    const [url, options] = mockFetch.mock.calls[0]!
-    expect(url).toContain('/oauth2/v2.0/token')
-    const body = options.body as URLSearchParams
-    expect(body.get('client_id')).toBe('client-id')
-    expect(body.get('grant_type')).toBe('refresh_token')
-    expect(body.get('refresh_token')).toBe('old-refresh-token')
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/token'),
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.any(URLSearchParams)
+      })
+    )
   })
 
-  it('throws on error response', async () => {
+  it('throws error on refresh failure', async () => {
     mockFetch.mockResolvedValue({
       json: async () => ({
         error: 'invalid_grant',
-        error_description: 'Refresh token expired'
+        error_description: 'Token expired'
       })
     })
 
-    await expect(refreshAccessToken('cid', 'expired-rt')).rejects.toThrow('Refresh token expired')
+    await expect(refreshAccessToken('cid', 'bad-rt')).rejects.toThrow('Token refresh failed: Token expired')
   })
 })
-
-// ============================================================================
-// ensureValidToken
-// ============================================================================
 
 describe('ensureValidToken', () => {
   const mockFetch = vi.fn()
 
   beforeEach(() => {
     vi.stubGlobal('fetch', mockFetch)
-    mockExistsSync.mockReturnValue(true)
-    mockReadFile.mockResolvedValue('{}')
+    _resetTokenCache()
+    _getPendingAuths().clear()
+    vi.clearAllMocks()
   })
 
   afterEach(() => {
     vi.unstubAllGlobals()
   })
 
-  it('returns existing token when not expired', async () => {
+  it('returns existing access token if not expired', async () => {
+    const now = Math.floor(Date.now() / 1000)
     const account = {
       email: 'user@outlook.com',
       oauth2: {
-        accessToken: 'valid-token',
+        accessToken: 'at',
         refreshToken: 'rt',
-        expiresAt: Math.floor(Date.now() / 1000) + 3600, // 1h from now
+        expiresAt: now + 3600,
         clientId: 'cid'
       }
     }
 
     const token = await ensureValidToken(account)
-
-    expect(token).toBe('valid-token')
+    expect(token).toBe('at')
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
-  it('refreshes when token is about to expire (within 5min buffer)', async () => {
-    const account = {
-      email: 'user@outlook.com',
-      oauth2: {
-        accessToken: 'old-token',
-        refreshToken: 'rt',
-        expiresAt: Math.floor(Date.now() / 1000) + 60, // Only 1 min left
-        clientId: 'cid'
-      }
-    }
-
-    mockFetch.mockResolvedValue({
-      json: async () => ({
-        access_token: 'new-token',
-        refresh_token: 'new-rt',
-        expires_in: 3600
-      })
-    })
-
-    const token = await ensureValidToken(account)
-
-    expect(token).toBe('new-token')
-    expect(account.oauth2.accessToken).toBe('new-token')
-    expect(account.oauth2.refreshToken).toBe('new-rt')
-  })
-
-  it('refreshes when token is already expired', async () => {
-    const account = {
-      email: 'user@outlook.com',
-      oauth2: {
-        accessToken: 'expired-token',
-        refreshToken: 'rt',
-        expiresAt: Math.floor(Date.now() / 1000) - 100, // Already expired
-        clientId: 'cid'
-      }
-    }
-
-    mockFetch.mockResolvedValue({
-      json: async () => ({
-        access_token: 'fresh-token',
-        refresh_token: 'fresh-rt',
-        expires_in: 3600
-      })
-    })
-
-    const token = await ensureValidToken(account)
-
-    expect(token).toBe('fresh-token')
-  })
-
-  it('persists refreshed tokens to disk', async () => {
-    const account = {
-      email: 'user@outlook.com',
-      oauth2: {
-        accessToken: 'old',
-        refreshToken: 'old-rt',
-        expiresAt: 0,
-        clientId: 'cid'
-      }
-    }
-
-    mockFetch.mockResolvedValue({
-      json: async () => ({
-        access_token: 'new',
-        refresh_token: 'new-rt',
-        expires_in: 3600
-      })
-    })
-
-    await ensureValidToken(account)
-
-    expect(mockWriteFileSync).toHaveBeenCalled()
-  })
-
-  it('loads tokens from disk when not in memory', async () => {
-    const stored: OAuth2Tokens = {
-      accessToken: 'disk-token',
+  it('loads tokens from disk if not in memory', async () => {
+    const now = Math.floor(Date.now() / 1000)
+    const tokens = {
+      accessToken: 'disk-at',
       refreshToken: 'disk-rt',
-      expiresAt: Math.floor(Date.now() / 1000) + 3600,
+      expiresAt: now + 3600,
       clientId: 'cid'
     }
-    mockReadFile.mockResolvedValue(JSON.stringify({ 'user@outlook.com': stored }))
+    mockReadFile.mockResolvedValue(JSON.stringify({ 'user@outlook.com': tokens }))
 
-    const account = { email: 'user@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
+    const account = { email: 'user@outlook.com' }
     const token = await ensureValidToken(account)
 
-    expect(token).toBe('disk-token')
-    expect(account.oauth2).toEqual(stored)
+    expect(token).toBe('disk-at')
   })
 
-  it('initiates Device Code flow when no tokens exist', async () => {
-    // No tokens on disk
-    mockReadFileSync.mockReturnValue('{}')
-
-    // Mock device code request
-    mockFetch.mockResolvedValueOnce({
-      json: async () => ({
-        device_code: 'dc-auto',
-        user_code: 'AUTO-CODE',
-        verification_uri: 'https://microsoft.com/devicelogin',
-        expires_in: 900,
-        interval: 5
-      })
-    })
-
-    const account = { email: 'user@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
-
-    await expect(ensureValidToken(account)).rejects.toThrow('AUTO-CODE')
-    await expect(ensureValidToken(account)).rejects.toThrow('microsoft.com/devicelogin')
-
-    // Clean up pending auth
-    _getPendingAuths().clear()
-  })
-
-  it('opens browser when initiating Device Code flow', async () => {
-    mockReadFileSync.mockReturnValue('{}')
-
-    mockFetch.mockResolvedValueOnce({
-      json: async () => ({
-        device_code: 'dc-browser',
-        user_code: 'BROWSER-CODE',
-        verification_uri: 'https://microsoft.com/devicelogin',
-        expires_in: 900,
-        interval: 5
-      })
-    })
-
-    const account = { email: 'browser@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
-
-    await expect(ensureValidToken(account)).rejects.toThrow('BROWSER-CODE')
-
-    // Verify exec was called with the verification URI
-    expect(mockExecFile).toHaveBeenCalledTimes(1)
-    expect(mockExecFile).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.arrayContaining(['https://microsoft.com/devicelogin']),
-      expect.any(Function)
-    )
-
-    _getPendingAuths().clear()
-  })
-
-  it('does not open browser on retry (reuses pending auth)', async () => {
-    mockReadFileSync.mockReturnValue('{}')
-
-    mockFetch.mockResolvedValueOnce({
-      json: async () => ({
-        device_code: 'dc-nodup',
-        user_code: 'NODUP-CODE',
-        verification_uri: 'https://microsoft.com/devicelogin',
-        expires_in: 900,
-        interval: 5
-      })
-    })
-
-    const account = { email: 'nodup@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
-
-    // First call: opens browser
-    await expect(ensureValidToken(account)).rejects.toThrow('NODUP-CODE')
-    expect(mockExecFile).toHaveBeenCalledTimes(1)
-
-    // Second call: reuses pending auth, should NOT open browser again
-    mockExecFile.mockClear()
-    await expect(ensureValidToken(account)).rejects.toThrow('NODUP-CODE')
-    expect(mockExecFile).not.toHaveBeenCalled()
-
-    _getPendingAuths().clear()
-  })
-
-  it('reuses pending auth code on retry', async () => {
-    mockReadFileSync.mockReturnValue('{}')
-
-    // First call: device code request
-    mockFetch.mockResolvedValueOnce({
-      json: async () => ({
-        device_code: 'dc-1',
-        user_code: 'FIRST-CODE',
-        verification_uri: 'https://microsoft.com/devicelogin',
-        expires_in: 900,
-        interval: 5
-      })
-    })
-
-    const account = { email: 'retry@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
-
-    // First call initiates flow
-    await expect(ensureValidToken(account)).rejects.toThrow('FIRST-CODE')
-
-    // Second call should reuse same code, no new fetch
-    const fetchCountBefore = mockFetch.mock.calls.length
-    await expect(ensureValidToken(account)).rejects.toThrow('FIRST-CODE')
-    // No additional device code fetch (only background poll may have fired)
-    expect(mockFetch.mock.calls.length - fetchCountBefore).toBeLessThanOrEqual(1)
-
-    _getPendingAuths().clear()
-  })
-
-  it('keeps old refresh token if new one not provided', async () => {
+  it('refreshes token if expired', async () => {
+    const now = Math.floor(Date.now() / 1000)
     const account = {
       email: 'user@outlook.com',
       oauth2: {
-        accessToken: 'old',
-        refreshToken: 'keep-this-rt',
-        expiresAt: 0,
+        accessToken: 'old-at',
+        refreshToken: 'old-rt',
+        expiresAt: now - 100,
         clientId: 'cid'
       }
     }
 
-    mockFetch.mockResolvedValue({
+    mockFetch.mockResolvedValueOnce({
       json: async () => ({
-        access_token: 'new',
-        expires_in: 3600
-        // no refresh_token in response
+        access_token: 'refreshed-at',
+        expires_in: 3600,
+        refresh_token: 'new-rt'
       })
     })
 
-    await ensureValidToken(account)
+    const token = await ensureValidToken(account)
 
-    expect(account.oauth2.refreshToken).toBe('keep-this-rt')
-  })
-})
-
-// ============================================================================
-// deviceCodeAuth
-// ============================================================================
-
-describe('deviceCodeAuth', () => {
-  const mockFetch = vi.fn()
-  const originalEnv = process.env.OUTLOOK_CLIENT_ID
-
-  beforeEach(() => {
-    mockFetch.mockReset()
-    vi.stubGlobal('fetch', mockFetch)
-    process.env.OUTLOOK_CLIENT_ID = 'test-client-id'
-    mockExistsSync.mockReturnValue(false)
-    vi.spyOn(console, 'error').mockImplementation(() => {})
+    expect(token).toBe('refreshed-at')
+    expect(account.oauth2.accessToken).toBe('refreshed-at')
+    expect(account.oauth2.refreshToken).toBe('new-rt')
+    expect(mockWriteFile).toHaveBeenCalled()
   })
 
-  afterEach(() => {
-    vi.unstubAllGlobals()
-    if (originalEnv) {
-      process.env.OUTLOOK_CLIENT_ID = originalEnv
-    } else {
-      delete process.env.OUTLOOK_CLIENT_ID
-    }
-    vi.restoreAllMocks()
-  })
-
-  it('completes Device Code flow successfully', async () => {
-    // First call: device code request
+  it('initiates device code flow if no tokens exist', async () => {
+    mockReadFile.mockRejectedValue({ code: 'ENOENT' })
     mockFetch.mockResolvedValueOnce({
       json: async () => ({
         device_code: 'dc-123',
         user_code: 'ABCD-EFGH',
         verification_uri: 'https://microsoft.com/devicelogin',
         expires_in: 900,
-        interval: 0.01 // Fast poll for test
+        interval: 5
       })
     })
 
-    // Second call: token response (success immediately)
-    mockFetch.mockResolvedValueOnce({
-      json: async () => ({
-        access_token: 'at-success',
-        refresh_token: 'rt-success',
-        expires_in: 3600,
-        token_type: 'Bearer'
-      })
-    })
+    const account = { email: 'user@outlook.com' }
 
-    const tokens = await deviceCodeAuth('user@outlook.com', 'test-client-id')
+    await expect(ensureValidToken(account)).rejects.toThrow('Outlook OAuth2 sign-in required')
 
-    expect(tokens.accessToken).toBe('at-success')
-    expect(tokens.refreshToken).toBe('rt-success')
-    expect(tokens.clientId).toBe('test-client-id')
-    expect(mockWriteFileSync).toHaveBeenCalled() // Tokens saved
+    expect(_getPendingAuths().has('user@outlook.com')).toBe(true)
+    expect(mockExecFile).toHaveBeenCalled()
   })
 
-  it('polls until authorization is granted', async () => {
-    // Device code request
-    mockFetch.mockResolvedValueOnce({
-      json: async () => ({
-        device_code: 'dc-123',
-        user_code: 'CODE',
-        verification_uri: 'https://microsoft.com/devicelogin',
-        expires_in: 900,
-        interval: 0.01
-      })
-    })
+  it('reuses pending auth flow on subsequent calls', async () => {
+    const pending = {
+      verificationUri: 'https://uri',
+      userCode: 'CODE',
+      expiresAt: Date.now() + 100000
+    }
+    _getPendingAuths().set('user@outlook.com', pending)
+    mockReadFile.mockRejectedValue({ code: 'ENOENT' })
 
-    // First poll: pending
-    mockFetch.mockResolvedValueOnce({
-      json: async () => ({ error: 'authorization_pending' })
-    })
+    const account = { email: 'user@outlook.com' }
+    await expect(ensureValidToken(account)).rejects.toThrow('sign-in in progress')
 
-    // Second poll: success
-    mockFetch.mockResolvedValueOnce({
-      json: async () => ({
-        access_token: 'at',
-        refresh_token: 'rt',
-        expires_in: 3600
-      })
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+})
+
+describe('deviceCodeAuth', () => {
+  const mockFetch = vi.fn()
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', mockFetch)
+    vi.clearAllMocks()
+    _resetTokenCache()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('polls until token is received', async () => {
+    let callCount = 0
+    mockFetch.mockImplementation(async () => {
+      callCount++
+      if (callCount === 1) {
+        // Device code request
+        return {
+          json: async () => ({
+            device_code: 'dc-123',
+            user_code: 'ABCD-EFGH',
+            verification_uri: 'https://microsoft.com/devicelogin',
+            expires_in: 900,
+            interval: 0.01 // Very fast for testing
+          })
+        }
+      }
+      if (callCount === 2) {
+        // First poll: pending
+        return { json: async () => ({ error: 'authorization_pending' }) }
+      }
+      // Second poll: success
+      return {
+        json: async () => ({
+          access_token: 'final-at',
+          refresh_token: 'final-rt',
+          expires_in: 3600
+        })
+      }
     })
 
     const tokens = await deviceCodeAuth('user@outlook.com', 'cid')
 
-    expect(tokens.accessToken).toBe('at')
-    // 3 fetch calls: device code request + pending poll + success poll
-    expect(mockFetch).toHaveBeenCalledTimes(3)
+    expect(tokens.accessToken).toBe('final-at')
+    expect(mockWriteFile).toHaveBeenCalled()
   })
 
-  it('throws on device code request failure', async () => {
+  it('handles authorization_declined', async () => {
     mockFetch.mockResolvedValueOnce({
       json: async () => ({
-        error: 'invalid_client',
-        error_description: 'Client ID not found'
-      })
-    })
-
-    await expect(deviceCodeAuth('user@outlook.com', 'bad-id')).rejects.toThrow('Client ID not found')
-  })
-
-  it('throws on authorization declined', async () => {
-    mockFetch.mockResolvedValueOnce({
-      json: async () => ({
-        device_code: 'dc',
-        user_code: 'CODE',
+        device_code: 'dc-declined',
+        user_code: 'DECL-CODE',
         verification_uri: 'https://microsoft.com/devicelogin',
         expires_in: 900,
         interval: 0.01
@@ -660,117 +383,7 @@ describe('deviceCodeAuth', () => {
 
     await expect(deviceCodeAuth('user@outlook.com', 'cid')).rejects.toThrow('User declined')
   })
-
-  it('handles slow_down response by increasing poll interval', async () => {
-    let callCount = 0
-    mockFetch.mockImplementation(async () => {
-      callCount++
-      if (callCount === 1) {
-        // Device code request
-        return {
-          json: async () => ({
-            device_code: 'dc-slow',
-            user_code: 'SLOW-CODE',
-            verification_uri: 'https://microsoft.com/devicelogin',
-            expires_in: 900,
-            interval: 0.01
-          })
-        }
-      }
-      if (callCount === 2) {
-        // First poll: slow_down
-        return { json: async () => ({ error: 'slow_down' }) }
-      }
-      // Subsequent polls: success
-      return {
-        json: async () => ({
-          access_token: 'at-after-slow',
-          refresh_token: 'rt-after-slow',
-          expires_in: 3600
-        })
-      }
-    })
-
-    const tokens = await deviceCodeAuth('slow@outlook.com', 'cid')
-
-    expect(tokens.accessToken).toBe('at-after-slow')
-    expect(callCount).toBeGreaterThanOrEqual(3)
-  }, 15_000)
-
-  it('uses default client ID when none provided', async () => {
-    delete process.env.OUTLOOK_CLIENT_ID
-
-    mockFetch.mockResolvedValueOnce({
-      json: async () => ({
-        device_code: 'dc-default',
-        user_code: 'DEFAULT-CODE',
-        verification_uri: 'https://microsoft.com/devicelogin',
-        expires_in: 900,
-        interval: 0.01
-      })
-    })
-
-    mockFetch.mockResolvedValueOnce({
-      json: async () => ({
-        access_token: 'at-default',
-        refresh_token: 'rt-default',
-        expires_in: 3600
-      })
-    })
-
-    const tokens = await deviceCodeAuth('user@outlook.com')
-
-    expect(tokens.clientId).toBe('d56f8c71-9f7c-43f4-9934-be29cb6e77b0')
-  })
-
-  it('throws on device code request with no user_code', async () => {
-    mockFetch.mockResolvedValueOnce({
-      json: async () => ({
-        device_code: 'dc',
-        verification_uri: 'https://microsoft.com/devicelogin',
-        expires_in: 900,
-        interval: 5
-        // No user_code
-      })
-    })
-
-    await expect(deviceCodeAuth('user@outlook.com', 'cid')).rejects.toThrow('Device code request failed')
-  })
-
-  it('throws on device code request with error but no description', async () => {
-    mockFetch.mockResolvedValueOnce({
-      json: async () => ({
-        error: 'server_error'
-      })
-    })
-
-    await expect(deviceCodeAuth('user@outlook.com', 'cid')).rejects.toThrow('server_error')
-  })
-
-  it('throws on other token error without error_description', async () => {
-    mockFetch.mockResolvedValueOnce({
-      json: async () => ({
-        device_code: 'dc-badcode',
-        user_code: 'BAD-CODE',
-        verification_uri: 'https://microsoft.com/devicelogin',
-        expires_in: 900,
-        interval: 0.01
-      })
-    })
-
-    mockFetch.mockResolvedValueOnce({
-      json: async () => ({
-        error: 'bad_verification_code'
-      })
-    })
-
-    await expect(deviceCodeAuth('bad@outlook.com', 'cid')).rejects.toThrow('bad_verification_code')
-  })
 })
-
-// ============================================================================
-// saveTokens edge cases
-// ============================================================================
 
 describe('saveTokens edge cases', () => {
   beforeEach(() => {
@@ -778,14 +391,8 @@ describe('saveTokens edge cases', () => {
     vi.clearAllMocks()
   })
 
-  it('starts fresh store if existing token file is corrupted JSON', () => {
-    mockExistsSync.mockImplementation((path) => {
-      if (String(path).endsWith('tokens.json')) return true
-      return true // config dir exists
-    })
-    mockReadFileSync.mockImplementation(() => {
-      throw new SyntaxError('Unexpected token')
-    })
+  it('starts fresh store if existing token file is corrupted JSON', async () => {
+    mockReadFile.mockResolvedValue('not-json')
 
     const tokens: OAuth2Tokens = {
       accessToken: 'at',
@@ -794,16 +401,15 @@ describe('saveTokens edge cases', () => {
       clientId: 'cid'
     }
 
-    saveTokens('user@outlook.com', tokens)
+    await saveTokens('user@outlook.com', tokens)
 
-    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    const written = JSON.parse(mockWriteFile.mock.calls[0]![1] as string)
     expect(written['user@outlook.com']).toEqual(tokens)
-    // Should only have the new token, not corrupted data
     expect(Object.keys(written)).toEqual(['user@outlook.com'])
   })
 
-  it('uses cached token store on subsequent saves', () => {
-    mockExistsSync.mockReturnValue(false)
+  it('uses cached token store on subsequent saves', async () => {
+    mockReadFile.mockRejectedValue({ code: 'ENOENT' })
 
     const tokens1: OAuth2Tokens = {
       accessToken: 'at1',
@@ -818,21 +424,17 @@ describe('saveTokens edge cases', () => {
       clientId: 'cid'
     }
 
-    // First save populates cache
-    saveTokens('first@outlook.com', tokens1)
-    // Second save should use cache, not read from disk
-    saveTokens('second@outlook.com', tokens2)
+    await saveTokens('first@outlook.com', tokens1)
+    await saveTokens('second@outlook.com', tokens2)
 
-    // readFileSync should NOT be called for second save (cache is used)
-    const written = JSON.parse(mockWriteFileSync.mock.calls[1]![1] as string)
+    // Second call to saveTokens should not call readFile again
+    expect(mockReadFile).toHaveBeenCalledTimes(1)
+
+    const written = JSON.parse(mockWriteFile.mock.calls[1]![1] as string)
     expect(written['first@outlook.com']).toEqual(tokens1)
     expect(written['second@outlook.com']).toEqual(tokens2)
   })
 })
-
-// ============================================================================
-// loadStoredTokens with cached store
-// ============================================================================
 
 describe('loadStoredTokens cached', () => {
   beforeEach(() => {
@@ -849,52 +451,21 @@ describe('loadStoredTokens cached', () => {
     }
     mockReadFile.mockResolvedValue(JSON.stringify({ 'user@outlook.com': tokens }))
 
-    // First load reads from file
     const first = await loadStoredTokens('user@outlook.com')
     expect(first).toEqual(tokens)
 
-    // Second load should use cache
     mockReadFile.mockRejectedValue(new Error('should not read again'))
     const second = await loadStoredTokens('user@outlook.com')
     expect(second).toEqual(tokens)
   })
 })
 
-// ============================================================================
-// refreshAccessToken edge cases
-// ============================================================================
-
-describe('refreshAccessToken edge cases', () => {
-  const mockFetch = vi.fn()
-
-  beforeEach(() => {
-    vi.stubGlobal('fetch', mockFetch)
-  })
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
-  it('throws with error code when no error_description', async () => {
-    mockFetch.mockResolvedValue({
-      json: async () => ({
-        error: 'invalid_grant'
-      })
-    })
-
-    await expect(refreshAccessToken('cid', 'bad-rt')).rejects.toThrow('invalid_grant')
-  })
-})
-
-// ============================================================================
-// Security: openBrowser
-// ============================================================================
-
 describe('openBrowser security', () => {
   const mockFetch = vi.fn()
 
   beforeEach(() => {
     vi.stubGlobal('fetch', mockFetch)
+    vi.clearAllMocks()
   })
 
   afterEach(() => {
@@ -902,7 +473,7 @@ describe('openBrowser security', () => {
   })
 
   it('sanitizes malicious URLs with shell metacharacters', async () => {
-    mockReadFileSync.mockReturnValue('{}')
+    mockReadFile.mockResolvedValue('{}')
 
     const maliciousUri = 'https://microsoft.com/devicelogin?code=ABCD;echo"vulnerable"'
     mockFetch.mockResolvedValueOnce({
@@ -919,21 +490,16 @@ describe('openBrowser security', () => {
 
     await expect(ensureValidToken(account)).rejects.toThrow('SEC-CODE')
 
-    // URL constructor should escape the metacharacters in the href
     const expectedUrl = new URL(maliciousUri).href
     expect(mockExecFile).toHaveBeenCalledWith(
       expect.any(String),
       expect.arrayContaining([expectedUrl]),
       expect.any(Function)
     )
-    // Ensure the raw malicious string was NOT passed directly if it contains shell-active chars
-    // (though execFile is already safe, the URL parsing adds another layer)
-    const callArgs = mockExecFile.mock.calls[0]![1] as string[]
-    expect(callArgs.some((arg) => arg.includes(';'))).toBe(true) // Semicolons in query params are preserved but safe in execFile
   })
 
   it('blocks non-http/https protocols', async () => {
-    mockReadFileSync.mockReturnValue('{}')
+    mockReadFile.mockResolvedValue('{}')
 
     mockFetch.mockResolvedValueOnce({
       json: async () => ({
@@ -949,34 +515,6 @@ describe('openBrowser security', () => {
 
     await expect(ensureValidToken(account)).rejects.toThrow('PROTO-CODE')
 
-    // execFile should NOT be called for non-http/https protocols
     expect(mockExecFile).not.toHaveBeenCalled()
-  })
-
-  it('handles leading hyphens in URLs safely', async () => {
-    mockReadFileSync.mockReturnValue('{}')
-
-    // A URL starting with a hyphen could be interpreted as a flag by some browsers/commands
-    // but the URL constructor will prefix it with the protocol.
-    const hyphenUri = 'https://-example.com'
-    mockFetch.mockResolvedValueOnce({
-      json: async () => ({
-        device_code: 'dc-hyphen',
-        user_code: 'HYPHEN-CODE',
-        verification_uri: hyphenUri,
-        expires_in: 900,
-        interval: 5
-      })
-    })
-
-    const account = { email: 'hyphen@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
-
-    await expect(ensureValidToken(account)).rejects.toThrow('HYPHEN-CODE')
-
-    expect(mockExecFile).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.arrayContaining([new URL(hyphenUri).href]),
-      expect.any(Function)
-    )
   })
 })

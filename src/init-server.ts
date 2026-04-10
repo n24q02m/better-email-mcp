@@ -8,7 +8,7 @@
  * Relay session + polling happen lazily on first tool call.
  */
 
-import { existsSync, readFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
@@ -21,7 +21,7 @@ import { registerTools } from './tools/registry.js'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-function getVersion(): string {
+async function getVersion(): Promise<string> {
   // Walk up from __dirname to find package.json.
   // Needed because __dirname differs between contexts:
   //   - src/          (dev via tsx)
@@ -31,11 +31,14 @@ function getVersion(): string {
     let dir = __dirname
     for (let i = 0; i < 5; i++) {
       const pkgPath = join(dir, 'package.json')
-      if (existsSync(pkgPath)) {
-        const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
+      try {
+        const data = await readFile(pkgPath, 'utf-8')
+        const pkg = JSON.parse(data)
         if (pkg.name === '@n24q02m/better-email-mcp') {
           return pkg.version ?? '0.0.0'
         }
+      } catch {
+        // Skip and try parent
       }
       dir = dirname(dir)
     }
@@ -101,7 +104,7 @@ async function setupServer(accounts: AccountConfig[]): Promise<Server> {
   const server = new Server(
     {
       name: '@n24q02m/better-email-mcp',
-      version: getVersion()
+      version: await getVersion()
     },
     {
       capabilities: {

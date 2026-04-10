@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
@@ -8,10 +8,9 @@ import { loadConfig } from './tools/helpers/config.js'
 import { ensureValidToken } from './tools/helpers/oauth2.js'
 import { registerTools } from './tools/registry.js'
 
-// Mock dependencies
-vi.mock('node:fs', () => ({
-  existsSync: vi.fn(),
-  readFileSync: vi.fn()
+// Mock node:fs/promises
+vi.mock('node:fs/promises', () => ({
+  readFile: vi.fn()
 }))
 vi.mock('./credential-state.js', () => ({
   resolveCredentialState: vi.fn()
@@ -56,9 +55,8 @@ describe('initServer', () => {
     // Mock console.error to suppress output
     consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    // Default: existsSync finds package.json, readFileSync returns valid version
-    vi.mocked(existsSync).mockReturnValue(true)
-    vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ name: '@n24q02m/better-email-mcp', version: '1.0.0' }))
+    // Default: readFile finds package.json and returns valid version
+    vi.mocked(readFile).mockResolvedValue(JSON.stringify({ name: '@n24q02m/better-email-mcp', version: '1.0.0' }))
 
     // Default mock implementation for Server
     // biome-ignore lint/complexity/useArrowFunction: Must use function for constructor mocking
@@ -104,7 +102,7 @@ describe('initServer', () => {
   it('uses fallback version 0.0.0 when package.json not found', async () => {
     const mockAccounts = [{ email: 'test@example.com' }]
     vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
-    vi.mocked(existsSync).mockReturnValue(false)
+    vi.mocked(readFile).mockRejectedValue(new Error('File not found'))
 
     await initServer()
 
@@ -119,7 +117,7 @@ describe('initServer', () => {
   it('uses fallback version when package.json has no version field', async () => {
     const mockAccounts = [{ email: 'test@example.com' }]
     vi.mocked(loadConfig).mockReturnValue(mockAccounts as any)
-    vi.mocked(readFileSync).mockReturnValue(JSON.stringify({ name: '@n24q02m/better-email-mcp' }))
+    vi.mocked(readFile).mockResolvedValue(JSON.stringify({ name: '@n24q02m/better-email-mcp' }))
 
     await initServer()
 
