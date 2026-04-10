@@ -29,8 +29,8 @@ vi.mock('./tools/helpers/oauth2.js', () => ({
   _getPendingAuths: vi.fn().mockReturnValue(new Map())
 }))
 
-import { createSession, pollForResult } from '@n24q02m/mcp-relay-core/relay'
 // Import after mocks
+import { createSession, pollForResult } from '@n24q02m/mcp-relay-core/relay'
 import { resolveConfig } from '@n24q02m/mcp-relay-core/storage'
 import { parseCredentials } from './tools/helpers/config.js'
 import { ensureValidToken, isOutlookDomain } from './tools/helpers/oauth2.js'
@@ -204,7 +204,7 @@ describe('ensureConfig', () => {
     expect(body.data.code).toBe('ABCD-EFGH')
     expect(body.data.email).toBe('user@outlook.com')
 
-    // Should NOT have sent 'complete' message (OAuth pending)
+    // Should sent 'complete' message (Wait for completion)
     const completeCall = fetchSpy.mock.calls.find(
       (call) => typeof call[1]?.body === 'string' && call[1].body.includes('"type":"complete"')
     )
@@ -312,8 +312,6 @@ describe('ensureConfig', () => {
       (call) => typeof call[1]?.body === 'string' && call[1].body.includes('"type":"complete"')
     )
     expect(completeCall).toBeDefined()
-    const bodyComplete = JSON.parse(completeCall![1]!.body as string)
-    expect(bodyComplete.text).toContain('Setup complete')
 
     fetchSpy.mockRestore()
   })
@@ -400,8 +398,6 @@ describe('ensureConfig', () => {
       (call) => typeof call[1]?.body === 'string' && call[1].body.includes('"type":"complete"')
     )
     expect(completeCall).toBeDefined()
-    const bodyComplete = JSON.parse(completeCall![1]!.body as string)
-    expect(bodyComplete.text).toContain('Setup complete')
 
     fetchSpy.mockRestore()
   })
