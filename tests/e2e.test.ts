@@ -1267,7 +1267,11 @@ describe('error handling', () => {
       expect(text).toBeTruthy()
       // Server returns either "No email accounts configured" (zero accounts)
       // or "Account not found" (has accounts but this one doesn't match)
-      expect(text.includes('No email accounts') || text.includes('Account not found') || text.includes('Email credentials are not configured yet')).toBe(true)
+      expect(
+        text.includes('No email accounts') ||
+          text.includes('Account not found') ||
+          text.includes('Email credentials are not configured yet')
+      ).toBe(true)
     })
 
     it('folders should return error when no accounts exist or account not found', async () => {
@@ -1278,7 +1282,11 @@ describe('error handling', () => {
       expect(result.isError).toBe(true)
       const text = (result.content as Array<{ type: string; text: string }>)[0]?.text ?? ''
       expect(text).toBeTruthy()
-      expect(text.includes('No email accounts') || text.includes('Account not found') || text.includes('Email credentials are not configured yet')).toBe(true)
+      expect(
+        text.includes('No email accounts') ||
+          text.includes('Account not found') ||
+          text.includes('Email credentials are not configured yet')
+      ).toBe(true)
     })
 
     it('attachments should return error when no accounts exist or account not found', async () => {
@@ -1289,7 +1297,11 @@ describe('error handling', () => {
       expect(result.isError).toBe(true)
       const text = (result.content as Array<{ type: string; text: string }>)[0]?.text ?? ''
       expect(text).toBeTruthy()
-      expect(text.includes('No email accounts') || text.includes('Account not found') || text.includes('Email credentials are not configured yet')).toBe(true)
+      expect(
+        text.includes('No email accounts') ||
+          text.includes('Account not found') ||
+          text.includes('Email credentials are not configured yet')
+      ).toBe(true)
     })
 
     it('send should return error when no accounts exist or account not found', async () => {
@@ -1306,7 +1318,11 @@ describe('error handling', () => {
       expect(result.isError).toBe(true)
       const text = (result.content as Array<{ type: string; text: string }>)[0]?.text ?? ''
       expect(text).toBeTruthy()
-      expect(text.includes('No email accounts') || text.includes('Account not found') || text.includes('Email credentials are not configured yet')).toBe(true)
+      expect(
+        text.includes('No email accounts') ||
+          text.includes('Account not found') ||
+          text.includes('Email credentials are not configured yet')
+      ).toBe(true)
     })
   })
 
