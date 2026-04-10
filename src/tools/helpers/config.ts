@@ -105,6 +105,105 @@ function emailToId(email: string): string {
 }
 
 /**
+ * Parse a single credential entry
+ */
+async function parseSingleCredential(entry: string): Promise<AccountConfig | null> {
+  const trimmed = entry.trim()
+  if (!trimmed) return null
+
+  const parts = trimmed.split(':')
+  const email = parts[0]!.trim()
+
+  // Outlook/Hotmail/Live: email-only entry is valid (OAuth2, no password needed)
+  if (parts.length < 2) {
+    if (isOutlookDomain(email)) {
+      const discovered = discoverSettings(email)
+      if (!discovered) return null
+      const account: AccountConfig = {
+        id: emailToId(email),
+        email,
+        password: '',
+        authType: 'oauth2',
+        imap: discovered.imap,
+        smtp: discovered.smtp
+      }
+      const tokens = await loadStoredTokens(email)
+      if (tokens) account.oauth2 = tokens
+      return account
+    }
+    console.error('Skipping invalid credential entry (expected email:password)')
+    return null
+  }
+
+  let password: string
+  let customImapHost: string | undefined
+
+  if (parts.length === 2) {
+    // email:password
+    password = parts[1]!
+  } else if (parts.length === 3) {
+    // Could be email:password:imap_host OR email:password_with_colon
+    // Heuristic: if last part looks like a hostname (contains a dot), treat as imap host
+    const lastPart = parts[2]!
+    if (lastPart.includes('.')) {
+      password = parts[1]!
+      customImapHost = lastPart
+    } else {
+      // password contains a colon
+      password = `${parts[1]}:${parts[2]}`
+    }
+  } else {
+    // 4+ parts: everything between email and last part (if hostname) is password
+    const lastPart = parts[parts.length - 1]!
+    if (lastPart.includes('.')) {
+      password = parts.slice(1, -1).join(':')
+      customImapHost = lastPart
+    } else {
+      password = parts.slice(1).join(':')
+    }
+  }
+
+  // Auto-discover or use custom host
+  let imap: ServerConfig
+  let smtp: ServerConfig
+
+  if (customImapHost) {
+    imap = { host: customImapHost, port: 993, secure: true }
+    // Guess SMTP from IMAP host
+    smtp = { host: customImapHost.replace('imap.', 'smtp.'), port: 587, secure: false }
+  } else {
+    const discovered = discoverSettings(email)
+    if (!discovered) {
+      console.error('Cannot auto-discover settings for the provided email. Use format: email:password:imap.server.com')
+      return null
+    }
+    imap = discovered.imap
+    smtp = discovered.smtp
+  }
+
+  const account: AccountConfig = {
+    id: emailToId(email),
+    email,
+    password,
+    authType: 'password',
+    imap,
+    smtp
+  }
+
+  // For Outlook domains, always use OAuth2 — password auth is not supported.
+  // ensureValidToken handles auto-auth (Device Code flow) when tokens are missing.
+  if (isOutlookDomain(email)) {
+    account.authType = 'oauth2'
+    const tokens = await loadStoredTokens(email)
+    if (tokens) {
+      account.oauth2 = tokens
+    }
+  }
+
+  return account
+}
+
+/**
  * Parse EMAIL_CREDENTIALS environment variable
  *
  * Supported formats:
@@ -120,109 +219,9 @@ export async function parseCredentials(envValue: string): Promise<AccountConfig[
     return []
   }
 
-  const accounts: AccountConfig[] = []
   const entries = envValue.split(',')
-
-  for (const entry of entries) {
-    const trimmed = entry.trim()
-    if (!trimmed) continue
-
-    const parts = trimmed.split(':')
-    const email = parts[0]!.trim()
-
-    // Outlook/Hotmail/Live: email-only entry is valid (OAuth2, no password needed)
-    if (parts.length < 2) {
-      if (isOutlookDomain(email)) {
-        const discovered = discoverSettings(email)
-        if (!discovered) continue
-        const account: AccountConfig = {
-          id: emailToId(email),
-          email,
-          password: '',
-          authType: 'oauth2',
-          imap: discovered.imap,
-          smtp: discovered.smtp
-        }
-        const tokens = await loadStoredTokens(email)
-        if (tokens) account.oauth2 = tokens
-        accounts.push(account)
-        continue
-      }
-      console.error('Skipping invalid credential entry (expected email:password)')
-      continue
-    }
-
-    let password: string
-    let customImapHost: string | undefined
-
-    if (parts.length === 2) {
-      // email:password
-      password = parts[1]!
-    } else if (parts.length === 3) {
-      // Could be email:password:imap_host OR email:password_with_colon
-      // Heuristic: if last part looks like a hostname (contains a dot), treat as imap host
-      const lastPart = parts[2]!
-      if (lastPart.includes('.')) {
-        password = parts[1]!
-        customImapHost = lastPart
-      } else {
-        // password contains a colon
-        password = `${parts[1]}:${parts[2]}`
-      }
-    } else {
-      // 4+ parts: everything between email and last part (if hostname) is password
-      const lastPart = parts[parts.length - 1]!
-      if (lastPart.includes('.')) {
-        password = parts.slice(1, -1).join(':')
-        customImapHost = lastPart
-      } else {
-        password = parts.slice(1).join(':')
-      }
-    }
-
-    // Auto-discover or use custom host
-    let imap: ServerConfig
-    let smtp: ServerConfig
-
-    if (customImapHost) {
-      imap = { host: customImapHost, port: 993, secure: true }
-      // Guess SMTP from IMAP host
-      smtp = { host: customImapHost.replace('imap.', 'smtp.'), port: 587, secure: false }
-    } else {
-      const discovered = discoverSettings(email)
-      if (!discovered) {
-        console.error(
-          'Cannot auto-discover settings for the provided email. Use format: email:password:imap.server.com'
-        )
-        continue
-      }
-      imap = discovered.imap
-      smtp = discovered.smtp
-    }
-
-    const account: AccountConfig = {
-      id: emailToId(email),
-      email,
-      password,
-      authType: 'password',
-      imap,
-      smtp
-    }
-
-    // For Outlook domains, always use OAuth2 — password auth is not supported.
-    // ensureValidToken handles auto-auth (Device Code flow) when tokens are missing.
-    if (isOutlookDomain(email)) {
-      account.authType = 'oauth2'
-      const tokens = await loadStoredTokens(email)
-      if (tokens) {
-        account.oauth2 = tokens
-      }
-    }
-
-    accounts.push(account)
-  }
-
-  return accounts
+  const results = await Promise.all(entries.map((entry) => parseSingleCredential(entry)))
+  return results.filter((account): account is AccountConfig => account !== null)
 }
 
 /**
