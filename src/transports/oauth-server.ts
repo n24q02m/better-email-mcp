@@ -250,9 +250,13 @@ export async function startOAuthHttp(): Promise<void> {
         res.status(400).json({ error: 'invalid_grant', description: 'PKCE mismatch' })
         return
       }
-    } else if (code_verifier !== stored.challenge) {
-      res.status(400).json({ error: 'invalid_grant', description: 'PKCE plain mismatch' })
-      return
+    } else {
+      const verifierBuf = Buffer.from(code_verifier)
+      const challengeBuf = Buffer.from(stored.challenge)
+      if (verifierBuf.length !== challengeBuf.length || !timingSafeEqual(verifierBuf, challengeBuf)) {
+        res.status(400).json({ error: 'invalid_grant', description: 'PKCE plain mismatch' })
+        return
+      }
     }
 
     authCodes.delete(code)
