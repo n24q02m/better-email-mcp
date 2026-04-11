@@ -108,6 +108,27 @@ async function withConnection<T>(account: AccountConfig, fn: (client: ImapFlow) 
  *   "UNREAD FROM boss SINCE 2026-03-01"    -> { seen: false, from: 'boss', since: Date }
  *   "meeting notes"                         -> { subject: 'meeting notes' }
  */
+const PRECOMPILED_FLAGS: [RegExp, string, boolean][] = [
+  [/\bUNFLAGGED\b/i, 'flagged', false],
+  [/\bUNSTARRED\b/i, 'flagged', false],
+  [/\bUNREAD\b/i, 'seen', false],
+  [/\bUNSEEN\b/i, 'seen', false],
+  [/\bFLAGGED\b/i, 'flagged', true],
+  [/\bSTARRED\b/i, 'flagged', true],
+  [/\bREAD\b/i, 'seen', true],
+  [/\bSEEN\b/i, 'seen', true]
+]
+
+const PRECOMPILED_DATES = [
+  { keyword: 'since', regex: /\bSINCE\s+(\d{4}-\d{2}-\d{2})\b/i, invalidRegex: /\bSINCE\s+\S/i },
+  { keyword: 'before', regex: /\bBEFORE\s+(\d{4}-\d{2}-\d{2})\b/i, invalidRegex: /\bBEFORE\s+\S/i }
+]
+
+const PRECOMPILED_KVS = [
+  { keyword: 'from', regex: /\bFROM\s+("[^"]+"|'[^']+'|\S+)/i },
+  { keyword: 'to', regex: /\bTO\s+("[^"]+"|'[^']+'|\S+)/i }
+]
+
 function buildSearchCriteria(query: string): any {
   const trimmed = query.trim()
   if (!trimmed) return {}
@@ -120,19 +141,7 @@ function buildSearchCriteria(query: string): any {
 
   // 1. Extract standalone flag keywords (no arguments).
   //    Check longer prefixes first to avoid partial matches (UNFLAGGED before FLAGGED, etc.)
-  const flagMap: [string, string, boolean][] = [
-    ['UNFLAGGED', 'flagged', false],
-    ['UNSTARRED', 'flagged', false],
-    ['UNREAD', 'seen', false],
-    ['UNSEEN', 'seen', false],
-    ['FLAGGED', 'flagged', true],
-    ['STARRED', 'flagged', true],
-    ['READ', 'seen', true],
-    ['SEEN', 'seen', true]
-  ]
-
-  for (const [keyword, key, value] of flagMap) {
-    const pattern = new RegExp(`\\b${keyword}\\b`, 'i')
+  for (const [pattern, key, value] of PRECOMPILED_FLAGS) {
     if (pattern.test(remaining)) {
       criteria[key] = value
       remaining = remaining.replace(pattern, ' ').trim()
@@ -140,25 +149,25 @@ function buildSearchCriteria(query: string): any {
   }
 
   // 2. Extract date clauses: SINCE YYYY-MM-DD, BEFORE YYYY-MM-DD
-  for (const keyword of ['SINCE', 'BEFORE'] as const) {
-    const dateMatch = remaining.match(new RegExp(`\\b${keyword}\\s+(\\d{4}-\\d{2}-\\d{2})\\b`, 'i'))
+  for (const { keyword, regex, invalidRegex } of PRECOMPILED_DATES) {
+    const dateMatch = remaining.match(regex)
     if (dateMatch) {
-      criteria[keyword.toLowerCase()] = new Date(dateMatch[1]!)
+      criteria[keyword] = new Date(dateMatch[1]!)
       remaining = remaining.replace(dateMatch[0], ' ').trim()
-    } else if (new RegExp(`\\b${keyword}\\s+\\S`, 'i').test(remaining)) {
+    } else if (invalidRegex.test(remaining)) {
       throw new EmailMCPError(
-        `Invalid date format in ${keyword} query`,
+        `Invalid date format in ${keyword.toUpperCase()} query`,
         'VALIDATION_ERROR',
-        `Date must be YYYY-MM-DD format. Example: ${keyword} 2026-01-15`
+        `Date must be YYYY-MM-DD format. Example: ${keyword.toUpperCase()} 2026-01-15`
       )
     }
   }
 
   // 3. Extract FROM / TO (single token or quoted string)
-  for (const keyword of ['FROM', 'TO'] as const) {
-    const kvMatch = remaining.match(new RegExp(`\\b${keyword}\\s+("[^"]+"|'[^']+'|\\S+)`, 'i'))
+  for (const { keyword, regex } of PRECOMPILED_KVS) {
+    const kvMatch = remaining.match(regex)
     if (kvMatch) {
-      criteria[keyword.toLowerCase()] = kvMatch[1]!.replace(/^["']|["']$/g, '')
+      criteria[keyword] = kvMatch[1]!.replace(/^["']|["']$/g, '')
       remaining = remaining.replace(kvMatch[0], ' ').trim()
     }
   }
