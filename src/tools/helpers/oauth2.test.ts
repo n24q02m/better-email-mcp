@@ -444,6 +444,7 @@ describe('ensureValidToken', () => {
         interval: 5
       })
     })
+    process.env.TEST_OPEN_BROWSER = '1'
 
     const account = { email: 'browser@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
 
@@ -458,6 +459,7 @@ describe('ensureValidToken', () => {
     )
 
     _getPendingAuths().clear()
+    delete process.env.TEST_OPEN_BROWSER
   })
 
   it('does not open browser on retry (reuses pending auth)', async () => {
@@ -472,6 +474,7 @@ describe('ensureValidToken', () => {
         interval: 5
       })
     })
+    process.env.TEST_OPEN_BROWSER = '1'
 
     const account = { email: 'nodup@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
 
@@ -485,6 +488,7 @@ describe('ensureValidToken', () => {
     expect(mockExecFile).not.toHaveBeenCalled()
 
     _getPendingAuths().clear()
+    delete process.env.TEST_OPEN_BROWSER
   })
 
   it('reuses pending auth code on retry', async () => {
@@ -914,6 +918,7 @@ describe('openBrowser security', () => {
         interval: 5
       })
     })
+    process.env.TEST_OPEN_BROWSER = '1'
 
     const account = { email: 'sec@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
 
@@ -930,6 +935,7 @@ describe('openBrowser security', () => {
     // (though execFile is already safe, the URL parsing adds another layer)
     const callArgs = mockExecFile.mock.calls[0]![1] as string[]
     expect(callArgs.some((arg) => arg.includes(';'))).toBe(true) // Semicolons in query params are preserved but safe in execFile
+    delete process.env.TEST_OPEN_BROWSER
   })
 
   it('blocks non-http/https protocols', async () => {
@@ -944,6 +950,7 @@ describe('openBrowser security', () => {
         interval: 5
       })
     })
+    process.env.TEST_OPEN_BROWSER = '1'
 
     const account = { email: 'proto@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
 
@@ -951,6 +958,7 @@ describe('openBrowser security', () => {
 
     // execFile should NOT be called for non-http/https protocols
     expect(mockExecFile).not.toHaveBeenCalled()
+    delete process.env.TEST_OPEN_BROWSER
   })
 
   it('handles leading hyphens in URLs safely', async () => {
@@ -968,6 +976,7 @@ describe('openBrowser security', () => {
         interval: 5
       })
     })
+    process.env.TEST_OPEN_BROWSER = '1'
 
     const account = { email: 'hyphen@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
 
@@ -978,5 +987,6 @@ describe('openBrowser security', () => {
       expect.arrayContaining([new URL(hyphenUri).href]),
       expect.any(Function)
     )
+    delete process.env.TEST_OPEN_BROWSER
   })
 })

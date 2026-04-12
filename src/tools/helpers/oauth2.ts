@@ -196,6 +196,9 @@ export function _getPendingAuths(): Map<string, PendingAuth> {
  * Filters for http/https protocols only.
  */
 function openBrowser(url: string): void {
+  if ((process.env.CI || process.env.VITEST || process.env.E2E_SETUP) && !process.env.TEST_OPEN_BROWSER) {
+    return
+  }
   let safeUrl: string
   try {
     const parsed = new URL(url)
