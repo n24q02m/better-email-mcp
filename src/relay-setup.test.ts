@@ -10,7 +10,7 @@ vi.mock('node:fs', () => ({
   writeFileSync: vi.fn()
 }))
 
-// Mock mcp-relay-core modules
+// Mock mcp-core modules
 vi.mock('@n24q02m/mcp-core/storage', () => ({
   resolveConfig: vi.fn()
 }))
