@@ -245,14 +245,22 @@ export async function startOAuthHttp(): Promise<void> {
 
     // PKCE verification
     if (stored.challengeMethod === 'S256') {
-      const digest = createHash('sha256').update(code_verifier).digest('base64url')
-      if (!timingSafeEqual(Buffer.from(digest), Buffer.from(stored.challenge))) {
+      const digest = createHash('sha256')
+        .update(code_verifier || '')
+        .digest('base64url')
+      const b1 = Buffer.from(digest)
+      const b2 = Buffer.from(stored.challenge || '')
+      if (b1.byteLength !== b2.byteLength || !timingSafeEqual(b1, b2)) {
         res.status(400).json({ error: 'invalid_grant', description: 'PKCE mismatch' })
         return
       }
-    } else if (code_verifier !== stored.challenge) {
-      res.status(400).json({ error: 'invalid_grant', description: 'PKCE plain mismatch' })
-      return
+    } else {
+      const b1 = Buffer.from(String(code_verifier || ''))
+      const b2 = Buffer.from(String(stored.challenge || ''))
+      if (b1.byteLength !== b2.byteLength || !timingSafeEqual(b1, b2)) {
+        res.status(400).json({ error: 'invalid_grant', description: 'PKCE plain mismatch' })
+        return
+      }
     }
 
     authCodes.delete(code)
