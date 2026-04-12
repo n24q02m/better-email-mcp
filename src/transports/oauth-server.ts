@@ -10,7 +10,7 @@ import {
   type RelaySession,
   SqliteUserStore,
   sendMessage
-} from '@n24q02m/mcp-relay-core'
+} from '@n24q02m/mcp-core'
 import express from 'express'
 import rateLimit from 'express-rate-limit'
 import { ImapFlow } from 'imapflow'

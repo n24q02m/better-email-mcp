@@ -14,7 +14,7 @@
  */
 
 import { execFile } from 'node:child_process'
-import { resolveConfig } from '@n24q02m/mcp-relay-core/storage'
+import { resolveConfig } from '@n24q02m/mcp-core/storage'
 
 const SERVER_NAME = 'better-email-mcp'
 const DEFAULT_RELAY_URL = 'https://better-email-mcp.n24q02m.com'
@@ -109,7 +109,7 @@ export async function triggerRelaySetup(options?: { force?: boolean }): Promise<
   state = 'setup_in_progress'
 
   try {
-    const { createSession } = await import('@n24q02m/mcp-relay-core')
+    const { createSession } = await import('@n24q02m/mcp-core')
     const { RELAY_SCHEMA } = await import('./relay-schema.js')
 
     const relayBase = process.env.MCP_RELAY_URL ?? DEFAULT_RELAY_URL
@@ -141,7 +141,7 @@ export async function triggerRelaySetup(options?: { force?: boolean }): Promise<
  */
 async function pollRelayBackground(relayBase: string, session: any): Promise<void> {
   try {
-    const { pollForResult, writeConfig } = await import('@n24q02m/mcp-relay-core')
+    const { pollForResult, writeConfig } = await import('@n24q02m/mcp-core')
     const { formatCredentials } = await import('./relay-setup.js')
 
     const config = await pollForResult(relayBase, session)
@@ -176,7 +176,7 @@ async function handlePostRelayOAuth(relayBase: string, session: any, credentials
   try {
     const { parseCredentials } = await import('./tools/helpers/config.js')
     const { isOutlookDomain, ensureValidToken, _getPendingAuths } = await import('./tools/helpers/oauth2.js')
-    const { sendMessage } = await import('@n24q02m/mcp-relay-core')
+    const { sendMessage } = await import('@n24q02m/mcp-core')
 
     const accounts = await parseCredentials(credentials)
     let hasOAuthPending = false
@@ -227,7 +227,7 @@ async function handlePostRelayOAuth(relayBase: string, session: any, credentials
   } catch {
     // Best-effort OAuth handling -- credentials are already saved
     try {
-      const { sendMessage } = await import('@n24q02m/mcp-relay-core')
+      const { sendMessage } = await import('@n24q02m/mcp-core')
       await sendMessage(relayBase, session.sessionId, {
         type: 'info',
         text: 'Credentials saved. If you added Outlook accounts, check back later for OAuth sign-in.'
@@ -265,7 +265,7 @@ export async function resetState(): Promise<void> {
   state = 'awaiting_setup'
   setupUrl = null
   try {
-    const { deleteConfig } = await import('@n24q02m/mcp-relay-core')
+    const { deleteConfig } = await import('@n24q02m/mcp-core')
     await deleteConfig(SERVER_NAME)
   } catch {
     // Ignore

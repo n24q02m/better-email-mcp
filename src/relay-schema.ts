@@ -6,7 +6,7 @@
  * a single EMAIL_CREDENTIALS field in the format email1:pass1,email2:pass2.
  */
 
-import type { RelayConfigSchema } from '@n24q02m/mcp-relay-core/schema'
+import type { RelayConfigSchema } from '@n24q02m/mcp-core/schema'
 
 export const RELAY_SCHEMA: RelayConfigSchema = {
   server: 'better-email-mcp',
