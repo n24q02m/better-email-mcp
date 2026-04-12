@@ -41,6 +41,9 @@ describe('initServer', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
+    // Force stdio mode for unit tests (server defaults to HTTP now)
+    process.env.MCP_TRANSPORT = 'stdio'
+
     // Set EMAIL_CREDENTIALS so credential state is 'configured' in existing tests
     process.env.EMAIL_CREDENTIALS = 'test@example.com:password'
 

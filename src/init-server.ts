@@ -121,15 +121,16 @@ async function setupServer(accounts: AccountConfig[]): Promise<Server> {
 }
 
 export async function initServer() {
-  const transport = process.env.TRANSPORT_MODE || 'stdio'
+  const isStdio =
+    process.argv.includes('--stdio') || process.env.MCP_TRANSPORT === 'stdio' || process.env.TRANSPORT_MODE === 'stdio'
 
-  if (transport === 'http') {
-    const { startOAuthHttp } = await import('./transports/oauth-server.js')
-    await startOAuthHttp()
-    return
+  if (isStdio) {
+    // Stdio mode -- non-blocking startup
+    const accounts = await setupEnvironment()
+    return setupServer(accounts)
   }
 
-  // Default: stdio mode -- non-blocking startup
-  const accounts = await setupEnvironment()
-  return setupServer(accounts)
+  // Default: HTTP mode with OAuth 2.1
+  const { startOAuthHttp } = await import('./transports/oauth-server.js')
+  await startOAuthHttp()
 }
