@@ -26,6 +26,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { type NextStep, type RelayConfigSchema, runLocalServer, writeConfig } from '@n24q02m/mcp-core'
 import { ImapFlow } from 'imapflow'
 
+import { renderEmailCredentialForm } from '../credential-form.js'
 import { resolveCredentialState, setState } from '../credential-state.js'
 import { RELAY_SCHEMA } from '../relay-schema.js'
 import { type AccountConfig, loadConfig, parseCredentials } from '../tools/helpers/config.js'
@@ -160,7 +161,8 @@ export async function startHttp(): Promise<void> {
     serverName: SERVER_NAME,
     relaySchema: RELAY_SCHEMA as unknown as RelayConfigSchema,
     port,
-    onCredentialsSaved
+    onCredentialsSaved,
+    customCredentialFormHtml: renderEmailCredentialForm
   })
 
   console.error(`[${SERVER_NAME}] HTTP mode on http://${handle.host}:${handle.port}/mcp`)
