@@ -1,7 +1,7 @@
 {
   "name": "better-email-mcp",
   "description": "Email management via IMAP/SMTP — multi-account",
-  "version": "1.22.2",
+  "version": "1.22.3",
   "author": {
     "name": "n24q02m",
     "url": "https://github.com/n24q02m"

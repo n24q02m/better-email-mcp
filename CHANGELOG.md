@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.22.3 (2026-04-13)
+
+### Bug Fixes
+
+- Install python3+make+g++ for better-sqlite3 source build
+  ([`2065fd5`](https://github.com/n24q02m/better-email-mcp/commit/2065fd5cc859ec4bdca1419dd3b9f4d1e079b94b))
+
+
 ## v1.22.2 (2026-04-13)
 
 ### Bug Fixes
