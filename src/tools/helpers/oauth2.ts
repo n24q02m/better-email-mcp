@@ -191,21 +191,6 @@ export function _getPendingAuths(): Map<string, PendingAuth> {
 }
 
 /**
- * Dedupe window for openBrowser: when ensureValidToken is hit repeatedly
- * (retries mid-auth, tool calls before tokens arrive, multi-account reconnect),
- * each call would otherwise spawn a fresh Microsoft sign-in tab even though
- * verification_uri is always https://microsoft.com/devicelogin. Track the
- * last-opened timestamp per URL and skip re-opens within this window.
- */
-const BROWSER_OPEN_DEDUPE_WINDOW_MS = 5 * 60 * 1000
-const recentBrowserOpens = new Map<string, number>()
-
-/** Exposed for testing */
-export function _resetBrowserOpenDedupe(): void {
-  recentBrowserOpens.clear()
-}
-
-/**
  * Open a URL in the user's default browser safely.
  * Uses execFile with argument arrays to prevent command injection.
  * Filters for http/https protocols only.
@@ -223,12 +208,6 @@ function openBrowser(url: string): void {
   } catch {
     return
   }
-
-  const lastOpened = recentBrowserOpens.get(safeUrl)
-  if (lastOpened !== undefined && Date.now() - lastOpened < BROWSER_OPEN_DEDUPE_WINDOW_MS) {
-    return
-  }
-  recentBrowserOpens.set(safeUrl, Date.now())
 
   // Security: Use execFile to bypass the shell and pass arguments directly
   if (process.platform === 'darwin') {
@@ -266,18 +245,13 @@ async function requestDeviceCode(clientId: string): Promise<DeviceCodeResponse> 
 /**
  * Poll for token in the background. Saves to disk when authorized.
  * Runs silently — errors are logged to stderr, not thrown.
- *
- * Optional `onComplete` callback is invoked after tokens are persisted to
- * disk so callers (HTTP transport) can signal setup completion to the
- * credential form via /setup-status.
  */
 function startBackgroundPoll(
   clientId: string,
   deviceCode: string,
   interval: number,
   expiresIn: number,
-  email: string,
-  onComplete?: () => void
+  email: string
 ): void {
   const emailKey = email.toLowerCase()
   const deadline = Date.now() + expiresIn * MS_PER_SECOND
@@ -308,13 +282,6 @@ function startBackgroundPoll(
           clientId
         })
         pendingAuths.delete(emailKey)
-        if (onComplete) {
-          try {
-            onComplete()
-          } catch {
-            // Best-effort -- ignore callback errors.
-          }
-        }
         return
       }
 
@@ -333,53 +300,6 @@ function startBackgroundPoll(
   }
 
   poll().catch(() => pendingAuths.delete(emailKey))
-}
-
-/**
- * Initiate the Device Code OAuth flow for an Outlook account without
- * throwing. Used by the HTTP /authorize callback to surface the sign-in
- * URL + user code to the custom credential form.
- *
- * If a pending auth already exists for this email (e.g. user resubmitted the
- * form), returns the existing codes instead of requesting new ones. The
- * background poll saves tokens to disk on success and invokes ``onComplete``
- * so the form can mark setup complete via GET /setup-status.
- */
-export async function initiateOutlookDeviceCode(
-  email: string,
-  onComplete?: () => void
-): Promise<{ verificationUri: string; userCode: string; expiresIn: number; interval: number }> {
-  const emailKey = email.toLowerCase()
-  const existing = pendingAuths.get(emailKey)
-  if (existing && existing.expiresAt > Date.now()) {
-    return {
-      verificationUri: existing.verificationUri,
-      userCode: existing.userCode,
-      expiresIn: Math.max(1, Math.floor((existing.expiresAt - Date.now()) / MS_PER_SECOND)),
-      interval: DEFAULT_POLLING_INTERVAL_SECONDS
-    }
-  }
-
-  const clientId = getClientId()
-  const codeData = await requestDeviceCode(clientId)
-
-  pendingAuths.set(emailKey, {
-    verificationUri: codeData.verification_uri,
-    userCode: codeData.user_code,
-    expiresAt: Date.now() + codeData.expires_in * MS_PER_SECOND
-  })
-
-  startBackgroundPoll(clientId, codeData.device_code, codeData.interval, codeData.expires_in, email, onComplete)
-
-  // Auto-open browser for desktop environments (best-effort; no-op in CI/E2E)
-  openBrowser(codeData.verification_uri)
-
-  return {
-    verificationUri: codeData.verification_uri,
-    userCode: codeData.user_code,
-    expiresIn: codeData.expires_in,
-    interval: codeData.interval || DEFAULT_POLLING_INTERVAL_SECONDS
-  }
 }
 
 /**

@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock all external dependencies BEFORE importing the module under test
-vi.mock('@n24q02m/mcp-core/storage', () => ({
+vi.mock('@n24q02m/mcp-relay-core/storage', () => ({
   resolveConfig: vi.fn()
 }))
 
-vi.mock('@n24q02m/mcp-core', () => ({
+vi.mock('@n24q02m/mcp-relay-core', () => ({
   createSession: vi.fn(),
   pollForResult: vi.fn(),
   writeConfig: vi.fn().mockResolvedValue(undefined),
@@ -44,7 +44,7 @@ vi.mock('node:path', () => ({
 }))
 
 import { readFile } from 'node:fs/promises'
-import { resolveConfig } from '@n24q02m/mcp-core/storage'
+import { resolveConfig } from '@n24q02m/mcp-relay-core/storage'
 
 describe('credential-state', () => {
   let mod: typeof import('./credential-state.js')
@@ -158,7 +158,7 @@ describe('credential-state', () => {
     })
 
     it('transitions to setup_in_progress on relay creation', async () => {
-      const { createSession } = await import('@n24q02m/mcp-core')
+      const { createSession } = await import('@n24q02m/mcp-relay-core')
       vi.mocked(createSession).mockResolvedValue({
         relayUrl: 'https://relay.example.com/setup/abc',
         sessionId: 'sess-1'
@@ -170,7 +170,7 @@ describe('credential-state', () => {
     })
 
     it('returns null on relay creation error', async () => {
-      const { createSession } = await import('@n24q02m/mcp-core')
+      const { createSession } = await import('@n24q02m/mcp-relay-core')
       vi.mocked(createSession).mockRejectedValue(new Error('network error'))
 
       const result = await mod.triggerRelaySetup()
@@ -180,7 +180,7 @@ describe('credential-state', () => {
 
     it('force triggers even when configured', async () => {
       mod.setState('configured')
-      const { createSession } = await import('@n24q02m/mcp-core')
+      const { createSession } = await import('@n24q02m/mcp-relay-core')
       vi.mocked(createSession).mockResolvedValue({
         relayUrl: 'https://relay.example.com/setup/forced',
         sessionId: 'sess-2'
@@ -189,24 +189,6 @@ describe('credential-state', () => {
       const result = await mod.triggerRelaySetup({ force: true })
       expect(result).toBe('https://relay.example.com/setup/forced')
       expect(mod.getState()).toBe('setup_in_progress')
-    })
-  })
-
-  describe('setMarkSetupComplete / getMarkSetupComplete', () => {
-    it('stores and returns the hook fn', () => {
-      const hook = vi.fn()
-      mod.setMarkSetupComplete(hook)
-      expect(mod.getMarkSetupComplete()).toBe(hook)
-    })
-
-    it('allows clearing the hook with null', () => {
-      mod.setMarkSetupComplete(vi.fn())
-      mod.setMarkSetupComplete(null)
-      expect(mod.getMarkSetupComplete()).toBeNull()
-    })
-
-    it('returns null by default (fresh module)', () => {
-      expect(mod.getMarkSetupComplete()).toBeNull()
     })
   })
 
@@ -219,7 +201,7 @@ describe('credential-state', () => {
     })
 
     it('handles deleteConfig error gracefully', async () => {
-      const { deleteConfig } = await import('@n24q02m/mcp-core')
+      const { deleteConfig } = await import('@n24q02m/mcp-relay-core')
       vi.mocked(deleteConfig).mockRejectedValue(new Error('file not found'))
 
       mod.setState('configured')

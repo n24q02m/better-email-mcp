@@ -121,17 +121,15 @@ async function setupServer(accounts: AccountConfig[]): Promise<Server> {
 }
 
 export async function initServer() {
-  const isStdio =
-    process.argv.includes('--stdio') || process.env.MCP_TRANSPORT === 'stdio' || process.env.TRANSPORT_MODE === 'stdio'
+  const transport = process.env.TRANSPORT_MODE || 'stdio'
 
-  if (isStdio) {
-    // Stdio mode -- non-blocking startup
-    const accounts = await setupEnvironment()
-    return setupServer(accounts)
+  if (transport === 'http') {
+    const { startOAuthHttp } = await import('./transports/oauth-server.js')
+    await startOAuthHttp()
+    return
   }
 
-  // Default: HTTP mode via mcp-core runLocalServer (local OAuth 2.1 AS).
-  // Multi-user OAuth (device code / upstream Outlook) deferred to Phase L2.
-  const { startHttp } = await import('./transports/http.js')
-  await startHttp()
+  // Default: stdio mode -- non-blocking startup
+  const accounts = await setupEnvironment()
+  return setupServer(accounts)
 }

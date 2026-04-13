@@ -10,15 +10,15 @@ vi.mock('node:fs', () => ({
   writeFileSync: vi.fn()
 }))
 
-// Mock mcp-core modules
-vi.mock('@n24q02m/mcp-core/storage', () => ({
+// Mock mcp-relay-core modules
+vi.mock('@n24q02m/mcp-relay-core/storage', () => ({
   resolveConfig: vi.fn()
 }))
-vi.mock('@n24q02m/mcp-core/relay', () => ({
+vi.mock('@n24q02m/mcp-relay-core/relay', () => ({
   createSession: vi.fn(),
   pollForResult: vi.fn()
 }))
-vi.mock('@n24q02m/mcp-core', () => ({
+vi.mock('@n24q02m/mcp-relay-core', () => ({
   writeConfig: vi.fn().mockResolvedValue(undefined)
 }))
 
@@ -31,10 +31,10 @@ vi.mock('./tools/helpers/oauth2.js', () => ({
   isOutlookDomain: vi.fn().mockReturnValue(false)
 }))
 
-import { writeConfig } from '@n24q02m/mcp-core'
-import { createSession, pollForResult } from '@n24q02m/mcp-core/relay'
+import { writeConfig } from '@n24q02m/mcp-relay-core'
+import { createSession, pollForResult } from '@n24q02m/mcp-relay-core/relay'
 // Import after mocks
-import { resolveConfig } from '@n24q02m/mcp-core/storage'
+import { resolveConfig } from '@n24q02m/mcp-relay-core/storage'
 import { parseCredentials } from './tools/helpers/config.js'
 import { ensureValidToken, isOutlookDomain } from './tools/helpers/oauth2.js'
 
