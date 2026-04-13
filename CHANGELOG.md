@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.22.4 (2026-04-13)
+
+### Bug Fixes
+
+- Remove direct better-sqlite3 dep; add trustedDependencies for Bun script skip
+  ([`1f895e0`](https://github.com/n24q02m/better-email-mcp/commit/1f895e04284be3210a668b02b96b81c8466cf30f))
+
+
 ## v1.22.3 (2026-04-13)
 
 ### Bug Fixes
