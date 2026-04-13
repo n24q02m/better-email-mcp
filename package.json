@@ -58,9 +58,7 @@
 	],
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.29.0",
-		"@n24q02m/mcp-core": "^1.0.0-beta.3",
-		"express": "^5.2.1",
-		"express-rate-limit": "^8.3.2",
+		"@n24q02m/mcp-core": "file:../mcp-core/packages/core-ts",
 		"html-to-text": "^9.0.5",
 		"imapflow": "^1.3.1",
 		"mailparser": "^3.9.8",
@@ -70,7 +68,6 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.10",
-		"@types/express": "^5.0.6",
 		"@types/html-to-text": "^9.0.4",
 		"@types/mailparser": "^3.4.6",
 		"@types/marked": "^6.0.0",

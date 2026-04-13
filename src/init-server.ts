@@ -130,7 +130,8 @@ export async function initServer() {
     return setupServer(accounts)
   }
 
-  // Default: HTTP mode with OAuth 2.1
-  const { startOAuthHttp } = await import('./transports/oauth-server.js')
-  await startOAuthHttp()
+  // Default: HTTP mode via mcp-core runLocalServer (local OAuth 2.1 AS).
+  // Multi-user OAuth (device code / upstream Outlook) deferred to Phase L2.
+  const { startHttp } = await import('./transports/http.js')
+  await startHttp()
 }
