@@ -38,6 +38,7 @@ beforeEach(() => {
 import type { OAuth2Tokens } from './oauth2.js'
 import {
   _getPendingAuths,
+  _resetBrowserOpenDedupe,
   _resetTokenCache,
   deviceCodeAuth,
   ensureValidToken,
@@ -55,6 +56,7 @@ import {
 
 afterEach(() => {
   _resetTokenCache()
+  _resetBrowserOpenDedupe()
 })
 
 describe('isOutlookDomain', () => {

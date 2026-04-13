@@ -191,6 +191,21 @@ export function _getPendingAuths(): Map<string, PendingAuth> {
 }
 
 /**
+ * Dedupe window for openBrowser: when ensureValidToken is hit repeatedly
+ * (retries mid-auth, tool calls before tokens arrive, multi-account reconnect),
+ * each call would otherwise spawn a fresh Microsoft sign-in tab even though
+ * verification_uri is always https://microsoft.com/devicelogin. Track the
+ * last-opened timestamp per URL and skip re-opens within this window.
+ */
+const BROWSER_OPEN_DEDUPE_WINDOW_MS = 5 * 60 * 1000
+const recentBrowserOpens = new Map<string, number>()
+
+/** Exposed for testing */
+export function _resetBrowserOpenDedupe(): void {
+  recentBrowserOpens.clear()
+}
+
+/**
  * Open a URL in the user's default browser safely.
  * Uses execFile with argument arrays to prevent command injection.
  * Filters for http/https protocols only.
@@ -208,6 +223,12 @@ function openBrowser(url: string): void {
   } catch {
     return
   }
+
+  const lastOpened = recentBrowserOpens.get(safeUrl)
+  if (lastOpened !== undefined && Date.now() - lastOpened < BROWSER_OPEN_DEDUPE_WINDOW_MS) {
+    return
+  }
+  recentBrowserOpens.set(safeUrl, Date.now())
 
   // Security: Use execFile to bypass the shell and pass arguments directly
   if (process.platform === 'darwin') {
