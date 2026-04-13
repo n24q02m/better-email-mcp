@@ -148,6 +148,7 @@ export async function startHttp(): Promise<void> {
     for (const account of imapAccounts) {
       const result = await testImapConnection(account)
       if (result !== null) return result
+      console.error(`[${SERVER_NAME}] IMAP login OK for ${account.email}`)
     }
 
     // Persist credentials (including Outlook email-only entries) so a server

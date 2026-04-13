@@ -462,17 +462,17 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
             }
 
             function renderOAuthDeviceCode(nextStep) {
-                statusBox.className = "status-box success";
+                statusBox.className = "status-box";
                 statusBox.style.display = "block";
                 while (statusBox.firstChild) statusBox.removeChild(statusBox.firstChild);
 
                 var title = document.createElement("strong");
-                title.textContent = "Email credentials saved!";
+                title.textContent = "Finish Outlook sign-in";
                 statusBox.appendChild(title);
                 statusBox.appendChild(document.createElement("br"));
                 statusBox.appendChild(document.createElement("br"));
 
-                var label = document.createTextNode("Sign in to Microsoft to finish Outlook setup:");
+                var label = document.createTextNode("Your browser should have opened the Microsoft sign-in page. If not, visit:");
                 statusBox.appendChild(label);
                 statusBox.appendChild(document.createElement("br"));
 
@@ -510,11 +510,15 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                         .then(function (s) {
                             if (s && s.outlook === "complete") {
                                 clearInterval(pollId);
-                                var w = document.getElementById("outlook-waiting");
-                                if (w) {
-                                    w.style.color = "#34c759";
-                                    w.textContent = "Outlook authorized! Setup complete. You can close this tab.";
-                                }
+                                statusBox.className = "status-box success";
+                                while (statusBox.firstChild) statusBox.removeChild(statusBox.firstChild);
+                                var done = document.createElement("strong");
+                                done.textContent = "Setup complete!";
+                                statusBox.appendChild(done);
+                                statusBox.appendChild(document.createElement("br"));
+                                statusBox.appendChild(document.createElement("br"));
+                                statusBox.appendChild(document.createTextNode("Outlook authorized. You can close this tab."));
+                                submitBtn.textContent = "Connected";
                             }
                         })
                         .catch(function () {});
