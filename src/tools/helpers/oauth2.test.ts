@@ -42,6 +42,7 @@ import {
   deviceCodeAuth,
   ensureValidToken,
   getClientId,
+  initiateOutlookDeviceCode,
   isOutlookDomain,
   loadStoredTokens,
   refreshAccessToken,
@@ -978,5 +979,109 @@ describe('openBrowser security', () => {
       expect.arrayContaining([new URL(hyphenUri).href]),
       expect.any(Function)
     )
+  })
+})
+
+// ============================================================================
+// initiateOutlookDeviceCode (L2.12d)
+// ============================================================================
+
+describe('initiateOutlookDeviceCode', () => {
+  const mockFetch = vi.fn()
+  const originalEnv = process.env.OUTLOOK_CLIENT_ID
+
+  beforeEach(() => {
+    mockFetch.mockReset()
+    vi.stubGlobal('fetch', mockFetch)
+    process.env.OUTLOOK_CLIENT_ID = 'test-client-id'
+    mockExistsSync.mockReturnValue(false)
+    _getPendingAuths().clear()
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    if (originalEnv) {
+      process.env.OUTLOOK_CLIENT_ID = originalEnv
+    } else {
+      delete process.env.OUTLOOK_CLIENT_ID
+    }
+    _getPendingAuths().clear()
+    vi.restoreAllMocks()
+  })
+
+  it('requests device code and returns verification URI + user code', async () => {
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        device_code: 'dc-new',
+        user_code: 'FRESH-123',
+        verification_uri: 'https://microsoft.com/devicelogin',
+        expires_in: 900,
+        interval: 9999 // Large interval so background poll never fires in test.
+      })
+    })
+
+    const result = await initiateOutlookDeviceCode('new@outlook.com')
+
+    expect(result.verificationUri).toBe('https://microsoft.com/devicelogin')
+    expect(result.userCode).toBe('FRESH-123')
+    expect(result.expiresIn).toBe(900)
+    // Pending auth cached so reused on retry.
+    expect(_getPendingAuths().get('new@outlook.com')).toBeDefined()
+  })
+
+  it('reuses existing pending auth on retry (no new device code request)', async () => {
+    _getPendingAuths().set('existing@outlook.com', {
+      verificationUri: 'https://microsoft.com/devicelogin',
+      userCode: 'CACHED-777',
+      expiresAt: Date.now() + 600_000
+    })
+
+    const result = await initiateOutlookDeviceCode('existing@outlook.com')
+
+    expect(result.userCode).toBe('CACHED-777')
+    expect(result.verificationUri).toBe('https://microsoft.com/devicelogin')
+    // No HTTP call when reusing cached pending auth.
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('invokes onComplete callback when background poll succeeds', async () => {
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        device_code: 'dc-cb',
+        user_code: 'CB-123',
+        verification_uri: 'https://microsoft.com/devicelogin',
+        expires_in: 900,
+        interval: 0.01 // Fast poll for test.
+      })
+    })
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        access_token: 'at-ok',
+        refresh_token: 'rt-ok',
+        expires_in: 3600
+      })
+    })
+
+    const onComplete = vi.fn()
+    await initiateOutlookDeviceCode('cb@outlook.com', onComplete)
+
+    // Allow background poll to run and fire the callback.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(onComplete).toHaveBeenCalled()
+    // Tokens persisted to disk.
+    expect(mockWriteFileSync).toHaveBeenCalled()
+  })
+
+  it('throws descriptive error when Microsoft rejects the device code request', async () => {
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        error: 'invalid_client',
+        error_description: 'Unknown client ID'
+      })
+    })
+
+    await expect(initiateOutlookDeviceCode('bad@outlook.com')).rejects.toThrow('Unknown client ID')
   })
 })

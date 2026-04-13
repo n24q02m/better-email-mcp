@@ -4,12 +4,15 @@
  * Renders a dark-themed multi-account email form with:
  *  - Dynamic account cards (Add/Remove)
  *  - Domain auto-detect: gmail/googlemail/yahoo/icloud => App Password label
- *    + provider help URL; outlook/hotmail/live => OAuth notice (deferred to
- *    Phase L2, submit blocked); custom domain => password + optional IMAP host.
+ *    + provider help URL; outlook/hotmail/live => OAuth2 notice (handled
+ *    automatically by the server via Microsoft Device Code flow); custom
+ *    domain => password + optional IMAP host.
  *  - Final EMAIL_CREDENTIALS string format:
- *      email1:pass1,email2:pass2:imap_host
- *    Comma-separated between accounts, colon-separated within. Custom IMAP
- *    host is appended as a third colon-segment when provided.
+ *      email1:pass1,email2:pass2:imap_host,outlook_email
+ *    Comma-separated between accounts, colon-separated within. Outlook
+ *    accounts have no password/colon -- the server detects them and runs
+ *    Microsoft's OAuth Device Code flow, surfacing the verification URL +
+ *    user code back into this form.
  *
  * This form POSTs plain JSON `{ EMAIL_CREDENTIALS: "..." }` to the
  * mcp-core OAuth `/authorize?nonce=xxx` endpoint. The old mcp-relay-core
@@ -44,7 +47,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
   const server = escapeHtml(_schema.server ?? 'better-email-mcp')
   const description = escapeHtml(
     _schema.description ??
-      'Configure one or more email accounts (Gmail, Yahoo, iCloud, or custom IMAP). Outlook/Hotmail/Live are coming in Phase L2.'
+      'Configure one or more email accounts (Gmail, Yahoo, iCloud, Outlook/Hotmail/Live, or custom IMAP). Outlook accounts use OAuth2 and are handled automatically by the server.'
   )
   const submitUrl = escapeHtml(options.submitUrl)
 
@@ -348,7 +351,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                     notice.className = "notice";
                     notice.dataset.role = "oauth-notice";
                     notice.textContent =
-                        "Outlook/Hotmail/Live requires OAuth device code flow. This is a Phase L2 feature and is not yet available. Please use Gmail, Yahoo, iCloud, or a custom IMAP host instead.";
+                        "Outlook/Hotmail/Live requires OAuth2. This will be handled automatically by the server after you submit -- a Microsoft sign-in URL + code will appear here.";
                     extraContainer.appendChild(notice);
                     return;
                 }
@@ -440,6 +443,8 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
 
                     if (OAUTH_DOMAINS.indexOf(domain) !== -1) {
                         hasOauth = true;
+                        // Outlook/Hotmail/Live: no password field. Server detects
+                        // email-only entries and runs Device Code OAuth2.
                         accounts.push({ email: email, oauth: true });
                         continue;
                     }
@@ -454,6 +459,66 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                     accounts.push({ email: email, password: password, imapHost: imapHost });
                 }
                 return { accounts: accounts, hasOauth: hasOauth };
+            }
+
+            function renderOAuthDeviceCode(nextStep) {
+                statusBox.className = "status-box success";
+                statusBox.style.display = "block";
+                while (statusBox.firstChild) statusBox.removeChild(statusBox.firstChild);
+
+                var title = document.createElement("strong");
+                title.textContent = "Email credentials saved!";
+                statusBox.appendChild(title);
+                statusBox.appendChild(document.createElement("br"));
+                statusBox.appendChild(document.createElement("br"));
+
+                var label = document.createTextNode("Sign in to Microsoft to finish Outlook setup:");
+                statusBox.appendChild(label);
+                statusBox.appendChild(document.createElement("br"));
+
+                var link = document.createElement("a");
+                link.setAttribute("href", nextStep.verification_url);
+                link.setAttribute("target", "_blank");
+                link.setAttribute("rel", "noopener noreferrer");
+                link.style.color = "#6c9bd2";
+                link.style.fontWeight = "bold";
+                link.textContent = nextStep.verification_url;
+                statusBox.appendChild(link);
+                statusBox.appendChild(document.createElement("br"));
+                statusBox.appendChild(document.createElement("br"));
+
+                statusBox.appendChild(document.createTextNode("Enter code: "));
+                var codeEl = document.createElement("strong");
+                codeEl.style.fontSize = "1.2em";
+                codeEl.style.letterSpacing = "0.1em";
+                codeEl.textContent = nextStep.user_code;
+                statusBox.appendChild(codeEl);
+                statusBox.appendChild(document.createElement("br"));
+                statusBox.appendChild(document.createElement("br"));
+
+                var waiting = document.createElement("span");
+                waiting.id = "outlook-waiting";
+                waiting.style.color = "#888";
+                waiting.textContent = "Waiting for Microsoft authorization...";
+                statusBox.appendChild(waiting);
+
+                // Poll /setup-status until outlook === "complete"
+                var statusUrl = submitUrl.replace(/\\/authorize.*$/, "/setup-status");
+                var pollId = setInterval(function () {
+                    fetch(statusUrl)
+                        .then(function (r) { return r.json(); })
+                        .then(function (s) {
+                            if (s && s.outlook === "complete") {
+                                clearInterval(pollId);
+                                var w = document.getElementById("outlook-waiting");
+                                if (w) {
+                                    w.style.color = "#34c759";
+                                    w.textContent = "Outlook authorized! Setup complete. You can close this tab.";
+                                }
+                            }
+                        })
+                        .catch(function () {});
+                }, 3000);
             }
 
             // Seed first account card.
@@ -471,23 +536,22 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
 
                 var collected = collectAccounts();
 
-                if (collected.hasOauth) {
+                if (collected.accounts.length === 0) {
                     showStatus(
                         "error",
-                        "Outlook/Hotmail/Live accounts are not supported yet -- this is a Phase L2 feature coming soon. Remove any Outlook accounts and use Gmail, Yahoo, iCloud, or a custom IMAP host instead."
+                        "Please add at least one email account (Outlook email, or email + password for other providers)."
                     );
-                    return;
-                }
-
-                if (collected.accounts.length === 0) {
-                    showStatus("error", "Please add at least one email account with a password.");
                     return;
                 }
 
                 var parts = [];
                 for (var i = 0; i < collected.accounts.length; i++) {
                     var a = collected.accounts[i];
-                    if (a.imapHost) {
+                    if (a.oauth) {
+                        // Outlook/Hotmail/Live: just the email, server triggers
+                        // Microsoft Device Code OAuth2 on receipt.
+                        parts.push(a.email);
+                    } else if (a.imapHost) {
                         parts.push(a.email + ":" + a.password + ":" + a.imapHost);
                     } else {
                         parts.push(a.email + ":" + a.password);
@@ -506,8 +570,13 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                     .then(function (resp) {
                         return resp.json().then(function (data) {
                             if (data.ok) {
-                                showStatus("success", data.message || "Setup complete! You can close this tab.");
-                                submitBtn.textContent = "Connected";
+                                if (data.next_step && data.next_step.type === "oauth_device_code") {
+                                    submitBtn.textContent = "Awaiting Microsoft...";
+                                    renderOAuthDeviceCode(data.next_step);
+                                } else {
+                                    showStatus("success", data.message || "Setup complete! You can close this tab.");
+                                    submitBtn.textContent = "Connected";
+                                }
                             } else {
                                 showStatus("error", data.error || data.error_description || "Request failed.");
                                 submitBtn.disabled = false;

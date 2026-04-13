@@ -51,8 +51,33 @@ describe('renderEmailCredentialForm', () => {
     expect(html).toContain('EMAIL_CREDENTIALS')
   })
 
-  it('blocks submit if only Outlook accounts (deferred to L2)', () => {
+  it('shows original Outlook OAuth2 notice (auto-handled by server)', () => {
     const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
-    expect(html).toMatch(/Outlook.*(not supported|Phase L2|coming soon)/i)
+    // No more "Phase L2" / "not supported" / "coming soon" language.
+    expect(html).not.toMatch(/Phase L2/i)
+    expect(html).not.toMatch(/not supported yet/i)
+    expect(html).not.toMatch(/coming soon/i)
+    // Keep the original notice.
+    expect(html).toMatch(/Outlook[^"]*OAuth2?[^"]*handled automatically/i)
+  })
+
+  it('handles oauth_device_code response with verification URL + user code', () => {
+    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
+    expect(html).toContain('oauth_device_code')
+    expect(html).toContain('verification_url')
+    expect(html).toContain('user_code')
+  })
+
+  it('polls /setup-status for outlook === "complete"', () => {
+    const html = renderEmailCredentialForm(schema, { submitUrl: '/authorize?nonce=abc' })
+    expect(html).toContain('/setup-status')
+    expect(html).toMatch(/s\.outlook\s*===\s*["']complete["']/)
+  })
+
+  it('no longer blocks submit when only Outlook accounts are present', () => {
+    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
+    // Previous behavior: showStatus("error", ... "Phase L2" ...). Gone now.
+    expect(html).not.toMatch(/Outlook[^"]*not supported yet/i)
+    expect(html).not.toMatch(/Remove any Outlook accounts/i)
   })
 })

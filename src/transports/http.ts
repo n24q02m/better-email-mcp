@@ -8,9 +8,12 @@
  *  - Issues a local JWT on /token (PKCE) that the MCP client uses for Bearer auth
  *  - Routes /mcp (Bearer-protected) to a StreamableHTTPServerTransport
  *
- * Scope (L2.9): LOCAL single-user mode only. Outlook OAuth device code flow
- * deferred to Phase L2 -- Outlook accounts are rejected with a clear message
- * so users fall back to Gmail/IMAP providers for now.
+ * Scope (L2.12): LOCAL single-user mode. IMAP/SMTP providers (Gmail, Yahoo,
+ * iCloud, Zoho, ProtonMail, custom) validated synchronously via IMAP login.
+ * Outlook/Hotmail/Live accounts trigger Microsoft's OAuth Device Code flow:
+ * the form gets back a ``{type: "oauth_device_code", verification_url,
+ * user_code}`` NextStep and polls ``/setup-status`` until a background task
+ * exchanges the device code for tokens.
  *
  * Credential lifecycle:
  *  - At startup, existing credentials from env/encrypted-config are applied
@@ -27,10 +30,15 @@ import { type NextStep, type RelayConfigSchema, runLocalServer, writeConfig } fr
 import { ImapFlow } from 'imapflow'
 
 import { renderEmailCredentialForm } from '../credential-form.js'
-import { resolveCredentialState, setState } from '../credential-state.js'
+import {
+  getMarkSetupComplete as getCredentialMarkSetupComplete,
+  resolveCredentialState,
+  setMarkSetupComplete,
+  setState
+} from '../credential-state.js'
 import { RELAY_SCHEMA } from '../relay-schema.js'
 import { type AccountConfig, loadConfig, parseCredentials } from '../tools/helpers/config.js'
-import { isOutlookDomain } from '../tools/helpers/oauth2.js'
+import { initiateOutlookDeviceCode, isOutlookDomain } from '../tools/helpers/oauth2.js'
 import { registerTools } from '../tools/registry.js'
 
 const SERVER_NAME = 'better-email-mcp'
@@ -122,26 +130,30 @@ export async function startHttp(): Promise<void> {
       }
     }
 
-    // Outlook OAuth device code flow is deferred to Phase L2. Fail fast so the
-    // user sees a clear message instead of being stranded mid-setup.
+    // Split Outlook (OAuth2) vs password (IMAP) accounts. Outlook accounts
+    // are valid even without a password -- parseCredentials tags them as
+    // ``authType === 'oauth2'`` and loads any pre-existing tokens from disk.
+    const outlookAccounts: AccountConfig[] = []
+    const imapAccounts: AccountConfig[] = []
     for (const account of accounts) {
       if (isOutlookDomain(account.email) || account.authType === 'oauth2') {
-        return {
-          type: 'error',
-          text: `Outlook/Hotmail/Live accounts (${account.email}) require OAuth device code flow which is not yet available in local mode. Use Gmail, Yahoo, iCloud, Zoho, ProtonMail, or a custom IMAP host instead.`
-        }
+        outlookAccounts.push(account)
+      } else {
+        imapAccounts.push(account)
       }
     }
 
-    // Validate every account via real IMAP connection. Any failure aborts.
-    for (const account of accounts) {
+    // Validate every IMAP/SMTP (password) account via real IMAP login first
+    // so credential errors are surfaced before we touch Microsoft OAuth.
+    for (const account of imapAccounts) {
       const result = await testImapConnection(account)
       if (result !== null) return result
     }
 
-    // All accounts verified. Persist to encrypted config so we pick them up on
-    // next startup, and refresh the in-process cache so subsequent /mcp calls
-    // see the new accounts without a restart.
+    // Persist credentials (including Outlook email-only entries) so a server
+    // restart picks them up without re-running the form. Background OAuth
+    // tokens are written separately to ~/.better-email-mcp/tokens.json by
+    // the device-code poll.
     try {
       await writeConfig(SERVER_NAME, { EMAIL_CREDENTIALS: raw })
     } catch (err) {
@@ -149,9 +161,42 @@ export async function startHttp(): Promise<void> {
     }
     process.env.EMAIL_CREDENTIALS = raw
     currentAccounts = accounts
-    setState('configured')
     console.error(`[${SERVER_NAME}] ${accounts.length} email account(s) configured via /authorize`)
 
+    // Outlook accounts that still need OAuth2 sign-in -- no stored tokens
+    // yet. Initiate Device Code flow for the FIRST such account and return
+    // an oauth_device_code NextStep so the form can show the URL/code.
+    // (Multi-Outlook: second+ accounts are handled lazily on first tool
+    // call via ensureValidToken; they'll throw a descriptive error with
+    // their own device code.)
+    const outlookPending = outlookAccounts.filter((a) => !a.oauth2)
+    if (outlookPending.length > 0) {
+      const first = outlookPending[0] as AccountConfig
+      try {
+        const device = await initiateOutlookDeviceCode(first.email, () => {
+          // Tokens persisted. Flip /setup-status so the form stops polling.
+          const hook = getCredentialMarkSetupComplete()
+          if (hook) hook('outlook')
+          setState('configured')
+          console.error(`[${SERVER_NAME}] Outlook OAuth2 completed for ${first.email}`)
+        })
+        // Stay in setup_in_progress until the background poll succeeds.
+        setState('setup_in_progress')
+        return {
+          type: 'oauth_device_code',
+          verification_url: device.verificationUri,
+          user_code: device.userCode,
+          email: first.email
+        }
+      } catch (err) {
+        return {
+          type: 'error',
+          text: `Failed to start Outlook OAuth2 Device Code flow for ${first.email}: ${(err as Error).message}`
+        }
+      }
+    }
+
+    setState('configured')
     return null
   }
 
@@ -162,7 +207,14 @@ export async function startHttp(): Promise<void> {
     relaySchema: RELAY_SCHEMA as unknown as RelayConfigSchema,
     port,
     onCredentialsSaved,
-    customCredentialFormHtml: renderEmailCredentialForm
+    customCredentialFormHtml: renderEmailCredentialForm,
+    setupCompleteHook: (markComplete) => {
+      // mcp-core hands us a ``markSetupComplete(key)`` callback here. Stash
+      // it in credential-state so the Outlook OAuth background poll (which
+      // lives in oauth2.ts) can signal completion to ``/setup-status`` and
+      // unblock the credential form's status spinner.
+      setMarkSetupComplete(markComplete)
+    }
   })
 
   console.error(`[${SERVER_NAME}] HTTP mode on http://${handle.host}:${handle.port}/mcp`)

@@ -25,6 +25,19 @@ export type CredentialState = 'awaiting_setup' | 'setup_in_progress' | 'configur
 let state: CredentialState = 'awaiting_setup'
 let setupUrl: string | null = null
 
+// Hook supplied by the HTTP transport layer (mcp-core's local OAuth app)
+// that lets background Outlook OAuth polls flip ``GET /setup-status`` to
+// ``complete`` so the credential form stops spinning.
+let markSetupCompleteFn: ((key?: string) => void) | null = null
+
+export function setMarkSetupComplete(fn: ((key?: string) => void) | null): void {
+  markSetupCompleteFn = fn
+}
+
+export function getMarkSetupComplete(): ((key?: string) => void) | null {
+  return markSetupCompleteFn
+}
+
 export function getState(): CredentialState {
   return state
 }

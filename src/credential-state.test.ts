@@ -192,6 +192,24 @@ describe('credential-state', () => {
     })
   })
 
+  describe('setMarkSetupComplete / getMarkSetupComplete', () => {
+    it('stores and returns the hook fn', () => {
+      const hook = vi.fn()
+      mod.setMarkSetupComplete(hook)
+      expect(mod.getMarkSetupComplete()).toBe(hook)
+    })
+
+    it('allows clearing the hook with null', () => {
+      mod.setMarkSetupComplete(vi.fn())
+      mod.setMarkSetupComplete(null)
+      expect(mod.getMarkSetupComplete()).toBeNull()
+    })
+
+    it('returns null by default (fresh module)', () => {
+      expect(mod.getMarkSetupComplete()).toBeNull()
+    })
+  })
+
   describe('resetState', () => {
     it('resets to awaiting_setup', async () => {
       mod.setState('configured')
