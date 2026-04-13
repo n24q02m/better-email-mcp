@@ -8,7 +8,7 @@ describe('RELAY_SCHEMA', () => {
   })
 
   it('should have the EMAIL_CREDENTIALS field with correct properties', () => {
-    const emailCredentialsField = RELAY_SCHEMA.fields.find((field: any) => field.key === 'EMAIL_CREDENTIALS')
+    const emailCredentialsField = RELAY_SCHEMA.fields?.find((field: any) => field.key === 'EMAIL_CREDENTIALS')
     expect(emailCredentialsField).toBeDefined()
     expect(emailCredentialsField?.label).toBe('Email Credentials')
     expect(emailCredentialsField?.type).toBe('text')
