@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.22.1 (2026-04-13)
+
+### Bug Fixes
+
+- Pin better-sqlite3 to ^12.9.0 for Bun prebuild support
+  ([`5fec291`](https://github.com/n24q02m/better-email-mcp/commit/5fec291c3a499b28c9556a8138d01ef9b67f2594))
+
+
 ## v1.22.0 (2026-04-13)
 
 ### Bug Fixes
