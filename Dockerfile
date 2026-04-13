@@ -2,7 +2,7 @@
 # syntax=docker/dockerfile:1
 
 # Use Bun as the builder
-FROM oven/bun:1@sha256:8956c7667fa17beb6e3c664115e66bdacfe502da5d99603626e74c197bdef160 AS builder
+FROM oven/bun:1-alpine@sha256:7ed9f74c326d1c260abe247ac423ccbf5ac92af62bb442d515d1f92f21e8ea9b AS builder
 
 # Set working directory
 WORKDIR /app
