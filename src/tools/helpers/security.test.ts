@@ -50,8 +50,32 @@ describe('isSafeUrl', () => {
     expect(isSafeUrl('javascript&colon;alert(1)')).toBe(false)
   })
 
+  it('blocks data& entity bypass', () => {
+    expect(isSafeUrl('data&colon;text/html,<script>alert(1)</script>')).toBe(false)
+  })
+
+  it('blocks vbscript& entity bypass', () => {
+    expect(isSafeUrl('vbscript&colon;MsgBox("XSS")')).toBe(false)
+  })
+
   it('returns false for invalid URLs that fail to parse', () => {
     expect(isSafeUrl('not-a-url')).toBe(false)
+  })
+
+  it('returns false for malformed protocol-only URL', () => {
+    expect(isSafeUrl('http://')).toBe(false)
+  })
+
+  it('returns false for malformed empty protocol URL', () => {
+    expect(isSafeUrl('://')).toBe(false)
+  })
+
+  it('returns false for whitespace-only URL', () => {
+    expect(isSafeUrl(' ')).toBe(false)
+  })
+
+  it('returns false for malformed IPv6 URL', () => {
+    expect(isSafeUrl('http://[::1]]')).toBe(false)
   })
 
   it('blocks relative paths without protocol', () => {
