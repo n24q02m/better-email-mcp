@@ -2,6 +2,107 @@
 
 <!-- version list -->
 
+## v1.22.0 (2026-04-13)
+
+### Bug Fixes
+
+- Add tests for isSafeUrl ([#378](https://github.com/n24q02m/better-email-mcp/pull/378),
+  [`01e316a`](https://github.com/n24q02m/better-email-mcp/commit/01e316ae1847d121586d66ad79a3baae5e201b56))
+
+- Add tests for relay schema ([#377](https://github.com/n24q02m/better-email-mcp/pull/377),
+  [`c23d27a`](https://github.com/n24q02m/better-email-mcp/commit/c23d27a20ef15b69daa017e792990a2fae2f4e14))
+
+- Bump @n24q02m/mcp-core to 1.0.0-beta.4
+  ([`0638f72`](https://github.com/n24q02m/better-email-mcp/commit/0638f7283c982dc69fd5139118f7147bc93dfce9))
+
+- Bump @n24q02m/mcp-core to ^1.0.0 stable
+  ([`5d38bad`](https://github.com/n24q02m/better-email-mcp/commit/5d38bade04981e78af72dd8e41e7b2f528812476))
+
+- Correct README tool count to 6 and add missing setup tool
+  ([`c4e8f6b`](https://github.com/n24q02m/better-email-mcp/commit/c4e8f6b35b9b5bb888028e48742b172e0df23cd8))
+
+- Dedupe repeat openBrowser calls in Outlook OAuth retry path
+  ([`139663e`](https://github.com/n24q02m/better-email-mcp/commit/139663ef5838ccc685ee7de55588ea6341096665))
+
+- Force LF line endings in .gitattributes to unblock Windows CI
+  ([`07f976b`](https://github.com/n24q02m/better-email-mcp/commit/07f976bc3ef6cdde20d4f6da35b815ddc795010c))
+
+- Only mark Outlook setup complete once OAuth2 poll finishes
+  ([`9078f88`](https://github.com/n24q02m/better-email-mcp/commit/9078f88cae0772029c52aef8e65cbec6d8654585))
+
+- Pin @n24q02m/mcp-core to published 1.0.0-beta.3 instead of local editable path
+  ([`6f02c16`](https://github.com/n24q02m/better-email-mcp/commit/6f02c16c113ab82638d0dfb0c5bed4446db54ecb))
+
+- Update actions/upload-artifact digest to 043fb46
+  ([`242d88d`](https://github.com/n24q02m/better-email-mcp/commit/242d88db8ec9b884b891485adfd970310e89a2c5))
+
+- Update comment reference from mcp-relay-core to mcp-core
+  ([`92d2f76`](https://github.com/n24q02m/better-email-mcp/commit/92d2f76bb360c7d1885c3569cb32d308272ca66a))
+
+- Update oven/bun:1 docker digest to 8956c76
+  ([`512cb92`](https://github.com/n24q02m/better-email-mcp/commit/512cb929d4a26f36da1b2774aa49f4b10d7ba75e))
+
+- Use optional chaining on RELAY_SCHEMA.fields in test
+  ([`59ceda3`](https://github.com/n24q02m/better-email-mcp/commit/59ceda37cd4c118e958733790a2ae7a674b331de))
+
+- **deps**: Update non-major dependencies
+  ([#318](https://github.com/n24q02m/better-email-mcp/pull/318),
+  [`026037c`](https://github.com/n24q02m/better-email-mcp/commit/026037cfee8361f8e6acde6e469432ebbc57286b))
+
+- **security**: Update dependencies to fix npm audit vulnerabilities
+  ([`d6a2a3f`](https://github.com/n24q02m/better-email-mcp/commit/d6a2a3fe7b37679c9a788563775f2b1f17b651a5))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#368](https://github.com/n24q02m/better-email-mcp/pull/368),
+  [`ebf3d23`](https://github.com/n24q02m/better-email-mcp/commit/ebf3d23427d72f8302ccd0fae61e03b1588adbf5))
+
+- **deps**: Lock file maintenance ([#320](https://github.com/n24q02m/better-email-mcp/pull/320),
+  [`d91b532`](https://github.com/n24q02m/better-email-mcp/commit/d91b532aa30c898910b150729cad349267379a9f))
+
+- **deps**: Update non-major dependencies
+  ([#389](https://github.com/n24q02m/better-email-mcp/pull/389),
+  [`3b3d091`](https://github.com/n24q02m/better-email-mcp/commit/3b3d0914db2bc3bb254bbdf6278fe64b6021862e))
+
+### Features
+
+- Add cross-OS CI matrix (ubuntu/windows/macos)
+  ([`f47de38`](https://github.com/n24q02m/better-email-mcp/commit/f47de38330c6c66c6b3e7016fe3c6230aad5e55e))
+
+- Add setup tool for credential management via relay
+  ([`ffd451a`](https://github.com/n24q02m/better-email-mcp/commit/ffd451a223930853bec0047caa2e2d49ca4002bb))
+
+- Auto-open browser when relay setup is triggered
+  ([`49f8cf6`](https://github.com/n24q02m/better-email-mcp/commit/49f8cf60f770cfe1765dfbe1c66dcf53e6add01c))
+
+- Default to HTTP transport, --stdio for backward compat
+  ([`ad862ba`](https://github.com/n24q02m/better-email-mcp/commit/ad862ba216a917048780a34846f921047557c8f7))
+
+- Hot-reload accounts after relay credentials are configured
+  ([`7a1b0c4`](https://github.com/n24q02m/better-email-mcp/commit/7a1b0c4157b2edab8963d50b1b7a38601503d72d))
+
+- Implement Outlook device code OAuth flow in local HTTP mode
+  ([`39f6dc7`](https://github.com/n24q02m/better-email-mcp/commit/39f6dc7cb351f40e268a1d8a5fd3dc1a2dc21ae3))
+
+- Migrate from mcp-relay-core to mcp-core
+  ([`ddd8cf7`](https://github.com/n24q02m/better-email-mcp/commit/ddd8cf71e23fd7fdb5a3ae72bf59583edb3e1a86))
+
+- Migrate to mcp-core local OAuth with IMAP connection test
+  ([`1f0e7ed`](https://github.com/n24q02m/better-email-mcp/commit/1f0e7ed9dceb6a02bb0a60a2aae64ee73666b7e0))
+
+- Restore multi-account email form with domain auto-detect
+  ([`c97dfdc`](https://github.com/n24q02m/better-email-mcp/commit/c97dfdcb018bea0d0b8203ef1904d85d3caa8687))
+
+- Sync local changes from workspace
+  ([`f17b529`](https://github.com/n24q02m/better-email-mcp/commit/f17b529c9318468f05204a41bf79a9aaec7f6cb6))
+
+### Performance Improvements
+
+- Replace synchronous I/O with asynchronous in resolveCredentialState
+  ([#341](https://github.com/n24q02m/better-email-mcp/pull/341),
+  [`65cc2ee`](https://github.com/n24q02m/better-email-mcp/commit/65cc2ee36db62dd62a6f8f5c027d53a91d5da211))
+
+
 ## v1.21.0 (2026-04-07)
 
 ### Bug Fixes
