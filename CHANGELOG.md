@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.22.2 (2026-04-13)
+
+### Bug Fixes
+
+- Pin Bun image to alpine 7ed9f74 for better-sqlite3 compat
+  ([`2566e7d`](https://github.com/n24q02m/better-email-mcp/commit/2566e7d3f715a437574dc8415c2f2aeea6e233d6))
+
+
 ## v1.22.1 (2026-04-13)
 
 ### Bug Fixes
