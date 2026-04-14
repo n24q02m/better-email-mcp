@@ -120,6 +120,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
             font-size: 0.75rem;
         }
         .remove-btn:hover { background-color: rgba(248, 113, 113, 0.08); }
+        .remove-btn:focus-visible { outline: 2px solid #f87171; outline-offset: 2px; }
         .field-group { margin-bottom: 0.875rem; }
         .field-label {
             display: flex;
@@ -180,6 +181,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
             transition: background-color 0.15s ease, border-color 0.15s ease;
         }
         .add-btn:hover { background-color: rgba(108, 155, 210, 0.08); border-color: #4a6fa5; }
+        .add-btn:focus-visible { outline: 2px solid #6c9bd2; outline-offset: 2px; }
         .submit-btn {
             width: 100%;
             background-color: #4a6fa5;
@@ -193,6 +195,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
             margin-top: 0.5rem;
         }
         .submit-btn:hover { background-color: #5a7fb5; }
+        .submit-btn:focus-visible { outline: 2px solid #5a7fb5; outline-offset: 2px; }
         .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .status-box {
             display: none;
@@ -338,7 +341,10 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                     var titleEl = cards[i].querySelector(".account-title");
                     if (titleEl) titleEl.textContent = "Account " + (i + 1);
                     var removeBtn = cards[i].querySelector(".remove-btn");
-                    if (removeBtn) removeBtn.style.display = i === 0 ? "none" : "";
+                    if (removeBtn) {
+                        removeBtn.style.display = i === 0 ? "none" : "";
+                        removeBtn.setAttribute("aria-label", "Remove Account " + (i + 1));
+                    }
                 }
             }
 
@@ -403,6 +409,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                 removeBtn.type = "button";
                 removeBtn.className = "remove-btn";
                 removeBtn.textContent = "Remove";
+                removeBtn.setAttribute("aria-label", "Remove Account " + (idx + 1));
                 removeBtn.addEventListener("click", function () {
                     card.remove();
                     updateAccountNumbers();
