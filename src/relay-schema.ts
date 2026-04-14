@@ -15,7 +15,7 @@ export const RELAY_SCHEMA: RelayConfigSchema = {
     {
       key: 'EMAIL_CREDENTIALS',
       label: 'Email Credentials',
-      type: 'text',
+      type: 'password',
       placeholder: 'user@gmail.com:app-password',
       helpText:
         'Format: email:app-password. (Use App Passwords, not regular account passwords). Multiple accounts: email1:pass1,email2:pass2',
