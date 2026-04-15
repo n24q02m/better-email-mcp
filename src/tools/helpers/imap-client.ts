@@ -96,6 +96,30 @@ async function withConnection<T>(account: AccountConfig, fn: (client: ImapFlow) 
   }
 }
 
+// ⚡ Bolt: Pre-compile search criteria regex patterns as module-level constants.
+// This avoids recompiling 12+ RegExp objects on every search query,
+// significantly reducing CPU cycles and garbage collection overhead during frequent email searches.
+const FLAG_MATCHERS = [
+  { pattern: /\bUNFLAGGED\b/i, key: 'flagged', value: false },
+  { pattern: /\bUNSTARRED\b/i, key: 'flagged', value: false },
+  { pattern: /\bUNREAD\b/i, key: 'seen', value: false },
+  { pattern: /\bUNSEEN\b/i, key: 'seen', value: false },
+  { pattern: /\bFLAGGED\b/i, key: 'flagged', value: true },
+  { pattern: /\bSTARRED\b/i, key: 'flagged', value: true },
+  { pattern: /\bREAD\b/i, key: 'seen', value: true },
+  { pattern: /\bSEEN\b/i, key: 'seen', value: true }
+]
+
+const DATE_MATCHERS = [
+  { keyword: 'SINCE', key: 'since', pattern: /\bSINCE\s+(\d{4}-\d{2}-\d{2})\b/i, checkPattern: /\bSINCE\s+\S/i },
+  { keyword: 'BEFORE', key: 'before', pattern: /\bBEFORE\s+(\d{4}-\d{2}-\d{2})\b/i, checkPattern: /\bBEFORE\s+\S/i }
+]
+
+const KV_MATCHERS = [
+  { key: 'from', pattern: /\bFROM\s+("[^"]+"|'[^']+'|\S+)/i },
+  { key: 'to', pattern: /\bTO\s+("[^"]+"|'[^']+'|\S+)/i }
+]
+
 /**
  * Build IMAP search criteria from a query string.
  *
@@ -120,19 +144,7 @@ function buildSearchCriteria(query: string): any {
 
   // 1. Extract standalone flag keywords (no arguments).
   //    Check longer prefixes first to avoid partial matches (UNFLAGGED before FLAGGED, etc.)
-  const flagMap: [string, string, boolean][] = [
-    ['UNFLAGGED', 'flagged', false],
-    ['UNSTARRED', 'flagged', false],
-    ['UNREAD', 'seen', false],
-    ['UNSEEN', 'seen', false],
-    ['FLAGGED', 'flagged', true],
-    ['STARRED', 'flagged', true],
-    ['READ', 'seen', true],
-    ['SEEN', 'seen', true]
-  ]
-
-  for (const [keyword, key, value] of flagMap) {
-    const pattern = new RegExp(`\\b${keyword}\\b`, 'i')
+  for (const { pattern, key, value } of FLAG_MATCHERS) {
     if (pattern.test(remaining)) {
       criteria[key] = value
       remaining = remaining.replace(pattern, ' ').trim()
@@ -140,12 +152,12 @@ function buildSearchCriteria(query: string): any {
   }
 
   // 2. Extract date clauses: SINCE YYYY-MM-DD, BEFORE YYYY-MM-DD
-  for (const keyword of ['SINCE', 'BEFORE'] as const) {
-    const dateMatch = remaining.match(new RegExp(`\\b${keyword}\\s+(\\d{4}-\\d{2}-\\d{2})\\b`, 'i'))
+  for (const { keyword, key, pattern, checkPattern } of DATE_MATCHERS) {
+    const dateMatch = remaining.match(pattern)
     if (dateMatch) {
-      criteria[keyword.toLowerCase()] = new Date(dateMatch[1]!)
+      criteria[key] = new Date(dateMatch[1]!)
       remaining = remaining.replace(dateMatch[0], ' ').trim()
-    } else if (new RegExp(`\\b${keyword}\\s+\\S`, 'i').test(remaining)) {
+    } else if (checkPattern.test(remaining)) {
       throw new EmailMCPError(
         `Invalid date format in ${keyword} query`,
         'VALIDATION_ERROR',
@@ -155,10 +167,10 @@ function buildSearchCriteria(query: string): any {
   }
 
   // 3. Extract FROM / TO (single token or quoted string)
-  for (const keyword of ['FROM', 'TO'] as const) {
-    const kvMatch = remaining.match(new RegExp(`\\b${keyword}\\s+("[^"]+"|'[^']+'|\\S+)`, 'i'))
+  for (const { key, pattern } of KV_MATCHERS) {
+    const kvMatch = remaining.match(pattern)
     if (kvMatch) {
-      criteria[keyword.toLowerCase()] = kvMatch[1]!.replace(/^["']|["']$/g, '')
+      criteria[key] = kvMatch[1]!.replace(/^["']|["']$/g, '')
       remaining = remaining.replace(kvMatch[0], ' ').trim()
     }
   }
