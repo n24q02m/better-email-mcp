@@ -174,9 +174,7 @@ async function parseSingleCredential(entry: string): Promise<AccountConfig | nul
   } else {
     const discovered = discoverSettings(email)
     if (!discovered) {
-      console.error(
-        'Cannot auto-discover settings for the provided email. Use format: email:password:imap.server.com'
-      )
+      console.error('Cannot auto-discover settings for the provided email. Use format: email:password:imap.server.com')
       return null
     }
     imap = discovered.imap
