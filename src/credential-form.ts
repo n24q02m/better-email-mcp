@@ -338,7 +338,10 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                     var titleEl = cards[i].querySelector(".account-title");
                     if (titleEl) titleEl.textContent = "Account " + (i + 1);
                     var removeBtn = cards[i].querySelector(".remove-btn");
-                    if (removeBtn) removeBtn.style.display = i === 0 ? "none" : "";
+                    if (removeBtn) {
+                        removeBtn.style.display = i === 0 ? "none" : "";
+                        removeBtn.setAttribute("aria-label", "Remove Account " + (i + 1));
+                    }
                 }
             }
 
