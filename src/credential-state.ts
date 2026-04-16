@@ -258,13 +258,26 @@ async function handlePostRelayOAuth(relayBase: string, session: any, credentials
 function tryOpenBrowser(url: string): void {
   if (process.env.E2E_SETUP || process.env.CI || process.env.VITEST) return
 
+  let safeUrl: string
+  try {
+    const parsed = new URL(url)
+    // Security: Only allow web protocols to prevent javascript: or file: attacks
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return
+    }
+    // URL.href canonicalizes the string, neutering leading hyphens or shell metacharacters
+    safeUrl = parsed.href
+  } catch {
+    return
+  }
+
   const platform = process.platform
   if (platform === 'darwin') {
-    execFile('open', [url], () => {})
+    execFile('open', [safeUrl], () => {})
   } else if (platform === 'win32') {
-    execFile('rundll32', ['url.dll,FileProtocolHandler', url], () => {})
+    execFile('rundll32', ['url.dll,FileProtocolHandler', safeUrl], () => {})
   } else {
-    execFile('xdg-open', [url], () => {})
+    execFile('xdg-open', [safeUrl], () => {})
   }
 }
 
