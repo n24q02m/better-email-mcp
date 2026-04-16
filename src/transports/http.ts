@@ -95,6 +95,48 @@ async function testImapConnection(account: AccountConfig): Promise<NextStep | nu
   }
 }
 
+/**
+ * Validate every IMAP/SMTP (password) account via real IMAP login.
+ * Returns null if all OK, or a NextStep error if any fails.
+ */
+async function validateImapAccounts(imapAccounts: AccountConfig[]): Promise<NextStep | null> {
+  for (const account of imapAccounts) {
+    const result = await testImapConnection(account)
+    if (result !== null) return result
+    console.error(`[${SERVER_NAME}] IMAP login OK for ${account.email}`)
+  }
+  return null
+}
+
+/**
+ * Initiate Outlook Device Code flow for the first account that needs it.
+ */
+async function initiateOutlookOAuth(outlookAccounts: AccountConfig[]): Promise<NextStep | null> {
+  const outlookPending = outlookAccounts.filter((a) => !a.oauth2)
+  if (outlookPending.length === 0) return null
+
+  const first = outlookPending[0] as AccountConfig
+  try {
+    const device = await initiateOutlookDeviceCode(first.email, () => {
+      const hook = getCredentialMarkSetupComplete()
+      if (hook) hook('outlook')
+      setState('configured')
+      console.error(`[${SERVER_NAME}] Outlook OAuth2 completed for ${first.email}`)
+    })
+    setState('setup_in_progress')
+    return {
+      type: 'oauth_device_code',
+      verification_url: device.verificationUri,
+      user_code: device.userCode,
+      email: first.email
+    }
+  } catch (err) {
+    return {
+      type: 'error',
+      text: `Failed to start Outlook OAuth2 Device Code flow for ${first.email}: ${(err as Error).message}`
+    }
+  }
+}
 export async function startHttp(): Promise<void> {
   const mode = resolveHttpMode(process.env)
 
@@ -194,13 +236,9 @@ export async function startHttp(): Promise<void> {
       }
     }
 
-    // Validate every IMAP/SMTP (password) account via real IMAP login first
-    // so credential errors are surfaced before we touch Microsoft OAuth.
-    for (const account of imapAccounts) {
-      const result = await testImapConnection(account)
-      if (result !== null) return result
-      console.error(`[${SERVER_NAME}] IMAP login OK for ${account.email}`)
-    }
+    // Validate every IMAP/SMTP (password) account via real IMAP login
+    const imapResult = await validateImapAccounts(imapAccounts)
+    if (imapResult) return imapResult
 
     // Persist credentials (including Outlook email-only entries) so a server
     // restart picks them up without re-running the form. Background OAuth
@@ -215,38 +253,9 @@ export async function startHttp(): Promise<void> {
     currentAccounts = accounts
     console.error(`[${SERVER_NAME}] ${accounts.length} email account(s) configured via /authorize`)
 
-    // Outlook accounts that still need OAuth2 sign-in -- no stored tokens
-    // yet. Initiate Device Code flow for the FIRST such account and return
-    // an oauth_device_code NextStep so the form can show the URL/code.
-    // (Multi-Outlook: second+ accounts are handled lazily on first tool
-    // call via ensureValidToken; they'll throw a descriptive error with
-    // their own device code.)
-    const outlookPending = outlookAccounts.filter((a) => !a.oauth2)
-    if (outlookPending.length > 0) {
-      const first = outlookPending[0] as AccountConfig
-      try {
-        const device = await initiateOutlookDeviceCode(first.email, () => {
-          // Tokens persisted. Flip /setup-status so the form stops polling.
-          const hook = getCredentialMarkSetupComplete()
-          if (hook) hook('outlook')
-          setState('configured')
-          console.error(`[${SERVER_NAME}] Outlook OAuth2 completed for ${first.email}`)
-        })
-        // Stay in setup_in_progress until the background poll succeeds.
-        setState('setup_in_progress')
-        return {
-          type: 'oauth_device_code',
-          verification_url: device.verificationUri,
-          user_code: device.userCode,
-          email: first.email
-        }
-      } catch (err) {
-        return {
-          type: 'error',
-          text: `Failed to start Outlook OAuth2 Device Code flow for ${first.email}: ${(err as Error).message}`
-        }
-      }
-    }
+    // Outlook accounts that still need OAuth2 sign-in
+    const outlookResult = await initiateOutlookOAuth(outlookAccounts)
+    if (outlookResult) return outlookResult
 
     setState('configured')
     return null
