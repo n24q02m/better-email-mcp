@@ -278,14 +278,10 @@ const AVAILABLE_RESOURCE_URIS_STRING = RESOURCES.map((r) => r.uri).join(', ')
 const VALID_TOOL_NAMES = TOOLS.map((t) => t.name)
 const AVAILABLE_TOOLS_STRING = VALID_TOOL_NAMES.join(', ')
 
-export function registerTools(server: Server, initialAccounts: AccountConfig[]) {
-  // Mutable reference: updated via hot-reload when relay credentials arrive after startup
-  let accounts = initialAccounts
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: TOOLS
-  }))
-
-  // Resources handlers for full documentation
+/**
+ * Register resource handlers for documentation
+ */
+function registerResourceHandlers(server: Server) {
   server.setRequestHandler(ListResourcesRequestSchema, async () => ({
     resources: FORMATTED_RESOURCES
   }))
@@ -307,18 +303,70 @@ export function registerTools(server: Server, initialAccounts: AccountConfig[]) 
       contents: [{ uri, mimeType: 'text/markdown', text: content }]
     }
   })
+}
+
+/**
+ * Handle credential guard and hot-reloading
+ * @returns Updated accounts array, or error response, or null if no action taken
+ */
+async function handleCredentialGuard(
+  name: string,
+  accounts: AccountConfig[]
+): Promise<AccountConfig[] | { content: { type: 'text'; text: string }[]; isError: true } | null> {
+  // Help and setup tools are always available
+  if (name === 'help' || name === 'setup' || accounts.length > 0) {
+    return null
+  }
+
+  const credState = getState()
+  if (credState === 'configured') {
+    // Hot-reload: relay delivered credentials after startup
+    return await loadConfig()
+  }
+
+  // Trigger relay setup if not already in progress
+  if (credState === 'awaiting_setup') {
+    await triggerRelaySetup()
+  }
+
+  const url = getSetupUrl()
+  const setupInstructions = url
+    ? `Email credentials are not configured yet.\n\nTo set up, open this URL in your browser:\n${url}\n\nAfter submitting credentials on the relay page, retry this tool call.`
+    : `Email credentials are not configured.\n\nSet the EMAIL_CREDENTIALS environment variable.\nFormat: email1:password1,email2:password2\n\nOr restart the server to trigger the relay setup page.`
+
+  return {
+    content: [{ type: 'text', text: setupInstructions }],
+    isError: true
+  }
+}
+
+/**
+ * Format error response for MCP
+ */
+function formatErrorResponse(error: unknown) {
+  const enhancedError = error instanceof EmailMCPError ? error : enhanceError(error)
+  return {
+    content: [{ type: 'text', text: aiReadableMessage(enhancedError) }],
+    isError: true
+  }
+}
+
+export function registerTools(server: Server, initialAccounts: AccountConfig[]) {
+  // Mutable reference: updated via hot-reload when relay credentials arrive after startup
+  let accounts = initialAccounts
+
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: TOOLS
+  }))
+
+  registerResourceHandlers(server)
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params
 
     if (!args) {
       return {
-        content: [
-          {
-            type: 'text',
-            text: 'Error: No arguments provided'
-          }
-        ],
+        content: [{ type: 'text', text: 'Error: No arguments provided' }],
         isError: true
       }
     }
@@ -335,54 +383,22 @@ export function registerTools(server: Server, initialAccounts: AccountConfig[]) 
         )
       }
 
-      // Credential guard: when not configured, return setup instructions.
-      // Help and setup tools are always available (docs don't need credentials,
-      // setup manages the credential lifecycle itself).
-      // The relay session is triggered lazily on first non-exempt tool call.
-      if (name !== 'help' && name !== 'setup' && accounts.length === 0) {
-        const credState = getState()
-        if (credState === 'configured') {
-          // Hot-reload: relay delivered credentials after startup — reload accounts
-          accounts = await loadConfig()
+      // Credential guard: triggers relay or reloads config
+      const guardResult = await handleCredentialGuard(name, accounts)
+      if (guardResult) {
+        if (Array.isArray(guardResult)) {
+          accounts = guardResult
         } else {
-          // Trigger relay setup if not already in progress
-          if (credState === 'awaiting_setup') {
-            await triggerRelaySetup()
-          }
-          const url = getSetupUrl()
-          const setupInstructions = url
-            ? `Email credentials are not configured yet.\n\nTo set up, open this URL in your browser:\n${url}\n\nAfter submitting credentials on the relay page, retry this tool call.`
-            : `Email credentials are not configured.\n\nSet the EMAIL_CREDENTIALS environment variable.\nFormat: email1:password1,email2:password2\n\nOr restart the server to trigger the relay setup page.`
-          return {
-            content: [{ type: 'text', text: setupInstructions }],
-            isError: true
-          }
+          return guardResult
         }
       }
 
       const result = await handler(accounts, args)
-
-      const jsonText = JSON.stringify(result, null, 2)
       return {
-        content: [
-          {
-            type: 'text',
-            text: wrapToolResult(name, jsonText)
-          }
-        ]
+        content: [{ type: 'text', text: wrapToolResult(name, JSON.stringify(result, null, 2)) }]
       }
     } catch (error) {
-      const enhancedError = error instanceof EmailMCPError ? error : enhanceError(error)
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: aiReadableMessage(enhancedError)
-          }
-        ],
-        isError: true
-      }
+      return formatErrorResponse(error)
     }
   })
 }
