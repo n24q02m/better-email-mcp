@@ -7,7 +7,7 @@
 import { deviceCodeAuth, isOutlookDomain } from './tools/helpers/oauth2.js'
 
 export async function runAuth(): Promise<void> {
-  const email = process.argv[3]
+  const email = process.argv[3]?.trim()
 
   if (!email) {
     console.error('Usage: better-email-mcp auth <email>')
@@ -27,7 +27,8 @@ export async function runAuth(): Promise<void> {
   try {
     await deviceCodeAuth(email)
   } catch (error: any) {
-    console.error(`\nError: ${error.message}`)
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(`\nError: ${message}`)
     process.exit(1)
   }
 }

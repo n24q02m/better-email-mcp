@@ -35,6 +35,12 @@ describe('runAuth', () => {
     await expect(runAuth()).rejects.toThrow('process.exit called with 1')
 
     expect(console.error).toHaveBeenCalledWith('Usage: better-email-mcp auth <email>')
+    expect(console.error).toHaveBeenCalledWith('Example: better-email-mcp auth user@outlook.com')
+    expect(console.error).toHaveBeenCalledWith('')
+    expect(console.error).toHaveBeenCalledWith(
+      'Authenticates an Outlook/Hotmail/Live account via OAuth2 Device Code flow.'
+    )
+    expect(console.error).toHaveBeenCalledWith('Tokens are saved to ~/.better-email-mcp/tokens.json')
     expect(process.exit).toHaveBeenCalledTimes(1)
     expect(process.exit).toHaveBeenCalledWith(1)
     expect(deviceCodeAuth).not.toHaveBeenCalled()
@@ -78,6 +84,28 @@ describe('runAuth', () => {
     expect(deviceCodeAuth).toHaveBeenCalledWith('user@outlook.com')
     expect(console.error).toHaveBeenCalledWith('\nError: Auth failed')
     expect(process.exit).toHaveBeenCalledTimes(1)
+    expect(process.exit).toHaveBeenCalledWith(1)
+  })
+
+  it('should trim email input', async () => {
+    process.argv.push('  user@outlook.com  ')
+    vi.mocked(isOutlookDomain).mockReturnValue(true)
+    vi.mocked(deviceCodeAuth).mockResolvedValue({} as any)
+
+    await runAuth()
+
+    expect(isOutlookDomain).toHaveBeenCalledWith('user@outlook.com')
+    expect(deviceCodeAuth).toHaveBeenCalledWith('user@outlook.com')
+  })
+
+  it('should handle non-Error objects in catch block', async () => {
+    process.argv.push('user@outlook.com')
+    vi.mocked(isOutlookDomain).mockReturnValue(true)
+    vi.mocked(deviceCodeAuth).mockRejectedValue('String error')
+
+    await expect(runAuth()).rejects.toThrow('process.exit called with 1')
+
+    expect(console.error).toHaveBeenCalledWith('\nError: String error')
     expect(process.exit).toHaveBeenCalledWith(1)
   })
 })
