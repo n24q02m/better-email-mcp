@@ -145,11 +145,21 @@ export async function startHttp(): Promise<void> {
 
     // Validate every IMAP/SMTP (password) account via real IMAP login first
     // so credential errors are surfaced before we touch Microsoft OAuth.
-    for (const account of imapAccounts) {
-      const result = await testImapConnection(account)
-      if (result !== null) return result
-      console.error(`[${SERVER_NAME}] IMAP login OK for ${account.email}`)
-    }
+    // ⚡ Bolt: Parallelize independent IMAP connection validations to minimize
+    // server setup latency when multiple accounts are configured.
+    const imapResults = await Promise.all(
+      imapAccounts.map(async (account) => {
+        const result = await testImapConnection(account)
+        if (result === null) {
+          console.error(`[${SERVER_NAME}] IMAP login OK for ${account.email}`)
+        }
+        return result
+      })
+    )
+
+    // Return the first error encountered, if any, to preserve original behavior.
+    const firstError = imapResults.find((r) => r !== null)
+    if (firstError) return firstError
 
     // Persist credentials (including Outlook email-only entries) so a server
     // restart picks them up without re-running the form. Background OAuth
