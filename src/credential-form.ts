@@ -15,7 +15,7 @@
  *    user code back into this form.
  *
  * This form POSTs plain JSON `{ EMAIL_CREDENTIALS: "..." }` to the
- * mcp-core OAuth `/authorize?nonce=xxx` endpoint.
+ * mcp-core OAuth `/authorize?nonce=<nonce>` endpoint.
  *
  * All dynamic DOM content is built with createElement + textContent +
  * setAttribute. No innerHTML with user-provided values anywhere.
