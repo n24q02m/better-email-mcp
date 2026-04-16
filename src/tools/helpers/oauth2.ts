@@ -1,7 +1,7 @@
 /**
  * OAuth2 for Outlook.com / Hotmail / Live accounts
  *
- * Microsoft deprecated Basic Auth for consumer IMAP/SMTP.
+ * Microsoft has disabled Basic Auth for Outlook/Hotmail/Live accounts (September 2024).
  * This module implements Device Code Grant (RFC 8628) for CLI-based auth,
  * persistent token storage, and automatic token refresh.
  */
