@@ -1,7 +1,7 @@
 # CLAUDE.md - better-email-mcp
 
 MCP Server cho Email (IMAP/SMTP). TypeScript, Node.js >= 24, bun, ESM.
-5 composite tools, 15 actions. Multi-account, App Passwords, auto-discovery.
+6 composite tools, 20 actions (messages, folders, attachments, send, setup, help). Multi-account, App Passwords, auto-discovery.
 
 ## Commands
 
@@ -54,7 +54,7 @@ src/
   docs/                          # Markdown docs phuc vu qua MCP resources
   tools/
     registry.ts                  # Tool registration + routing
-    composite/                   # 1 file per domain: messages, folders, attachments, send
+    composite/                   # 1 file per domain: messages, folders, attachments, send, setup
     helpers/                     # errors, config, html-utils, imap-client, smtp-client
 ```
 
