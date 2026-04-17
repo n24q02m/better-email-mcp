@@ -202,11 +202,13 @@ export async function startHttp(): Promise<void> {
   }
 
   const port = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 0
+  const host = process.env.HOST
 
   const handle = await runLocalServer(serverFactory, {
     serverName: SERVER_NAME,
     relaySchema: RELAY_SCHEMA as unknown as RelayConfigSchema,
     port,
+    host,
     onCredentialsSaved,
     customCredentialFormHtml: renderEmailCredentialForm,
     setupCompleteHook: (markComplete) => {
