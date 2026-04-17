@@ -24,3 +24,8 @@ JULES.md
 # Generated files
 *_e2e_result.json
 docs/superpowers/
+
+# Test coverage artifacts
+coverage.xml
+htmlcov/
+.coverage
