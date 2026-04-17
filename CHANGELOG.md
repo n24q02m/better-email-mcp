@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.22.6 (2026-04-17)
+
+### Bug Fixes
+
+- Bump @n24q02m/mcp-core to 1.2.0 (authlib CVE + auto-issue CD)
+  ([`a1ac231`](https://github.com/n24q02m/better-email-mcp/commit/a1ac231b664fdd9352f4d5d2f36e036c45a78d61))
+
+
 ## v1.22.5 (2026-04-17)
 
 ### Bug Fixes
