@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.22.5 (2026-04-17)
+
+### Bug Fixes
+
+- Bump @n24q02m/mcp-core to 1.1.1 for OAuth issuer fix
+  ([`3a28aa9`](https://github.com/n24q02m/better-email-mcp/commit/3a28aa9c24cc9119ff1a12baf15c1713098d55e1))
+
+
 ## v1.22.4 (2026-04-17)
 
 ### Bug Fixes
