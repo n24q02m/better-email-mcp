@@ -2,6 +2,20 @@
 
 <!-- version list -->
 
+## v1.22.4 (2026-04-17)
+
+### Bug Fixes
+
+- Allow HOST env override for container bind address
+  ([`47f97ff`](https://github.com/n24q02m/better-email-mcp/commit/47f97ff7fc6752885ad60ec6b91a5ae66af7729e))
+
+- Remove direct better-sqlite3 dep; add trustedDependencies for Bun script skip
+  ([`1f895e0`](https://github.com/n24q02m/better-email-mcp/commit/1f895e04284be3210a668b02b96b81c8466cf30f))
+
+- Sync version files to match v1.22.4 tag for PSR compatibility
+  ([`1170e6f`](https://github.com/n24q02m/better-email-mcp/commit/1170e6fe7bc1c1a5431395da6585518174d297d5))
+
+
 ## v1.22.3 (2026-04-13)
 
 ### Bug Fixes
