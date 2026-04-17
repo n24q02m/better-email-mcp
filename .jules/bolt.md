@@ -1,0 +1,3 @@
+## 2024-04-18 - [PERF] Network Calls in Sequential Loops
+**Learning:** Initializing multiple third-party accounts (e.g., IMAP login validation) using sequential `await` inside a `for...of` loop causes latency to scale linearly `O(n)` with the number of accounts.
+**Action:** When validating or fetching data for independent accounts/connections simultaneously, always aggregate promises with `Promise.all` to parallelize network I/O and reduce overall latency to roughly `O(1)` (bounded by the slowest single request), while still using `.find` on the results if early-exit error handling is required.
