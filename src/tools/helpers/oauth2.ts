@@ -6,11 +6,11 @@
  * persistent token storage, and automatic token refresh.
  */
 
-import { execFile } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { tryOpenBrowser } from '@n24q02m/mcp-core'
 
 // Microsoft OAuth2 endpoints — "consumers" tenant for personal Microsoft accounts
 const TENANT = 'consumers'
@@ -191,54 +191,26 @@ export function _getPendingAuths(): Map<string, PendingAuth> {
 }
 
 /**
- * Dedupe window for openBrowser: when ensureValidToken is hit repeatedly
- * (retries mid-auth, tool calls before tokens arrive, multi-account reconnect),
- * each call would otherwise spawn a fresh Microsoft sign-in tab even though
- * verification_uri is always https://microsoft.com/devicelogin. Track the
- * last-opened timestamp per URL and skip re-opens within this window.
+ * Dedupe + browser-open logic is delegated to ``mcp-core``'s
+ * ``tryOpenBrowser``: it validates the URL (only http/https), uses
+ * ``execFile`` to avoid shell injection, detects WSL, and dedupes repeat calls
+ * for the same URL within a 5-minute window. Exported for backward compat
+ * with tests that reset test state.
  */
-const BROWSER_OPEN_DEDUPE_WINDOW_MS = 5 * 60 * 1000
-const recentBrowserOpens = new Map<string, number>()
-
-/** Exposed for testing */
+/** Exposed for testing — no-op after mcp-core consolidation. */
 export function _resetBrowserOpenDedupe(): void {
-  recentBrowserOpens.clear()
+  // mcp-core owns the dedupe map now; this helper is retained only so that
+  // older test files that still call it do not break. Tests that need a
+  // fresh dedupe state should mock ``@n24q02m/mcp-core`` instead.
 }
 
 /**
- * Open a URL in the user's default browser safely.
- * Uses execFile with argument arrays to prevent command injection.
- * Filters for http/https protocols only.
+ * Open a URL in the user's default browser safely. Wraps mcp-core's
+ * ``tryOpenBrowser`` in a fire-and-forget fashion so OAuth callers do not
+ * block on browser launch.
  */
 function openBrowser(url: string): void {
-  let safeUrl: string
-  try {
-    const parsed = new URL(url)
-    // Security: Only allow web protocols to prevent javascript: or file: attacks
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      return
-    }
-    // URL.href canonicalizes the string, neutering leading hyphens or shell metacharacters
-    safeUrl = parsed.href
-  } catch {
-    return
-  }
-
-  const lastOpened = recentBrowserOpens.get(safeUrl)
-  if (lastOpened !== undefined && Date.now() - lastOpened < BROWSER_OPEN_DEDUPE_WINDOW_MS) {
-    return
-  }
-  recentBrowserOpens.set(safeUrl, Date.now())
-
-  // Security: Use execFile to bypass the shell and pass arguments directly
-  if (process.platform === 'darwin') {
-    execFile('open', [safeUrl], () => {})
-  } else if (process.platform === 'win32') {
-    // On Windows, use rundll32 to open URLs safely without cmd.exe shell interpretation
-    execFile('rundll32', ['url.dll,FileProtocolHandler', safeUrl], () => {})
-  } else {
-    execFile('xdg-open', [safeUrl], () => {})
-  }
+  void tryOpenBrowser(url)
 }
 
 /**

@@ -1,9 +1,9 @@
-import { execFile } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { tryOpenBrowser } from '@n24q02m/mcp-core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('node:child_process', () => ({
-  execFile: vi.fn()
+vi.mock('@n24q02m/mcp-core', () => ({
+  tryOpenBrowser: vi.fn().mockResolvedValue(true)
 }))
 
 vi.mock('node:fs/promises', () => ({
@@ -21,7 +21,7 @@ vi.mock('node:os', () => ({
   homedir: vi.fn().mockReturnValue('/mock/home')
 }))
 
-const mockExecFile = vi.mocked(execFile)
+const mockTryOpenBrowser = vi.mocked(tryOpenBrowser)
 
 import { readFile } from 'node:fs/promises'
 
@@ -452,13 +452,9 @@ describe('ensureValidToken', () => {
 
     await expect(ensureValidToken(account)).rejects.toThrow('BROWSER-CODE')
 
-    // Verify exec was called with the verification URI
-    expect(mockExecFile).toHaveBeenCalledTimes(1)
-    expect(mockExecFile).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.arrayContaining(['https://microsoft.com/devicelogin']),
-      expect.any(Function)
-    )
+    // Verify mcp-core's tryOpenBrowser was called with the verification URI
+    expect(mockTryOpenBrowser).toHaveBeenCalledTimes(1)
+    expect(mockTryOpenBrowser).toHaveBeenCalledWith('https://microsoft.com/devicelogin')
 
     _getPendingAuths().clear()
   })
@@ -478,14 +474,15 @@ describe('ensureValidToken', () => {
 
     const account = { email: 'nodup@outlook.com' } as { email: string; oauth2?: OAuth2Tokens }
 
-    // First call: opens browser
+    // First call: opens browser via mcp-core
     await expect(ensureValidToken(account)).rejects.toThrow('NODUP-CODE')
-    expect(mockExecFile).toHaveBeenCalledTimes(1)
+    expect(mockTryOpenBrowser).toHaveBeenCalledTimes(1)
 
-    // Second call: reuses pending auth, should NOT open browser again
-    mockExecFile.mockClear()
+    // Second call: reuses pending auth, oauth2.ts short-circuits before
+    // calling tryOpenBrowser, so mcp-core helper is not invoked again.
+    mockTryOpenBrowser.mockClear()
     await expect(ensureValidToken(account)).rejects.toThrow('NODUP-CODE')
-    expect(mockExecFile).not.toHaveBeenCalled()
+    expect(mockTryOpenBrowser).not.toHaveBeenCalled()
 
     _getPendingAuths().clear()
   })
@@ -890,10 +887,10 @@ describe('refreshAccessToken edge cases', () => {
 })
 
 // ============================================================================
-// Security: openBrowser
+// Browser open delegation (mcp-core owns URL sanitization + platform exec)
 // ============================================================================
 
-describe('openBrowser security', () => {
+describe('openBrowser delegates to mcp-core', () => {
   const mockFetch = vi.fn()
 
   beforeEach(() => {
@@ -904,7 +901,7 @@ describe('openBrowser security', () => {
     vi.unstubAllGlobals()
   })
 
-  it('sanitizes malicious URLs with shell metacharacters', async () => {
+  it('forwards malicious URLs with shell metacharacters to mcp-core', async () => {
     mockReadFileSync.mockReturnValue('{}')
 
     const maliciousUri = 'https://microsoft.com/devicelogin?code=ABCD;echo"vulnerable"'
@@ -922,20 +919,15 @@ describe('openBrowser security', () => {
 
     await expect(ensureValidToken(account)).rejects.toThrow('SEC-CODE')
 
-    // URL constructor should escape the metacharacters in the href
-    const expectedUrl = new URL(maliciousUri).href
-    expect(mockExecFile).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.arrayContaining([expectedUrl]),
-      expect.any(Function)
-    )
-    // Ensure the raw malicious string was NOT passed directly if it contains shell-active chars
-    // (though execFile is already safe, the URL parsing adds another layer)
-    const callArgs = mockExecFile.mock.calls[0]![1] as string[]
-    expect(callArgs.some((arg) => arg.includes(';'))).toBe(true) // Semicolons in query params are preserved but safe in execFile
+    // mcp-core's tryOpenBrowser is responsible for URL canonicalisation and
+    // shell-injection protection (it uses execFile with argument arrays).
+    // This test ensures oauth2.ts forwards the raw URL without tampering.
+    expect(mockTryOpenBrowser).toHaveBeenCalledWith(maliciousUri)
+
+    _getPendingAuths().clear()
   })
 
-  it('blocks non-http/https protocols', async () => {
+  it('forwards non-http/https protocols to mcp-core (which rejects them)', async () => {
     mockReadFileSync.mockReturnValue('{}')
 
     mockFetch.mockResolvedValueOnce({
@@ -952,15 +944,16 @@ describe('openBrowser security', () => {
 
     await expect(ensureValidToken(account)).rejects.toThrow('PROTO-CODE')
 
-    // execFile should NOT be called for non-http/https protocols
-    expect(mockExecFile).not.toHaveBeenCalled()
+    // mcp-core.tryOpenBrowser is covered by its own tests for protocol
+    // filtering — we only verify oauth2.ts delegated the call.
+    expect(mockTryOpenBrowser).toHaveBeenCalledWith('javascript:alert(1)')
+
+    _getPendingAuths().clear()
   })
 
-  it('handles leading hyphens in URLs safely', async () => {
+  it('forwards URLs with leading hyphens to mcp-core', async () => {
     mockReadFileSync.mockReturnValue('{}')
 
-    // A URL starting with a hyphen could be interpreted as a flag by some browsers/commands
-    // but the URL constructor will prefix it with the protocol.
     const hyphenUri = 'https://-example.com'
     mockFetch.mockResolvedValueOnce({
       json: async () => ({
@@ -976,11 +969,9 @@ describe('openBrowser security', () => {
 
     await expect(ensureValidToken(account)).rejects.toThrow('HYPHEN-CODE')
 
-    expect(mockExecFile).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.arrayContaining([new URL(hyphenUri).href]),
-      expect.any(Function)
-    )
+    expect(mockTryOpenBrowser).toHaveBeenCalledWith(hyphenUri)
+
+    _getPendingAuths().clear()
   })
 })
 

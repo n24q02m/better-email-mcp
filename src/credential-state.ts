@@ -13,7 +13,7 @@
  * is deferred to triggerRelaySetup(), which runs non-blocking in the background.
  */
 
-import { execFile } from 'node:child_process'
+import { tryOpenBrowser } from '@n24q02m/mcp-core'
 import { resolveConfig } from '@n24q02m/mcp-core/storage'
 
 const SERVER_NAME = 'better-email-mcp'
@@ -130,8 +130,12 @@ export async function triggerRelaySetup(options?: { force?: boolean }): Promise<
     const session = await createSession(relayBase, SERVER_NAME, RELAY_SCHEMA)
     setupUrl = session.relayUrl
 
-    // Try to open browser (best-effort, non-blocking)
-    tryOpenBrowser(session.relayUrl)
+    // Try to open browser (best-effort, non-blocking). mcp-core dedupes
+    // repeat calls for the same URL within a 5-minute window and skips the
+    // open when E2E_SETUP/CI/VITEST env vars are set.
+    if (!process.env.E2E_SETUP && !process.env.CI && !process.env.VITEST) {
+      void tryOpenBrowser(session.relayUrl)
+    }
 
     console.error(`\nSetup required. Open this URL to configure:\n${session.relayUrl}\n`)
 
@@ -248,23 +252,6 @@ async function handlePostRelayOAuth(relayBase: string, session: any, credentials
     } catch {
       // Ignore
     }
-  }
-}
-
-/**
- * Try to open URL in default browser (best-effort).
- * Uses execFile (not exec) to avoid shell injection.
- */
-function tryOpenBrowser(url: string): void {
-  if (process.env.E2E_SETUP || process.env.CI || process.env.VITEST) return
-
-  const platform = process.platform
-  if (platform === 'darwin') {
-    execFile('open', [url], () => {})
-  } else if (platform === 'win32') {
-    execFile('rundll32', ['url.dll,FileProtocolHandler', url], () => {})
-  } else {
-    execFile('xdg-open', [url], () => {})
   }
 }
 
