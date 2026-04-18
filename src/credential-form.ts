@@ -118,6 +118,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
             font-size: 0.75rem;
         }
         .remove-btn:hover { background-color: rgba(248, 113, 113, 0.08); }
+        .remove-btn:focus-visible { outline: 2px solid #f87171; outline-offset: 2px; }
         .field-group { margin-bottom: 0.875rem; }
         .field-label {
             display: flex;
@@ -178,6 +179,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
             transition: background-color 0.15s ease, border-color 0.15s ease;
         }
         .add-btn:hover { background-color: rgba(108, 155, 210, 0.08); border-color: #4a6fa5; }
+        .add-btn:focus-visible { outline: 2px solid #6c9bd2; outline-offset: 2px; }
         .submit-btn {
             width: 100%;
             background-color: #4a6fa5;
@@ -191,6 +193,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
             margin-top: 0.5rem;
         }
         .submit-btn:hover { background-color: #5a7fb5; }
+        .submit-btn:focus-visible { outline: 2px solid #4a6fa5; outline-offset: 2px; }
         .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .status-box {
             display: none;
@@ -220,7 +223,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                 <p class="server-description">${description}</p>
             </div>
 
-            <p class="form-title">Email Accounts</p>
+            <h2 class="form-title">Email Accounts</h2>
 
             <form id="credential-form" novalidate>
                 <div id="accounts-container"></div>
@@ -395,7 +398,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
 
                 var header = document.createElement("div");
                 header.className = "account-card-header";
-                var title = document.createElement("span");
+                var title = document.createElement("h3");
                 title.className = "account-title";
                 title.textContent = "Account " + (idx + 1);
                 header.appendChild(title);
@@ -566,6 +569,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                 var payload = { EMAIL_CREDENTIALS: parts.join(",") };
 
                 submitBtn.disabled = true;
+                submitBtn.setAttribute("aria-busy", "true");
                 submitBtn.textContent = "Connecting...";
 
                 fetch(submitUrl, {
@@ -578,14 +582,17 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                             if (data.ok) {
                                 if (data.next_step && data.next_step.type === "oauth_device_code") {
                                     submitBtn.textContent = "Awaiting Microsoft...";
+                                    submitBtn.removeAttribute("aria-busy");
                                     renderOAuthDeviceCode(data.next_step);
                                 } else {
                                     showStatus("success", data.message || "Setup complete! You can close this tab.");
                                     submitBtn.textContent = "Connected";
+                                    submitBtn.removeAttribute("aria-busy");
                                 }
                             } else {
                                 showStatus("error", data.error || data.error_description || "Request failed.");
                                 submitBtn.disabled = false;
+                                submitBtn.removeAttribute("aria-busy");
                                 submitBtn.textContent = "Connect";
                             }
                         });
@@ -593,6 +600,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                     .catch(function (err) {
                         showStatus("error", "Network error: " + err.message);
                         submitBtn.disabled = false;
+                        submitBtn.removeAttribute("aria-busy");
                         submitBtn.textContent = "Connect";
                     });
             });
