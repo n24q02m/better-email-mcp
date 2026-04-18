@@ -15,9 +15,7 @@
  *    user code back into this form.
  *
  * This form POSTs plain JSON `{ EMAIL_CREDENTIALS: "..." }` to the
- * mcp-core OAuth `/authorize?nonce=xxx` endpoint. The old mcp-relay-core
- * ECDH+AES crypto flow has been removed -- mcp-core handles nonce-based
- * decryption itself.
+ * mcp-core OAuth `/authorize?nonce=xxx` endpoint.
  *
  * All dynamic DOM content is built with createElement + textContent +
  * setAttribute. No innerHTML with user-provided values anywhere.
