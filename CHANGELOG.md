@@ -2,6 +2,65 @@
 
 <!-- version list -->
 
+## v1.23.0-beta.1 (2026-04-18)
+
+### Bug Fixes
+
+- Bump @n24q02m/mcp-core to ^1.3.0 (delegated OAuth primitives released)
+  ([#433](https://github.com/n24q02m/better-email-mcp/pull/433),
+  [`c900c95`](https://github.com/n24q02m/better-email-mcp/commit/c900c95ba449241973f4365fa6659fc36da7a0d0))
+
+- Document Phase L2 mode restoration in email CLAUDE.md
+  ([#433](https://github.com/n24q02m/better-email-mcp/pull/433),
+  [`c900c95`](https://github.com/n24q02m/better-email-mcp/commit/c900c95ba449241973f4365fa6659fc36da7a0d0))
+
+- Pin mcp-core to file: for Phase L2 delegated OAuth development
+  ([#433](https://github.com/n24q02m/better-email-mcp/pull/433),
+  [`c900c95`](https://github.com/n24q02m/better-email-mcp/commit/c900c95ba449241973f4365fa6659fc36da7a0d0))
+
+- Remove dead setup.ts after rename to config.ts
+  ([#433](https://github.com/n24q02m/better-email-mcp/pull/433),
+  [`c900c95`](https://github.com/n24q02m/better-email-mcp/commit/c900c95ba449241973f4365fa6659fc36da7a0d0))
+
+- Remove outdated comment referencing mcp-relay-core
+  ([#412](https://github.com/n24q02m/better-email-mcp/pull/412),
+  [`a518aa0`](https://github.com/n24q02m/better-email-mcp/commit/a518aa0ca2713b8d03e2e81786f2fb14eeeee8dd))
+
+- Use bundled Outlook client ID by default (OUTLOOK_CLIENT_ID optional)
+  ([#433](https://github.com/n24q02m/better-email-mcp/pull/433),
+  [`c900c95`](https://github.com/n24q02m/better-email-mcp/commit/c900c95ba449241973f4365fa6659fc36da7a0d0))
+
+- **oauth2**: Update deprecated basic auth comment
+  ([#417](https://github.com/n24q02m/better-email-mcp/pull/417),
+  [`0ca461a`](https://github.com/n24q02m/better-email-mcp/commit/0ca461a46acb394d2289c45d8e00f9113ebdcb05))
+
+### Documentation
+
+- **credential-form**: Replace dummy nonce placeholder
+  ([#410](https://github.com/n24q02m/better-email-mcp/pull/410),
+  [`2feb430`](https://github.com/n24q02m/better-email-mcp/commit/2feb430c855f1876e38d8a403195f10e487d2c1d))
+
+### Features
+
+- Rename setup tool to config with unified action set
+  ([#433](https://github.com/n24q02m/better-email-mcp/pull/433),
+  [`c900c95`](https://github.com/n24q02m/better-email-mcp/commit/c900c95ba449241973f4365fa6659fc36da7a0d0))
+
+- Restore email remote-relay default with Outlook delegated device code
+  ([#433](https://github.com/n24q02m/better-email-mcp/pull/433),
+  [`c900c95`](https://github.com/n24q02m/better-email-mcp/commit/c900c95ba449241973f4365fa6659fc36da7a0d0))
+
+- Restore http remote-relay default with Outlook delegated device code
+  ([#433](https://github.com/n24q02m/better-email-mcp/pull/433),
+  [`c900c95`](https://github.com/n24q02m/better-email-mcp/commit/c900c95ba449241973f4365fa6659fc36da7a0d0))
+
+### Testing
+
+- Add coverage for auth CLI and improve robustness
+  ([#421](https://github.com/n24q02m/better-email-mcp/pull/421),
+  [`955e632`](https://github.com/n24q02m/better-email-mcp/commit/955e6322b7493b7a2bb2736b7be294563f730d57))
+
+
 ## v1.22.6 (2026-04-17)
 
 ### Bug Fixes
