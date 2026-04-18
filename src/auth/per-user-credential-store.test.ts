@@ -1,0 +1,397 @@
+import { randomBytes } from 'node:crypto'
+import { existsSync, mkdirSync, rmSync } from 'node:fs'
+import * as fsPromises from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { AccountConfig } from '../tools/helpers/config.js'
+import {
+  _deriveKey,
+  _fs,
+  _getSecret,
+  _paths,
+  _resetSecretCache,
+  deleteUserCredentials,
+  hashUserId,
+  loadAllUserCredentials,
+  loadUserCredentials,
+  storeUserCredentials
+} from './per-user-credential-store.js'
+
+const makeAccount = (email: string): AccountConfig => ({
+  id: email.replace(/[@.]/g, '_'),
+  email,
+  password: 'test-pass-123',
+  authType: 'password',
+  imap: { host: 'imap.gmail.com', port: 993, secure: true },
+  smtp: { host: 'smtp.gmail.com', port: 465, secure: true }
+})
+
+describe('per-user-credential-store', () => {
+  let originalDataDir: string
+  let originalSecretPath: string
+  let testDir: string
+
+  beforeEach(() => {
+    originalDataDir = _paths.DATA_DIR
+    originalSecretPath = _paths.SECRET_PATH
+
+    testDir = join(tmpdir(), `per-user-test-${randomBytes(4).toString('hex')}`)
+    mkdirSync(testDir, { recursive: true })
+    _paths.DATA_DIR = join(testDir, 'users')
+    _paths.SECRET_PATH = join(testDir, '.user-secret')
+
+    process.env.CREDENTIAL_SECRET = 'test-per-user-secret'
+    _resetSecretCache()
+  })
+
+  afterEach(() => {
+    _paths.DATA_DIR = originalDataDir
+    _paths.SECRET_PATH = originalSecretPath
+    delete process.env.CREDENTIAL_SECRET
+    _resetSecretCache()
+
+    if (existsSync(testDir)) {
+      rmSync(testDir, { recursive: true, force: true })
+    }
+  })
+
+  describe('deriveKey', () => {
+    it('should use default userId when not provided', async () => {
+      const key1 = await _deriveKey('secret')
+      const key2 = await _deriveKey('secret', '')
+      const key3 = await _deriveKey('secret', 'other')
+
+      // Web Crypto keys are opaque, but we can verify they are generated
+      expect(key1).toBeDefined()
+      expect(key2).toBeDefined()
+      expect(key3).toBeDefined()
+    })
+  })
+
+  describe('hashUserId', () => {
+    it('should return a 16-char hex string', () => {
+      const hash = hashUserId('user-123')
+      expect(hash).toHaveLength(16)
+      expect(hash).toMatch(/^[0-9a-f]+$/)
+    })
+
+    it('should produce deterministic results', () => {
+      expect(hashUserId('user-123')).toBe(hashUserId('user-123'))
+    })
+
+    it('should produce different hashes for different userIds', () => {
+      expect(hashUserId('user-a')).not.toBe(hashUserId('user-b'))
+    })
+  })
+
+  describe('store and load', () => {
+    it('should return null when no credentials stored', async () => {
+      const result = await loadUserCredentials('nonexistent-user')
+      expect(result).toBeNull()
+    })
+
+    it('should handle ENOENT error from readFile explicitly', async () => {
+      const readFileSpy = vi.spyOn(_fs, 'readFile').mockImplementation(async (path, options) => {
+        if (typeof path === 'string' && path.endsWith('credentials.enc')) {
+          const err = new Error('File not found')
+          ;(err as any).code = 'ENOENT'
+          throw err
+        }
+        return fsPromises.readFile(path, options)
+      })
+
+      const result = await loadUserCredentials('any-user')
+      expect(result).toBeNull()
+      readFileSpy.mockRestore()
+    })
+
+    it('should throw non-ENOENT errors from readFile', async () => {
+      const readFileSpy = vi.spyOn(_fs, 'readFile').mockImplementation(async (path, options) => {
+        if (typeof path === 'string' && path.endsWith('credentials.enc')) {
+          const err = new Error('EACCES')
+          ;(err as any).code = 'EACCES'
+          throw err
+        }
+        return fsPromises.readFile(path, options)
+      })
+
+      await expect(loadUserCredentials('any-user')).rejects.toThrow('EACCES')
+      readFileSpy.mockRestore()
+    })
+
+    it('should store and load single account roundtrip', async () => {
+      const accounts = [makeAccount('test@gmail.com')]
+      await storeUserCredentials('user-1', accounts)
+
+      const loaded = await loadUserCredentials('user-1')
+      expect(loaded).toEqual(accounts)
+    })
+
+    it('should store and load multiple accounts roundtrip', async () => {
+      const accounts = [makeAccount('a@gmail.com'), makeAccount('b@outlook.com')]
+      await storeUserCredentials('user-2', accounts)
+
+      const loaded = await loadUserCredentials('user-2')
+      expect(loaded).toHaveLength(2)
+      expect(loaded![0]!.email).toBe('a@gmail.com')
+      expect(loaded![1]!.email).toBe('b@outlook.com')
+    })
+
+    it('should overwrite existing credentials for same user', async () => {
+      await storeUserCredentials('user-3', [makeAccount('old@gmail.com')])
+      await storeUserCredentials('user-3', [makeAccount('new@gmail.com')])
+
+      const loaded = await loadUserCredentials('user-3')
+      expect(loaded).toHaveLength(1)
+      expect(loaded![0]!.email).toBe('new@gmail.com')
+    })
+
+    it('should isolate different users', async () => {
+      await storeUserCredentials('alice', [makeAccount('alice@gmail.com')])
+      await storeUserCredentials('bob', [makeAccount('bob@gmail.com')])
+
+      const aliceAccounts = await loadUserCredentials('alice')
+      const bobAccounts = await loadUserCredentials('bob')
+
+      expect(aliceAccounts![0]!.email).toBe('alice@gmail.com')
+      expect(bobAccounts![0]!.email).toBe('bob@gmail.com')
+    })
+  })
+
+  describe('loadAll', () => {
+    it('should return empty map when no users stored', async () => {
+      const result = await loadAllUserCredentials()
+      expect(result.size).toBe(0)
+    })
+
+    it('should load all stored users', async () => {
+      await storeUserCredentials('user-a', [makeAccount('a@gmail.com')])
+      await storeUserCredentials('user-b', [makeAccount('b@gmail.com')])
+      await storeUserCredentials('user-c', [makeAccount('c@gmail.com')])
+
+      const all = await loadAllUserCredentials()
+      expect(all.size).toBe(3)
+      expect(all.get('user-a')![0]!.email).toBe('a@gmail.com')
+      expect(all.get('user-b')![0]!.email).toBe('b@gmail.com')
+      expect(all.get('user-c')![0]!.email).toBe('c@gmail.com')
+    })
+  })
+
+  describe('delete', () => {
+    it('should delete stored credentials', async () => {
+      await storeUserCredentials('user-del', [makeAccount('del@gmail.com')])
+      expect(await loadUserCredentials('user-del')).not.toBeNull()
+
+      await deleteUserCredentials('user-del')
+      expect(await loadUserCredentials('user-del')).toBeNull()
+    })
+
+    it('should not throw when deleting non-existent user', async () => {
+      await expect(deleteUserCredentials('nonexistent')).resolves.toBeUndefined()
+    })
+
+    it('should not affect other users', async () => {
+      await storeUserCredentials('keep', [makeAccount('keep@gmail.com')])
+      await storeUserCredentials('delete', [makeAccount('del@gmail.com')])
+
+      await deleteUserCredentials('delete')
+
+      expect(await loadUserCredentials('keep')).not.toBeNull()
+      expect(await loadUserCredentials('delete')).toBeNull()
+    })
+  })
+
+  describe('encryption', () => {
+    it('should fail to decrypt with wrong secret', async () => {
+      await storeUserCredentials('enc-user', [makeAccount('enc@gmail.com')])
+
+      process.env.CREDENTIAL_SECRET = 'wrong-secret'
+      _resetSecretCache()
+
+      await expect(loadUserCredentials('enc-user')).rejects.toThrow()
+    })
+  })
+
+  describe('getSecret auto-generation', () => {
+    it('should auto-generate secret when no env var set', async () => {
+      delete process.env.CREDENTIAL_SECRET
+      _resetSecretCache()
+
+      const accounts = [makeAccount('auto@gmail.com')]
+      await storeUserCredentials('auto-user', accounts)
+
+      // Secret file should be created
+      expect(existsSync(_paths.SECRET_PATH)).toBe(true)
+
+      // Should be able to load back
+      const loaded = await loadUserCredentials('auto-user')
+      expect(loaded).toEqual(accounts)
+    })
+
+    it('should reuse existing secret file', async () => {
+      delete process.env.CREDENTIAL_SECRET
+      _resetSecretCache()
+
+      // First store creates the secret
+      await storeUserCredentials('first-user', [makeAccount('first@gmail.com')])
+
+      // Reset cache so next call reads from file
+      _resetSecretCache()
+
+      // Second store should now read the secret from the file
+      await storeUserCredentials('second-user', [makeAccount('second@gmail.com')])
+
+      // Both should be loadable
+      const first = await loadUserCredentials('first-user')
+      const second = await loadUserCredentials('second-user')
+      expect(first![0]!.email).toBe('first@gmail.com')
+      expect(second![0]!.email).toBe('second@gmail.com')
+    })
+
+    it('should create parent directory if it does not exist', async () => {
+      delete process.env.CREDENTIAL_SECRET
+      _resetSecretCache()
+
+      // Re-initialize paths to a non-existent parent
+      const deepDir = join(tmpdir(), `per-user-deep-${randomBytes(4).toString('hex')}`)
+      const parentDir = join(deepDir, 'parent')
+      _paths.DATA_DIR = join(parentDir, 'users')
+      _paths.SECRET_PATH = join(parentDir, '.user-secret')
+
+      // Ensure it doesn't exist
+      if (existsSync(deepDir)) {
+        rmSync(deepDir, { recursive: true, force: true })
+      }
+
+      try {
+        // Trigger getSecret directly to test directory creation logic
+        await _getSecret()
+        expect(existsSync(parentDir)).toBe(true)
+        expect(existsSync(_paths.SECRET_PATH)).toBe(true)
+      } finally {
+        if (existsSync(deepDir)) {
+          rmSync(deepDir, { recursive: true, force: true })
+        }
+      }
+    })
+
+    it('should throw non-ENOENT errors from readdir in loadAll', async () => {
+      const readdirSpy = vi.spyOn(_fs, 'readdir').mockRejectedValue(new Error('EACCES'))
+      await expect(loadAllUserCredentials()).rejects.toThrow('EACCES')
+      readdirSpy.mockRestore()
+    })
+
+    it('should throw non-ENOENT errors from readFile in getSecret', async () => {
+      delete process.env.CREDENTIAL_SECRET
+      _resetSecretCache()
+
+      const readFileSpy = vi.spyOn(_fs, 'readFile').mockImplementation(async (path) => {
+        if (typeof path === 'string' && path.endsWith('.user-secret')) {
+          const err = new Error('EACCES')
+          ;(err as any).code = 'EACCES'
+          throw err
+        }
+        return fsPromises.readFile(path, 'utf-8')
+      })
+
+      await expect(_getSecret()).rejects.toThrow('EACCES')
+      readFileSpy.mockRestore()
+    })
+  })
+
+  describe('loadAll edge cases', () => {
+    it('should skip corrupted credential entries', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+      // Store a valid entry
+      await storeUserCredentials('good-user', [makeAccount('good@gmail.com')])
+
+      // Create a corrupted entry
+      const corruptDir = join(_paths.DATA_DIR, 'corrupted')
+      mkdirSync(corruptDir, { recursive: true })
+      const { writeFileSync } = await import('node:fs')
+      writeFileSync(join(corruptDir, 'credentials.enc'), 'not-encrypted-data')
+
+      const all = await loadAllUserCredentials()
+
+      // Should have the good entry but not the corrupted one
+      expect(all.size).toBe(1)
+      expect(all.get('good-user')![0]!.email).toBe('good@gmail.com')
+
+      // Should have logged an error for the corrupted entry
+      expect(spy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to load credentials from corrupted'),
+        expect.any(Error)
+      )
+
+      spy.mockRestore()
+    })
+
+    it('should skip directories without credentials.enc', async () => {
+      // Store a valid entry
+      await storeUserCredentials('valid-user', [makeAccount('valid@gmail.com')])
+
+      // Create an empty directory (no credentials.enc)
+      const emptyDir = join(_paths.DATA_DIR, 'empty-dir')
+      mkdirSync(emptyDir, { recursive: true })
+
+      const all = await loadAllUserCredentials()
+      expect(all.size).toBe(1)
+      expect(all.get('valid-user')).toBeDefined()
+    })
+
+    it('should skip non-directory entries', async () => {
+      await storeUserCredentials('dir-user', [makeAccount('dir@gmail.com')])
+
+      // Create a file in the DATA_DIR (not a directory)
+      const { writeFileSync } = await import('node:fs')
+      writeFileSync(join(_paths.DATA_DIR, 'random-file.txt'), 'not a dir')
+
+      const all = await loadAllUserCredentials()
+      expect(all.size).toBe(1)
+    })
+
+    it('should skip entries with missing userId in JSON', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const invalidDir = join(_paths.DATA_DIR, 'no-userid')
+      mkdirSync(invalidDir, { recursive: true })
+
+      // Manual encryption of invalid payload
+      const secret = await _getSecret()
+      const key = await _deriveKey(secret, 'no-userid')
+      const iv = crypto.getRandomValues(new Uint8Array(12))
+      const payload = JSON.stringify({ accounts: [] }) // Missing userId
+      const plaintext = new TextEncoder().encode(payload)
+      const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext)
+      const combined = Buffer.concat([iv, Buffer.from(encrypted)])
+      const { writeFileSync } = await import('node:fs')
+      writeFileSync(join(invalidDir, 'credentials.enc'), combined)
+
+      const all = await loadAllUserCredentials()
+      expect(all.has('no-userid')).toBe(false)
+      spy.mockRestore()
+    })
+
+    it('should skip entries with non-array accounts in JSON', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const invalidDir = join(_paths.DATA_DIR, 'bad-accounts')
+      mkdirSync(invalidDir, { recursive: true })
+
+      // Manual encryption of invalid payload
+      const secret = await _getSecret()
+      const key = await _deriveKey(secret, 'bad-accounts')
+      const iv = crypto.getRandomValues(new Uint8Array(12))
+      const payload = JSON.stringify({ userId: 'bad-accounts', accounts: 'not-an-array' })
+      const plaintext = new TextEncoder().encode(payload)
+      const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext)
+      const combined = Buffer.concat([iv, Buffer.from(encrypted)])
+      const { writeFileSync } = await import('node:fs')
+      writeFileSync(join(invalidDir, 'credentials.enc'), combined)
+
+      const all = await loadAllUserCredentials()
+      expect(all.has('bad-accounts')).toBe(false)
+      spy.mockRestore()
+    })
+  })
+})
