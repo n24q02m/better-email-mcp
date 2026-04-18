@@ -228,6 +228,13 @@ function formatAddress(addr: any): string {
 /** Cache for resolved sent folder paths per account */
 const sentFolderCache = new Map<string, Promise<string>>()
 
+/** Clear the sent folder path cache */
+export function clearSentFolderCache(): number {
+  const count = sentFolderCache.size
+  sentFolderCache.clear()
+  return count
+}
+
 /**
  * Resolve the Sent folder path for the given account.
  * Uses provider-specific defaults, then verifies via IMAP folder listing.

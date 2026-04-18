@@ -5,8 +5,9 @@ import { registerTools } from './registry.js'
 // Mock the composite tools to isolate the test
 vi.mock('./composite/attachments.js', () => ({ attachments: vi.fn() }))
 vi.mock('./composite/folders.js', () => ({ folders: vi.fn() }))
-vi.mock('./composite/messages.js', () => ({ messages: vi.fn() }))
+vi.mock('./composite/messages.js', () => ({ messages: vi.fn(), clearArchiveFolderCache: vi.fn() }))
 vi.mock('./composite/send.js', () => ({ send: vi.fn() }))
+vi.mock('./composite/config.js', () => ({ handleConfig: vi.fn() }))
 
 // Mock account config (minimal)
 const mockAccounts: any[] = []
@@ -44,6 +45,6 @@ describe('registerTools', () => {
     expect(result.content).toHaveLength(1)
     expect(result.content[0].text).toContain('Unknown tool: unknown_tool_name')
     // Verify it lists available tools
-    expect(result.content[0].text).toContain('Available tools: messages, folders, attachments, send, setup, help')
+    expect(result.content[0].text).toContain('Available tools: messages, folders, attachments, send, config, help')
   })
 })

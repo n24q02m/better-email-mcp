@@ -19,10 +19,10 @@ import {
 } from '@modelcontextprotocol/sdk/types.js'
 import { getSetupUrl, getState, triggerRelaySetup } from '../credential-state.js'
 import { type AttachmentsInput, attachments } from './composite/attachments.js'
+import { type ConfigInput, handleConfig } from './composite/config.js'
 import { type FoldersInput, folders } from './composite/folders.js'
 import { type MessagesInput, messages } from './composite/messages.js'
 import { type SendInput, send } from './composite/send.js'
-import { type SetupInput, setup } from './composite/setup.js'
 // Import mega tools
 import { type AccountConfig, loadConfig } from './helpers/config.js'
 import { aiReadableMessage, EmailMCPError, enhanceError, findClosestMatch } from './helpers/errors.js'
@@ -46,7 +46,7 @@ const RESOURCES = [
   { uri: 'email://docs/attachments', name: 'Attachments Tool Docs', file: 'attachments.md' },
   { uri: 'email://docs/send', name: 'Send Tool Docs', file: 'send.md' },
   { uri: 'email://docs/help', name: 'Help Tool Docs', file: 'help.md' },
-  { uri: 'email://docs/setup', name: 'Setup Tool Docs', file: 'setup.md' }
+  { uri: 'email://docs/config', name: 'Config Tool Docs', file: 'config.md' }
 ]
 
 /**
@@ -182,11 +182,11 @@ const TOOLS = [
     }
   },
   {
-    name: 'setup',
+    name: 'config',
     description:
-      'Manage email credential setup and relay configuration.\n\nActions:\n- status: Show current credential state, setup URL, and configured accounts\n- start (-> force): Trigger relay setup session and return the setup URL. Set force=true to restart even if already in progress\n- reset: Clear all saved credentials and reset to awaiting_setup state\n- complete: Re-check credential state after external config changes (e.g. relay submission)',
+      'Manage email credential setup and runtime configuration.\n\nSetup actions (credential lifecycle):\n- status: Show current credential state, setup URL, and configured accounts\n- setup_start (-> force): Trigger relay setup session and return the setup URL. Set force=true to restart even if already in progress\n- setup_reset: Clear all saved credentials and reset to awaiting_setup state\n- setup_complete: Re-check credential state after external config changes (e.g. relay submission)\n\nRuntime actions:\n- set: Update runtime settings (email has no runtime settings; returns ok=false)\n- cache_clear: Clear in-memory account and OAuth token caches',
     annotations: {
-      title: 'Setup',
+      title: 'Config',
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: false,
@@ -197,12 +197,12 @@ const TOOLS = [
       properties: {
         action: {
           type: 'string',
-          enum: ['status', 'start', 'reset', 'complete'],
+          enum: ['status', 'setup_start', 'setup_reset', 'setup_complete', 'set', 'cache_clear'],
           description: 'Action to perform'
         },
         force: {
           type: 'boolean',
-          description: 'Force restart relay setup even if already in progress (for start action)'
+          description: 'Force restart relay setup even if already in progress (for setup_start action)'
         }
       },
       required: ['action']
@@ -223,7 +223,7 @@ const TOOLS = [
       properties: {
         tool_name: {
           type: 'string',
-          enum: ['messages', 'folders', 'attachments', 'send', 'help'],
+          enum: ['messages', 'folders', 'attachments', 'send', 'config', 'help'],
           description: 'Tool to get documentation for'
         }
       },
@@ -242,7 +242,7 @@ async function handleHelp(args: unknown): Promise<{ tool: string; documentation:
     throw new EmailMCPError(
       `Invalid tool name: ${toolName}`,
       'VALIDATION_ERROR',
-      'Valid: messages, folders, attachments, send, setup, help'
+      'Valid: messages, folders, attachments, send, config, help'
     )
   }
   const resource = RESOURCES.find((r) => r.uri === `email://docs/${toolName}`)
@@ -264,7 +264,7 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   folders: (accounts, args) => folders(accounts, args as unknown as FoldersInput),
   attachments: (accounts, args) => attachments(accounts, args as unknown as AttachmentsInput),
   send: (accounts, args) => send(accounts, args as unknown as SendInput),
-  setup: (accounts, args) => setup(accounts, args as unknown as SetupInput),
+  config: (accounts, args) => handleConfig(accounts, args as unknown as ConfigInput),
   help: (_, args) => handleHelp(args)
 }
 
@@ -339,7 +339,7 @@ export function registerTools(server: Server, initialAccounts: AccountConfig[]) 
       // Help and setup tools are always available (docs don't need credentials,
       // setup manages the credential lifecycle itself).
       // The relay session is triggered lazily on first non-exempt tool call.
-      if (name !== 'help' && name !== 'setup' && accounts.length === 0) {
+      if (name !== 'help' && name !== 'config' && accounts.length === 0) {
         const credState = getState()
         if (credState === 'configured') {
           // Hot-reload: relay delivered credentials after startup — reload accounts
