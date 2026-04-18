@@ -11,7 +11,7 @@ describe('RELAY_SCHEMA', () => {
     const emailCredentialsField = RELAY_SCHEMA.fields?.find((field: any) => field.key === 'EMAIL_CREDENTIALS')
     expect(emailCredentialsField).toBeDefined()
     expect(emailCredentialsField?.label).toBe('Email Credentials')
-    expect(emailCredentialsField?.type).toBe('text')
+    expect(emailCredentialsField?.type).toBe('password')
     expect(emailCredentialsField?.placeholder).toBe('user@gmail.com:app-password')
     expect(emailCredentialsField?.helpText).toContain('Use App Passwords, not regular account passwords')
     expect(emailCredentialsField?.required).toBe(true)
