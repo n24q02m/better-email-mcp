@@ -434,6 +434,30 @@ export async function ensureValidToken(account: { email: string; oauth2?: OAuth2
 }
 
 /**
+ * Save Outlook tokens received via mcp-core delegated OAuth callback.
+ *
+ * mcp-core's ``TokenCallback`` delivers ``OAuthTokens`` (Record<string, unknown>).
+ * Adapts that to the existing ``saveTokens(email, OAuth2Tokens)`` format so
+ * remote-relay mode shares the same token file as local-relay / CLI auth flows.
+ *
+ * The email is extracted from the token's ``email`` field (set by the upstream
+ * form) or from ``OUTLOOK_EMAIL`` env var if the caller knows the account.
+ * When neither is present, tokens are stored under the ``id_token`` subject
+ * claim as a fallback (uncommon in device-code flows).
+ */
+export async function saveOutlookTokens(tokens: Record<string, unknown>): Promise<void> {
+  const email = typeof tokens.email === 'string' ? tokens.email : (process.env.OUTLOOK_EMAIL ?? 'outlook-device-code')
+  const now = Math.floor(Date.now() / MS_PER_SECOND)
+  const expiresIn = typeof tokens.expires_in === 'number' ? tokens.expires_in : 3600
+  saveTokens(email, {
+    accessToken: typeof tokens.access_token === 'string' ? tokens.access_token : '',
+    refreshToken: typeof tokens.refresh_token === 'string' ? tokens.refresh_token : '',
+    expiresAt: now + expiresIn,
+    clientId: typeof tokens.client_id === 'string' ? tokens.client_id : getClientId()
+  })
+}
+
+/**
  * Interactive Device Code flow for CLI-based OAuth2 authentication.
  * Prints instructions to stderr and polls until user authorizes or timeout.
  * Used by `npx @n24q02m/better-email-mcp auth <email>`.

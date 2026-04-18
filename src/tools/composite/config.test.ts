@@ -10,8 +10,23 @@ vi.mock('../../credential-state.js', () => ({
   resolveCredentialState: vi.fn()
 }))
 
+vi.mock('./messages.js', () => ({
+  clearArchiveFolderCache: vi.fn().mockReturnValue(2)
+}))
+
+vi.mock('../helpers/imap-client.js', () => ({
+  clearSentFolderCache: vi.fn().mockReturnValue(1)
+}))
+
+vi.mock('../helpers/oauth2.js', () => ({
+  _resetTokenCache: vi.fn()
+}))
+
 import { getSetupUrl, getState, resetState, resolveCredentialState, triggerRelaySetup } from '../../credential-state.js'
-import { setup } from './setup.js'
+import { clearSentFolderCache } from '../helpers/imap-client.js'
+import { _resetTokenCache } from '../helpers/oauth2.js'
+import { handleConfig } from './config.js'
+import { clearArchiveFolderCache } from './messages.js'
 
 const mockGetState = vi.mocked(getState)
 const mockGetSetupUrl = vi.mocked(getSetupUrl)
@@ -38,14 +53,16 @@ const accounts: AccountConfig[] = [
 
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.mocked(clearArchiveFolderCache).mockReturnValue(2)
+  vi.mocked(clearSentFolderCache).mockReturnValue(1)
 })
 
-describe('setup - status', () => {
+describe('config - status', () => {
   it('returns current state with configured accounts', async () => {
     mockGetState.mockReturnValue('configured')
     mockGetSetupUrl.mockReturnValue(null)
 
-    const result = await setup(accounts, { action: 'status' })
+    const result = await handleConfig(accounts, { action: 'status' })
 
     expect(result).toEqual({
       action: 'status',
@@ -59,7 +76,7 @@ describe('setup - status', () => {
     mockGetState.mockReturnValue('setup_in_progress')
     mockGetSetupUrl.mockReturnValue('https://relay.example.com/setup/abc123')
 
-    const result = await setup(accounts, { action: 'status' })
+    const result = await handleConfig(accounts, { action: 'status' })
 
     expect(result).toEqual({
       action: 'status',
@@ -73,7 +90,7 @@ describe('setup - status', () => {
     mockGetState.mockReturnValue('awaiting_setup')
     mockGetSetupUrl.mockReturnValue(null)
 
-    const result = await setup([], { action: 'status' })
+    const result = await handleConfig([], { action: 'status' })
 
     expect(result).toEqual({
       action: 'status',
@@ -84,16 +101,16 @@ describe('setup - status', () => {
   })
 })
 
-describe('setup - start', () => {
+describe('config - setup_start', () => {
   it('triggers relay setup and returns URL', async () => {
     mockTriggerRelaySetup.mockResolvedValue('https://relay.example.com/setup/new')
     mockGetState.mockReturnValue('setup_in_progress')
 
-    const result = await setup([], { action: 'start' })
+    const result = await handleConfig([], { action: 'setup_start' })
 
     expect(mockTriggerRelaySetup).toHaveBeenCalledWith({ force: undefined })
     expect(result).toEqual({
-      action: 'start',
+      action: 'setup_start',
       state: 'setup_in_progress',
       setup_url: 'https://relay.example.com/setup/new'
     })
@@ -103,11 +120,11 @@ describe('setup - start', () => {
     mockTriggerRelaySetup.mockResolvedValue('https://relay.example.com/setup/forced')
     mockGetState.mockReturnValue('setup_in_progress')
 
-    const result = await setup([], { action: 'start', force: true })
+    const result = await handleConfig([], { action: 'setup_start', force: true })
 
     expect(mockTriggerRelaySetup).toHaveBeenCalledWith({ force: true })
     expect(result).toEqual({
-      action: 'start',
+      action: 'setup_start',
       state: 'setup_in_progress',
       setup_url: 'https://relay.example.com/setup/forced'
     })
@@ -117,42 +134,42 @@ describe('setup - start', () => {
     mockTriggerRelaySetup.mockResolvedValue(null)
     mockGetState.mockReturnValue('awaiting_setup')
 
-    const result = await setup([], { action: 'start' })
+    const result = await handleConfig([], { action: 'setup_start' })
 
     expect(result).toEqual({
-      action: 'start',
+      action: 'setup_start',
       state: 'awaiting_setup',
       setup_url: null
     })
   })
 })
 
-describe('setup - reset', () => {
+describe('config - setup_reset', () => {
   it('resets state and returns confirmation', async () => {
     mockResetState.mockResolvedValue(undefined)
     mockGetState.mockReturnValue('awaiting_setup')
 
-    const result = await setup(accounts, { action: 'reset' })
+    const result = await handleConfig(accounts, { action: 'setup_reset' })
 
     expect(mockResetState).toHaveBeenCalledOnce()
     expect(result).toEqual({
-      action: 'reset',
+      action: 'setup_reset',
       state: 'awaiting_setup',
       message: 'Credential state reset to awaiting_setup. Config file deleted.'
     })
   })
 })
 
-describe('setup - complete', () => {
+describe('config - setup_complete', () => {
   it('re-checks and returns configured state with accounts', async () => {
     mockGetState.mockReturnValue('awaiting_setup')
     mockResolveCredentialState.mockResolvedValue('configured')
 
-    const result = await setup(accounts, { action: 'complete' })
+    const result = await handleConfig(accounts, { action: 'setup_complete' })
 
     expect(mockResolveCredentialState).toHaveBeenCalledOnce()
     expect(result).toEqual({
-      action: 'complete',
+      action: 'setup_complete',
       previous_state: 'awaiting_setup',
       state: 'configured',
       accounts: ['user1@gmail.com', 'user2@outlook.com']
@@ -163,10 +180,10 @@ describe('setup - complete', () => {
     mockGetState.mockReturnValue('setup_in_progress')
     mockResolveCredentialState.mockResolvedValue('awaiting_setup')
 
-    const result = await setup([], { action: 'complete' })
+    const result = await handleConfig([], { action: 'setup_complete' })
 
     expect(result).toEqual({
-      action: 'complete',
+      action: 'setup_complete',
       previous_state: 'setup_in_progress',
       state: 'awaiting_setup',
       accounts: []
@@ -174,8 +191,35 @@ describe('setup - complete', () => {
   })
 })
 
-describe('setup - unknown action', () => {
+describe('config - set', () => {
+  it('returns stub indicating email has no runtime settings', async () => {
+    const result = await handleConfig(accounts, { action: 'set' })
+
+    expect(result).toEqual({
+      action: 'set',
+      ok: false,
+      text: 'email has no runtime settings'
+    })
+  })
+})
+
+describe('config - cache_clear', () => {
+  it('clears all in-memory caches and returns cleared count', async () => {
+    const result = await handleConfig(accounts, { action: 'cache_clear' })
+
+    expect(clearSentFolderCache).toHaveBeenCalledOnce()
+    expect(clearArchiveFolderCache).toHaveBeenCalledOnce()
+    expect(_resetTokenCache).toHaveBeenCalledOnce()
+    expect(result).toEqual({
+      action: 'cache_clear',
+      ok: true,
+      cleared: 3 // 1 (sent) + 2 (archive)
+    })
+  })
+})
+
+describe('config - unknown action', () => {
   it('throws for unknown action', async () => {
-    await expect(setup(accounts, { action: 'unknown' as any })).rejects.toThrow('Unknown action: unknown')
+    await expect(handleConfig(accounts, { action: 'unknown' as any })).rejects.toThrow('Unknown action: unknown')
   })
 })

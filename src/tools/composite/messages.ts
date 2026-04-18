@@ -11,6 +11,13 @@ import { listFolders, modifyFlags, moveEmails, readEmail, searchEmails, trashEma
 // Simple in-memory cache for archive folder paths to avoid repeated IMAP calls
 const archiveFolderCache = new Map<string, Promise<string>>()
 
+/** Clear the archive folder path cache */
+export function clearArchiveFolderCache(): number {
+  const count = archiveFolderCache.size
+  archiveFolderCache.clear()
+  return count
+}
+
 export interface MessagesInput {
   action: 'search' | 'read' | 'mark_read' | 'mark_unread' | 'flag' | 'unflag' | 'move' | 'archive' | 'trash'
 

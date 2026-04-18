@@ -26,6 +26,7 @@ This tool has no `action` parameter — it takes only `tool_name`.
 - `folders` — List mailbox folders
 - `attachments` — List and download email attachments
 - `send` — Send, reply, and forward emails
+- `config` — Credential setup and runtime configuration
 - `help` — This documentation
 
 ## Examples

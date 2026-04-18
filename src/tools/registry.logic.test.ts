@@ -7,10 +7,11 @@ import {
 import { describe, expect, it, vi } from 'vitest'
 
 // Mock composite tools
-vi.mock('./composite/messages.js', () => ({ messages: vi.fn() }))
+vi.mock('./composite/messages.js', () => ({ messages: vi.fn(), clearArchiveFolderCache: vi.fn() }))
 vi.mock('./composite/folders.js', () => ({ folders: vi.fn() }))
 vi.mock('./composite/attachments.js', () => ({ attachments: vi.fn() }))
 vi.mock('./composite/send.js', () => ({ send: vi.fn() }))
+vi.mock('./composite/config.js', () => ({ handleConfig: vi.fn() }))
 
 // Mock credential state to return 'configured' so tools execute normally
 vi.mock('../credential-state.js', () => ({
@@ -94,7 +95,7 @@ describe('ListToolsRequestSchema handler', () => {
 
     expect(result.tools).toHaveLength(6)
     const names = result.tools.map((t: any) => t.name)
-    expect(names).toEqual(['messages', 'folders', 'attachments', 'send', 'setup', 'help'])
+    expect(names).toEqual(['messages', 'folders', 'attachments', 'send', 'config', 'help'])
   })
 })
 
@@ -115,7 +116,7 @@ describe('ListResourcesRequestSchema handler', () => {
       'email://docs/attachments',
       'email://docs/send',
       'email://docs/help',
-      'email://docs/setup'
+      'email://docs/config'
     ]
 
     for (const resource of result.resources) {
