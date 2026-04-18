@@ -90,3 +90,29 @@ PSR v10 (workflow_dispatch) -> npm + Docker (amd64+arm64) + GHCR + MCP Registry.
 - 3-tier token optimization: Tier 1 (compact), Tier 2 (help tool), Tier 3 (MCP Resources).
 - Pre-commit: biome check --write, tsc --noEmit, bun run test.
 - Infisical project: `3f23a1cb-d966-448d-91a1-bd1566a2361c`
+
+## Modes (Phase L2 restored 2026-04-18)
+
+Selected via `MCP_MODE` env var:
+
+- **`remote-relay` (default)**: HTTP + delegated device-code OAuth flow tới Microsoft (`login.microsoftonline.com/common/oauth2/v2.0/devicecode`). Bắt buộc env `OUTLOOK_CLIENT_ID` (Azure app client ID). Token lưu tại `~/.better-email-mcp/tokens.json`. Deploy tại `https://better-email-mcp.n24q02m.com`.
+- **`local-relay`**: HTTP + `runLocalServer` với relaySchema — user paste `email:app-password` vào `/authorize` form. Outlook accounts bị reject với hướng dẫn chuyển `MCP_MODE=remote-relay`. Gmail/Yahoo/iCloud/custom IMAP vẫn work qua paste form này.
+- **`stdio proxy`**: `--stdio` hoặc `MCP_TRANSPORT=stdio`. Backward compat.
+
+Chuyển giữa remote-relay ↔ local-relay qua `MCP_MODE` env var. Default = remote-relay nếu không set.
+
+## Known bugs (phat hien 2026-04-18 E2E)
+
+1. **Outlook Device Code flow (local-relay mode cũ): mo 2 tab auth giong het nhau**:
+   - Chỉ affect path local-relay với Outlook đã deprecated. Remote-relay (default) dùng mcp-core delegated device_code — không duplicate.
+   - Nếu tái hiện trong remote-relay, debug: check if `tryOpenBrowser` bị call 2 lần hoặc browser auto-open + explicit link conflict.
+
+2. **Browser UI stuck "Waiting for server..." (local-relay mode only)**:
+   - Chỉ affect `MCP_MODE=local-relay` (paste form flow)
+   - Same upstream bug nhu better-notion-mcp: `packages/core-ts/src/relay/client.ts:sendMessage('complete')` khong reach browser
+   - See `C:\Users\n24q02m-wlap\projects\mcp-core\CLAUDE.md` Known bugs #2
+   - Remote-relay không ảnh hưởng.
+
+3. **Config storage path**: TS server dung `$APPDATA\mcp\Config\config.enc` (khac Python servers `$LOCALAPPDATA\mcp\config.enc`). Khi debug/test, clean ca 2 paths + `~/.better-email-mcp/tokens.json` de reset state.
+
+4. **Outlook token email key in remote-relay**: `saveOutlookTokens` fallback to `OUTLOOK_EMAIL` env hoac `'outlook-device-code'` khi Microsoft token response khong include email field (device code mặc định không trả email). Workaround: set `OUTLOOK_EMAIL` env var khi self-host. Long-term fix: request `openid email profile` scopes + decode id_token trong onTokenReceived.
