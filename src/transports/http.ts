@@ -35,7 +35,12 @@ import {
 } from '../credential-state.js'
 import { RELAY_SCHEMA } from '../relay-schema.js'
 import { type AccountConfig, loadConfig, parseCredentials } from '../tools/helpers/config.js'
-import { initiateOutlookDeviceCode, isOutlookDomain, saveOutlookTokens } from '../tools/helpers/oauth2.js'
+import {
+  getClientId as getOutlookClientId,
+  initiateOutlookDeviceCode,
+  isOutlookDomain,
+  saveOutlookTokens
+} from '../tools/helpers/oauth2.js'
 import { registerTools } from '../tools/registry.js'
 
 const SERVER_NAME = 'better-email-mcp'
@@ -118,14 +123,9 @@ export async function startHttp(): Promise<void> {
   const host = process.env.HOST
 
   if (mode === 'remote-relay') {
-    const clientId = process.env.OUTLOOK_CLIENT_ID
-    if (!clientId) {
-      throw new Error(
-        'OUTLOOK_CLIENT_ID is required for remote-relay mode (default). ' +
-          'Set this env var to your Azure AD app client ID, or set MCP_MODE=local-relay ' +
-          'to use app-password mode for Gmail/Yahoo/iCloud accounts.'
-      )
-    }
+    // Uses bundled Azure AD app client ID by default; override with
+    // OUTLOOK_CLIENT_ID env var for self-host with a custom registered app.
+    const clientId = getOutlookClientId()
 
     const handle = await runLocalServer(serverFactory, {
       serverName: SERVER_NAME,
