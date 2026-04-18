@@ -35,11 +35,22 @@ vi.mock('../tools/helpers/config.js', () => ({
 
 vi.mock('../tools/helpers/oauth2.js', () => ({
   initiateOutlookDeviceCode: vi.fn(),
-  isOutlookDomain: vi.fn()
+  isOutlookDomain: vi.fn(),
+  saveOutlookTokens: vi.fn()
 }))
 
 vi.mock('../tools/registry.js', () => ({
   registerTools: vi.fn()
+}))
+
+vi.mock('../auth/outlook-device-code.js', () => ({
+  buildOutlookUpstream: vi.fn().mockReturnValue({
+    deviceAuthUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/devicecode',
+    tokenUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+    clientId: 'test-client-id',
+    scopes: ['offline_access'],
+    pollIntervalMs: 5000
+  })
 }))
 
 // We need to import startHttp AFTER mocks are set up
@@ -52,6 +63,10 @@ describe('http transport', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    // Default to local-relay mode so existing credential-form tests work
+    // without requiring OUTLOOK_CLIENT_ID.
+    process.env.MCP_MODE = 'local-relay'
+    delete process.env.OUTLOOK_CLIENT_ID
 
     sigintHandler = null
     vi.spyOn(process, 'once').mockImplementation((event, listener) => {
@@ -83,6 +98,8 @@ describe('http transport', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    delete process.env.MCP_MODE
+    delete process.env.OUTLOOK_CLIENT_ID
   })
 
   async function runStartHttpAndTriggerShutdown(fn?: () => Promise<void>) {

@@ -1,21 +1,17 @@
 /**
- * HTTP Transport -- Local OAuth 2.1 mode via `@n24q02m/mcp-core`.
+ * HTTP Transport -- dispatches between two modes per MCP mode matrix:
  *
- * Uses `runLocalServer` from mcp-core which:
- *  - Serves the credential form on /authorize (rendered from RELAY_SCHEMA)
- *  - Validates email:app-password via real IMAP connection in onCredentialsSaved
- *  - Stores credentials in-process (and in env var) after validation
- *  - Issues a local JWT on /token (PKCE) that the MCP client uses for Bearer auth
- *  - Routes /mcp (Bearer-protected) to a StreamableHTTPServerTransport
+ *   MCP_MODE=remote-relay (default) -- runLocalServer with delegatedOAuth
+ *     {flow:'device_code', upstream: Outlook} for Outlook accounts. Per-account
+ *     tokens saved to ~/.better-email-mcp/tokens.json via onTokenReceived.
+ *     OUTLOOK_CLIENT_ID env var is required.
  *
- * Scope (L2.12): LOCAL single-user mode. IMAP/SMTP providers (Gmail, Yahoo,
- * iCloud, Zoho, ProtonMail, custom) validated synchronously via IMAP login.
- * Outlook/Hotmail/Live accounts trigger Microsoft's OAuth Device Code flow:
- * the form gets back a ``{type: "oauth_device_code", verification_url,
- * user_code}`` NextStep and polls ``/setup-status`` until a background task
- * exchanges the device code for tokens.
+ *   MCP_MODE=local-relay -- runLocalServer with relaySchema (paste
+ *     email:app-password for Gmail/Yahoo/iCloud). Validates via real IMAP
+ *     before accepting. Outlook accounts trigger Device Code flow in-band via
+ *     the credential form's oauth_device_code NextStep.
  *
- * Credential lifecycle:
+ * Credential lifecycle (both modes):
  *  - At startup, existing credentials from env/encrypted-config are applied
  *    via resolveCredentialState() so the MCP tools work immediately.
  *  - If not configured, the server still starts (degraded mode) and tools
@@ -29,6 +25,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { type NextStep, type RelayConfigSchema, runLocalServer, writeConfig } from '@n24q02m/mcp-core'
 import { ImapFlow } from 'imapflow'
 
+import { buildOutlookUpstream } from '../auth/outlook-device-code.js'
 import { renderEmailCredentialForm } from '../credential-form.js'
 import {
   getMarkSetupComplete as getCredentialMarkSetupComplete,
@@ -38,11 +35,19 @@ import {
 } from '../credential-state.js'
 import { RELAY_SCHEMA } from '../relay-schema.js'
 import { type AccountConfig, loadConfig, parseCredentials } from '../tools/helpers/config.js'
-import { initiateOutlookDeviceCode, isOutlookDomain } from '../tools/helpers/oauth2.js'
+import { initiateOutlookDeviceCode, isOutlookDomain, saveOutlookTokens } from '../tools/helpers/oauth2.js'
 import { registerTools } from '../tools/registry.js'
 
 const SERVER_NAME = 'better-email-mcp'
 const IMAP_CONNECT_TIMEOUT_MS = 15_000
+
+export type HttpMode = 'remote-relay' | 'local-relay'
+
+export function resolveHttpMode(env: NodeJS.ProcessEnv): HttpMode {
+  const raw = env.MCP_MODE?.toLowerCase().trim()
+  if (raw === 'local-relay' || raw === 'remote-relay') return raw
+  return 'remote-relay'
+}
 
 /**
  * Test an IMAP account by connecting + logging out.
@@ -86,6 +91,8 @@ async function testImapConnection(account: AccountConfig): Promise<NextStep | nu
 }
 
 export async function startHttp(): Promise<void> {
+  const mode = resolveHttpMode(process.env)
+
   // Resolve persisted credentials first (env var / encrypted config). This
   // populates process.env.EMAIL_CREDENTIALS so the factory below can load
   // accounts on first MCP request without waiting on the relay form.
@@ -107,6 +114,50 @@ export async function startHttp(): Promise<void> {
     return server as unknown as McpServer
   }
 
+  const port = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 0
+  const host = process.env.HOST
+
+  if (mode === 'remote-relay') {
+    const clientId = process.env.OUTLOOK_CLIENT_ID
+    if (!clientId) {
+      throw new Error(
+        'OUTLOOK_CLIENT_ID is required for remote-relay mode (default). ' +
+          'Set this env var to your Azure AD app client ID, or set MCP_MODE=local-relay ' +
+          'to use app-password mode for Gmail/Yahoo/iCloud accounts.'
+      )
+    }
+
+    const handle = await runLocalServer(serverFactory, {
+      serverName: SERVER_NAME,
+      port,
+      host,
+      delegatedOAuth: {
+        flow: 'device_code',
+        upstream: buildOutlookUpstream({ clientId }),
+        onTokenReceived: async (tokens) => {
+          await saveOutlookTokens(tokens)
+          // Reload accounts so subsequent tool calls pick up the new Outlook token.
+          currentAccounts = await loadConfig()
+          setState('configured')
+          console.error(`[${SERVER_NAME}] Outlook OAuth2 token received and saved`)
+        }
+      }
+    })
+
+    console.error(`[${SERVER_NAME}] remote-relay mode on http://${handle.host}:${handle.port}/mcp`)
+
+    await new Promise<void>((resolve) => {
+      const shutdown = async () => {
+        await handle.close()
+        resolve()
+      }
+      process.once('SIGINT', shutdown)
+      process.once('SIGTERM', shutdown)
+    })
+    return
+  }
+
+  // local-relay mode: email:app-password via relay schema form
   const onCredentialsSaved = async (creds: Record<string, string>): Promise<NextStep | null> => {
     const raw = creds?.EMAIL_CREDENTIALS?.trim()
     if (!raw) {
@@ -201,9 +252,6 @@ export async function startHttp(): Promise<void> {
     return null
   }
 
-  const port = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 0
-  const host = process.env.HOST
-
   const handle = await runLocalServer(serverFactory, {
     serverName: SERVER_NAME,
     relaySchema: RELAY_SCHEMA as unknown as RelayConfigSchema,
@@ -220,7 +268,7 @@ export async function startHttp(): Promise<void> {
     }
   })
 
-  console.error(`[${SERVER_NAME}] HTTP mode on http://${handle.host}:${handle.port}/mcp`)
+  console.error(`[${SERVER_NAME}] local-relay mode on http://${handle.host}:${handle.port}/mcp`)
   if (currentAccounts.length === 0) {
     console.error(
       `[${SERVER_NAME}] Open http://${handle.host}:${handle.port}/authorize to configure your email accounts`
