@@ -2,6 +2,58 @@
 
 <!-- version list -->
 
+## v1.23.0 (2026-04-19)
+
+### Bug Fixes
+
+- Achieve 100% coverage for per-user-credential-store.ts
+  ([#384](https://github.com/n24q02m/better-email-mcp/pull/384),
+  [`837d59f`](https://github.com/n24q02m/better-email-mcp/commit/837d59f83efc6f43660edf2a55817fcdadbee28e))
+
+- Add explicit type annotation for setupCompleteHook
+  ([#438](https://github.com/n24q02m/better-email-mcp/pull/438),
+  [`6f538e1`](https://github.com/n24q02m/better-email-mcp/commit/6f538e1dccf418e75000d36c8eb8de4c269544bf))
+
+- Bump n24q02m-mcp-core to 1.4.0 ([#438](https://github.com/n24q02m/better-email-mcp/pull/438),
+  [`6f538e1`](https://github.com/n24q02m/better-email-mcp/commit/6f538e1dccf418e75000d36c8eb8de4c269544bf))
+
+- Mask credential inputs in relay schema
+  ([#398](https://github.com/n24q02m/better-email-mcp/pull/398),
+  [`37deda1`](https://github.com/n24q02m/better-email-mcp/commit/37deda1a490fd9ff29a14dff7b89973348d1974f))
+
+- Refactor long function startHttp into helpers
+  ([#411](https://github.com/n24q02m/better-email-mcp/pull/411),
+  [`73a51c7`](https://github.com/n24q02m/better-email-mcp/commit/73a51c7342cd97eb8769209869d48827dc9b4dd6))
+
+- **deps**: Update non-major dependencies
+  ([#429](https://github.com/n24q02m/better-email-mcp/pull/429),
+  [`69ca279`](https://github.com/n24q02m/better-email-mcp/commit/69ca279db646cfdf161f37d5261209a6f8d94e1a))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#435](https://github.com/n24q02m/better-email-mcp/pull/435),
+  [`792f12d`](https://github.com/n24q02m/better-email-mcp/commit/792f12d86455df0090e10a6bf1a0f8408896a637))
+
+- **deps**: Lock file maintenance ([#430](https://github.com/n24q02m/better-email-mcp/pull/430),
+  [`710e8c7`](https://github.com/n24q02m/better-email-mcp/commit/710e8c7012c50ef4ee2d25589b05e6c1514ab5c1))
+
+### Performance Improvements
+
+- **http**: Parallelize IMAP connection validations
+  ([#416](https://github.com/n24q02m/better-email-mcp/pull/416),
+  [`fc838e5`](https://github.com/n24q02m/better-email-mcp/commit/fc838e526cf66e4d4f0ac39341550ea1f9c1b549))
+
+### Refactoring
+
+- **config**: Extract parseSingleCredential and fix lint
+  ([#413](https://github.com/n24q02m/better-email-mcp/pull/413),
+  [`a778c5b`](https://github.com/n24q02m/better-email-mcp/commit/a778c5bf8218d3abc0fe1865828ba0a28172849f))
+
+- **config**: Extract parseSingleCredential from parseCredentials
+  ([#413](https://github.com/n24q02m/better-email-mcp/pull/413),
+  [`a778c5b`](https://github.com/n24q02m/better-email-mcp/commit/a778c5bf8218d3abc0fe1865828ba0a28172849f))
+
+
 ## v1.23.0-beta.1 (2026-04-18)
 
 ### Bug Fixes
