@@ -566,6 +566,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                 var payload = { EMAIL_CREDENTIALS: parts.join(",") };
 
                 submitBtn.disabled = true;
+                submitBtn.setAttribute("aria-busy", "true");
                 submitBtn.textContent = "Connecting...";
 
                 fetch(submitUrl, {
@@ -577,15 +578,18 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                         return resp.json().then(function (data) {
                             if (data.ok) {
                                 if (data.next_step && data.next_step.type === "oauth_device_code") {
+                                    submitBtn.removeAttribute("aria-busy");
                                     submitBtn.textContent = "Awaiting Microsoft...";
                                     renderOAuthDeviceCode(data.next_step);
                                 } else {
                                     showStatus("success", data.message || "Setup complete! You can close this tab.");
+                                    submitBtn.removeAttribute("aria-busy");
                                     submitBtn.textContent = "Connected";
                                 }
                             } else {
                                 showStatus("error", data.error || data.error_description || "Request failed.");
                                 submitBtn.disabled = false;
+                                submitBtn.removeAttribute("aria-busy");
                                 submitBtn.textContent = "Connect";
                             }
                         });
@@ -593,6 +597,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                     .catch(function (err) {
                         showStatus("error", "Network error: " + err.message);
                         submitBtn.disabled = false;
+                        submitBtn.removeAttribute("aria-busy");
                         submitBtn.textContent = "Connect";
                     });
             });
