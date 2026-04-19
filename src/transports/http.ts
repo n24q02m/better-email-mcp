@@ -274,7 +274,7 @@ export async function startHttp(): Promise<void> {
     host,
     onCredentialsSaved,
     customCredentialFormHtml: renderEmailCredentialForm,
-    setupCompleteHook: (markComplete) => {
+    setupCompleteHook: (markComplete: (key?: string) => void) => {
       // mcp-core hands us a ``markSetupComplete(key)`` callback here. Stash
       // it in credential-state so the Outlook OAuth background poll (which
       // lives in oauth2.ts) can signal completion to ``/setup-status`` and
