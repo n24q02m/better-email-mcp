@@ -13,7 +13,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { writeConfig } from '@n24q02m/mcp-core'
-import { createSession, notifyComplete, pollForResult } from '@n24q02m/mcp-core/relay'
+import { createSession, pollForResult, sendMessage } from '@n24q02m/mcp-core/relay'
 import { resolveConfig } from '@n24q02m/mcp-core/storage'
 import { RELAY_SCHEMA } from './relay-schema.js'
 import { parseCredentials } from './tools/helpers/config.js'
@@ -152,7 +152,7 @@ async function handlePostRelaySetup(relayUrl: string, sessionId: string, credent
 
     if (!hasOAuthPending) {
       // No OAuth needed — all accounts ready
-      await notifyComplete(relayUrl, sessionId, 'Setup complete! All accounts configured.')
+      await sendMessage(relayUrl, sessionId, { type: 'complete', text: 'Setup complete! All accounts configured.' })
     } else {
       // Wait for OAuth background poll to complete (tokens saved to disk)
       const pendingAuths = _getPendingAuths()
@@ -160,13 +160,13 @@ async function handlePostRelaySetup(relayUrl: string, sessionId: string, credent
       while (pendingAuths.size > 0 && Date.now() < deadline) {
         await new Promise((r) => setTimeout(r, 2000))
       }
-      await notifyComplete(
-        relayUrl,
-        sessionId,
-        pendingAuths.size === 0
-          ? 'Setup complete! All accounts configured including OAuth.'
-          : 'Credentials saved. OAuth sign-in may still be in progress.'
-      )
+      await sendMessage(relayUrl, sessionId, {
+        type: 'complete',
+        text:
+          pendingAuths.size === 0
+            ? 'Setup complete! All accounts configured including OAuth.'
+            : 'Credentials saved. OAuth sign-in may still be in progress.'
+      })
     }
   } catch {
     await fetch(`${relayUrl}/api/sessions/${sessionId}/messages`, {

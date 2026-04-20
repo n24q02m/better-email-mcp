@@ -193,7 +193,7 @@ async function handlePostRelayOAuth(relayBase: string, session: any, credentials
   try {
     const { parseCredentials } = await import('./tools/helpers/config.js')
     const { isOutlookDomain, ensureValidToken, _getPendingAuths } = await import('./tools/helpers/oauth2.js')
-    const { notifyComplete, sendMessage } = await import('@n24q02m/mcp-core')
+    const { sendMessage } = await import('@n24q02m/mcp-core/relay')
 
     const accounts = await parseCredentials(credentials)
     let hasOAuthPending = false
@@ -222,7 +222,10 @@ async function handlePostRelayOAuth(relayBase: string, session: any, credentials
     )
 
     if (!hasOAuthPending) {
-      await notifyComplete(relayBase, session.sessionId, 'Setup complete! All accounts configured.')
+      await sendMessage(relayBase, session.sessionId, {
+        type: 'complete',
+        text: 'Setup complete! All accounts configured.'
+      })
     } else {
       // Wait for OAuth background poll to complete (tokens saved to disk)
       const pendingAuths = _getPendingAuths()
@@ -230,13 +233,13 @@ async function handlePostRelayOAuth(relayBase: string, session: any, credentials
       while (pendingAuths.size > 0 && Date.now() < deadline) {
         await new Promise((r) => setTimeout(r, 2000))
       }
-      await notifyComplete(
-        relayBase,
-        session.sessionId,
-        pendingAuths.size === 0
-          ? 'Setup complete! All accounts configured including OAuth.'
-          : 'Credentials saved. OAuth sign-in may still be in progress.'
-      )
+      await sendMessage(relayBase, session.sessionId, {
+        type: 'complete',
+        text:
+          pendingAuths.size === 0
+            ? 'Setup complete! All accounts configured including OAuth.'
+            : 'Credentials saved. OAuth sign-in may still be in progress.'
+      })
     }
   } catch {
     // Best-effort OAuth handling -- credentials are already saved. Send an

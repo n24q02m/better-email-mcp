@@ -16,8 +16,8 @@ vi.mock('@n24q02m/mcp-core/storage', () => ({
 }))
 vi.mock('@n24q02m/mcp-core/relay', () => ({
   createSession: vi.fn(),
-  notifyComplete: vi.fn().mockResolvedValue(undefined),
-  pollForResult: vi.fn()
+  pollForResult: vi.fn(),
+  sendMessage: vi.fn().mockResolvedValue(undefined)
 }))
 vi.mock('@n24q02m/mcp-core', () => ({
   writeConfig: vi.fn().mockResolvedValue(undefined)
@@ -33,7 +33,7 @@ vi.mock('./tools/helpers/oauth2.js', () => ({
 }))
 
 import { writeConfig } from '@n24q02m/mcp-core'
-import { createSession, notifyComplete, pollForResult } from '@n24q02m/mcp-core/relay'
+import { createSession, pollForResult, sendMessage } from '@n24q02m/mcp-core/relay'
 // Import after mocks
 import { resolveConfig } from '@n24q02m/mcp-core/storage'
 import { parseCredentials } from './tools/helpers/config.js'
@@ -284,10 +284,10 @@ describe('ensureConfig', () => {
 
     await ensureConfig()
 
-    expect(notifyComplete).toHaveBeenCalledWith(
+    expect(sendMessage).toHaveBeenCalledWith(
       'https://better-email-mcp.n24q02m.com',
       'sid-123',
-      expect.stringContaining('Setup complete')
+      expect.objectContaining({ type: 'complete', text: expect.stringContaining('Setup complete') })
     )
   })
 
@@ -346,7 +346,11 @@ describe('ensureConfig', () => {
     expect(body.data.email).toBe('user@outlook.com')
 
     // Should NOT have sent 'complete' message while OAuth is pending.
-    expect(notifyComplete).not.toHaveBeenCalled()
+    expect(sendMessage).not.toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({ type: 'complete' })
+    )
 
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('OAuth device code sent'))
 
@@ -444,7 +448,10 @@ describe('ensureConfig', () => {
     expect(ensureValidToken).not.toHaveBeenCalled()
 
     // Should send 'complete' message since no OAuth pending
-    expect(notifyComplete).toHaveBeenCalled()
+    expect(sendMessage).toHaveBeenCalledWith('https://better-email-mcp.n24q02m.com', 'sid-skip', {
+      type: 'complete',
+      text: expect.any(String)
+    })
 
     fetchSpy.mockRestore()
   })
@@ -527,7 +534,11 @@ describe('ensureConfig', () => {
     expect(deviceCodeCall).toBeUndefined()
 
     // Complete should be sent since hasOAuthPending is still false.
-    expect(notifyComplete).toHaveBeenCalled()
+    expect(sendMessage).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({ type: 'complete' })
+    )
 
     fetchSpy.mockRestore()
   })
