@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v1.23.2 (2026-04-20)
+
+### Bug Fixes
+
+- Unify local-relay + remote-relay UI/flow parity
+  ([#444](https://github.com/n24q02m/better-email-mcp/pull/444),
+  [`174b0d7`](https://github.com/n24q02m/better-email-mcp/commit/174b0d7802b3fb451d2e49345906747dac85af86))
+
+
 ## v1.23.1 (2026-04-20)
 
 ### Bug Fixes
