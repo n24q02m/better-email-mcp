@@ -181,6 +181,10 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
         .add-btn:hover { background-color: rgba(108, 155, 210, 0.08); border-color: #4a6fa5; }
         .add-btn:focus-visible { outline: 2px solid #6c9bd2; outline-offset: 2px; }
         .submit-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
             width: 100%;
             background-color: #4a6fa5;
             border: none;
@@ -191,6 +195,21 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
             font-weight: 500;
             padding: 0.75rem 1.5rem;
             margin-top: 0.5rem;
+        }
+        .spinner {
+            display: none;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.8s linear infinite;
+        }
+        .submit-btn[aria-busy="true"] .spinner {
+            display: block;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         .submit-btn:hover { background-color: #5a7fb5; }
         .submit-btn:focus-visible { outline: 2px solid #4a6fa5; outline-offset: 2px; }
@@ -230,7 +249,10 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
 
                 <button type="button" class="add-btn" id="add-account-btn">+ Add Another Account</button>
 
-                <button type="submit" class="submit-btn" id="submit-btn">Connect</button>
+                <button type="submit" class="submit-btn" id="submit-btn">
+                    <span class="spinner" aria-hidden="true"></span>
+                    <span class="btn-text">Connect</span>
+                </button>
 
                 <div class="status-box" id="status-box" role="alert"></div>
             </form>
@@ -272,6 +294,14 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
             var statusBox = document.getElementById("status-box");
 
             var accountIndex = 0;
+
+            function setSubmitBtn(text, busy, disabled) {
+                submitBtn.disabled = disabled;
+                if (busy) submitBtn.setAttribute("aria-busy", "true");
+                else submitBtn.removeAttribute("aria-busy");
+                var textEl = submitBtn.querySelector(".btn-text");
+                if (textEl) textEl.textContent = text;
+            }
 
             function showStatus(type, message) {
                 statusBox.className = "status-box " + type;
@@ -523,7 +553,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                                 statusBox.appendChild(document.createElement("br"));
                                 statusBox.appendChild(document.createElement("br"));
                                 statusBox.appendChild(document.createTextNode("Outlook authorized. You can close this tab."));
-                                submitBtn.textContent = "Connected";
+                                setSubmitBtn("Connected", false, true);
                             }
                         })
                         .catch(function () {});
@@ -568,9 +598,9 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                 }
                 var payload = { EMAIL_CREDENTIALS: parts.join(",") };
 
-                submitBtn.disabled = true;
-                submitBtn.setAttribute("aria-busy", "true");
-                submitBtn.textContent = "Connecting...";
+
+
+                setSubmitBtn("Connecting...", true, true);
 
                 fetch(submitUrl, {
                     method: "POST",
@@ -581,27 +611,27 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                         return resp.json().then(function (data) {
                             if (data.ok) {
                                 if (data.next_step && data.next_step.type === "oauth_device_code") {
-                                    submitBtn.textContent = "Awaiting Microsoft...";
-                                    submitBtn.removeAttribute("aria-busy");
+                                    setSubmitBtn("Awaiting Microsoft...", true, true);
+
                                     renderOAuthDeviceCode(data.next_step);
                                 } else {
                                     showStatus("success", data.message || "Setup complete! You can close this tab.");
-                                    submitBtn.textContent = "Connected";
-                                    submitBtn.removeAttribute("aria-busy");
+                                    setSubmitBtn("Connected", false, true);
+
                                 }
                             } else {
                                 showStatus("error", data.error || data.error_description || "Request failed.");
-                                submitBtn.disabled = false;
-                                submitBtn.removeAttribute("aria-busy");
-                                submitBtn.textContent = "Connect";
+
+
+                                setSubmitBtn("Connect", false, false);
                             }
                         });
                     })
                     .catch(function (err) {
                         showStatus("error", "Network error: " + err.message);
-                        submitBtn.disabled = false;
-                        submitBtn.removeAttribute("aria-busy");
-                        submitBtn.textContent = "Connect";
+
+
+                        setSubmitBtn("Connect", false, false);
                     });
             });
         })();
