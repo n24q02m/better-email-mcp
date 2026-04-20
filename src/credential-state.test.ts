@@ -10,7 +10,9 @@ vi.mock('@n24q02m/mcp-core', () => ({
   pollForResult: vi.fn(),
   writeConfig: vi.fn().mockResolvedValue(undefined),
   deleteConfig: vi.fn().mockResolvedValue(undefined),
-  sendMessage: vi.fn().mockResolvedValue(undefined)
+  notifyComplete: vi.fn().mockResolvedValue(undefined),
+  sendMessage: vi.fn().mockResolvedValue(undefined),
+  tryOpenBrowser: vi.fn()
 }))
 
 vi.mock('./relay-schema.js', () => ({

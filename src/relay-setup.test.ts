@@ -16,6 +16,7 @@ vi.mock('@n24q02m/mcp-core/storage', () => ({
 }))
 vi.mock('@n24q02m/mcp-core/relay', () => ({
   createSession: vi.fn(),
+  notifyComplete: vi.fn().mockResolvedValue(undefined),
   pollForResult: vi.fn()
 }))
 vi.mock('@n24q02m/mcp-core', () => ({
@@ -32,7 +33,7 @@ vi.mock('./tools/helpers/oauth2.js', () => ({
 }))
 
 import { writeConfig } from '@n24q02m/mcp-core'
-import { createSession, pollForResult } from '@n24q02m/mcp-core/relay'
+import { createSession, notifyComplete, pollForResult } from '@n24q02m/mcp-core/relay'
 // Import after mocks
 import { resolveConfig } from '@n24q02m/mcp-core/storage'
 import { parseCredentials } from './tools/helpers/config.js'
@@ -281,19 +282,13 @@ describe('ensureConfig', () => {
       EMAIL_CREDENTIALS: 'test@gmail.com:pass'
     })
 
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}'))
-
     await ensureConfig()
 
-    expect(fetchSpy).toHaveBeenCalledWith(
-      'https://better-email-mcp.n24q02m.com/api/sessions/sid-123/messages',
-      expect.objectContaining({
-        method: 'POST',
-        body: expect.stringContaining('"type":"complete"')
-      })
+    expect(notifyComplete).toHaveBeenCalledWith(
+      'https://better-email-mcp.n24q02m.com',
+      'sid-123',
+      expect.stringContaining('Setup complete')
     )
-
-    fetchSpy.mockRestore()
   })
 
   it('sends device code via relay for Outlook accounts needing OAuth', async () => {
@@ -350,11 +345,8 @@ describe('ensureConfig', () => {
     expect(body.data.code).toBe('ABCD-EFGH')
     expect(body.data.email).toBe('user@outlook.com')
 
-    // Should NOT have sent 'complete' message (OAuth pending)
-    const completeCall = fetchSpy.mock.calls.find(
-      (call) => typeof call[1]?.body === 'string' && call[1].body.includes('"type":"complete"')
-    )
-    expect(completeCall).toBeUndefined()
+    // Should NOT have sent 'complete' message while OAuth is pending.
+    expect(notifyComplete).not.toHaveBeenCalled()
 
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('OAuth device code sent'))
 
@@ -452,10 +444,7 @@ describe('ensureConfig', () => {
     expect(ensureValidToken).not.toHaveBeenCalled()
 
     // Should send 'complete' message since no OAuth pending
-    const completeCall = fetchSpy.mock.calls.find(
-      (call) => typeof call[1]?.body === 'string' && call[1].body.includes('"type":"complete"')
-    )
-    expect(completeCall).toBeDefined()
+    expect(notifyComplete).toHaveBeenCalled()
 
     fetchSpy.mockRestore()
   })
@@ -537,11 +526,8 @@ describe('ensureConfig', () => {
     )
     expect(deviceCodeCall).toBeUndefined()
 
-    // Complete should be sent since hasOAuthPending is still false
-    const completeCall = fetchSpy.mock.calls.find(
-      (call) => typeof call[1]?.body === 'string' && call[1].body.includes('"type":"complete"')
-    )
-    expect(completeCall).toBeDefined()
+    // Complete should be sent since hasOAuthPending is still false.
+    expect(notifyComplete).toHaveBeenCalled()
 
     fetchSpy.mockRestore()
   })
