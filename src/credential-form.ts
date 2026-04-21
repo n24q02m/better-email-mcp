@@ -81,7 +81,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
         .server-name { font-size: 1.375rem; font-weight: 600; color: #fff; margin-bottom: 0.375rem; }
         .server-id {
             font-size: 0.8125rem;
-            color: #666;
+            color: #9ca3af;
             font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
             margin-bottom: 0.5rem;
         }
@@ -132,9 +132,9 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
         .optional-badge {
             font-size: 0.6875rem;
             font-weight: 400;
-            color: #666;
+            color: #9ca3af;
             background-color: rgba(255, 255, 255, 0.04);
-            border: 1px solid #333;
+            border: 1px solid #4b5563;
             border-radius: 4px;
             padding: 0.1rem 0.4rem;
         }
@@ -154,7 +154,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
             box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.2);
         }
         .field-input::placeholder { color: #555; }
-        .help-text { font-size: 0.8125rem; color: #666; margin-top: 0.375rem; }
+        .help-text { font-size: 0.8125rem; color: #9ca3af; margin-top: 0.375rem; }
         .help-text a { color: #6c9bd2; text-decoration: none; }
         .help-text a:hover { text-decoration: underline; }
         .notice {
@@ -409,6 +409,17 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                 removeBtn.textContent = "Remove";
                 removeBtn.setAttribute("aria-label", "Remove Account " + (idx + 1));
                 removeBtn.addEventListener("click", function () {
+                    var inputs = card.querySelectorAll("input");
+                    var hasData = false;
+                    for (var i = 0; i < inputs.length; i++) {
+                        if (inputs[i].value.trim() !== "") {
+                            hasData = true;
+                            break;
+                        }
+                    }
+                    if (hasData && !window.confirm("This account has unsaved data. Are you sure you want to remove it?")) {
+                        return;
+                    }
                     card.remove();
                     updateAccountNumbers();
                 });
