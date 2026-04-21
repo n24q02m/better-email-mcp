@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.23.4 (2026-04-21)
+
+### Bug Fixes
+
+- **deps**: Bump @n24q02m/mcp-core to ^1.5.0 for SubjectContext export
+  ([`47d9a11`](https://github.com/n24q02m/better-email-mcp/commit/47d9a1170bebd0e3c4b2cfdbbf325427fc7f4c87))
+
+
 ## v1.23.3 (2026-04-21)
 
 ### Bug Fixes
