@@ -6,12 +6,9 @@ vi.mock('@n24q02m/mcp-core/storage', () => ({
 }))
 
 vi.mock('@n24q02m/mcp-core', () => ({
-  createSession: vi.fn(),
-  pollForResult: vi.fn(),
+  runLocalServer: vi.fn(),
   writeConfig: vi.fn().mockResolvedValue(undefined),
   deleteConfig: vi.fn().mockResolvedValue(undefined),
-  notifyComplete: vi.fn().mockResolvedValue(undefined),
-  sendMessage: vi.fn().mockResolvedValue(undefined),
   tryOpenBrowser: vi.fn()
 }))
 
@@ -153,27 +150,33 @@ describe('credential-state', () => {
   })
 
   describe('triggerRelaySetup', () => {
+    function makeHandle(port = 54321) {
+      return { host: '127.0.0.1', port, close: vi.fn().mockResolvedValue(undefined) }
+    }
+
     it('returns existing setup URL when not awaiting_setup', async () => {
       mod.setState('configured')
       const result = await mod.triggerRelaySetup()
       expect(result).toBeNull() // no setupUrl set
     })
 
-    it('transitions to setup_in_progress on relay creation', async () => {
-      const { createSession } = await import('@n24q02m/mcp-core')
-      vi.mocked(createSession).mockResolvedValue({
-        relayUrl: 'https://relay.example.com/setup/abc',
-        sessionId: 'sess-1'
-      } as any)
+    it('spawns a local HTTP server and returns its URL', async () => {
+      const { runLocalServer } = await import('@n24q02m/mcp-core')
+      vi.mocked(runLocalServer).mockResolvedValue(makeHandle(56789) as any)
 
       const result = await mod.triggerRelaySetup()
-      expect(result).toBe('https://relay.example.com/setup/abc')
+      expect(result).toBe('http://127.0.0.1:56789/')
       expect(mod.getState()).toBe('setup_in_progress')
+
+      const call = vi.mocked(runLocalServer).mock.calls[0]
+      expect(call[1].port).toBe(0)
+      expect(call[1].host).toBe('127.0.0.1')
+      expect(call[1].serverName).toBe('better-email-mcp')
     })
 
-    it('returns null on relay creation error', async () => {
-      const { createSession } = await import('@n24q02m/mcp-core')
-      vi.mocked(createSession).mockRejectedValue(new Error('network error'))
+    it('returns null when local spawn fails', async () => {
+      const { runLocalServer } = await import('@n24q02m/mcp-core')
+      vi.mocked(runLocalServer).mockRejectedValue(new Error('cannot bind'))
 
       const result = await mod.triggerRelaySetup()
       expect(result).toBeNull()
@@ -182,14 +185,11 @@ describe('credential-state', () => {
 
     it('force triggers even when configured', async () => {
       mod.setState('configured')
-      const { createSession } = await import('@n24q02m/mcp-core')
-      vi.mocked(createSession).mockResolvedValue({
-        relayUrl: 'https://relay.example.com/setup/forced',
-        sessionId: 'sess-2'
-      } as any)
+      const { runLocalServer } = await import('@n24q02m/mcp-core')
+      vi.mocked(runLocalServer).mockResolvedValue(makeHandle(60001) as any)
 
       const result = await mod.triggerRelaySetup({ force: true })
-      expect(result).toBe('https://relay.example.com/setup/forced')
+      expect(result).toBe('http://127.0.0.1:60001/')
       expect(mod.getState()).toBe('setup_in_progress')
     })
   })

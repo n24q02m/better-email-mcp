@@ -4,26 +4,38 @@
  * State machine: awaiting_setup -> setup_in_progress -> configured
  * Reset: configured -> awaiting_setup (via explicit reset)
  *
- * Unlike wet-mcp, email has NO local fallback -- all tools need credentials.
- * When state is AWAITING_SETUP, tools return a clear error with setup URL.
+ * When no credentials are present, `triggerRelaySetup()` spawns a LOCAL HTTP
+ * server (via mcp-core `runLocalServer` with the email relay schema) on a
+ * random 127.0.0.1 port. The user pastes `email:password` pairs into the
+ * local form; `onCredentialsSaved` persists them to `config.enc`. The spawn
+ * is LOCAL-ONLY — we never hit a remote relay URL from this fallback path.
+ * See `~/.claude/skills/mcp-dev/references/mode-matrix.md` section
+ * `stdio proxy` for the canonical rule. Outlook accounts require the
+ * `MCP_MODE=remote-relay` HTTP mode for Microsoft's device-code flow; they
+ * are rejected by the local paste form with clear instructions.
  *
  * Key constraint: MCP `initialize` must respond within 1 second.
- * resolveCredentialState() is synchronous-fast (<10ms) -- it only reads env
- * vars and the encrypted config file on disk. The relay session (network I/O)
- * is deferred to triggerRelaySetup(), which runs non-blocking in the background.
+ * `resolveCredentialState()` is synchronous-fast (<10ms) -- it only reads
+ * env vars and the encrypted config file on disk. The local server spawn
+ * is deferred to `triggerRelaySetup()`, called lazily on first tool use.
  */
 
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { LocalServerHandle, RelayConfigSchema } from '@n24q02m/mcp-core'
 import { tryOpenBrowser } from '@n24q02m/mcp-core'
 import { resolveConfig } from '@n24q02m/mcp-core/storage'
 
 const SERVER_NAME = 'better-email-mcp'
-const DEFAULT_RELAY_URL = 'https://better-email-mcp.n24q02m.com'
 const REQUIRED_FIELDS = ['EMAIL_CREDENTIALS']
+
+/** Grace window so the browser renders "Connected" before the spawn closes. */
+const SPAWN_CLEANUP_MS = 5_000
 
 export type CredentialState = 'awaiting_setup' | 'setup_in_progress' | 'configured'
 
 let state: CredentialState = 'awaiting_setup'
 let setupUrl: string | null = null
+let activeHandle: LocalServerHandle | null = null
 
 // Hook supplied by the HTTP transport layer (mcp-core's local OAuth app)
 // that lets background Outlook OAuth polls flip ``GET /setup-status`` to
@@ -107,12 +119,10 @@ export async function resolveCredentialState(): Promise<CredentialState> {
 }
 
 /**
- * Trigger relay session for credential setup.
- * Non-blocking: returns the setup URL immediately, polls in background.
- *
- * When the user submits credentials via the relay page, the background poll
- * picks them up, saves to config file, applies to env, and transitions
- * state to 'configured'. Subsequent tool calls will then work normally.
+ * Lazy setup trigger. Spawns a local HTTP credential form on a random port
+ * and returns its URL. Caller surfaces the URL to the user (stderr or tool
+ * response). Non-blocking -- the user submits the form in their browser and
+ * onCredentialsSaved persists to config.enc in the background.
  */
 export async function triggerRelaySetup(options?: { force?: boolean }): Promise<string | null> {
   if (!options?.force && state !== 'awaiting_setup') {
@@ -122,135 +132,68 @@ export async function triggerRelaySetup(options?: { force?: boolean }): Promise<
   state = 'setup_in_progress'
 
   try {
-    const { createSession } = await import('@n24q02m/mcp-core')
+    const { runLocalServer, writeConfig } = await import('@n24q02m/mcp-core')
     const { RELAY_SCHEMA } = await import('./relay-schema.js')
+    const { formatCredentials } = await import('./relay-setup.js')
 
-    const relayBase = process.env.MCP_RELAY_URL ?? DEFAULT_RELAY_URL
+    const handle = await runLocalServer(stubMcpFactory, {
+      serverName: SERVER_NAME,
+      port: 0,
+      host: '127.0.0.1',
+      relaySchema: RELAY_SCHEMA as unknown as RelayConfigSchema,
+      onCredentialsSaved: async (creds) => {
+        try {
+          await writeConfig(SERVER_NAME, creds)
+          const credentials = formatCredentials(creds)
+          process.env.EMAIL_CREDENTIALS = credentials
+          state = 'configured'
+          console.error('Email config saved via local relay')
+        } catch (err) {
+          console.error(`Failed to persist email credentials: ${err}`)
+        }
+        setTimeout(() => {
+          closeActiveHandle().catch(() => {})
+        }, SPAWN_CLEANUP_MS)
+        return null
+      }
+    })
 
-    const session = await createSession(relayBase, SERVER_NAME, RELAY_SCHEMA)
-    setupUrl = session.relayUrl
+    activeHandle = handle
+    setupUrl = `http://${handle.host}:${handle.port}/`
 
-    // Try to open browser (best-effort, non-blocking). mcp-core dedupes
-    // repeat calls for the same URL within a 5-minute window and skips the
-    // open when E2E_SETUP/CI/VITEST env vars are set.
     if (!process.env.E2E_SETUP && !process.env.CI && !process.env.VITEST) {
-      void tryOpenBrowser(session.relayUrl)
+      void tryOpenBrowser(setupUrl)
     }
 
-    console.error(`\nSetup required. Open this URL to configure:\n${session.relayUrl}\n`)
-
-    // Start background poll (non-blocking)
-    pollRelayBackground(relayBase, session).catch(() => {})
+    console.error(`\nSetup required. Open this URL to configure:\n${setupUrl}\n`)
+    console.error(
+      'Paste "email:app-password" pairs (Gmail/Yahoo/iCloud app password, custom IMAP). Outlook requires MCP_MODE=remote-relay for Microsoft device-code flow.\n'
+    )
 
     return setupUrl
-  } catch {
-    console.error(
-      `Cannot reach relay server. Set EMAIL_CREDENTIALS manually.\nFormat: email1:password1,email2:password2`
-    )
+  } catch (err) {
+    console.error(`Relay setup failed: ${err}. Server continues in awaiting_setup.`)
     state = 'awaiting_setup'
     return null
   }
 }
 
-/**
- * Background task that polls relay and applies config when user submits.
- * Handles the full post-relay flow including Outlook OAuth device code.
- */
-async function pollRelayBackground(relayBase: string, session: any): Promise<void> {
-  try {
-    const { pollForResult, writeConfig } = await import('@n24q02m/mcp-core')
-    const { formatCredentials } = await import('./relay-setup.js')
-
-    const config = await pollForResult(relayBase, session)
-
-    // Save to config file for future use
-    await writeConfig(SERVER_NAME, config)
-    console.error('Email config saved successfully')
-
-    const credentials = formatCredentials(config)
-    process.env.EMAIL_CREDENTIALS = credentials
-
-    // Handle Outlook OAuth device code (same logic as old relay-setup.ts)
-    await handlePostRelayOAuth(relayBase, session, credentials)
-
-    state = 'configured'
-    console.error('Relay config applied -- credentials are now active')
-  } catch (err: any) {
-    if (String(err?.message).includes('RELAY_SKIPPED')) {
-      console.error('Relay setup skipped by user. Email tools will be unavailable.')
-    } else {
-      console.error('Relay setup timed out or session expired. Email tools will be unavailable.')
-    }
-    state = 'awaiting_setup'
-  }
+async function closeActiveHandle(): Promise<void> {
+  const handle = activeHandle
+  if (!handle) return
+  activeHandle = null
+  await handle.close().catch(() => {})
 }
 
 /**
- * Post-relay OAuth handling for Outlook accounts.
- * Triggers device code flow and sends the code to the relay page for the user.
+ * Minimal MCP server factory for the setup-only spawn. The spawned server
+ * exists solely to render the /authorize paste form; /mcp should never be
+ * called against it. Returning an empty McpServer satisfies runLocalServer's
+ * type signature without wiring any tools that would require credentials
+ * we do not yet have.
  */
-async function handlePostRelayOAuth(relayBase: string, session: any, credentials: string): Promise<void> {
-  try {
-    const { parseCredentials } = await import('./tools/helpers/config.js')
-    const { isOutlookDomain, ensureValidToken, _getPendingAuths } = await import('./tools/helpers/oauth2.js')
-    const { notifyComplete, sendMessage } = await import('@n24q02m/mcp-core')
-
-    const accounts = await parseCredentials(credentials)
-    let hasOAuthPending = false
-
-    await Promise.all(
-      accounts.map(async (account) => {
-        if (isOutlookDomain(account.email) && !account.oauth2) {
-          try {
-            await ensureValidToken(account)
-          } catch (err: any) {
-            const message = err?.message || ''
-            const urlMatch = message.match(/Visit:\s*(https?:\/\/\S+)/)
-            const codeMatch = message.match(/Enter code:\s*(\S+)/)
-            if (urlMatch && codeMatch) {
-              hasOAuthPending = true
-              await sendMessage(relayBase, session.sessionId, {
-                type: 'oauth_device_code',
-                text: `Sign in to Microsoft for ${account.email}`,
-                data: { url: urlMatch[1], code: codeMatch[1], email: account.email }
-              }).catch(() => {})
-              console.error(`OAuth device code sent to relay page for ${account.email}`)
-            }
-          }
-        }
-      })
-    )
-
-    if (!hasOAuthPending) {
-      await notifyComplete(relayBase, session.sessionId, 'Setup complete! All accounts configured.')
-    } else {
-      // Wait for OAuth background poll to complete (tokens saved to disk)
-      const pendingAuths = _getPendingAuths()
-      const deadline = Date.now() + 10 * 60 * 1000
-      while (pendingAuths.size > 0 && Date.now() < deadline) {
-        await new Promise((r) => setTimeout(r, 2000))
-      }
-      await notifyComplete(
-        relayBase,
-        session.sessionId,
-        pendingAuths.size === 0
-          ? 'Setup complete! All accounts configured including OAuth.'
-          : 'Credentials saved. OAuth sign-in may still be in progress.'
-      )
-    }
-  } catch {
-    // Best-effort OAuth handling -- credentials are already saved. Send an
-    // info message rather than "complete" since setup only partially finished.
-    try {
-      const { sendMessage } = await import('@n24q02m/mcp-core')
-      await sendMessage(relayBase, session.sessionId, {
-        type: 'info',
-        text: 'Credentials saved. If you added Outlook accounts, check back later for OAuth sign-in.'
-      }).catch(() => {})
-    } catch {
-      // Ignore
-    }
-  }
+function stubMcpFactory(): McpServer {
+  return new McpServer({ name: `${SERVER_NAME}-setup`, version: '0.0.0' })
 }
 
 /** For testing and setup tool actions. */
@@ -262,6 +205,7 @@ export function setState(newState: CredentialState): void {
 export async function resetState(): Promise<void> {
   state = 'awaiting_setup'
   setupUrl = null
+  await closeActiveHandle()
   try {
     const { deleteConfig } = await import('@n24q02m/mcp-core')
     await deleteConfig(SERVER_NAME)
