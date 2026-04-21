@@ -2,6 +2,20 @@
 
 <!-- version list -->
 
+## v1.23.5 (2026-04-21)
+
+### Bug Fixes
+
+- Bump actions/setup-node digest to 48b55a0
+  ([`e8cc103`](https://github.com/n24q02m/better-email-mcp/commit/e8cc103a306fd3de079ad0bed61de41b8bf098c3))
+
+- Bump oven/bun:1-alpine docker digest to 4de4753
+  ([`dadc5c6`](https://github.com/n24q02m/better-email-mcp/commit/dadc5c676232e070a8baaa048b8b7daa20359b97))
+
+- Bump step-security/harden-runner digest to 8d3c67d
+  ([`164c855`](https://github.com/n24q02m/better-email-mcp/commit/164c855e6659ed73f76ea5bebb4f421fad145e88))
+
+
 ## v1.23.4 (2026-04-21)
 
 ### Bug Fixes
