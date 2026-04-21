@@ -31,7 +31,14 @@ vi.mock('./tools/helpers/oauth2.js', () => ({
 }))
 
 vi.mock('node:fs/promises', () => ({
-  readFile: vi.fn()
+  // Full set needed because per-user-credential-store (imported transitively
+  // via spawn-setup) captures these into its _fs re-export at module-eval
+  // time. Vitest's strict mock throws if any are read and undefined.
+  readFile: vi.fn(),
+  writeFile: vi.fn(),
+  mkdir: vi.fn(),
+  readdir: vi.fn(),
+  rm: vi.fn()
 }))
 
 vi.mock('node:os', () => ({

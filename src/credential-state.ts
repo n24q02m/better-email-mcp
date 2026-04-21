@@ -153,8 +153,8 @@ export async function triggerRelaySetup(options?: { force?: boolean }): Promise<
     const originalOnSaved = baseOptions.onCredentialsSaved
     const handle = await runLocalServer(stubMcpFactory, {
       ...baseOptions,
-      onCredentialsSaved: async (creds) => {
-        const result = await originalOnSaved?.(creds)
+      onCredentialsSaved: async (creds, context) => {
+        const result = await originalOnSaved?.(creds, context)
         if (result === null || result === undefined) {
           setTimeout(() => {
             closeActiveHandle().catch(() => {})

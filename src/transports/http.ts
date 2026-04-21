@@ -42,6 +42,8 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { runLocalServer } from '@n24q02m/mcp-core'
 
+import { loadUserCredentials } from '../auth/per-user-credential-store.js'
+import { subjectContext } from '../auth/subject-context.js'
 import { resolveCredentialState } from '../credential-state.js'
 import { buildRunLocalServerOptions } from '../spawn-setup.js'
 import { type AccountConfig, loadConfig } from '../tools/helpers/config.js'
@@ -65,32 +67,60 @@ export async function startHttp(): Promise<void> {
   let currentAccounts: AccountConfig[] = await loadConfig()
 
   const serverFactory = (): McpServer => {
+    // Per-request mailbox resolution: in remote-relay mode we prefer the
+    // per-user accounts attached to the current AsyncLocalStorage scope (set
+    // by the ``authScope`` middleware below, keyed by JWT ``sub``). If the
+    // scope is absent (not a /mcp request, or stdio / local-relay mode) we
+    // fall back to the single-user closure loaded at startup.
+    const scope = subjectContext.getStore()
+    const accountsForThisRequest = scope?.accounts ?? currentAccounts
     const server = new Server(
       { name: `@n24q02m/${SERVER_NAME}`, version: '0.0.0' },
       { capabilities: { tools: {}, resources: {} } }
     )
-    registerTools(server, currentAccounts)
+    registerTools(server, accountsForThisRequest)
     return server as unknown as McpServer
   }
 
   const port = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 0
   const host = process.env.HOST
 
-  const handle = await runLocalServer(
+  const baseOptions = buildRunLocalServerOptions({
     serverFactory,
-    buildRunLocalServerOptions({
-      serverFactory,
-      port,
-      host,
-      mode,
-      onAccountsLoaded: (accounts) => {
-        // Refresh closure so subsequent tool calls see the new mailbox set
-        // without a restart. Stdio doesn't need this hook -- its tool
-        // registry reloads config.enc via loadConfig() on every call.
-        currentAccounts = accounts
-      }
-    })
-  )
+    port,
+    host,
+    mode,
+    onAccountsLoaded: (accounts) => {
+      // Refresh closure so subsequent tool calls see the new mailbox set
+      // without a restart. Only meaningful for local-relay + stdio (single
+      // user); remote-relay stores per sub and resolves via subjectContext
+      // instead, so this hook is a no-op there.
+      currentAccounts = accounts
+    }
+  })
+
+  // Remote-relay is the only mode that needs per-request subject scoping.
+  // For each verified /mcp request, load this subject's mailbox list from
+  // the encrypted per-user store and attach it to the AsyncLocalStorage
+  // scope so ``serverFactory`` can thread it into ``registerTools``. Missing
+  // subject ⇒ empty account list ⇒ tools respond with a setup prompt.
+  const options =
+    mode === 'remote-relay'
+      ? {
+          ...baseOptions,
+          authScope: async (claims: { sub?: unknown }, next: () => Promise<void>) => {
+            const sub = typeof claims.sub === 'string' ? claims.sub : null
+            if (!sub) {
+              await next()
+              return
+            }
+            const accounts = (await loadUserCredentials(sub)) ?? []
+            await subjectContext.run({ sub, accounts }, next)
+          }
+        }
+      : baseOptions
+
+  const handle = await runLocalServer(serverFactory, options)
 
   console.error(`[${SERVER_NAME}] ${mode} mode on http://${handle.host}:${handle.port}/mcp`)
   if (currentAccounts.length === 0) {

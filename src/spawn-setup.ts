@@ -15,10 +15,11 @@
  */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import type { NextStep, RelayConfigSchema, RunLocalServerOptions } from '@n24q02m/mcp-core'
+import type { NextStep, RelayConfigSchema, RunLocalServerOptions, SubjectContext } from '@n24q02m/mcp-core'
 import { writeConfig } from '@n24q02m/mcp-core'
 import { ImapFlow } from 'imapflow'
 
+import { storeUserCredentials } from './auth/per-user-credential-store.js'
 import { renderEmailCredentialForm } from './credential-form.js'
 import {
   getMarkSetupComplete as getCredentialMarkSetupComplete,
@@ -142,7 +143,10 @@ export interface SpawnCredentialFormArgs {
 export function buildRunLocalServerOptions(args: SpawnCredentialFormArgs): RunLocalServerOptions {
   const { serverFactory: _serverFactory, port = 0, host, mode, onAccountsLoaded } = args
 
-  const onCredentialsSaved = async (creds: Record<string, string>): Promise<NextStep | null> => {
+  const onCredentialsSaved = async (
+    creds: Record<string, string>,
+    context: SubjectContext
+  ): Promise<NextStep | null> => {
     const raw = creds?.EMAIL_CREDENTIALS?.trim()
     if (!raw) {
       return { type: 'error', text: 'Email credentials are required. Format: email:app-password' }
@@ -178,14 +182,40 @@ export function buildRunLocalServerOptions(args: SpawnCredentialFormArgs): RunLo
     const imapResult = await validateImapAccounts(imapAccounts)
     if (imapResult) return imapResult
 
-    try {
-      await writeConfig(SERVER_NAME, { EMAIL_CREDENTIALS: raw })
-    } catch (err) {
-      console.error(`[${SERVER_NAME}] Failed to persist credentials: ${(err as Error).message}`)
+    // Persistence strategy depends on mode:
+    //
+    // - ``remote-relay`` is the multi-user path served on a public URL. The
+    //   JWT ``sub`` passed in via ``context`` keys a per-user encrypted
+    //   credential file (``storeUserCredentials``). We deliberately do NOT
+    //   write to the shared ``config.enc`` or set ``process.env.EMAIL_CREDENTIALS``
+    //   -- doing so would leak user A's mailboxes to every other caller of the
+    //   same container, which is the 2026-04-21 security incident.
+    // - ``local-relay`` + ``stdio`` are single-user (one host per person).
+    //   Keep the existing shared-config path so tools can read
+    //   ``process.env.EMAIL_CREDENTIALS`` the way they always have, and the
+    //   encrypted ``config.enc`` survives restarts.
+    if (mode === 'remote-relay') {
+      try {
+        await storeUserCredentials(context.sub, accounts)
+      } catch (err) {
+        console.error(
+          `[${SERVER_NAME}] Failed to persist per-user credentials for sub=${context.sub}: ${(err as Error).message}`
+        )
+        return { type: 'error', text: 'Failed to save credentials. Please retry.' }
+      }
+      console.error(
+        `[${SERVER_NAME}] ${accounts.length} email account(s) configured for sub=${context.sub} (mode=remote-relay, per-user scope)`
+      )
+    } else {
+      try {
+        await writeConfig(SERVER_NAME, { EMAIL_CREDENTIALS: raw })
+      } catch (err) {
+        console.error(`[${SERVER_NAME}] Failed to persist credentials: ${(err as Error).message}`)
+      }
+      process.env.EMAIL_CREDENTIALS = raw
+      if (onAccountsLoaded) onAccountsLoaded(accounts)
+      console.error(`[${SERVER_NAME}] ${accounts.length} email account(s) configured via /authorize (mode=${mode})`)
     }
-    process.env.EMAIL_CREDENTIALS = raw
-    if (onAccountsLoaded) onAccountsLoaded(accounts)
-    console.error(`[${SERVER_NAME}] ${accounts.length} email account(s) configured via /authorize (mode=${mode})`)
 
     const outlookResult = await initiateOutlookOAuth(outlookAccounts)
     if (outlookResult) return outlookResult
