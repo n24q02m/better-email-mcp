@@ -2,6 +2,35 @@
 
 <!-- version list -->
 
+## v1.23.3 (2026-04-21)
+
+### Bug Fixes
+
+- Improve credential form a11y (focus-visible + h2/h3 semantics + aria-busy)
+  ([`378f410`](https://github.com/n24q02m/better-email-mcp/commit/378f410a44ecf31e5af618cdf4eecf1cea62eb3e))
+
+- Isolate remote-relay credentials per JWT sub (prevents public-URL leak)
+  ([`5355c34`](https://github.com/n24q02m/better-email-mcp/commit/5355c340e74b0e4aecf54a0424d0aa4c0dd2053d))
+
+- Remove AI traces (.jules / superpowers content — belongs in private n24q02m/.superpower repo)
+  ([`002ec18`](https://github.com/n24q02m/better-email-mcp/commit/002ec18893cf2757bdf6ccb929e5fa74acc1d788))
+
+- Stdio fallback renders multi-account credential form (UI parity)
+  ([`6e099c1`](https://github.com/n24q02m/better-email-mcp/commit/6e099c17c84f03ba23719cc4fa1a5fbcc8eb6141))
+
+- Stdio fallback spawns local HTTP, never hits remote URL
+  ([`ecaf207`](https://github.com/n24q02m/better-email-mcp/commit/ecaf207c27b8913cc7a1fa570695873b38dd5d01))
+
+- Use notifyComplete helper to avoid relay DELETE race
+  ([`018630e`](https://github.com/n24q02m/better-email-mcp/commit/018630e2386ab50d1f2ca0c90da46d02c06ee9e1))
+
+- **deps**: Bump mcp-core to 1.4.3
+  ([`7c8df7b`](https://github.com/n24q02m/better-email-mcp/commit/7c8df7bbe5ddd32b4429879dd83d078e7a272521))
+
+- **deps**: Lock file maintenance (eventsource-parser 3.0.7->3.0.8)
+  ([`3b21de4`](https://github.com/n24q02m/better-email-mcp/commit/3b21de41ffafb6ae9fc831559f7dd5ef01975346))
+
+
 ## v1.23.2 (2026-04-20)
 
 ### Bug Fixes
