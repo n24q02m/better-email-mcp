@@ -4,24 +4,28 @@
  * State machine: awaiting_setup -> setup_in_progress -> configured
  * Reset: configured -> awaiting_setup (via explicit reset)
  *
- * When no credentials are present, `triggerRelaySetup()` spawns a LOCAL HTTP
- * server (via mcp-core `runLocalServer` with the email relay schema) on a
- * random 127.0.0.1 port. The user pastes `email:password` pairs into the
- * local form; `onCredentialsSaved` persists them to `config.enc`. The spawn
- * is LOCAL-ONLY — we never hit a remote relay URL from this fallback path.
- * See `~/.claude/skills/mcp-dev/references/mode-matrix.md` section
- * `stdio proxy` for the canonical rule. Outlook accounts require the
- * `MCP_MODE=remote-relay` HTTP mode for Microsoft's device-code flow; they
- * are rejected by the local paste form with clear instructions.
+ * When no credentials are present, ``triggerRelaySetup()`` spawns a LOCAL
+ * HTTP server via mcp-core ``runLocalServer`` with the SAME spawn options
+ * used by the HTTP transports (see ``spawn-setup.ts``). The browser renders
+ * the multi-account ``renderEmailCredentialForm`` with domain auto-detect
+ * for Gmail/Yahoo/iCloud/custom IMAP + Outlook OAuth2 device code. All
+ * three modes -- ``remote-relay``, ``local-relay``, ``stdio`` -- present
+ * the same UI and execute the same parse + IMAP validation + Outlook
+ * Device Code backend flow, per the ``relay_mode_ui_parity`` rule.
  *
- * Key constraint: MCP `initialize` must respond within 1 second.
- * `resolveCredentialState()` is synchronous-fast (<10ms) -- it only reads
- * env vars and the encrypted config file on disk. The local server spawn
- * is deferred to `triggerRelaySetup()`, called lazily on first tool use.
+ * The spawn is LOCAL-ONLY -- we never hit a remote relay URL from the
+ * stdio fallback path. See ``~/.claude/skills/mcp-dev/references/mode-matrix.md``
+ * section ``stdio proxy`` for the canonical rule.
+ *
+ * Key constraint: MCP ``initialize`` must respond within 1 second.
+ * ``resolveCredentialState()`` is synchronous-fast (<10ms) -- it only
+ * reads env vars and the encrypted config file on disk. The local server
+ * spawn is deferred to ``triggerRelaySetup()``, called lazily on first
+ * tool use.
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import type { LocalServerHandle, RelayConfigSchema } from '@n24q02m/mcp-core'
+import type { LocalServerHandle } from '@n24q02m/mcp-core'
 import { tryOpenBrowser } from '@n24q02m/mcp-core'
 import { resolveConfig } from '@n24q02m/mcp-core/storage'
 
@@ -132,29 +136,31 @@ export async function triggerRelaySetup(options?: { force?: boolean }): Promise<
   state = 'setup_in_progress'
 
   try {
-    const { runLocalServer, writeConfig } = await import('@n24q02m/mcp-core')
-    const { RELAY_SCHEMA } = await import('./relay-schema.js')
-    const { formatCredentials } = await import('./relay-setup.js')
+    const { runLocalServer } = await import('@n24q02m/mcp-core')
+    const { buildRunLocalServerOptions } = await import('./spawn-setup.js')
 
-    const handle = await runLocalServer(stubMcpFactory, {
-      serverName: SERVER_NAME,
+    const baseOptions = buildRunLocalServerOptions({
+      serverFactory: stubMcpFactory,
       port: 0,
       host: '127.0.0.1',
-      relaySchema: RELAY_SCHEMA as unknown as RelayConfigSchema,
+      mode: 'stdio'
+    })
+
+    // Wrap onCredentialsSaved to schedule spawn cleanup after a successful
+    // save so the browser renders "Connected" before the local server goes
+    // away. Wrapping (not replacing) preserves the shared parse + IMAP
+    // validation + Outlook Device Code behaviour from spawn-setup.
+    const originalOnSaved = baseOptions.onCredentialsSaved
+    const handle = await runLocalServer(stubMcpFactory, {
+      ...baseOptions,
       onCredentialsSaved: async (creds) => {
-        try {
-          await writeConfig(SERVER_NAME, creds)
-          const credentials = formatCredentials(creds)
-          process.env.EMAIL_CREDENTIALS = credentials
-          state = 'configured'
-          console.error('Email config saved via local relay')
-        } catch (err) {
-          console.error(`Failed to persist email credentials: ${err}`)
+        const result = await originalOnSaved?.(creds)
+        if (result === null || result === undefined) {
+          setTimeout(() => {
+            closeActiveHandle().catch(() => {})
+          }, SPAWN_CLEANUP_MS)
         }
-        setTimeout(() => {
-          closeActiveHandle().catch(() => {})
-        }, SPAWN_CLEANUP_MS)
-        return null
+        return result ?? null
       }
     })
 
@@ -166,9 +172,6 @@ export async function triggerRelaySetup(options?: { force?: boolean }): Promise<
     }
 
     console.error(`\nSetup required. Open this URL to configure:\n${setupUrl}\n`)
-    console.error(
-      'Paste "email:app-password" pairs (Gmail/Yahoo/iCloud app password, custom IMAP). Outlook requires MCP_MODE=remote-relay for Microsoft device-code flow.\n'
-    )
 
     return setupUrl
   } catch (err) {
