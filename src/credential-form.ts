@@ -477,6 +477,12 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                 return { accounts: accounts, hasOauth: hasOauth };
             }
 
+            // Stashed from initial POST /authorize response so the device-code
+            // completion poller can follow the OAuth redirect (external test
+            // harness, Claude Code CLI, etc.) instead of leaving the browser
+            // parked on a "close tab" message.
+            var pendingRedirectUrl = null;
+
             function renderOAuthDeviceCode(nextStep) {
                 statusBox.className = "status-box";
                 statusBox.style.display = "block";
@@ -533,8 +539,16 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                                 statusBox.appendChild(done);
                                 statusBox.appendChild(document.createElement("br"));
                                 statusBox.appendChild(document.createElement("br"));
-                                statusBox.appendChild(document.createTextNode("Outlook authorized. You can close this tab."));
                                 submitBtn.textContent = "Connected";
+                                if (typeof pendingRedirectUrl === "string" && pendingRedirectUrl.length > 0) {
+                                    // Follow the OAuth redirect so external clients receive the
+                                    // auth code. Without this the form stalls on "close tab" and
+                                    // the client callback server hangs forever.
+                                    statusBox.appendChild(document.createTextNode("Outlook authorized. Redirecting..."));
+                                    window.location.replace(pendingRedirectUrl);
+                                } else {
+                                    statusBox.appendChild(document.createTextNode("Outlook authorized. You can close this tab."));
+                                }
                             }
                         })
                         .catch(function () {});
@@ -591,10 +605,22 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                     .then(function (resp) {
                         return resp.json().then(function (data) {
                             if (data.ok) {
+                                // Stash the OAuth redirect target so follow-up async steps
+                                // (device code poll, future OTP) can navigate to it when
+                                // they complete instead of orphaning the client callback.
+                                if (typeof data.redirect_url === "string" && data.redirect_url.length > 0) {
+                                    pendingRedirectUrl = data.redirect_url;
+                                }
                                 if (data.next_step && data.next_step.type === "oauth_device_code") {
                                     submitBtn.textContent = "Awaiting Microsoft...";
                                     submitBtn.removeAttribute("aria-busy");
                                     renderOAuthDeviceCode(data.next_step);
+                                } else if (pendingRedirectUrl) {
+                                    // No interactive next step — follow the OAuth redirect now.
+                                    showStatus("success", "Credentials saved. Redirecting...");
+                                    submitBtn.textContent = "Connected";
+                                    submitBtn.removeAttribute("aria-busy");
+                                    window.location.replace(pendingRedirectUrl);
                                 } else {
                                     showStatus("success", data.message || "Setup complete! You can close this tab.");
                                     submitBtn.textContent = "Connected";
