@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v1.23.9 (2026-04-22)
+
+### Bug Fixes
+
+- Follow redirect_url after async device-code completion
+  ([#464](https://github.com/n24q02m/better-email-mcp/pull/464),
+  [`39417fd`](https://github.com/n24q02m/better-email-mcp/commit/39417fd95d1ebaea8e8cf0ebee62bc2b16755bc9))
+
+
 ## v1.23.8 (2026-04-22)
 
 ### Bug Fixes
