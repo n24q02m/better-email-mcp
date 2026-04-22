@@ -2,6 +2,33 @@
 
 <!-- version list -->
 
+## v1.23.6 (2026-04-22)
+
+### Bug Fixes
+
+- Bump @n24q02m/mcp-core to 1.5.1
+  ([`4502912`](https://github.com/n24q02m/better-email-mcp/commit/450291227428327a27ccd9baaad56fe77fc1bfee))
+
+- Bump @n24q02m/mcp-core to 1.6.1 ([#459](https://github.com/n24q02m/better-email-mcp/pull/459),
+  [`bcb101f`](https://github.com/n24q02m/better-email-mcp/commit/bcb101f5588b2ba813c5afb380e38f40d9f8a567))
+
+- Refresh bun.lock for mcp-core 1.5.1 bump
+  ([`8d406dd`](https://github.com/n24q02m/better-email-mcp/commit/8d406dd3da5292a3782d920dc0eb2eb1fe2d65e8))
+
+- Remove stale package-lock.json blocking frozen bun install
+  ([#459](https://github.com/n24q02m/better-email-mcp/pull/459),
+  [`bcb101f`](https://github.com/n24q02m/better-email-mcp/commit/bcb101f5588b2ba813c5afb380e38f40d9f8a567))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#455](https://github.com/n24q02m/better-email-mcp/pull/455),
+  [`718c78b`](https://github.com/n24q02m/better-email-mcp/commit/718c78b305fa66d8e50ba4e84e8e90d8b53e3937))
+
+- **deps**: Update non-major dependencies to ^4.1.5
+  ([#454](https://github.com/n24q02m/better-email-mcp/pull/454),
+  [`cbdc837`](https://github.com/n24q02m/better-email-mcp/commit/cbdc837bba8ea9e0699736a6a67731ed323908d3))
+
+
 ## v1.23.5 (2026-04-21)
 
 ### Bug Fixes
