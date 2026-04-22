@@ -19,7 +19,7 @@
 		"codex",
 		"opencode"
 	],
-	"version": "1.23.7",
+	"version": "1.23.8",
 	"license": "MIT",
 	"type": "module",
 	"publishConfig": {

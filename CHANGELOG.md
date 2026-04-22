@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v1.23.8 (2026-04-22)
+
+### Bug Fixes
+
+- Bump @n24q02m/mcp-core to 1.6.3 (relay form follow redirect_url)
+  ([#463](https://github.com/n24q02m/better-email-mcp/pull/463),
+  [`81732f3`](https://github.com/n24q02m/better-email-mcp/commit/81732f30c40b539013b54fa440b17b13bca64f33))
+
+
 ## v1.23.7 (2026-04-22)
 
 ### Bug Fixes
