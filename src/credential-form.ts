@@ -85,7 +85,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
             font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
             margin-bottom: 0.5rem;
         }
-        .server-description { font-size: 0.9rem; color: #999; margin-top: 0.5rem; }
+        .server-description { font-size: 0.9rem; color: #9ca3af; margin-top: 0.5rem; }
         .form-title {
             font-size: 0.875rem;
             font-weight: 500;
@@ -153,7 +153,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
             border-color: #4a6fa5;
             box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.2);
         }
-        .field-input::placeholder { color: #555; }
+        .field-input::placeholder { color: #9ca3af; }
         .help-text { font-size: 0.8125rem; color: #9ca3af; margin-top: 0.375rem; }
         .help-text a { color: #6c9bd2; text-decoration: none; }
         .help-text a:hover { text-decoration: underline; }
@@ -312,10 +312,16 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                 input.dataset.role = key;
                 if (placeholder) input.setAttribute("placeholder", placeholder);
                 if (required) input.setAttribute("required", "required");
+
+                if (helpText) {
+                    var helpId = "help-" + key + "_" + idx;
+                    input.setAttribute("aria-describedby", helpId);
+                }
                 group.appendChild(input);
 
                 if (helpText) {
                     var help = document.createElement("p");
+                    help.id = helpId;
                     help.className = "help-text";
                     if (helpUrl) {
                         var a = document.createElement("a");
