@@ -45,89 +45,19 @@ function getVersion(): string {
   }
 }
 
-/**
- * Non-blocking environment setup.
- *
- * Resolution order (all fast, no network I/O):
- * 1. ENV VARS -- EMAIL_CREDENTIALS already set
- * 2. CONFIG FILE -- encrypted config from previous relay setup
- * 3. SAVED OAUTH TOKENS -- Outlook tokens from previous session
- * 4. NOTHING -- returns empty accounts, tools will trigger relay lazily
- */
-async function setupEnvironment(): Promise<AccountConfig[]> {
-  const credState = await resolveCredentialState()
-
-  if (credState !== 'configured') {
-    // No credentials available yet. Server starts without accounts.
-    // Tools will return setup instructions with relay URL on first call.
-    console.error('Server starting without credentials. Tools will guide setup on first call.')
-    return []
-  }
-
-  // Credentials found -- load accounts normally
-  const accounts = await loadConfig()
-
-  if (accounts.length === 0) {
-    console.error('Warning: No email accounts configured')
-    console.error('Set EMAIL_CREDENTIALS to enable email tools')
-    console.error('Format: email1:password1,email2:password2')
-  } else {
-    console.error(`Loaded ${accounts.length} email account(s)`)
-  }
-
-  // Proactive OAuth2 auth for Outlook accounts without stored tokens.
-  // Triggers Device Code flow immediately so the user sees the sign-in link
-  // at startup instead of waiting until the first tool call.
-  await Promise.all(
-    accounts.map(async (account) => {
-      if (account.authType === 'oauth2' && !account.oauth2) {
-        try {
-          await ensureValidToken(account)
-        } catch (err: any) {
-          // ensureValidToken throws with sign-in instructions -- log to stderr.
-          // Background poll is already running; tokens will be saved to disk
-          // and picked up on the next tool call.
-          console.error(err.message)
-        }
-      }
-    })
-  )
-
-  return accounts
-}
-
-async function setupServer(accounts: AccountConfig[]): Promise<Server> {
-  // Create MCP server
-  const server = new Server(
-    {
-      name: '@n24q02m/better-email-mcp',
-      version: getVersion()
-    },
-    {
-      capabilities: {
-        tools: {},
-        resources: {}
-      }
-    }
-  )
-
-  // Register composite tools (credential-aware: returns setup instructions when unconfigured)
-  registerTools(server, accounts)
-
-  // Connect stdio transport
-  const transport = new StdioServerTransport()
-  await server.connect(transport)
-  return server
-}
+import { runSmartStdioProxy } from '@n24q02m/mcp-core/transport'
 
 export async function initServer() {
   const isStdio =
     process.argv.includes('--stdio') || process.env.MCP_TRANSPORT === 'stdio' || process.env.TRANSPORT_MODE === 'stdio'
 
   if (isStdio) {
-    // Stdio mode -- non-blocking startup
-    const accounts = await setupEnvironment()
-    return setupServer(accounts)
+    const daemonCmd = [process.execPath, process.argv[1]!]
+    const exitCode = await runSmartStdioProxy('better-email-mcp', daemonCmd, {
+      env: { TRANSPORT_MODE: 'http', MCP_MODE: 'local-relay' }
+    })
+    process.exit(exitCode)
+    return
   }
 
   // Default: HTTP mode via mcp-core runLocalServer (local OAuth 2.1 AS).
