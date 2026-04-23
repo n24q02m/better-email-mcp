@@ -71,16 +71,23 @@ async function testImapConnection(account: AccountConfig): Promise<NextStep | nu
 
 /** Validate every IMAP (password) account in parallel. */
 async function validateImapAccounts(imapAccounts: AccountConfig[]): Promise<NextStep | null> {
-  const results = await Promise.all(
-    imapAccounts.map(async (account) => {
-      const result = await testImapConnection(account)
-      if (result === null) {
+  try {
+    await Promise.all(
+      imapAccounts.map(async (account) => {
+        const result = await testImapConnection(account)
+        if (result !== null) {
+          throw result // Fail fast: short-circuit Promise.all
+        }
         console.error(`[${SERVER_NAME}] IMAP login OK for ${account.email}`)
-      }
-      return result
-    })
-  )
-  return results.find((r) => r !== null) ?? null
+      })
+    )
+    return null
+  } catch (error: any) {
+    if (error && typeof error === 'object' && 'type' in error) {
+      return error as NextStep
+    }
+    throw error
+  }
 }
 
 /** Initiate Microsoft Device Code flow for the first Outlook account pending auth. */
