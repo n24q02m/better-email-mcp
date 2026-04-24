@@ -2,6 +2,41 @@
 
 <!-- version list -->
 
+## v1.24.0 (2026-04-24)
+
+### Bug Fixes
+
+- Bump @n24q02m/mcp-core to 1.7.5 ([#477](https://github.com/n24q02m/better-email-mcp/pull/477),
+  [`9d6e46c`](https://github.com/n24q02m/better-email-mcp/commit/9d6e46c8e9b8dc284d98b0462de47e05c832e042))
+
+- Bump @n24q02m/mcp-core to 1.7.6 ([#480](https://github.com/n24q02m/better-email-mcp/pull/480),
+  [`142e05d`](https://github.com/n24q02m/better-email-mcp/commit/142e05da618d203f3029cd45770169d46839adf8))
+
+- Bump @n24q02m/mcp-core to ^1.7.0 for transport subpath export
+  ([#471](https://github.com/n24q02m/better-email-mcp/pull/471),
+  [`7f7fa66`](https://github.com/n24q02m/better-email-mcp/commit/7f7fa6679aa3497c176e3ee70214f27fe0070ba0))
+
+- Force fresh device-code flow on every form submit (ignore cached tokens)
+  ([#478](https://github.com/n24q02m/better-email-mcp/pull/478),
+  [`4d622dd`](https://github.com/n24q02m/better-email-mcp/commit/4d622dd464241b0905860e150174d5d348247936))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#465](https://github.com/n24q02m/better-email-mcp/pull/465),
+  [`381fec1`](https://github.com/n24q02m/better-email-mcp/commit/381fec1d5b877c901ff0035200ce7e59a46e38e9))
+
+### Features
+
+- Migrate stdio transport to 1-Daemon architecture (runSmartStdioProxy)
+  ([`3934df4`](https://github.com/n24q02m/better-email-mcp/commit/3934df43c4fd0ba44c539a323bb81e37858dc104))
+
+### Performance Improvements
+
+- Optimize fuzzy matching loop invariant
+  ([#468](https://github.com/n24q02m/better-email-mcp/pull/468),
+  [`eacdbfd`](https://github.com/n24q02m/better-email-mcp/commit/eacdbfd2e0690214d2f4bb8b0f6385492d428b3d))
+
+
 ## v1.23.9 (2026-04-22)
 
 ### Bug Fixes
