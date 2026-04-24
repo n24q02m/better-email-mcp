@@ -7,3 +7,9 @@
 **Action:**
 1. Always add a confirmation step (e.g., `confirm()`) before removing dynamically generated form segments if they contain user-entered data.
 2. Use lighter greys like `#9ca3af` for secondary text against dark backgrounds to ensure adequate contrast.
+
+## 2024-05-15 - ARIA connections for generated elements
+
+**Learning:** When building dynamic forms with vanilla JS, helper text elements are often generated sequentially alongside inputs but lack semantic connection, causing screen readers to miss crucial instructions (like "Leave empty for auto-detection").
+
+**Action:** Always generate a deterministic `id` for helper text elements and bind it to the associated input using `aria-describedby` immediately during creation to ensure robust accessibility.
