@@ -180,6 +180,15 @@ export function buildRunLocalServerOptions(args: SpawnCredentialFormArgs): RunLo
     const imapAccounts: AccountConfig[] = []
     for (const account of accounts) {
       if (isOutlookDomain(account.email) || account.authType === 'oauth2') {
+        // Force fresh device-code flow for every form submit by clearing any
+        // cached tokens that ``parseCredentials`` may have populated via
+        // ``loadStoredTokens``. Without this, ``initiateOutlookOAuth`` filters
+        // out accounts with ``.oauth2`` set and silently returns ``null`` →
+        // the form shows "Setup complete" without ever displaying the Microsoft
+        // device-code step, which is the UX bug reported 2026-04-24.
+        // ``initiateOutlookDeviceCode`` persists the new tokens so subsequent
+        // ``loadConfig()`` calls read fresh tokens as usual.
+        account.oauth2 = undefined
         outlookAccounts.push(account)
       } else {
         imapAccounts.push(account)
