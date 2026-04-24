@@ -166,13 +166,18 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   let bestMatch: string | null = null
   let bestScore = 0
 
+  // ⚡ Bolt: Pre-compute the input bigrams outside the loop.
+  // This prevents redundant Set allocations and string slicing for the identical
+  // input string on every iteration of validOptions, reducing overhead from O(N*M) to O(N+M).
+  const inputBigrams = new Set<string>()
+  for (let i = 0; i < lower.length - 1; i++) inputBigrams.add(lower.slice(i, i + 2))
+
   for (const option of validOptions) {
     const optionLower = option.toLowerCase()
     if (optionLower.startsWith(lower) || lower.startsWith(optionLower)) {
       return option
     }
-    const inputBigrams = new Set<string>()
-    for (let i = 0; i < lower.length - 1; i++) inputBigrams.add(lower.slice(i, i + 2))
+
     const optionBigrams = new Set<string>()
     for (let i = 0; i < optionLower.length - 1; i++) optionBigrams.add(optionLower.slice(i, i + 2))
 
