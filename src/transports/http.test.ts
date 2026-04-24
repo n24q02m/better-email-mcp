@@ -281,6 +281,46 @@ describe('http transport', () => {
       })
     })
 
+    it('forces fresh device-code flow even when parseCredentials returns cached oauth2 tokens', async () => {
+      // Regression for 2026-04-24 UX bug: ``parseSingleCredential`` calls
+      // ``loadStoredTokens`` and populates ``account.oauth2`` when a previous
+      // session saved tokens. Without the force-refresh, ``initiateOutlookOAuth``
+      // filters these accounts out via ``!a.oauth2`` and silently returns null,
+      // so the form shows "Setup complete" without ever displaying the Microsoft
+      // device-code step. ``onCredentialsSaved`` must clear cached tokens on
+      // every form submit so the user always sees + completes the device-code UI.
+      const mockAccounts = [
+        {
+          email: 'test@outlook.com',
+          imap: {},
+          authType: 'oauth2',
+          // Simulate cached tokens from a previous session.
+          oauth2: {
+            accessToken: 'stale-access',
+            refreshToken: 'stale-refresh',
+            expiresAt: 0,
+            clientId: 'stale-client'
+          }
+        }
+      ]
+      vi.mocked(parseCredentials).mockResolvedValue(mockAccounts as any)
+      vi.mocked(isOutlookDomain).mockReturnValue(true)
+      vi.mocked(initiateOutlookDeviceCode).mockResolvedValue({
+        verificationUri: 'https://microsoft.com/devicelogin',
+        userCode: 'ABCD-EFGH'
+      } as any)
+
+      const result = await onCredentialsSaved({ EMAIL_CREDENTIALS: 'test@outlook.com:oauth2' })
+
+      expect(initiateOutlookDeviceCode).toHaveBeenCalledWith('test@outlook.com', expect.any(Function))
+      expect(result).toEqual({
+        type: 'oauth_device_code',
+        verification_url: 'https://microsoft.com/devicelogin',
+        user_code: 'ABCD-EFGH',
+        email: 'test@outlook.com'
+      })
+    })
+
     it('logs error if writeConfig fails but continues', async () => {
       const mockAccounts = [{ email: 'test@gmail.com', imap: {}, authType: 'password' }]
       vi.mocked(parseCredentials).mockResolvedValue(mockAccounts as any)
