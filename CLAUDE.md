@@ -89,7 +89,7 @@ PSR v10 (workflow_dispatch) -> npm + Docker (amd64+arm64) + GHCR + MCP Registry.
 - Composite tool signature: `async function toolName(accounts: AccountConfig[], input: TypedInput): Promise<any>`
 - 3-tier token optimization: Tier 1 (compact), Tier 2 (help tool), Tier 3 (MCP Resources).
 - Pre-commit: biome check --write, tsc --noEmit, bun run test.
-- Infisical project: `3f23a1cb-d966-448d-91a1-bd1566a2361c`
+- Secrets: skret SSM namespace `/better-email-mcp/prod` (region `ap-southeast-1`)
 
 ## Modes (Phase L2 restored 2026-04-18)
 
