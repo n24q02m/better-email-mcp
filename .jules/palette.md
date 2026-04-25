@@ -13,3 +13,9 @@
 **Learning:** When building dynamic forms with vanilla JS, helper text elements are often generated sequentially alongside inputs but lack semantic connection, causing screen readers to miss crucial instructions (like "Leave empty for auto-detection").
 
 **Action:** Always generate a deterministic `id` for helper text elements and bind it to the associated input using `aria-describedby` immediately during creation to ensure robust accessibility.
+
+## 2024-05-16 - Dynamic Notification Accessibility & Contrast
+
+**Learning:** When generating dynamic form elements that act as notifications (like an OAuth notice that appears when a user types a specific email domain), screen readers won't announce the new content automatically. Furthermore, secondary text using `#888` on a dark background fails WCAG AA contrast guidelines.
+
+**Action:** Always apply `role="status"` and `aria-live="polite"` to dynamic notification containers so screen readers announce their appearance. Use `#9ca3af` instead of `#888` for secondary text to ensure sufficient contrast.
