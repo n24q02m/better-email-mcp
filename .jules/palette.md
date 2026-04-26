@@ -13,3 +13,9 @@
 **Learning:** When building dynamic forms with vanilla JS, helper text elements are often generated sequentially alongside inputs but lack semantic connection, causing screen readers to miss crucial instructions (like "Leave empty for auto-detection").
 
 **Action:** Always generate a deterministic `id` for helper text elements and bind it to the associated input using `aria-describedby` immediately during creation to ensure robust accessibility.
+
+## 2024-05-16 - Dynamic Notification Accessibility
+
+**Learning:** When generating dynamic notifications (like the domain-specific OAuth notices in `src/credential-form.ts`) that appear without explicit user interaction (e.g. typing triggering a UI update), screen readers often ignore the new element.
+
+**Action:** Always apply `role="status"` and `aria-live="polite"` to dynamically generated notification elements to ensure they are immediately and appropriately announced by assistive technologies.

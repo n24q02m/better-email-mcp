@@ -356,6 +356,8 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                     var notice = document.createElement("div");
                     notice.className = "notice";
                     notice.dataset.role = "oauth-notice";
+                    notice.setAttribute("role", "status");
+                    notice.setAttribute("aria-live", "polite");
                     notice.textContent =
                         "Outlook/Hotmail/Live requires OAuth2. This will be handled automatically by the server after you submit -- a Microsoft sign-in URL + code will appear here.";
                     extraContainer.appendChild(notice);
