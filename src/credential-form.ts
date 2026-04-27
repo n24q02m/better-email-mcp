@@ -348,7 +348,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                 }
             }
 
-            function renderDomainSpecificFields(extraContainer, idx, domain) {
+            function renderDomainSpecificFields(extraContainer, idx, domain, state) {
                 clearChildren(extraContainer);
                 if (!domain) return;
 
@@ -356,6 +356,8 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                     var notice = document.createElement("div");
                     notice.className = "notice";
                     notice.dataset.role = "oauth-notice";
+                    notice.setAttribute("role", "status");
+                    notice.setAttribute("aria-live", "polite");
                     notice.textContent =
                         "Outlook/Hotmail/Live requires OAuth2. This will be handled automatically by the server after you submit -- a Microsoft sign-in URL + code will appear here.";
                     extraContainer.appendChild(notice);
@@ -374,12 +376,15 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                         info.helpText,
                         info.helpUrl
                     );
+                    if (state && state.password) pw.input.value = state.password;
                     extraContainer.appendChild(pw.group);
                     return;
                 }
 
                 var pwCustom = createFieldGroup(idx, "password", "Password", "password", "", true, "", "");
+                if (state && state.password) pwCustom.input.value = state.password;
                 extraContainer.appendChild(pwCustom.group);
+
                 var imap = createFieldGroup(
                     idx,
                     "imap",
@@ -390,6 +395,7 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                     "Optional. Leave empty for auto-detection.",
                     ""
                 );
+                if (state && state.imap) imap.input.value = state.imap;
                 extraContainer.appendChild(imap.group);
             }
 
@@ -436,11 +442,18 @@ export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: {
                 extra.dataset.role = "extra";
                 card.appendChild(extra);
 
+                var state = { password: "", imap: "" };
+
                 emailField.input.addEventListener("input", function () {
+                    var pwNode = extra.querySelector('input[data-role="password"]');
+                    if (pwNode) state.password = pwNode.value;
+                    var imapNode = extra.querySelector('input[data-role="imap"]');
+                    if (imapNode) state.imap = imapNode.value;
+
                     var val = emailField.input.value;
                     var at = val.indexOf("@");
                     var domain = at >= 0 ? val.slice(at + 1).trim().toLowerCase() : "";
-                    renderDomainSpecificFields(extra, idx, domain);
+                    renderDomainSpecificFields(extra, idx, domain, state);
                 });
 
                 return card;
