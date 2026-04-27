@@ -40,7 +40,10 @@ function escapeHtml(value: unknown): string {
  * comma-separated `email1:pass1,email2:pass2:imap_host` format. The
  * server-side onCredentialsSaved callback parses this back into accounts.
  */
-export function renderEmailCredentialForm(_schema: RelayConfigSchema, options: { submitUrl: string }): string {
+export function renderEmailCredentialForm(
+  _schema: RelayConfigSchema,
+  options: { submitUrl: string; prefill?: Record<string, string> }
+): string {
   const displayName = escapeHtml(_schema.displayName ?? _schema.server ?? 'Email MCP')
   const server = escapeHtml(_schema.server ?? 'better-email-mcp')
   const description = escapeHtml(
