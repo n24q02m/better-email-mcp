@@ -215,6 +215,11 @@ export function renderEmailCredentialForm(
             border: 1px solid rgba(248, 113, 113, 0.3);
             color: #f87171;
         }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
     </style>
 </head>
 <body>
@@ -538,7 +543,8 @@ export function renderEmailCredentialForm(
 
                 var waiting = document.createElement("span");
                 waiting.id = "outlook-waiting";
-                waiting.style.color = "#888";
+                waiting.className = "pulse";
+                waiting.style.color = "#9ca3af";
                 waiting.textContent = "Waiting for Microsoft authorization...";
                 statusBox.appendChild(waiting);
 
