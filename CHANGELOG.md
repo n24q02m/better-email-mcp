@@ -2,6 +2,37 @@
 
 <!-- version list -->
 
+## v1.25.0 (2026-04-27)
+
+### Bug Fixes
+
+- Bump @n24q02m/mcp-core to 1.8.0 ([#489](https://github.com/n24q02m/better-email-mcp/pull/489),
+  [`26a4f53`](https://github.com/n24q02m/better-email-mcp/commit/26a4f53110ca1daf99d06efe0a07ad98b47d3972))
+
+- **deps**: Update non-major dependencies
+  ([#481](https://github.com/n24q02m/better-email-mcp/pull/481),
+  [`e8baad0`](https://github.com/n24q02m/better-email-mcp/commit/e8baad035680e9d72d63718848b4597bae6e4a63))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#482](https://github.com/n24q02m/better-email-mcp/pull/482),
+  [`496b33e`](https://github.com/n24q02m/better-email-mcp/commit/496b33ecf0a476adf2bb834229a893ce75b118fc))
+
+### Features
+
+- Accept optional prefill kwarg in renderEmailCredentialForm
+  ([#487](https://github.com/n24q02m/better-email-mcp/pull/487),
+  [`a16b456`](https://github.com/n24q02m/better-email-mcp/commit/a16b4565744aa043c6f224b7f0397e4689a17015))
+
+- Add ## E2E section to CLAUDE.md per Task 21 docs rollout
+  ([#487](https://github.com/n24q02m/better-email-mcp/pull/487),
+  [`a16b456`](https://github.com/n24q02m/better-email-mcp/commit/a16b4565744aa043c6f224b7f0397e4689a17015))
+
+- Add ## E2E section to CLAUDE.md per Task 21 docs rollout
+  ([#486](https://github.com/n24q02m/better-email-mcp/pull/486),
+  [`ce09662`](https://github.com/n24q02m/better-email-mcp/commit/ce09662b0b81c4ec9da0974b6c8b3c54013a2df1))
+
+
 ## v1.24.1-beta.1 (2026-04-27)
 
 ### Bug Fixes
