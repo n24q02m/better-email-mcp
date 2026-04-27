@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v1.24.1-beta.1 (2026-04-27)
+
+### Bug Fixes
+
+- Bump @n24q02m/mcp-core to 1.8.0-beta.1 for /mcp session-routing fix
+  ([`f2cab0f`](https://github.com/n24q02m/better-email-mcp/commit/f2cab0f094c056fee422f22b26082e8083e01cd0))
+
+- Sweep doppler/infisical refs to skret SSM
+  ([`dcaaddf`](https://github.com/n24q02m/better-email-mcp/commit/dcaaddfe7b778b24ca014d69b2268d9d22b4fba4))
+
+
 ## v1.24.0 (2026-04-24)
 
 ### Bug Fixes
