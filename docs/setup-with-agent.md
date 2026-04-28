@@ -137,11 +137,13 @@ Users provide their own email credentials through the OAuth flow.
 | Variable | Required | Default | Description |
 |:---------|:---------|:--------|:------------|
 | `EMAIL_CREDENTIALS` | Yes (stdio) | -- | Email credentials. Format: `user@gmail.com:app-password`. Multi-account: comma-separated. Custom IMAP: `user@custom.com:pass:imap.custom.com`. |
-| `TRANSPORT_MODE` | No | `stdio` | Set to `http` for remote multi-user mode. |
+| `MCP_MODE` | No | `remote-relay` (when `TRANSPORT_MODE=http`) | Selects the HTTP relay flavour: `remote-relay` (default — delegated Microsoft device-code for Outlook/Hotmail/Live; per-JWT-sub tokens; deployed at `better-email-mcp.n24q02m.com`) or `local-relay` (paste-form for App-Password providers; Outlook is rejected with a hint to switch back). |
+| `TRANSPORT_MODE` | No | `stdio` | Legacy alias still honoured — set to `http` to enable HTTP transport (then pick `MCP_MODE`). |
 | `PUBLIC_URL` | Yes (http) | -- | Server's public URL for OAuth redirects (http mode only). |
 | `DCR_SERVER_SECRET` | Yes (http) | -- | HMAC secret for stateless client registration (http mode only). |
 | `PORT` | No | `8080` | Server port (http mode only). |
-| `OUTLOOK_CLIENT_ID` | No | -- | Custom Azure AD client ID for self-hosted Outlook OAuth2. |
+| `OUTLOOK_CLIENT_ID` | No | bundled public Azure client | Custom Azure AD client ID for self-hosted Outlook OAuth2. |
+| `OUTLOOK_EMAIL` | No | -- | Workaround when the Microsoft device-code response omits the email field — set this to the Outlook account email so token persistence keys correctly (`tokens/<email>.json`). |
 
 ## Authentication
 

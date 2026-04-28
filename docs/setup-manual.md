@@ -104,7 +104,10 @@ Other package runners (`bun x`, `pnpm dlx`, `yarn dlx`) also work in place of `n
 
 ## Method 4: HTTP Remote (Multi-User)
 
-For multi-user mode with OAuth 2.1 PKCE authentication. Users provide their own credentials through the OAuth flow.
+The server has two HTTP relay modes selected via `MCP_MODE`:
+
+- **`remote-relay` (default)** — delegated Microsoft device-code OAuth for Outlook/Hotmail/Live. The server initiates the OAuth flow on Microsoft's `/devicecode` endpoint and the user signs in upstream. Required env: `OUTLOOK_CLIENT_ID` (Azure app client ID; the bundled public client at `oauth2.ts:88` is used as the fallback). Optional env: `OUTLOOK_EMAIL` (workaround for the Microsoft device-code response sometimes lacking the email field). Refresh tokens persist at `~/.better-email-mcp/tokens.json` (single-user) or `~/.better-email-mcp/tokens/<sub>.json` (multi-user, keyed by JWT sub).
+- **`local-relay`** — user pastes `email:app-password` strings into a local `/authorize` form. Outlook/Hotmail/Live accounts are rejected in this mode with a hint to switch to `remote-relay`; Gmail / Yahoo / iCloud / custom IMAP all work because they use App Passwords.
 
 ### Using a hosted instance
 
@@ -119,17 +122,21 @@ Add to your MCP client config:
   }
 }
 ```
+The hosted instance runs `remote-relay` mode, so the first call surfaces a Microsoft device-code link in your client.
 
 ### Self-hosting
 
 1. Run the server in HTTP mode:
    ```bash
    docker run -p 8080:8080 \
-     -e TRANSPORT_MODE=http \
+     -e MCP_MODE=remote-relay \
      -e PUBLIC_URL=https://your-domain.com \
      -e DCR_SERVER_SECRET=$(openssl rand -hex 32) \
+     -e OUTLOOK_CLIENT_ID=<your-azure-app-client-id> \
      n24q02m/better-email-mcp:latest
    ```
+   Set `MCP_MODE=local-relay` instead if you want the paste-form flow (Gmail/Yahoo/iCloud only).
+   `TRANSPORT_MODE=http` is still accepted for backward compatibility but `MCP_MODE` is preferred.
 
 2. Point clients to your server URL:
    ```json
