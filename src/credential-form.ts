@@ -220,6 +220,19 @@ export function renderEmailCredentialForm(
             50% { opacity: 0.5; }
         }
         .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner {
+            display: inline-block;
+            width: 1.125rem;
+            height: 1.125rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 0.5rem;
+            vertical-align: text-bottom;
+        }
+
     </style>
 </head>
 <body>
@@ -619,7 +632,7 @@ export function renderEmailCredentialForm(
 
                 submitBtn.disabled = true;
                 submitBtn.setAttribute("aria-busy", "true");
-                submitBtn.textContent = "Connecting...";
+                submitBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Connecting...';
 
                 fetch(submitUrl, {
                     method: "POST",
@@ -636,7 +649,7 @@ export function renderEmailCredentialForm(
                                     pendingRedirectUrl = data.redirect_url;
                                 }
                                 if (data.next_step && data.next_step.type === "oauth_device_code") {
-                                    submitBtn.textContent = "Awaiting Microsoft...";
+                                    submitBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Awaiting Microsoft...';
                                     submitBtn.removeAttribute("aria-busy");
                                     renderOAuthDeviceCode(data.next_step);
                                 } else if (pendingRedirectUrl) {
