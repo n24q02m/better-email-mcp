@@ -2,6 +2,23 @@
 
 <!-- version list -->
 
+## v1.25.1 (2026-04-28)
+
+### Bug Fixes
+
+- Bump @n24q02m/mcp-core to 1.9.0 ([#496](https://github.com/n24q02m/better-email-mcp/pull/496),
+  [`1fa7b85`](https://github.com/n24q02m/better-email-mcp/commit/1fa7b851362f8b7cd3956deb0513b1d7e956b901))
+
+- **deps**: Update non-major dependencies
+  ([#491](https://github.com/n24q02m/better-email-mcp/pull/491),
+  [`a5840c0`](https://github.com/n24q02m/better-email-mcp/commit/a5840c0172dba2894bce3669d5b212739d3285a0))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#492](https://github.com/n24q02m/better-email-mcp/pull/492),
+  [`9fc95c4`](https://github.com/n24q02m/better-email-mcp/commit/9fc95c4bbdf3601b373f5dd2cc6d3d031af2bb8a))
+
+
 ## v1.25.0 (2026-04-27)
 
 ### Bug Fixes
