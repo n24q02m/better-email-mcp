@@ -2,6 +2,23 @@
 
 <!-- version list -->
 
+## v1.25.2 (2026-04-28)
+
+### Bug Fixes
+
+- Document MCP_MODE remote-relay vs local-relay in setup docs
+  ([#497](https://github.com/n24q02m/better-email-mcp/pull/497),
+  [`c688b75`](https://github.com/n24q02m/better-email-mcp/commit/c688b75c4abc9b162b0d34fac5b5d35e6d26beb0))
+
+- Migrate plugin.json to deployed HTTP remote endpoint
+  ([#498](https://github.com/n24q02m/better-email-mcp/pull/498),
+  [`bac8c05`](https://github.com/n24q02m/better-email-mcp/commit/bac8c05d1842d9493c2e8499ea915b5a16b0f106))
+
+- **deps**: Bump @n24q02m/mcp-core to 1.10.0 — Transparent Bridge waves 1-3
+  ([#500](https://github.com/n24q02m/better-email-mcp/pull/500),
+  [`922897a`](https://github.com/n24q02m/better-email-mcp/commit/922897acc868a03389799f386aea9075d054d9f5))
+
+
 ## v1.25.1 (2026-04-28)
 
 ### Bug Fixes
