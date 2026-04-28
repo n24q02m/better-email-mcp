@@ -9,8 +9,8 @@
   "homepage": "https://github.com/n24q02m/better-email-mcp",
   "mcpServers": {
     "better-email-mcp": {
-      "command": "npx",
-      "args": ["-y", "@n24q02m/better-email-mcp"]
+      "type": "http",
+      "url": "https://better-email-mcp.n24q02m.com/mcp"
     }
   }
 }
