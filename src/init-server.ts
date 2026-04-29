@@ -52,12 +52,9 @@ export async function initServer() {
     process.argv.includes('--stdio') || process.env.MCP_TRANSPORT === 'stdio' || process.env.TRANSPORT_MODE === 'stdio'
 
   if (isStdio) {
-    const { RELAY_SCHEMA } = await import('./relay-schema.js')
     const daemonCmd = [process.execPath, process.argv[1]!]
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const exitCode = await runSmartStdioProxy('better-email-mcp', daemonCmd, {
-      env: { TRANSPORT_MODE: 'http', MCP_MODE: 'local-relay' },
-      eagerRelaySchema: RELAY_SCHEMA as any
+      env: { TRANSPORT_MODE: 'http', MCP_MODE: 'local-relay' }
     })
     process.exit(exitCode)
     return
