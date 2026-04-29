@@ -2,6 +2,32 @@
 
 <!-- version list -->
 
+## v1.26.0 (2026-04-29)
+
+### Bug Fixes
+
+- Prevent event loop blocking during IMAP snippet parsing
+  ([#501](https://github.com/n24q02m/better-email-mcp/pull/501),
+  [`09bb1d8`](https://github.com/n24q02m/better-email-mcp/commit/09bb1d8c92edd827d390fdae01e4b1d9a1af99e1))
+
+- Register config__open_relay tool (Transparent Bridge Wave 3)
+  ([#506](https://github.com/n24q02m/better-email-mcp/pull/506),
+  [`06a5a1e`](https://github.com/n24q02m/better-email-mcp/commit/06a5a1e6b2113c43b9ff6d1af7a9cbc1d0184f8b))
+
+- Switch plugin.json to stdio proxy for local relay testing
+  ([#503](https://github.com/n24q02m/better-email-mcp/pull/503),
+  [`f91461b`](https://github.com/n24q02m/better-email-mcp/commit/f91461bac873cbf1f51505e6b1c9d6359f526237))
+
+- **deps**: Bump @n24q02m/mcp-core to 1.10.0 — Transparent Bridge waves 1-3
+  ([#503](https://github.com/n24q02m/better-email-mcp/pull/503),
+  [`f91461b`](https://github.com/n24q02m/better-email-mcp/commit/f91461bac873cbf1f51505e6b1c9d6359f526237))
+
+### Features
+
+- Add spinner to Connect button ([#502](https://github.com/n24q02m/better-email-mcp/pull/502),
+  [`ab82cf3`](https://github.com/n24q02m/better-email-mcp/commit/ab82cf334b6ebf39c5b42f5be73f8452130805d4))
+
+
 ## v1.25.2 (2026-04-28)
 
 ### Bug Fixes
