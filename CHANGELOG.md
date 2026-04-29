@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v1.26.2-beta.1 (2026-04-29)
+
+### Bug Fixes
+
+- Revert eagerRelaySchema usage (D18 rollback)
+  ([#511](https://github.com/n24q02m/better-email-mcp/pull/511),
+  [`ea99137`](https://github.com/n24q02m/better-email-mcp/commit/ea99137f232aea53f0aa6f2420b75dd0d412251d))
+
+
 ## v1.26.1 (2026-04-29)
 
 ### Bug Fixes
