@@ -65,4 +65,17 @@ describe('initServer', () => {
     expect(startHttpMock).toHaveBeenCalled()
     expect(runSmartStdioProxyMock).not.toHaveBeenCalled()
   })
+
+  it('passes RELAY_SCHEMA as eagerRelaySchema to runSmartStdioProxy in stdio mode (D18.3)', async () => {
+    process.argv = [process.argv[0], 'main.js', '--stdio']
+    const { initServer } = await import('./init-server.js')
+    await initServer()
+
+    expect(runSmartStdioProxyMock).toHaveBeenCalledOnce()
+    const options = runSmartStdioProxyMock.mock.calls[0]![2]!
+    expect(options.eagerRelaySchema).toBeDefined()
+    expect(options.eagerRelaySchema.fields).toEqual(
+      expect.arrayContaining([expect.objectContaining({ key: 'EMAIL_CREDENTIALS' })])
+    )
+  })
 })
