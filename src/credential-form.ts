@@ -253,7 +253,7 @@ export function renderEmailCredentialForm(
 
                 <button type="submit" class="submit-btn" id="submit-btn">Connect</button>
 
-                <div class="status-box" id="status-box" role="alert"></div>
+                <div class="status-box" id="status-box" role="status" aria-live="polite"></div>
             </form>
         </div>
     </div>
@@ -318,6 +318,13 @@ export function renderEmailCredentialForm(
                     badge.textContent = "Optional";
                     labelEl.appendChild(document.createTextNode(" "));
                     labelEl.appendChild(badge);
+                } else {
+                    var reqSpan = document.createElement("span");
+                    reqSpan.style.color = "#f87171";
+                    reqSpan.style.marginLeft = "0.25rem";
+                    reqSpan.setAttribute("aria-hidden", "true");
+                    reqSpan.textContent = "*";
+                    labelEl.appendChild(reqSpan);
                 }
                 group.appendChild(labelEl);
 
