@@ -65,3 +65,4 @@ export async function initServer() {
   const { startHttp } = await import('./transports/http.js')
   await startHttp()
 }
+// Rebuild target: mcp-core 1.11.5 (P0 fork-bomb fix)
