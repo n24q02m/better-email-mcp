@@ -45,6 +45,8 @@ describe('registerTools', () => {
     expect(result.content).toHaveLength(1)
     expect(result.content[0].text).toContain('Unknown tool: unknown_tool_name')
     // Verify it lists available tools
-    expect(result.content[0].text).toContain('Available tools: messages, folders, attachments, send, config, help')
+    expect(result.content[0].text).toContain(
+      'Available tools: messages, folders, attachments, send, config, config__open_relay, help'
+    )
   })
 })

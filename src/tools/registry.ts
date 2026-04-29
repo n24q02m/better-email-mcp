@@ -17,7 +17,9 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js'
+import { buildOpenRelayHandler } from '@n24q02m/mcp-core'
 import { getSetupUrl, getState, triggerRelaySetup } from '../credential-state.js'
+import { RELAY_SCHEMA } from '../relay-schema.js'
 import { type AttachmentsInput, attachments } from './composite/attachments.js'
 import { type ConfigInput, handleConfig } from './composite/config.js'
 import { type FoldersInput, folders } from './composite/folders.js'
@@ -209,6 +211,19 @@ const TOOLS = [
     }
   },
   {
+    name: 'config__open_relay',
+    description:
+      'Open the relay configuration form for better-email-mcp in the user browser. Returns the relay URL, whether the browser launched, and the current credential state. Auto-respawns the daemon if it has died.',
+    annotations: {
+      title: 'Open Relay',
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true
+    },
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false }
+  },
+  {
     name: 'help',
     description: 'Get full documentation for a tool. Use when compressed descriptions are insufficient.',
     annotations: {
@@ -281,6 +296,7 @@ const AVAILABLE_TOOLS_STRING = VALID_TOOL_NAMES.join(', ')
 export function registerTools(server: Server, initialAccounts: AccountConfig[]) {
   // Mutable reference: updated via hot-reload when relay credentials arrive after startup
   let accounts = initialAccounts
+  const openRelayHandler = buildOpenRelayHandler('better-email-mcp', RELAY_SCHEMA)
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: TOOLS
   }))
@@ -324,6 +340,16 @@ export function registerTools(server: Server, initialAccounts: AccountConfig[]) 
     }
 
     try {
+      // config__open_relay is handled directly via buildOpenRelayHandler — it does
+      // not depend on configured accounts, takes no args, and returns its own JSON
+      // shape (url, browserOpened, status, etc.).
+      if (name === 'config__open_relay') {
+        const result = await openRelayHandler()
+        return {
+          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+        }
+      }
+
       const handler = TOOL_HANDLERS[name]
       if (!handler) {
         const closest = findClosestMatch(name, VALID_TOOL_NAMES)
@@ -336,10 +362,11 @@ export function registerTools(server: Server, initialAccounts: AccountConfig[]) 
       }
 
       // Credential guard: when not configured, return setup instructions.
-      // Help and setup tools are always available (docs don't need credentials,
-      // setup manages the credential lifecycle itself).
+      // Help, config, and config__open_relay tools are always available (docs don't
+      // need credentials; config and config__open_relay manage the credential
+      // lifecycle itself).
       // The relay session is triggered lazily on first non-exempt tool call.
-      if (name !== 'help' && name !== 'config' && accounts.length === 0) {
+      if (name !== 'help' && name !== 'config' && name !== 'config__open_relay' && accounts.length === 0) {
         const credState = getState()
         if (credState === 'configured') {
           // Hot-reload: relay delivered credentials after startup — reload accounts
