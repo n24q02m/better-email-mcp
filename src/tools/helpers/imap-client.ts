@@ -337,12 +337,14 @@ export async function searchEmails(
       })
 
       // ⚡ Bolt: Execute CPU-intensive snippet extraction outside of the `withConnection` block.
-      // This ensures the IMAP connection and mailbox lock are released as quickly as possible,
-      // preventing other concurrent operations from being blocked while we parse MIME/HTML.
-      const summariesPromises = emails.map(async (msg: any) => {
+      // This ensures the IMAP connection and mailbox lock are released as quickly as possible.
+      // We use a sequential for...of loop instead of Promise.all to prevent event loop blocking
+      // and memory spikes caused by unbounded concurrent execution of CPU-heavy MIME parsing.
+      const summaries = []
+      for (const msg of emails) {
         const snippet = msg.source ? await extractSnippet(msg.source) : ''
 
-        return {
+        summaries.push({
           account_id: account.id,
           account_email: account.email,
           uid: msg.uid,
@@ -353,12 +355,12 @@ export async function searchEmails(
             : '',
           to: msg.envelope?.to?.map((a: any) => a.address).join(', ') || '',
           date: msg.envelope?.date?.toISOString() || '',
-          flags: Array.from((msg.flags as string[]) || []),
+          flags: Array.from((msg.flags as Set<string> | string[]) || []),
           snippet
-        }
-      })
+        })
+      }
 
-      return await Promise.all(summariesPromises)
+      return summaries
     } catch (error: any) {
       // Include error info but continue with other accounts
       return [

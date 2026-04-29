@@ -4,3 +4,7 @@
 ## 2026-04-23 - [Precompute loop invariants]
 **Learning:** In fuzzy matching loops (e.g. `findClosestMatch`), recalculating loop invariants (like `inputBigrams` for the constant input string) on every iteration causes massive redundant allocation overhead, changing the time complexity from O(N+M) to O(N*M).
 **Action:** Always identify operations inside loops that do not depend on the iteration variable and extract them (pre-compute them) before the loop starts to avoid redundant processing.
+
+## 2025-05-18 - Replacing `Promise.all` with Sequential `for...of` Loop for CPU-Heavy Tasks
+**Learning:** In Node.js, using `Promise.all` alongside `.map()` to iterate over a large array of items containing CPU-intensive synchronous operations (like MIME parsing via `mailparser.simpleParser`) causes an unbound concurrent execution. This leads to severe event loop blocking and significant memory spikes, which degrades overall performance and responsiveness.
+**Action:** When executing expensive CPU-bound synchronous tasks over a collection in an asynchronous context, iterate sequentially using a `for...of` loop instead of `Promise.all`. This allows the event loop to yield appropriately between tasks and maintains a stable memory footprint.
