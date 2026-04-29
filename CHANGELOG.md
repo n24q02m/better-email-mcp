@@ -2,6 +2,23 @@
 
 <!-- version list -->
 
+## v1.26.1 (2026-04-29)
+
+### Bug Fixes
+
+- Pass RELAY_SCHEMA as eagerRelaySchema for stdio mode + bump mcp-core to 1.11.3
+  ([#510](https://github.com/n24q02m/better-email-mcp/pull/510),
+  [`3b930e7`](https://github.com/n24q02m/better-email-mcp/commit/3b930e7df458e6af722f526f7ffc9835ef66fbd6))
+
+- Pin @latest in plugin.json to bypass npx cache stale versions
+  ([#508](https://github.com/n24q02m/better-email-mcp/pull/508),
+  [`a81adb6`](https://github.com/n24q02m/better-email-mcp/commit/a81adb6de758ee843dcebcf20aada739d9373afb))
+
+- Register config__open_relay tool (Transparent Bridge Wave 3)
+  ([#508](https://github.com/n24q02m/better-email-mcp/pull/508),
+  [`a81adb6`](https://github.com/n24q02m/better-email-mcp/commit/a81adb6de758ee843dcebcf20aada739d9373afb))
+
+
 ## v1.26.0 (2026-04-29)
 
 ### Bug Fixes
