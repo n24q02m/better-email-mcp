@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v1.26.3 (2026-04-29)
+
+### Bug Fixes
+
+- Rebuild against mcp-core 1.11.5 fork-bomb fix
+  ([#514](https://github.com/n24q02m/better-email-mcp/pull/514),
+  [`a6a7020`](https://github.com/n24q02m/better-email-mcp/commit/a6a70206156c7cab1e4b20a977d98f2e306cb032))
+
+
 ## v1.26.2 (2026-04-29)
 
 

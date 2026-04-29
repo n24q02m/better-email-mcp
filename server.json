@@ -6,12 +6,12 @@
     "url": "https://github.com/n24q02m/better-email-mcp.git",
     "source": "github"
   },
-  "version": "1.26.2",
+  "version": "1.26.3",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@n24q02m/better-email-mcp",
-      "version": "1.26.2",
+      "version": "1.26.3",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"
