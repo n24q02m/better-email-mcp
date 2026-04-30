@@ -28,6 +28,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { LocalServerHandle } from '@n24q02m/mcp-core'
 import { tryOpenBrowser } from '@n24q02m/mcp-core'
 import { resolveConfig } from '@n24q02m/mcp-core/storage'
+import { isSafeUrl } from './tools/helpers/security.js'
 
 const SERVER_NAME = 'better-email-mcp'
 const REQUIRED_FIELDS = ['EMAIL_CREDENTIALS']
@@ -168,7 +169,9 @@ export async function triggerRelaySetup(options?: { force?: boolean }): Promise<
     setupUrl = `http://${handle.host}:${handle.port}/`
 
     if (!process.env.E2E_SETUP && !process.env.CI && !process.env.VITEST) {
-      void tryOpenBrowser(setupUrl)
+      if (isSafeUrl(setupUrl)) {
+        void tryOpenBrowser(setupUrl)
+      }
     }
 
     console.error(`\nSetup required. Open this URL to configure:\n${setupUrl}\n`)

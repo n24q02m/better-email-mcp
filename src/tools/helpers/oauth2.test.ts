@@ -946,7 +946,7 @@ describe('openBrowser delegates to mcp-core', () => {
 
     // mcp-core.tryOpenBrowser is covered by its own tests for protocol
     // filtering — we only verify oauth2.ts delegated the call.
-    expect(mockTryOpenBrowser).toHaveBeenCalledWith('javascript:alert(1)')
+    expect(mockTryOpenBrowser).not.toHaveBeenCalledWith('javascript:alert(1)')
 
     _getPendingAuths().clear()
   })

@@ -11,6 +11,7 @@ import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { tryOpenBrowser } from '@n24q02m/mcp-core'
+import { isSafeUrl } from './security.js'
 
 // Microsoft OAuth2 endpoints — "consumers" tenant for personal Microsoft accounts
 const TENANT = 'consumers'
@@ -210,7 +211,9 @@ export function _resetBrowserOpenDedupe(): void {
  * block on browser launch.
  */
 function openBrowser(url: string): void {
-  void tryOpenBrowser(url)
+  if (isSafeUrl(url)) {
+    void tryOpenBrowser(url)
+  }
 }
 
 /**
