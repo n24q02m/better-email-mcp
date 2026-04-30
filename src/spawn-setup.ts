@@ -19,7 +19,7 @@ import type { NextStep, RelayConfigSchema, RunLocalServerOptions, SubjectContext
 import { writeConfig } from '@n24q02m/mcp-core'
 import { ImapFlow } from 'imapflow'
 
-import { storeUserCredentials } from './auth/per-user-credential-store.js'
+import { InMemoryCredStore } from './auth/in-memory-cred-store.js'
 import { renderEmailCredentialForm } from './credential-form.js'
 import {
   getMarkSetupComplete as getCredentialMarkSetupComplete,
@@ -29,6 +29,9 @@ import {
 import { RELAY_SCHEMA } from './relay-schema.js'
 import { type AccountConfig, parseCredentials } from './tools/helpers/config.js'
 import { initiateOutlookDeviceCode, isOutlookDomain } from './tools/helpers/oauth2.js'
+
+/** Module-singleton in-memory credential store for remote-relay multi-user mode. */
+export const credStore = new InMemoryCredStore()
 
 const SERVER_NAME = 'better-email-mcp'
 const IMAP_CONNECT_TIMEOUT_MS = 15_000
@@ -201,21 +204,23 @@ export function buildRunLocalServerOptions(args: SpawnCredentialFormArgs): RunLo
     // Persistence strategy depends on mode:
     //
     // - ``remote-relay`` is the multi-user path served on a public URL. The
-    //   JWT ``sub`` passed in via ``context`` keys a per-user encrypted
-    //   credential file (``storeUserCredentials``). We deliberately do NOT
-    //   write to the shared ``config.enc`` or set ``process.env.EMAIL_CREDENTIALS``
-    //   -- doing so would leak user A's mailboxes to every other caller of the
-    //   same container, which is the 2026-04-21 security incident.
+    //   JWT ``sub`` passed in via ``context`` keys a per-user in-memory
+    //   credential entry (``credStore.save``). We deliberately do NOT write to
+    //   the shared ``config.enc`` or set ``process.env.EMAIL_CREDENTIALS`` --
+    //   doing so would leak user A's mailboxes to every other caller of the same
+    //   container, which is the 2026-04-21 security incident.
+    //   In-memory (TC-NearZK): no persistent FS dump; credentials survive only
+    //   for the process lifetime. Users re-authenticate after a restart.
     // - ``local-relay`` + ``stdio`` are single-user (one host per person).
     //   Keep the existing shared-config path so tools can read
     //   ``process.env.EMAIL_CREDENTIALS`` the way they always have, and the
     //   encrypted ``config.enc`` survives restarts.
     if (mode === 'remote-relay') {
       try {
-        await storeUserCredentials(context.sub, accounts)
+        await credStore.save(context.sub, { accounts })
       } catch (err) {
         console.error(
-          `[${SERVER_NAME}] Failed to persist per-user credentials for sub=${context.sub}: ${(err as Error).message}`
+          `[${SERVER_NAME}] Failed to save per-user credentials for sub=${context.sub}: ${(err as Error).message}`
         )
         return { type: 'error', text: 'Failed to save credentials. Please retry.' }
       }

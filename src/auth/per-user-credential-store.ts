@@ -1,4 +1,13 @@
 /**
+ * @deprecated v1.0.0 -- disk-encrypted AES-GCM+PBKDF2 storage replaced by
+ * `InMemoryCredStore` (TC-NearZK trust class). Module retained for one
+ * minor release as migration shim; production callers (`spawn-setup.ts` +
+ * `transports/http.ts`) now use `credStore` from `spawn-setup.ts`.
+ * Removed in v2.0.0.
+ *
+ * See ~/projects/.superpower/mcp-core/specs/2026-04-30-trust-model-alignment.md
+ * § 4.D3 + § 5.A8.
+ *
  * Per-user encrypted credential storage.
  *
  * Stores email credentials per user in separate encrypted files:
