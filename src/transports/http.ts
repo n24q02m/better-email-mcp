@@ -23,8 +23,8 @@
  * primitive in mcp-core issues a static ``sub='local-user'`` for all
  * sessions. Follow-up: mcp-core v1.5+ will generate a per-session UUID
  * subject and thread it through to ``onCredentialsSaved``; this module
- * will switch the remote-relay branch to call ``storeUserCredentials(sub,
- * accounts)`` without any UI change.
+ * calls ``credStore.save(sub, { accounts })`` in ``spawn-setup.ts`` and reads
+ * back via ``credStore.load(sub)`` here.
  *
  * The shared ``runLocalServer`` options (``onCredentialsSaved``,
  * ``customCredentialFormHtml``, ``setupCompleteHook``) live in
@@ -42,10 +42,9 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { runLocalServer } from '@n24q02m/mcp-core'
 
-import { loadUserCredentials } from '../auth/per-user-credential-store.js'
 import { subjectContext } from '../auth/subject-context.js'
 import { resolveCredentialState } from '../credential-state.js'
-import { buildRunLocalServerOptions } from '../spawn-setup.js'
+import { buildRunLocalServerOptions, credStore } from '../spawn-setup.js'
 import { type AccountConfig, loadConfig } from '../tools/helpers/config.js'
 import { registerTools } from '../tools/registry.js'
 
@@ -114,7 +113,8 @@ export async function startHttp(): Promise<void> {
               await next()
               return
             }
-            const accounts = (await loadUserCredentials(sub)) ?? []
+            const payload = await credStore.load(sub)
+            const accounts = (payload?.accounts as AccountConfig[] | undefined) ?? []
             await subjectContext.run({ sub, accounts }, next)
           }
         }
