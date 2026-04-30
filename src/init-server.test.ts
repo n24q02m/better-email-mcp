@@ -1,17 +1,39 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const startHttpMock = vi.fn()
-const runSmartStdioProxyMock = vi.fn().mockResolvedValue(0)
+const connectMock = vi.fn().mockResolvedValue(undefined)
+const ServerCtorMock = vi.fn(function (this: any, _info: unknown, _opts: unknown) {
+  this.connect = connectMock
+  this.setRequestHandler = vi.fn()
+})
+const StdioServerTransportCtorMock = vi.fn(function (this: any) {})
+const registerToolsMock = vi.fn()
+const resolveCredentialStateMock = vi.fn().mockResolvedValue('configured')
+const loadConfigMock = vi.fn().mockResolvedValue([])
 
 vi.mock('./transports/http.js', () => ({
   startHttp: startHttpMock
 }))
 
-vi.mock('@n24q02m/mcp-core/transport', () => ({
-  runSmartStdioProxy: runSmartStdioProxyMock
+vi.mock('@modelcontextprotocol/sdk/server/index.js', () => ({
+  Server: ServerCtorMock
 }))
 
-const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {}) as any)
+vi.mock('@modelcontextprotocol/sdk/server/stdio.js', () => ({
+  StdioServerTransport: StdioServerTransportCtorMock
+}))
+
+vi.mock('./tools/registry.js', () => ({
+  registerTools: registerToolsMock
+}))
+
+vi.mock('./credential-state.js', () => ({
+  resolveCredentialState: resolveCredentialStateMock
+}))
+
+vi.mock('./tools/helpers/config.js', () => ({
+  loadConfig: loadConfigMock
+}))
 
 describe('initServer', () => {
   const originalEnv = process.env
@@ -30,32 +52,33 @@ describe('initServer', () => {
     process.argv = originalArgv
   })
 
-  it('dispatches stdio proxy when --stdio flag is set', async () => {
+  it('connects StdioServerTransport when --stdio flag is set', async () => {
     process.argv = [process.argv[0], 'main.js', '--stdio']
     const { initServer } = await import('./init-server.js')
     await initServer()
-    expect(runSmartStdioProxyMock).toHaveBeenCalledWith(
-      'better-email-mcp',
-      expect.any(Array),
-      expect.objectContaining({ env: expect.objectContaining({ TRANSPORT_MODE: 'http', MCP_MODE: 'local-relay' }) })
+    expect(ServerCtorMock).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'better-email-mcp' }),
+      expect.objectContaining({ capabilities: expect.any(Object) })
     )
-    expect(exitSpy).toHaveBeenCalledWith(0)
+    expect(registerToolsMock).toHaveBeenCalled()
+    expect(StdioServerTransportCtorMock).toHaveBeenCalled()
+    expect(connectMock).toHaveBeenCalled()
     expect(startHttpMock).not.toHaveBeenCalled()
   })
 
-  it('dispatches stdio proxy when MCP_TRANSPORT=stdio', async () => {
+  it('connects StdioServerTransport when MCP_TRANSPORT=stdio', async () => {
     process.env.MCP_TRANSPORT = 'stdio'
     const { initServer } = await import('./init-server.js')
     await initServer()
-    expect(runSmartStdioProxyMock).toHaveBeenCalled()
+    expect(connectMock).toHaveBeenCalled()
     expect(startHttpMock).not.toHaveBeenCalled()
   })
 
-  it('dispatches stdio proxy when TRANSPORT_MODE=stdio', async () => {
+  it('connects StdioServerTransport when TRANSPORT_MODE=stdio', async () => {
     process.env.TRANSPORT_MODE = 'stdio'
     const { initServer } = await import('./init-server.js')
     await initServer()
-    expect(runSmartStdioProxyMock).toHaveBeenCalled()
+    expect(connectMock).toHaveBeenCalled()
     expect(startHttpMock).not.toHaveBeenCalled()
   })
 
@@ -63,6 +86,6 @@ describe('initServer', () => {
     const { initServer } = await import('./init-server.js')
     await initServer()
     expect(startHttpMock).toHaveBeenCalled()
-    expect(runSmartStdioProxyMock).not.toHaveBeenCalled()
+    expect(connectMock).not.toHaveBeenCalled()
   })
 })

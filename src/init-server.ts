@@ -14,9 +14,10 @@ import { fileURLToPath } from 'node:url'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { resolveCredentialState } from './credential-state.js'
-import { type AccountConfig, loadConfig } from './tools/helpers/config.js'
-import { ensureValidToken } from './tools/helpers/oauth2.js'
+import { loadConfig } from './tools/helpers/config.js'
 import { registerTools } from './tools/registry.js'
+
+const SERVER_NAME = 'better-email-mcp'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -45,18 +46,23 @@ function getVersion(): string {
   }
 }
 
-import { runSmartStdioProxy } from '@n24q02m/mcp-core/transport'
-
 export async function initServer() {
   const isStdio =
     process.argv.includes('--stdio') || process.env.MCP_TRANSPORT === 'stdio' || process.env.TRANSPORT_MODE === 'stdio'
 
   if (isStdio) {
-    const daemonCmd = [process.execPath, process.argv[1]!]
-    const exitCode = await runSmartStdioProxy('better-email-mcp', daemonCmd, {
-      env: { TRANSPORT_MODE: 'http', MCP_MODE: 'local-relay' }
-    })
-    process.exit(exitCode)
+    // Direct MCP SDK stdio transport (no daemon proxy hop).
+    // See spec 2026-04-30-multi-mode-stdio-http-architecture.md Task 3.2.
+    await resolveCredentialState()
+    const accounts = await loadConfig()
+    const server = new Server(
+      { name: SERVER_NAME, version: getVersion() },
+      { capabilities: { tools: {}, resources: {} } }
+    )
+    registerTools(server, accounts)
+    const transport = new StdioServerTransport()
+    await server.connect(transport)
+    console.error(`[${SERVER_NAME}] Server started in stdio mode (v${getVersion()})`)
     return
   }
 
@@ -65,4 +71,3 @@ export async function initServer() {
   const { startHttp } = await import('./transports/http.js')
   await startHttp()
 }
-// Rebuild target: mcp-core 1.11.5 (P0 fork-bomb fix)
