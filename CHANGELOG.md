@@ -2,6 +2,25 @@
 
 <!-- version list -->
 
+## v1.27.0-beta.1 (2026-04-30)
+
+### Bug Fixes
+
+- Move stdio-direct test to tests/live (requires build artifact)
+  ([#521](https://github.com/n24q02m/better-email-mcp/pull/521),
+  [`b269ec7`](https://github.com/n24q02m/better-email-mcp/commit/b269ec7d69c2d2112043cb0c792f623748076c23))
+
+### Features
+
+- Route stdio mode to FastMCP/MCP SDK direct + multi-target Dockerfile
+  ([#521](https://github.com/n24q02m/better-email-mcp/pull/521),
+  [`b269ec7`](https://github.com/n24q02m/better-email-mcp/commit/b269ec7d69c2d2112043cb0c792f623748076c23))
+
+- Route stdio mode to MCP SDK direct + multi-target Dockerfile
+  ([#521](https://github.com/n24q02m/better-email-mcp/pull/521),
+  [`b269ec7`](https://github.com/n24q02m/better-email-mcp/commit/b269ec7d69c2d2112043cb0c792f623748076c23))
+
+
 ## v1.26.3 (2026-04-29)
 
 ### Bug Fixes
