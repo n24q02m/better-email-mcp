@@ -2,6 +2,29 @@
 
 <!-- version list -->
 
+## v1.27.0-beta.2 (2026-04-30)
+
+### Bug Fixes
+
+- Move stdio-direct test to tests/live (requires build artifact)
+  ([#523](https://github.com/n24q02m/better-email-mcp/pull/523),
+  [`a5e50f8`](https://github.com/n24q02m/better-email-mcp/commit/a5e50f8996d6a9da162e98f29615c0c3a0f20989))
+
+### Features
+
+- Route stdio mode to MCP SDK direct + multi-target Dockerfile
+  ([#523](https://github.com/n24q02m/better-email-mcp/pull/523),
+  [`a5e50f8`](https://github.com/n24q02m/better-email-mcp/commit/a5e50f8996d6a9da162e98f29615c0c3a0f20989))
+
+- **auth**: Migrate to in-memory cred store (TC-NearZK)
+  ([#524](https://github.com/n24q02m/better-email-mcp/pull/524),
+  [`b30e645`](https://github.com/n24q02m/better-email-mcp/commit/b30e6458fb794c3441b37005cb99bd2b91dc8bf3))
+
+- **docs**: Add trust model section to README
+  ([#523](https://github.com/n24q02m/better-email-mcp/pull/523),
+  [`a5e50f8`](https://github.com/n24q02m/better-email-mcp/commit/a5e50f8996d6a9da162e98f29615c0c3a0f20989))
+
+
 ## v1.27.0-beta.1 (2026-04-30)
 
 ### Bug Fixes
