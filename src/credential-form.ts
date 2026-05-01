@@ -312,7 +312,15 @@ export function renderEmailCredentialForm(
                 labelEl.className = "field-label";
                 labelEl.setAttribute("for", "field-" + key + "_" + idx);
                 labelEl.textContent = label;
-                if (!required) {
+
+                if (required) {
+                    var asterisk = document.createElement("span");
+                    asterisk.textContent = "*";
+                    asterisk.setAttribute("aria-hidden", "true");
+                    asterisk.style.color = "#f87171";
+                    asterisk.style.marginLeft = "0.25rem";
+                    labelEl.appendChild(asterisk);
+                } else {
                     var badge = document.createElement("span");
                     badge.className = "optional-badge";
                     badge.textContent = "Optional";

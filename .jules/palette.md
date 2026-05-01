@@ -31,3 +31,9 @@
 **Learning:** During potentially long-running async operations (like network requests or OAuth polling), simply changing button text (e.g., to "Connecting...") or disabling the button isn't always enough visual feedback. Users may still wonder if the system is hung, especially if the text change is subtle.
 
 **Action:** Always include an animated visual indicator (like a CSS spinner with `aria-hidden="true"`) inside the submission button alongside the status text during asynchronous operations to clearly communicate that background processing is actively occurring.
+
+## 2025-02-15 - Required Form Field Indicators
+
+**Learning:** When adding visual indicators (like `*`) for required form fields to assist sighted users, screen readers may redundantly announce "star" or "asterisk" in addition to "required" if the native input is already marked with the `required` attribute.
+
+**Action:** Always apply `aria-hidden="true"` to decorative required indicator elements (like asterisks) to prevent redundant screen reader announcements when the native form control handles the accessibility state.
