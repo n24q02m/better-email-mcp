@@ -185,34 +185,36 @@ export async function loadAllUserCredentials(): Promise<Map<string, AccountConfi
 
   const secret = await getSecret()
 
-  await Promise.all(
-    entries.map(async (entry) => {
-      if (!entry.isDirectory()) return
+  // ⚡ Bolt: Execute CPU-heavy cryptographic operations sequentially.
+  // Using a for...of loop instead of Promise.all(entries.map(...)) prevents unbounded
+  // concurrent execution of `deriveKey` (PBKDF2) and AES-GCM decryption, which would
+  // otherwise block the event loop, exhaust the thread pool, and spike memory footprint.
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue
 
-      const entryName = entry.name
-      const credPath = join(_paths.DATA_DIR, entryName, 'credentials.enc')
-      try {
-        const data = await _fs.readFile(credPath)
-        const iv = data.subarray(0, 12)
-        const ciphertext = data.subarray(12)
-        const key = await deriveKey(secret, entryName)
-        const decrypted = await crypto.subtle.decrypt(
-          { name: 'AES-GCM', iv: new Uint8Array(iv) },
-          key,
-          new Uint8Array(ciphertext)
-        )
-        const parsed = JSON.parse(new TextDecoder().decode(decrypted))
-        if (parsed.userId && Array.isArray(parsed.accounts)) {
-          result.set(parsed.userId, parsed.accounts)
-        }
-      } catch (err: any) {
-        // Skip missing or corrupted entries
-        if (err.code !== 'ENOENT') {
-          console.error(`Failed to load credentials from ${entry.name}:`, err)
-        }
+    const entryName = entry.name
+    const credPath = join(_paths.DATA_DIR, entryName, 'credentials.enc')
+    try {
+      const data = await _fs.readFile(credPath)
+      const iv = data.subarray(0, 12)
+      const ciphertext = data.subarray(12)
+      const key = await deriveKey(secret, entryName)
+      const decrypted = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: new Uint8Array(iv) },
+        key,
+        new Uint8Array(ciphertext)
+      )
+      const parsed = JSON.parse(new TextDecoder().decode(decrypted))
+      if (parsed.userId && Array.isArray(parsed.accounts)) {
+        result.set(parsed.userId, parsed.accounts)
       }
-    })
-  )
+    } catch (err: any) {
+      // Skip missing or corrupted entries
+      if (err.code !== 'ENOENT') {
+        console.error(`Failed to load credentials from ${entry.name}:`, err)
+      }
+    }
+  }
 
   return result
 }
