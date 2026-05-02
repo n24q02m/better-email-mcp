@@ -1,8 +1,14 @@
 # Better Email MCP -- Agent Setup Guide
 
+> **2026-05-02 Update (v&lt;auto&gt;+)**: Plugin install (Option 1) uses stdio mode with `EMAIL_PROVIDER` + `EMAIL_USER` + `EMAIL_APP_PASSWORD` env vars.
+> The previous "Zero-Config Relay" auto-spawn pattern has been removed.
+> If you relied on the relay form, please:
+> 1. Set env vars in plugin config (Option 1), OR
+> 2. Switch to HTTP mode (Option 4 hosted / Option 5 self-host) for browser-based setup.
+
 > Give this file to your AI agent to automatically set up better-email-mcp.
 
-## Option 1: Claude Code Plugin (Recommended)
+## Option 1: Claude Code Plugin (Recommended -- stdio + env vars)
 
 ```bash
 /plugin marketplace add n24q02m/claude-plugins
@@ -11,9 +17,25 @@
 
 This installs the server with skills: `/inbox-review`, `/follow-up`.
 
-On first start, a relay setup page opens in the browser where the user enters email credentials. No environment variables needed.
+After install, set credentials in `~/.claude/settings.local.json` (or `.claude/settings.json` per-project):
 
-## Option 2: MCP Direct
+```json
+{
+  "mcpServers": {
+    "better-email-mcp": {
+      "env": {
+        "EMAIL_PROVIDER": "gmail",
+        "EMAIL_USER": "you@gmail.com",
+        "EMAIL_APP_PASSWORD": "abcd efgh ijkl mnop"
+      }
+    }
+  }
+}
+```
+
+Restart Claude Code after editing. For multi-account setups, use `EMAIL_CREDENTIALS` instead (see below).
+
+## Option 2: MCP Direct (npx + env vars)
 
 ### Claude Code (settings.json)
 
@@ -26,14 +48,16 @@ Add to `.claude/settings.json` or `~/.claude/settings.json`:
       "command": "npx",
       "args": ["-y", "@n24q02m/better-email-mcp"],
       "env": {
-        "EMAIL_CREDENTIALS": "user@gmail.com:app-password"
+        "EMAIL_PROVIDER": "gmail",
+        "EMAIL_USER": "you@gmail.com",
+        "EMAIL_APP_PASSWORD": "abcd efgh ijkl mnop"
       }
     }
   }
 }
 ```
 
-For multiple accounts:
+For multiple accounts (legacy compact format):
 ```json
 {
   "env": {
@@ -52,7 +76,9 @@ command = "npx"
 args = ["-y", "@n24q02m/better-email-mcp"]
 
 [mcp_servers.better-email-mcp.env]
-EMAIL_CREDENTIALS = "user@gmail.com:app-password"
+EMAIL_PROVIDER = "gmail"
+EMAIL_USER = "you@gmail.com"
+EMAIL_APP_PASSWORD = "abcd efgh ijkl mnop"
 ```
 
 ### OpenCode (opencode.json)
@@ -66,14 +92,16 @@ Add to `opencode.json` in your project root:
       "command": "npx",
       "args": ["-y", "@n24q02m/better-email-mcp"],
       "env": {
-        "EMAIL_CREDENTIALS": "user@gmail.com:app-password"
+        "EMAIL_PROVIDER": "gmail",
+        "EMAIL_USER": "you@gmail.com",
+        "EMAIL_APP_PASSWORD": "abcd efgh ijkl mnop"
       }
     }
   }
 }
 ```
 
-## Option 3: Docker
+## Option 3: Docker (stdio)
 
 ```json
 {
@@ -82,7 +110,9 @@ Add to `opencode.json` in your project root:
       "command": "docker",
       "args": [
         "run", "-i", "--rm",
-        "-e", "EMAIL_CREDENTIALS",
+        "-e", "EMAIL_PROVIDER",
+        "-e", "EMAIL_USER",
+        "-e", "EMAIL_APP_PASSWORD",
         "n24q02m/better-email-mcp:latest"
       ]
     }
@@ -90,11 +120,22 @@ Add to `opencode.json` in your project root:
 }
 ```
 
-Set `EMAIL_CREDENTIALS` in your shell profile or pass it inline.
+Set env vars in your shell profile or pass them inline.
 
-## Option 4: HTTP Remote
+## Why upgrade to HTTP mode?
 
-For multi-user mode with OAuth 2.1 authentication (no local credentials needed):
+Stdio mode is the default and works for single-user local development. Switch to **HTTP mode** when you need any of:
+
+- **claude.ai web compatibility** — connect the server directly from claude.ai without a local CLI
+- **1 server shared across N Claude Code sessions** — no per-session daemon proliferation
+- **Browser-based OAuth flow for Outlook** — bundled Outlook OAuth client; no Azure app registration needed
+- **Multi-device credential sync** — credentials persist server-side; new devices just point to the URL
+- **Multi-user / team sharing** — per-JWT-sub credential isolation; one deployment serves the team
+- **Always-on persistent process** — required for webhooks, scheduled inbox scans, or long-running agents
+
+## Option 4: HTTP Hosted (Multi-User)
+
+Multi-user mode with OAuth 2.1 + bundled Outlook OAuth (no local credentials needed):
 
 ### Claude Code (settings.json)
 
@@ -130,56 +171,73 @@ url = "https://better-email-mcp.n24q02m.com/mcp"
 }
 ```
 
-Users provide their own email credentials through the OAuth flow.
+The first request from each user triggers either a Microsoft device-code link (Outlook) or a paste form (Gmail/Yahoo/iCloud/custom IMAP). Outlook OAuth uses the bundled public Azure client (`d56f8c71-9f7c-43f4-9934-be29cb6e77b0`, Thunderbird-pattern) — no user-side Azure app registration needed.
+
+## Option 5: Self-Hosting HTTP Mode
+
+Run your own multi-user instance:
+
+```bash
+docker run -p 8080:8080 \
+  -e PUBLIC_URL=https://your-domain.com \
+  -e DCR_SERVER_SECRET=$(openssl rand -hex 32) \
+  n24q02m/better-email-mcp:latest
+```
+
+Optional overrides:
+- `OUTLOOK_CLIENT_ID` — override the bundled public Azure client (rarely needed)
+- `OUTLOOK_EMAIL` — workaround for Microsoft device-code responses missing the email field
+
+The server runs in single multi-user mode (relay paste form for App-Password providers + bundled Outlook OAuth device-code). Per-JWT-sub credential isolation, OAuth 2.1 + Dynamic Client Registration.
 
 ## Environment Variables
 
 | Variable | Required | Default | Description |
 |:---------|:---------|:--------|:------------|
-| `EMAIL_CREDENTIALS` | Yes (stdio) | -- | Email credentials. Format: `user@gmail.com:app-password`. Multi-account: comma-separated. Custom IMAP: `user@custom.com:pass:imap.custom.com`. |
-| `MCP_MODE` | No | `remote-relay` (when `TRANSPORT_MODE=http`) | Selects the HTTP relay flavour: `remote-relay` (default — delegated Microsoft device-code for Outlook/Hotmail/Live; per-JWT-sub tokens; deployed at `better-email-mcp.n24q02m.com`) or `local-relay` (paste-form for App-Password providers; Outlook is rejected with a hint to switch back). |
-| `TRANSPORT_MODE` | No | `stdio` | Legacy alias still honoured — set to `http` to enable HTTP transport (then pick `MCP_MODE`). |
+| `EMAIL_PROVIDER` | Yes (stdio, single-account) | -- | Provider key: `gmail`, `outlook`, `yahoo`, `icloud`, `zoho`, `custom`. |
+| `EMAIL_USER` | Yes (stdio, single-account) | -- | Email address. |
+| `EMAIL_APP_PASSWORD` | Yes (stdio, single-account) | -- | App password (Gmail/Yahoo/iCloud) or Outlook App Password. |
+| `EMAIL_IMAP_HOST` | No (custom only) | -- | Custom IMAP hostname when `EMAIL_PROVIDER=custom`. |
+| `EMAIL_CREDENTIALS` | Alternative (multi-account) | -- | Legacy `user@gmail.com:app-password` format. Multi-account: comma-separated. Custom IMAP: `user@custom.com:pass:imap.custom.com`. |
 | `PUBLIC_URL` | Yes (http) | -- | Server's public URL for OAuth redirects (http mode only). |
 | `DCR_SERVER_SECRET` | Yes (http) | -- | HMAC secret for stateless client registration (http mode only). |
 | `PORT` | No | `8080` | Server port (http mode only). |
-| `OUTLOOK_CLIENT_ID` | No | bundled public Azure client | Custom Azure AD client ID for self-hosted Outlook OAuth2. |
-| `OUTLOOK_EMAIL` | No | -- | Workaround when the Microsoft device-code response omits the email field — set this to the Outlook account email so token persistence keys correctly (`tokens/<email>.json`). |
+| `OUTLOOK_CLIENT_ID` | No | `d56f8c71-9f7c-43f4-9934-be29cb6e77b0` (bundled public client) | Custom Azure AD public client for self-hosted Outlook OAuth2. |
+| `OUTLOOK_EMAIL` | No | -- | Workaround when Microsoft device-code response omits the email field — sets token persistence key. |
 
 ## Authentication
 
-### Gmail, Yahoo, iCloud
+### Gmail, Yahoo, iCloud (App Passwords)
 
-Use **App Passwords** (not your regular password):
+Stdio + HTTP both accept **App Passwords** (not your regular password):
 - **Gmail**: Enable 2FA, then create at https://myaccount.google.com/apppasswords
 - **Yahoo**: Enable 2FA, then create at https://login.yahoo.com/account/security/app-passwords
-- **iCloud**: Go to https://appleid.apple.com > Sign-In and Security > App-Specific Passwords
+- **iCloud**: Go to https://appleid.apple.com → Sign-In and Security → App-Specific Passwords
 
 ### Outlook / Hotmail / Live
 
-OAuth2 with Device Code Flow (automatic). On first use:
-1. The server prints a device code and a Microsoft login URL
-2. Open the URL and enter the code
-3. Sign in and authorize
-4. Tokens are saved locally at `~/.better-email-mcp/tokens.json`
-
-No App Password needed for Outlook accounts.
+- **Stdio mode**: requires an Outlook **App Password** (Account Settings → Security → Advanced security options → App passwords).
+- **HTTP mode**: uses OAuth2 Device Code with the bundled public Azure client (`d56f8c71-9f7c-43f4-9934-be29cb6e77b0`). On first use:
+  1. The server prints a device code and a Microsoft login URL
+  2. Open the URL and enter the code
+  3. Sign in and authorize
+  4. Tokens are saved per JWT sub (`tokens/<sub>.json`)
+- No App Password is needed for Outlook in HTTP mode.
 
 ### Custom IMAP
 
 ```
-EMAIL_CREDENTIALS=user@custom.com:password:imap.custom.com
+EMAIL_PROVIDER=custom
+EMAIL_USER=user@custom.com
+EMAIL_APP_PASSWORD=password
+EMAIL_IMAP_HOST=imap.custom.com
 ```
 
-## Zero-Config Relay
+or via legacy compact form:
 
-> **Recommended.** The relay is the primary setup method. Credentials are encrypted end-to-end and stored locally. Environment variables are supported for backward compatibility.
-
-
-If `EMAIL_CREDENTIALS` is not set, the server opens a relay setup page:
-1. A setup URL appears in the terminal
-2. Open it in a browser
-3. Enter credentials in the form
-4. Credentials are encrypted and stored locally
+```
+EMAIL_CREDENTIALS=user@custom.com:password:imap.custom.com
+```
 
 ## Verification
 
