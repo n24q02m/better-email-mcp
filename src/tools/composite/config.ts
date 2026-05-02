@@ -11,7 +11,7 @@
  */
 
 import type { CredentialState } from '../../credential-state.js'
-import { getSetupUrl, getState, resetState, resolveCredentialState, triggerRelaySetup } from '../../credential-state.js'
+import { getSetupUrl, getState, resetState, resolveCredentialState } from '../../credential-state.js'
 import type { AccountConfig } from '../helpers/config.js'
 import { createUnknownActionError, withErrorHandling } from '../helpers/errors.js'
 import { clearSentFolderCache } from '../helpers/imap-client.js'
@@ -113,12 +113,16 @@ function handleStatus(accounts: AccountConfig[]): ConfigStatusResult {
   }
 }
 
-async function handleSetupStart(input: ConfigInput): Promise<ConfigSetupStartResult> {
-  const url = await triggerRelaySetup({ force: input.force })
+async function handleSetupStart(_input: ConfigInput): Promise<ConfigSetupStartResult> {
+  // Per spec 2026-05-01-stdio-pure-http-multiuser.md §5.2.1, the legacy
+  // triggerRelaySetup spawn was deleted. In HTTP mode the relay form is
+  // already running on /authorize (the same process serves it); use
+  // `config__open_relay` to open it. In stdio mode there is no setup URL —
+  // credentials come from env vars validated up front in init-server.
   return {
     action: 'setup_start',
     state: getState(),
-    setup_url: url
+    setup_url: getSetupUrl()
   }
 }
 

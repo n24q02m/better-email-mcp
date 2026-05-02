@@ -1,11 +1,13 @@
 /**
- * Better Email MCP Server
- * Using composite tools for human-friendly AI agent interactions
+ * Better Email MCP Server — Entry point
  *
- * Non-blocking startup: resolveCredentialState() checks env/config/tokens
- * synchronously (<10ms). If no credentials found, the server starts anyway
- * and tools return setup instructions with the relay URL.
- * Relay session + polling happen lazily on first tool call.
+ * Transport selection (default flipped 2026-05-01 per spec
+ * 2026-05-01-stdio-pure-http-multiuser.md §5.2.1):
+ *  - stdio (DEFAULT): MCP SDK StdioServerTransport directly. Requires
+ *    EMAIL_PROVIDER + EMAIL_USER + EMAIL_APP_PASSWORD env vars.
+ *  - http: Opt-in via `--http`, `MCP_TRANSPORT=http`, or `TRANSPORT_MODE=http`.
+ *    Single-mode multi-user relay form (paste email/app-password OR Outlook
+ *    OAuth via bundled client_id).
  */
 
 import { existsSync, readFileSync } from 'node:fs'
@@ -47,27 +49,45 @@ function getVersion(): string {
 }
 
 export async function initServer() {
-  const isStdio =
-    process.argv.includes('--stdio') || process.env.MCP_TRANSPORT === 'stdio' || process.env.TRANSPORT_MODE === 'stdio'
+  const isHttp =
+    process.argv.includes('--http') || process.env.MCP_TRANSPORT === 'http' || process.env.TRANSPORT_MODE === 'http'
 
-  if (isStdio) {
-    // Direct MCP SDK stdio transport (no daemon proxy hop).
-    // See spec 2026-04-30-multi-mode-stdio-http-architecture.md Task 3.2.
-    await resolveCredentialState()
-    const accounts = await loadConfig()
-    const server = new Server(
-      { name: SERVER_NAME, version: getVersion() },
-      { capabilities: { tools: {}, resources: {} } }
-    )
-    registerTools(server, accounts)
-    const transport = new StdioServerTransport()
-    await server.connect(transport)
-    console.error(`[${SERVER_NAME}] Server started in stdio mode (v${getVersion()})`)
+  if (isHttp) {
+    const { startHttp } = await import('./transports/http.js')
+    await startHttp()
     return
   }
 
-  // Default: HTTP mode via mcp-core runLocalServer (local OAuth 2.1 AS).
-  // Multi-user OAuth (device code / upstream Outlook) deferred to Phase L2.
-  const { startHttp } = await import('./transports/http.js')
-  await startHttp()
+  // Default: stdio mode. Requires EMAIL_PROVIDER + EMAIL_USER + EMAIL_APP_PASSWORD.
+  const missing: string[] = []
+  if (!process.env.EMAIL_PROVIDER) missing.push('EMAIL_PROVIDER')
+  if (!process.env.EMAIL_USER) missing.push('EMAIL_USER')
+  if (!process.env.EMAIL_APP_PASSWORD) missing.push('EMAIL_APP_PASSWORD')
+  if (missing.length > 0) {
+    const msg = `[${SERVER_NAME}] Missing required env vars for stdio mode: ${missing.join(', ')}
+
+Options:
+  1. Set env vars in plugin config:
+     {"command": "npx", "args": [...], "env": {"EMAIL_PROVIDER": "gmail", "EMAIL_USER": "...", "EMAIL_APP_PASSWORD": "..."}}
+
+  2. Switch to HTTP mode (browser-based setup with bundled Outlook OAuth):
+     See docs/setup-manual.md "Method 5: Self-Hosting HTTP Mode"
+
+Documentation: https://github.com/n24q02m/better-email-mcp#setup
+`
+    process.stderr.write(msg)
+    process.exit(1)
+  }
+
+  // Direct MCP SDK stdio transport (no daemon proxy hop).
+  await resolveCredentialState()
+  const accounts = await loadConfig()
+  const server = new Server(
+    { name: SERVER_NAME, version: getVersion() },
+    { capabilities: { tools: {}, resources: {} } }
+  )
+  registerTools(server, accounts)
+  const transport = new StdioServerTransport()
+  await server.connect(transport)
+  console.error(`[${SERVER_NAME}] Server started in stdio mode (v${getVersion()})`)
 }

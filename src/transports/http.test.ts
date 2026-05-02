@@ -1,8 +1,8 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
-import { runLocalServer, writeConfig } from '@n24q02m/mcp-core'
+import { runHttpServer, writeConfig } from '@n24q02m/mcp-core'
 import { ImapFlow } from 'imapflow'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
-import { getMarkSetupComplete, resolveCredentialState, setState } from '../credential-state.js'
+import { resolveCredentialState, setState } from '../credential-state.js'
 import { loadConfig, parseCredentials } from '../tools/helpers/config.js'
 import { initiateOutlookDeviceCode, isOutlookDomain } from '../tools/helpers/oauth2.js'
 import { registerTools } from '../tools/registry.js'
@@ -13,7 +13,7 @@ vi.mock('@modelcontextprotocol/sdk/server/index.js', () => ({
 }))
 
 vi.mock('@n24q02m/mcp-core', () => ({
-  runLocalServer: vi.fn(),
+  runHttpServer: vi.fn(),
   writeConfig: vi.fn()
 }))
 
@@ -25,7 +25,8 @@ vi.mock('../credential-state.js', () => ({
   resolveCredentialState: vi.fn(),
   setMarkSetupComplete: vi.fn(),
   setState: vi.fn(),
-  getMarkSetupComplete: vi.fn()
+  getMarkSetupComplete: vi.fn(),
+  setSetupUrl: vi.fn()
 }))
 
 vi.mock('../tools/helpers/config.js', () => ({
@@ -63,9 +64,6 @@ describe('http transport', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    // Default to local-relay mode so existing credential-form tests work
-    // without requiring OUTLOOK_CLIENT_ID.
-    process.env.MCP_MODE = 'local-relay'
     delete process.env.OUTLOOK_CLIENT_ID
 
     sigintHandler = null
@@ -77,7 +75,7 @@ describe('http transport', () => {
     // Default mock implementations
     vi.mocked(resolveCredentialState).mockResolvedValue('configured' as any)
     vi.mocked(loadConfig).mockResolvedValue([])
-    vi.mocked(runLocalServer).mockResolvedValue({
+    vi.mocked(runHttpServer).mockResolvedValue({
       host: 'localhost',
       port: 3000,
       close: vi.fn().mockResolvedValue(undefined)
@@ -98,7 +96,6 @@ describe('http transport', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
-    delete process.env.MCP_MODE
     delete process.env.OUTLOOK_CLIENT_ID
   })
 
@@ -116,18 +113,18 @@ describe('http transport', () => {
   }
 
   describe('startHttp', () => {
-    it('initializes the server and calls runLocalServer', async () => {
+    it('initializes the server and calls runHttpServer', async () => {
       await runStartHttpAndTriggerShutdown(async () => {
         expect(resolveCredentialState).toHaveBeenCalled()
         expect(loadConfig).toHaveBeenCalled()
-        expect(runLocalServer).toHaveBeenCalled()
+        expect(runHttpServer).toHaveBeenCalled()
       })
     })
 
     it('uses PORT from environment if available', async () => {
       process.env.PORT = '4000'
       await runStartHttpAndTriggerShutdown(async () => {
-        expect(runLocalServer).toHaveBeenCalledWith(
+        expect(runHttpServer).toHaveBeenCalledWith(
           expect.any(Function),
           expect.objectContaining({
             port: 4000
@@ -145,7 +142,7 @@ describe('http transport', () => {
       // Start server and capture the callback
       startHttp()
       await new Promise((resolve) => setTimeout(resolve, 50))
-      onCredentialsSaved = vi.mocked(runLocalServer).mock.calls[0][1].onCredentialsSaved
+      onCredentialsSaved = vi.mocked(runHttpServer).mock.calls[0][1].onCredentialsSaved
     })
 
     afterEach(async () => {
@@ -255,15 +252,11 @@ describe('http transport', () => {
         } as any)
       })
 
-      const mockMarkComplete = vi.fn()
-      vi.mocked(getMarkSetupComplete).mockReturnValue(mockMarkComplete)
-
       await onCredentialsSaved({ EMAIL_CREDENTIALS: 'test@outlook.com:oauth2' })
 
       // Trigger completion
       await completionCallback()
 
-      expect(mockMarkComplete).toHaveBeenCalledWith('outlook')
       expect(setState).toHaveBeenCalledWith('configured')
     })
 
@@ -351,7 +344,7 @@ describe('http transport', () => {
       const startPromise = startHttp()
       await new Promise((resolve) => setTimeout(resolve, 50))
 
-      const factory = vi.mocked(runLocalServer).mock.calls[0][0]
+      const factory = vi.mocked(runHttpServer).mock.calls[0][0]
 
       const mockServer = {
         connect: vi.fn()

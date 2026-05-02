@@ -25,8 +25,7 @@ vi.mock('./composite/config.js', () => ({ handleConfig: vi.fn() }))
 // can override via vi.mocked(...).mockReturnValue(...).
 vi.mock('../credential-state.js', () => ({
   getState: vi.fn(() => 'awaiting_setup'),
-  getSetupUrl: vi.fn(() => null),
-  triggerRelaySetup: vi.fn()
+  getSetupUrl: vi.fn(() => null)
 }))
 
 import { registerTools } from './registry.js'
