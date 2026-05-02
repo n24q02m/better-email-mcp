@@ -58,17 +58,25 @@ export async function initServer() {
     return
   }
 
-  // Default: stdio mode. Requires EMAIL_PROVIDER + EMAIL_USER + EMAIL_APP_PASSWORD.
-  const missing: string[] = []
-  if (!process.env.EMAIL_PROVIDER) missing.push('EMAIL_PROVIDER')
-  if (!process.env.EMAIL_USER) missing.push('EMAIL_USER')
-  if (!process.env.EMAIL_APP_PASSWORD) missing.push('EMAIL_APP_PASSWORD')
-  if (missing.length > 0) {
-    const msg = `[${SERVER_NAME}] Missing required env vars for stdio mode: ${missing.join(', ')}
+  // Default: stdio mode. credential-state.ts:loadCredsFromEnv accepts EITHER:
+  //   (a) EMAIL_CREDENTIALS directly ("user:app-password" or multi-account
+  //       "user1:pass1,user2:pass2"), OR
+  //   (b) EMAIL_USER + EMAIL_APP_PASSWORD pair (merged into EMAIL_CREDENTIALS at boot).
+  // Match handler to loader semantics.
+  const hasCredentials = !!process.env.EMAIL_CREDENTIALS
+  const hasUserAppPair = !!(process.env.EMAIL_USER && process.env.EMAIL_APP_PASSWORD)
+  if (!hasCredentials && !hasUserAppPair) {
+    const msg = `[${SERVER_NAME}] Missing required env vars for stdio mode.
+
+stdio mode reads credentials from EITHER:
+  - EMAIL_CREDENTIALS (combined "user:app-password" or "user1:pass1,user2:pass2"), OR
+  - EMAIL_USER + EMAIL_APP_PASSWORD pair (merged at boot)
 
 Options:
-  1. Set env vars in plugin config:
-     {"command": "npx", "args": [...], "env": {"EMAIL_PROVIDER": "gmail", "EMAIL_USER": "...", "EMAIL_APP_PASSWORD": "..."}}
+  1. Set env in plugin config:
+     {"command": "npx", "args": [...], "env": {"EMAIL_CREDENTIALS": "user:app-password"}}
+     OR
+     {"command": "npx", "args": [...], "env": {"EMAIL_USER": "...", "EMAIL_APP_PASSWORD": "..."}}
 
   2. Switch to HTTP mode (browser-based setup with bundled Outlook OAuth):
      See docs/setup-manual.md "Method 5: Self-Hosting HTTP Mode"
