@@ -31,7 +31,30 @@ mcp-name: io.github.n24q02m/better-email-mcp
 - **Thread-aware** -- reply/forward maintains In-Reply-To and References headers
 - **Tiered token optimization** -- compressed descriptions + on-demand `help` tool + MCP Resources
 
+## Status
+
+> **2026-05-02 -- Architecture stabilization update**
+>
+> Past months saw significant churn around credential handling and the daemon-bridge auto-spawn pattern. This caused multi-process races, browser tab spam, and inconsistent setup UX across plugins. **As of v&lt;auto&gt;, the architecture is stable**: 2 clean modes (stdio + HTTP), no daemon-bridge layer, no auto-spawn from stdio.
+>
+> Apologies for the instability period. If you encountered issues with prior versions, please update to v&lt;auto&gt;+ and follow the current [`docs/setup-manual.md`](docs/setup-manual.md) -- most prior workarounds are no longer needed.
+>
+> **Related plugins from the same author**:
+> - [wet-mcp](https://github.com/n24q02m/wet-mcp) -- Web search + content extraction
+> - [mnemo-mcp](https://github.com/n24q02m/mnemo-mcp) -- Persistent AI memory
+> - [imagine-mcp](https://github.com/n24q02m/imagine-mcp) -- Image/video understanding + generation
+> - [better-notion-mcp](https://github.com/n24q02m/better-notion-mcp) -- Notion API
+> - [better-email-mcp](https://github.com/n24q02m/better-email-mcp) -- Email management
+> - [better-telegram-mcp](https://github.com/n24q02m/better-telegram-mcp) -- Telegram
+> - [better-godot-mcp](https://github.com/n24q02m/better-godot-mcp) -- Godot Engine
+> - [better-code-review-graph](https://github.com/n24q02m/better-code-review-graph) -- Code review knowledge graph
+>
+> All plugins share the same architecture -- install once, learn pattern transfers.
+
 ## Setup
+
+- **Stdio mode** (default) -- env var creds (`EMAIL_PROVIDER` + `EMAIL_USER` + `EMAIL_APP_PASSWORD`), single-user local. See [setup-manual.md](docs/setup-manual.md).
+- **HTTP mode** (optional, encouraged) -- multi-user, browser-based setup with bundled Outlook OAuth. See [setup-manual.md](docs/setup-manual.md) "Method 5: Self-Hosting HTTP Mode".
 
 **With AI Agent** -- copy and send this to your AI agent:
 
@@ -61,19 +84,6 @@ mcp-name: io.github.n24q02m/better-email-mcp
 | `email://docs/send` | Send/compose reference |
 | `email://docs/help` | Full documentation |
 
-## Zero-Config Setup
-
-No environment variables needed. On first start, the server opens a relay setup page:
-
-1. Start the server (via plugin, `npx`, or Docker)
-2. A setup URL appears -- open it in any browser (relay: `https://better-email-mcp.n24q02m.com`)
-3. Enter your credentials in `email:app-password` format (comma-separated for multi-account)
-4. Credentials are encrypted and stored locally
-
-Your credentials never leave your machine. The relay server only sees encrypted data.
-
-For CI/automation, you can still use environment variables (see below).
-
 ## Remote (HTTP Mode)
 
 Run as a multi-user HTTP server with OAuth 2.1 authentication:
@@ -91,37 +101,44 @@ Run as a multi-user HTTP server with OAuth 2.1 authentication:
 
 ### Self-Hosting (HTTP Mode)
 
+Single multi-user mode (relay form for App-Password providers + bundled Outlook OAuth device-code):
+
 ```bash
 docker run -p 8080:8080 \
-  -e TRANSPORT_MODE=http \
   -e PUBLIC_URL=https://your-domain.com \
   -e DCR_SERVER_SECRET=$(openssl rand -hex 32) \
   n24q02m/better-email-mcp:latest
 ```
 
-Users provide their own email credentials through the OAuth flow. No server-side `EMAIL_CREDENTIALS` needed.
+Users provide their own email credentials through the OAuth flow / paste form. No server-side `EMAIL_CREDENTIALS` needed. Outlook OAuth uses the bundled public Azure client (`d56f8c71-9f7c-43f4-9934-be29cb6e77b0`, Thunderbird-pattern) -- no user-side Azure app registration needed.
 
-## Outlook OAuth Device Code
+## Outlook OAuth Device Code (HTTP mode)
 
-Outlook, Hotmail, and Live accounts use OAuth2 automatically. On first use with an Outlook account:
+In HTTP mode, Outlook/Hotmail/Live accounts use OAuth2 device-code automatically. On first use:
 
 1. The server prints a device code and a Microsoft login URL
 2. Open the URL in a browser and enter the code
 3. Sign in and authorize the app
-4. Tokens are saved locally at `~/.better-email-mcp/tokens.json`
+4. Tokens are persisted per JWT sub (`tokens/<sub>.json`)
 
-No App Password is needed for Outlook accounts.
+OAuth uses the bundled public Azure client (`d56f8c71-9f7c-43f4-9934-be29cb6e77b0`, Thunderbird-pattern) -- no user-side Azure registration needed.
+
+In **stdio mode**, Outlook accounts use an **App Password** instead (Outlook Account Settings → Security → Advanced security options → App passwords).
 
 ## Configuration
 
 | Variable | Required | Default | Description |
 |:---------|:---------|:--------|:------------|
-| `EMAIL_CREDENTIALS` | Yes (stdio) | - | Email credentials (`user@gmail.com:app-password`, comma-separated for multi-account) |
-| `TRANSPORT_MODE` | No | `stdio` | Set to `http` for remote mode |
+| `EMAIL_PROVIDER` | Yes (stdio, single-account) | - | Provider key: `gmail`, `outlook`, `yahoo`, `icloud`, `zoho`, `custom` |
+| `EMAIL_USER` | Yes (stdio, single-account) | - | Email address |
+| `EMAIL_APP_PASSWORD` | Yes (stdio, single-account) | - | App password (Gmail/Yahoo/iCloud) or Outlook App Password |
+| `EMAIL_IMAP_HOST` | No (custom only) | - | Custom IMAP hostname when `EMAIL_PROVIDER=custom` |
+| `EMAIL_CREDENTIALS` | Alternative (multi-account) | - | Legacy `user@gmail.com:app-password` (comma-separated for multi-account) |
 | `PUBLIC_URL` | Yes (http) | - | Server's public URL for OAuth redirects |
 | `DCR_SERVER_SECRET` | Yes (http) | - | HMAC secret for stateless client registration |
-| `PORT` | No | `8080` | Server port |
-| `OUTLOOK_CLIENT_ID` | No | - | Custom Azure AD client ID for self-hosted Outlook OAuth2 |
+| `PORT` | No | `8080` | Server port (http mode) |
+| `OUTLOOK_CLIENT_ID` | No | `d56f8c71-9f7c-43f4-9934-be29cb6e77b0` (bundled public client) | Override the bundled Azure AD public client for self-hosted Outlook OAuth2 |
+| `OUTLOOK_EMAIL` | No | - | Workaround when Microsoft device-code response omits the email field |
 
 ### Multiple Accounts
 
