@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.27.0-beta.4 (2026-05-02)
+
+### Bug Fixes
+
+- Trigger PSR to publish em's stdio missing-cred handler fix
+  ([`77a7ebf`](https://github.com/n24q02m/better-email-mcp/commit/77a7ebf33bfae75a82efd04106c44d0b3bc28b00))
+
+
 ## v1.27.0-beta.3 (2026-05-02)
 
 ### Bug Fixes
