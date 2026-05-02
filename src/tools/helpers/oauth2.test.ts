@@ -927,7 +927,7 @@ describe('openBrowser delegates to mcp-core', () => {
     _getPendingAuths().clear()
   })
 
-  it('forwards non-http/https protocols to mcp-core (which rejects them)', async () => {
+  it('intercepts non-http/https protocols before delegating to mcp-core', async () => {
     mockReadFileSync.mockReturnValue('{}')
 
     mockFetch.mockResolvedValueOnce({
@@ -944,9 +944,9 @@ describe('openBrowser delegates to mcp-core', () => {
 
     await expect(ensureValidToken(account)).rejects.toThrow('PROTO-CODE')
 
-    // mcp-core.tryOpenBrowser is covered by its own tests for protocol
-    // filtering — we only verify oauth2.ts delegated the call.
-    expect(mockTryOpenBrowser).toHaveBeenCalledWith('javascript:alert(1)')
+    // oauth2.ts now filters protocols via isSafeUrl before delegating to mcp-core.tryOpenBrowser.
+    // We verify that the call is intercepted and tryOpenBrowser is not called.
+    expect(mockTryOpenBrowser).not.toHaveBeenCalled()
 
     _getPendingAuths().clear()
   })
