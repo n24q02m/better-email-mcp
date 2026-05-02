@@ -2,6 +2,34 @@
 
 <!-- version list -->
 
+## v1.27.0-beta.3 (2026-05-02)
+
+### Bug Fixes
+
+- Setup docs + README reflect stdio-pure architecture
+  ([#532](https://github.com/n24q02m/better-email-mcp/pull/532),
+  [`e378ad5`](https://github.com/n24q02m/better-email-mcp/commit/e378ad503a9df9070f4b67e04d093eb995edaf4f))
+
+- **deps**: Update dependency html-to-text to v10
+  ([#525](https://github.com/n24q02m/better-email-mcp/pull/525),
+  [`d504be9`](https://github.com/n24q02m/better-email-mcp/commit/d504be927069a0d078ef775e6146e1f0dd1f6ead))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#519](https://github.com/n24q02m/better-email-mcp/pull/519),
+  [`f1a94dd`](https://github.com/n24q02m/better-email-mcp/commit/f1a94ddacff010f8993601ce09077d255dbd250a))
+
+- **deps**: Update dawidd6/action-send-mail action to v17
+  ([#518](https://github.com/n24q02m/better-email-mcp/pull/518),
+  [`279fdb7`](https://github.com/n24q02m/better-email-mcp/commit/279fdb76c70231906977da92df5da3bff50e2f71))
+
+### Features
+
+- Stdio-pure + http-multi-user (drop daemon-bridge)
+  ([#531](https://github.com/n24q02m/better-email-mcp/pull/531),
+  [`ba6bb5a`](https://github.com/n24q02m/better-email-mcp/commit/ba6bb5a1ac764e9346f26c1ab0fd9e28a8c3afbc))
+
+
 ## v1.27.0-beta.2 (2026-04-30)
 
 ### Bug Fixes

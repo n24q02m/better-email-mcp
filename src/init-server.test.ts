@@ -48,7 +48,7 @@ describe('initServer', () => {
     process.argv = [...originalArgv]
     delete process.env.MCP_TRANSPORT
     delete process.env.TRANSPORT_MODE
-    delete process.env.EMAIL_PROVIDER
+    delete process.env.EMAIL_CREDENTIALS
     delete process.env.EMAIL_USER
     delete process.env.EMAIL_APP_PASSWORD
     // process.exit is mocked to throw so we can detect calls without
@@ -90,10 +90,8 @@ describe('initServer', () => {
     expect(connectMock).not.toHaveBeenCalled()
   })
 
-  it('starts stdio transport by default when all env vars set', async () => {
-    process.env.EMAIL_PROVIDER = 'gmail'
-    process.env.EMAIL_USER = 'user@example.com'
-    process.env.EMAIL_APP_PASSWORD = 'app-pass'
+  it('starts stdio transport by default when EMAIL_CREDENTIALS set', async () => {
+    process.env.EMAIL_CREDENTIALS = 'user@example.com:app-pass'
     const { initServer } = await import('./init-server.js')
     await initServer()
     expect(ServerCtorMock).toHaveBeenCalledWith(
@@ -107,30 +105,25 @@ describe('initServer', () => {
     expect(exitSpy).not.toHaveBeenCalled()
   })
 
-  it('exits with code 1 and writes missing env vars to stderr when all 3 are missing', async () => {
+  it('exits with code 1 when neither EMAIL_CREDENTIALS nor EMAIL_USER+APP_PASSWORD set', async () => {
     const { initServer } = await import('./init-server.js')
     await expect(initServer()).rejects.toThrow('process.exit(1)')
 
     expect(exitSpy).toHaveBeenCalledWith(1)
     const stderrOutput = stderrSpy.mock.calls.map((c: any) => String(c[0])).join('')
     expect(stderrOutput).toContain('Missing required env vars for stdio mode')
-    expect(stderrOutput).toContain('EMAIL_PROVIDER')
+    expect(stderrOutput).toContain('EMAIL_CREDENTIALS')
     expect(stderrOutput).toContain('EMAIL_USER')
     expect(stderrOutput).toContain('EMAIL_APP_PASSWORD')
     expect(connectMock).not.toHaveBeenCalled()
   })
 
-  it('exits with code 1 listing only missing env vars when some are set', async () => {
-    process.env.EMAIL_PROVIDER = 'gmail'
-    // EMAIL_USER + EMAIL_APP_PASSWORD missing
+  it('starts stdio when EMAIL_USER + EMAIL_APP_PASSWORD set (without EMAIL_CREDENTIALS)', async () => {
+    process.env.EMAIL_USER = 'user@example.com'
+    process.env.EMAIL_APP_PASSWORD = 'app-pass'
     const { initServer } = await import('./init-server.js')
-    await expect(initServer()).rejects.toThrow('process.exit(1)')
-
-    expect(exitSpy).toHaveBeenCalledWith(1)
-    const stderrOutput = stderrSpy.mock.calls.map((c: any) => String(c[0])).join('')
-    expect(stderrOutput).toContain('EMAIL_USER')
-    expect(stderrOutput).toContain('EMAIL_APP_PASSWORD')
-    // EMAIL_PROVIDER is set, so it should NOT be in the missing list
-    expect(stderrOutput).not.toMatch(/Missing required env vars for stdio mode:[^\n]*EMAIL_PROVIDER/)
+    await initServer()
+    expect(connectMock).toHaveBeenCalled()
+    expect(exitSpy).not.toHaveBeenCalled()
   })
 })
