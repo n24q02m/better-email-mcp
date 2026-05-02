@@ -6,14 +6,9 @@ vi.mock('@n24q02m/mcp-core/storage', () => ({
 }))
 
 vi.mock('@n24q02m/mcp-core', () => ({
-  runLocalServer: vi.fn(),
   writeConfig: vi.fn().mockResolvedValue(undefined),
   deleteConfig: vi.fn().mockResolvedValue(undefined),
   tryOpenBrowser: vi.fn()
-}))
-
-vi.mock('./relay-schema.js', () => ({
-  RELAY_SCHEMA: { fields: [] }
 }))
 
 vi.mock('./relay-setup.js', () => ({
@@ -31,9 +26,6 @@ vi.mock('./tools/helpers/oauth2.js', () => ({
 }))
 
 vi.mock('node:fs/promises', () => ({
-  // Full set needed because per-user-credential-store (imported transitively
-  // via spawn-setup) captures these into its _fs re-export at module-eval
-  // time. Vitest's strict mock throws if any are read and undefined.
   readFile: vi.fn(),
   writeFile: vi.fn(),
   mkdir: vi.fn(),
@@ -59,6 +51,9 @@ describe('credential-state', () => {
     vi.resetModules()
     // Reset env
     delete process.env.EMAIL_CREDENTIALS
+    delete process.env.EMAIL_USER
+    delete process.env.EMAIL_APP_PASSWORD
+    delete process.env.EMAIL_PROVIDER
     delete process.env.MCP_RELAY_URL
     // Re-import to get fresh module state
     mod = await import('./credential-state.js')
@@ -66,6 +61,9 @@ describe('credential-state', () => {
 
   afterEach(() => {
     delete process.env.EMAIL_CREDENTIALS
+    delete process.env.EMAIL_USER
+    delete process.env.EMAIL_APP_PASSWORD
+    delete process.env.EMAIL_PROVIDER
     vi.restoreAllMocks()
   })
 
@@ -97,6 +95,14 @@ describe('credential-state', () => {
       const result = await mod.resolveCredentialState()
       expect(result).toBe('configured')
       expect(mod.getState()).toBe('configured')
+    })
+
+    it('returns configured when EMAIL_USER + EMAIL_APP_PASSWORD env vars are set (stdio per-field)', async () => {
+      process.env.EMAIL_USER = 'user@gmail.com'
+      process.env.EMAIL_APP_PASSWORD = 'app-pass-123'
+      const result = await mod.resolveCredentialState()
+      expect(result).toBe('configured')
+      expect(process.env.EMAIL_CREDENTIALS).toBe('user@gmail.com:app-pass-123')
     })
 
     it('returns configured when config file has credentials', async () => {
@@ -153,51 +159,6 @@ describe('credential-state', () => {
 
       const result = await mod.resolveCredentialState()
       expect(result).toBe('awaiting_setup')
-    })
-  })
-
-  describe('triggerRelaySetup', () => {
-    function makeHandle(port = 54321) {
-      return { host: '127.0.0.1', port, close: vi.fn().mockResolvedValue(undefined) }
-    }
-
-    it('returns existing setup URL when not awaiting_setup', async () => {
-      mod.setState('configured')
-      const result = await mod.triggerRelaySetup()
-      expect(result).toBeNull() // no setupUrl set
-    })
-
-    it('spawns a local HTTP server and returns its URL', async () => {
-      const { runLocalServer } = await import('@n24q02m/mcp-core')
-      vi.mocked(runLocalServer).mockResolvedValue(makeHandle(56789) as any)
-
-      const result = await mod.triggerRelaySetup()
-      expect(result).toBe('http://127.0.0.1:56789/')
-      expect(mod.getState()).toBe('setup_in_progress')
-
-      const call = vi.mocked(runLocalServer).mock.calls[0]
-      expect(call[1].port).toBe(0)
-      expect(call[1].host).toBe('127.0.0.1')
-      expect(call[1].serverName).toBe('better-email-mcp')
-    })
-
-    it('returns null when local spawn fails', async () => {
-      const { runLocalServer } = await import('@n24q02m/mcp-core')
-      vi.mocked(runLocalServer).mockRejectedValue(new Error('cannot bind'))
-
-      const result = await mod.triggerRelaySetup()
-      expect(result).toBeNull()
-      expect(mod.getState()).toBe('awaiting_setup')
-    })
-
-    it('force triggers even when configured', async () => {
-      mod.setState('configured')
-      const { runLocalServer } = await import('@n24q02m/mcp-core')
-      vi.mocked(runLocalServer).mockResolvedValue(makeHandle(60001) as any)
-
-      const result = await mod.triggerRelaySetup({ force: true })
-      expect(result).toBe('http://127.0.0.1:60001/')
-      expect(mod.getState()).toBe('setup_in_progress')
     })
   })
 

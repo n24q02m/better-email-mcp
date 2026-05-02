@@ -38,22 +38,62 @@ vi.mock('./tools/helpers/config.js', () => ({
 describe('initServer', () => {
   const originalEnv = process.env
   const originalArgv = process.argv
+  let exitSpy: ReturnType<typeof vi.spyOn>
+  let stderrSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.resetModules()
     process.env = { ...originalEnv }
     process.argv = [...originalArgv]
     delete process.env.MCP_TRANSPORT
     delete process.env.TRANSPORT_MODE
+    delete process.env.EMAIL_PROVIDER
+    delete process.env.EMAIL_USER
+    delete process.env.EMAIL_APP_PASSWORD
+    // process.exit is mocked to throw so we can detect calls without
+    // actually terminating the test runner.
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new Error(`process.exit(${code})`)
+    }) as never)
+    stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
   })
 
   afterEach(() => {
     process.env = originalEnv
     process.argv = originalArgv
+    exitSpy.mockRestore()
+    stderrSpy.mockRestore()
   })
 
-  it('connects StdioServerTransport when --stdio flag is set', async () => {
-    process.argv = [process.argv[0], 'main.js', '--stdio']
+  it('starts HTTP transport when --http flag is set', async () => {
+    process.argv = [process.argv[0], 'main.js', '--http']
+    const { initServer } = await import('./init-server.js')
+    await initServer()
+    expect(startHttpMock).toHaveBeenCalled()
+    expect(connectMock).not.toHaveBeenCalled()
+  })
+
+  it('starts HTTP transport when MCP_TRANSPORT=http', async () => {
+    process.env.MCP_TRANSPORT = 'http'
+    const { initServer } = await import('./init-server.js')
+    await initServer()
+    expect(startHttpMock).toHaveBeenCalled()
+    expect(connectMock).not.toHaveBeenCalled()
+  })
+
+  it('starts HTTP transport when TRANSPORT_MODE=http', async () => {
+    process.env.TRANSPORT_MODE = 'http'
+    const { initServer } = await import('./init-server.js')
+    await initServer()
+    expect(startHttpMock).toHaveBeenCalled()
+    expect(connectMock).not.toHaveBeenCalled()
+  })
+
+  it('starts stdio transport by default when all env vars set', async () => {
+    process.env.EMAIL_PROVIDER = 'gmail'
+    process.env.EMAIL_USER = 'user@example.com'
+    process.env.EMAIL_APP_PASSWORD = 'app-pass'
     const { initServer } = await import('./init-server.js')
     await initServer()
     expect(ServerCtorMock).toHaveBeenCalledWith(
@@ -64,28 +104,33 @@ describe('initServer', () => {
     expect(StdioServerTransportCtorMock).toHaveBeenCalled()
     expect(connectMock).toHaveBeenCalled()
     expect(startHttpMock).not.toHaveBeenCalled()
+    expect(exitSpy).not.toHaveBeenCalled()
   })
 
-  it('connects StdioServerTransport when MCP_TRANSPORT=stdio', async () => {
-    process.env.MCP_TRANSPORT = 'stdio'
+  it('exits with code 1 and writes missing env vars to stderr when all 3 are missing', async () => {
     const { initServer } = await import('./init-server.js')
-    await initServer()
-    expect(connectMock).toHaveBeenCalled()
-    expect(startHttpMock).not.toHaveBeenCalled()
-  })
+    await expect(initServer()).rejects.toThrow('process.exit(1)')
 
-  it('connects StdioServerTransport when TRANSPORT_MODE=stdio', async () => {
-    process.env.TRANSPORT_MODE = 'stdio'
-    const { initServer } = await import('./init-server.js')
-    await initServer()
-    expect(connectMock).toHaveBeenCalled()
-    expect(startHttpMock).not.toHaveBeenCalled()
-  })
-
-  it('dispatches http by default', async () => {
-    const { initServer } = await import('./init-server.js')
-    await initServer()
-    expect(startHttpMock).toHaveBeenCalled()
+    expect(exitSpy).toHaveBeenCalledWith(1)
+    const stderrOutput = stderrSpy.mock.calls.map((c: any) => String(c[0])).join('')
+    expect(stderrOutput).toContain('Missing required env vars for stdio mode')
+    expect(stderrOutput).toContain('EMAIL_PROVIDER')
+    expect(stderrOutput).toContain('EMAIL_USER')
+    expect(stderrOutput).toContain('EMAIL_APP_PASSWORD')
     expect(connectMock).not.toHaveBeenCalled()
+  })
+
+  it('exits with code 1 listing only missing env vars when some are set', async () => {
+    process.env.EMAIL_PROVIDER = 'gmail'
+    // EMAIL_USER + EMAIL_APP_PASSWORD missing
+    const { initServer } = await import('./init-server.js')
+    await expect(initServer()).rejects.toThrow('process.exit(1)')
+
+    expect(exitSpy).toHaveBeenCalledWith(1)
+    const stderrOutput = stderrSpy.mock.calls.map((c: any) => String(c[0])).join('')
+    expect(stderrOutput).toContain('EMAIL_USER')
+    expect(stderrOutput).toContain('EMAIL_APP_PASSWORD')
+    // EMAIL_PROVIDER is set, so it should NOT be in the missing list
+    expect(stderrOutput).not.toMatch(/Missing required env vars for stdio mode:[^\n]*EMAIL_PROVIDER/)
   })
 })

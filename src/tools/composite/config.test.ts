@@ -5,7 +5,6 @@ import type { AccountConfig } from '../helpers/config.js'
 vi.mock('../../credential-state.js', () => ({
   getState: vi.fn(),
   getSetupUrl: vi.fn(),
-  triggerRelaySetup: vi.fn(),
   resetState: vi.fn(),
   resolveCredentialState: vi.fn()
 }))
@@ -22,7 +21,7 @@ vi.mock('../helpers/oauth2.js', () => ({
   _resetTokenCache: vi.fn()
 }))
 
-import { getSetupUrl, getState, resetState, resolveCredentialState, triggerRelaySetup } from '../../credential-state.js'
+import { getSetupUrl, getState, resetState, resolveCredentialState } from '../../credential-state.js'
 import { clearSentFolderCache } from '../helpers/imap-client.js'
 import { _resetTokenCache } from '../helpers/oauth2.js'
 import { handleConfig } from './config.js'
@@ -30,7 +29,6 @@ import { clearArchiveFolderCache } from './messages.js'
 
 const mockGetState = vi.mocked(getState)
 const mockGetSetupUrl = vi.mocked(getSetupUrl)
-const mockTriggerRelaySetup = vi.mocked(triggerRelaySetup)
 const mockResetState = vi.mocked(resetState)
 const mockResolveCredentialState = vi.mocked(resolveCredentialState)
 
@@ -102,37 +100,22 @@ describe('config - status', () => {
 })
 
 describe('config - setup_start', () => {
-  it('triggers relay setup and returns URL', async () => {
-    mockTriggerRelaySetup.mockResolvedValue('https://relay.example.com/setup/new')
-    mockGetState.mockReturnValue('setup_in_progress')
+  it('returns current state and setup URL without triggering relay spawn', async () => {
+    mockGetState.mockReturnValue('awaiting_setup')
+    mockGetSetupUrl.mockReturnValue('http://127.0.0.1:8080/authorize')
 
     const result = await handleConfig([], { action: 'setup_start' })
 
-    expect(mockTriggerRelaySetup).toHaveBeenCalledWith({ force: undefined })
     expect(result).toEqual({
       action: 'setup_start',
-      state: 'setup_in_progress',
-      setup_url: 'https://relay.example.com/setup/new'
+      state: 'awaiting_setup',
+      setup_url: 'http://127.0.0.1:8080/authorize'
     })
   })
 
-  it('passes force flag to triggerRelaySetup', async () => {
-    mockTriggerRelaySetup.mockResolvedValue('https://relay.example.com/setup/forced')
-    mockGetState.mockReturnValue('setup_in_progress')
-
-    const result = await handleConfig([], { action: 'setup_start', force: true })
-
-    expect(mockTriggerRelaySetup).toHaveBeenCalledWith({ force: true })
-    expect(result).toEqual({
-      action: 'setup_start',
-      state: 'setup_in_progress',
-      setup_url: 'https://relay.example.com/setup/forced'
-    })
-  })
-
-  it('handles null URL when relay is unreachable', async () => {
-    mockTriggerRelaySetup.mockResolvedValue(null)
+  it('returns null setup URL when none is registered', async () => {
     mockGetState.mockReturnValue('awaiting_setup')
+    mockGetSetupUrl.mockReturnValue(null)
 
     const result = await handleConfig([], { action: 'setup_start' })
 

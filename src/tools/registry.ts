@@ -18,8 +18,7 @@ import {
   ReadResourceRequestSchema
 } from '@modelcontextprotocol/sdk/types.js'
 import { buildOpenRelayHandler } from '@n24q02m/mcp-core'
-import { getSetupUrl, getState, triggerRelaySetup } from '../credential-state.js'
-import { RELAY_SCHEMA } from '../relay-schema.js'
+import { getSetupUrl, getState } from '../credential-state.js'
 import { type AttachmentsInput, attachments } from './composite/attachments.js'
 import { type ConfigInput, handleConfig } from './composite/config.js'
 import { type FoldersInput, folders } from './composite/folders.js'
@@ -296,7 +295,10 @@ const AVAILABLE_TOOLS_STRING = VALID_TOOL_NAMES.join(', ')
 export function registerTools(server: Server, initialAccounts: AccountConfig[]) {
   // Mutable reference: updated via hot-reload when relay credentials arrive after startup
   let accounts = initialAccounts
-  const openRelayHandler = buildOpenRelayHandler('better-email-mcp', RELAY_SCHEMA)
+  const openRelayHandler = buildOpenRelayHandler({
+    serverName: 'better-email-mcp',
+    publicUrl: process.env.PUBLIC_URL ?? null
+  })
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: TOOLS
   }))
@@ -364,22 +366,19 @@ export function registerTools(server: Server, initialAccounts: AccountConfig[]) 
       // Credential guard: when not configured, return setup instructions.
       // Help, config, and config__open_relay tools are always available (docs don't
       // need credentials; config and config__open_relay manage the credential
-      // lifecycle itself).
-      // The relay session is triggered lazily on first non-exempt tool call.
+      // lifecycle itself). In stdio mode, missing creds are caught up-front in
+      // init-server.ts (process.exit(1)). In HTTP mode, the /authorize relay
+      // form runs in the same process — the user opens it via config__open_relay.
       if (name !== 'help' && name !== 'config' && name !== 'config__open_relay' && accounts.length === 0) {
         const credState = getState()
         if (credState === 'configured') {
           // Hot-reload: relay delivered credentials after startup — reload accounts
           accounts = await loadConfig()
         } else {
-          // Trigger relay setup if not already in progress
-          if (credState === 'awaiting_setup') {
-            await triggerRelaySetup()
-          }
           const url = getSetupUrl()
           const setupInstructions = url
             ? `Email credentials are not configured yet.\n\nTo set up, open this URL in your browser:\n${url}\n\nAfter submitting credentials on the relay page, retry this tool call.`
-            : `Email credentials are not configured.\n\nSet the EMAIL_CREDENTIALS environment variable.\nFormat: email1:password1,email2:password2\n\nOr restart the server to trigger the relay setup page.`
+            : `Email credentials are not configured.\n\nIn stdio mode: set EMAIL_PROVIDER + EMAIL_USER + EMAIL_APP_PASSWORD env vars.\nIn HTTP mode: call config__open_relay to open the /authorize browser form.`
           return {
             content: [{ type: 'text', text: setupInstructions }],
             isError: true
