@@ -5,6 +5,7 @@ services:
     environment:
       - TRANSPORT_MODE=http
       - CREDENTIAL_SECRET=${CREDENTIAL_SECRET}
+      - MCP_RELAY_PASSWORD=${MCP_RELAY_PASSWORD}
     ports:
       - "8082:8080"
     volumes:
