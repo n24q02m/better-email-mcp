@@ -141,6 +141,10 @@ export function renderEmailCredentialForm(
             border-radius: 4px;
             padding: 0.1rem 0.4rem;
         }
+        .required-indicator {
+            color: #f87171;
+            margin-left: 0.2rem;
+        }
         .field-input {
             width: 100%;
             background-color: #0d0d0d;
@@ -318,6 +322,12 @@ export function renderEmailCredentialForm(
                     badge.textContent = "Optional";
                     labelEl.appendChild(document.createTextNode(" "));
                     labelEl.appendChild(badge);
+                } else {
+                    var reqIndicator = document.createElement("span");
+                    reqIndicator.className = "required-indicator";
+                    reqIndicator.setAttribute("aria-hidden", "true");
+                    reqIndicator.textContent = "*";
+                    labelEl.appendChild(reqIndicator);
                 }
                 group.appendChild(labelEl);
 
