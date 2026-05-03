@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v1.27.0-beta.7 (2026-05-03)
+
+### Bug Fixes
+
+- Bump mcp-core to 1.13.0-beta.9 for /login form shell refactor
+  ([#543](https://github.com/n24q02m/better-email-mcp/pull/543),
+  [`2d45c9f`](https://github.com/n24q02m/better-email-mcp/commit/2d45c9f90dff763ce8171f8919312a84689c411b))
+
+
 ## v1.27.0-beta.6 (2026-05-03)
 
 ### Bug Fixes
