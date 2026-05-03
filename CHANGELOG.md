@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v1.27.0-beta.5 (2026-05-03)
+
+### Features
+
+- Bump mcp-core to 1.13.0-beta.7 ([#541](https://github.com/n24q02m/better-email-mcp/pull/541),
+  [`6274bae`](https://github.com/n24q02m/better-email-mcp/commit/6274baedeb913b52efbc47afdc9cdcf8f51f5f4d))
+
+- Document MCP_RELAY_PASSWORD edge auth gate
+  ([#540](https://github.com/n24q02m/better-email-mcp/pull/540),
+  [`10aad3d`](https://github.com/n24q02m/better-email-mcp/commit/10aad3d2b74c1cf8775bc56921c572f391ca68df))
+
+- Pass MCP_RELAY_PASSWORD env to HTTP container
+  ([#539](https://github.com/n24q02m/better-email-mcp/pull/539),
+  [`c7d61ac`](https://github.com/n24q02m/better-email-mcp/commit/c7d61ac090748cc9faf1b77a6c9915dfc1bc2f6c))
+
+
 ## v1.27.0-beta.4 (2026-05-02)
 
 ### Bug Fixes
