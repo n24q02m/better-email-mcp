@@ -2,7 +2,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { runHttpServer, writeConfig } from '@n24q02m/mcp-core'
 import { ImapFlow } from 'imapflow'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
-import { resolveCredentialState, setState } from '../credential-state.js'
+import { getMarkSetupComplete, resolveCredentialState, setState } from '../credential-state.js'
 import { loadConfig, parseCredentials } from '../tools/helpers/config.js'
 import { initiateOutlookDeviceCode, isOutlookDomain } from '../tools/helpers/oauth2.js'
 import { registerTools } from '../tools/registry.js'
@@ -238,7 +238,18 @@ describe('http transport', () => {
       })
     })
 
-    it('handles Outlook OAuth2 completion', async () => {
+    it('handles Outlook OAuth2 completion and flips setup-status outlook key to complete', async () => {
+      // Regression for 2026-05-03 bug: form's polling JS at
+      // src/credential-form.ts:564 checks ``s.outlook === "complete"`` but
+      // ``setMarkSetupComplete`` was wired without the producer side ever
+      // calling ``markSetupCompleteFn("outlook")`` after Microsoft token save
+      // → form spinner stuck on "Waiting for Microsoft authorization..."
+      // forever even though tokens were persisted to disk.
+      //
+      // Fix: device-code ``onComplete`` callback in ``initiateOutlookOAuth``
+      // must invoke ``getMarkSetupComplete()?.("outlook")`` AFTER ``saveTokens``
+      // returns (mcp-core's default ``mark_setup_complete()`` uses key
+      // "gdrive" -- email plugin must explicitly pass "outlook").
       const mockAccounts = [{ email: 'test@outlook.com', imap: {}, authType: 'oauth2' }]
       vi.mocked(parseCredentials).mockResolvedValue(mockAccounts as any)
       vi.mocked(isOutlookDomain).mockReturnValue(true)
@@ -252,11 +263,41 @@ describe('http transport', () => {
         } as any)
       })
 
+      const markComplete = vi.fn()
+      vi.mocked(getMarkSetupComplete).mockReturnValue(markComplete)
+
       await onCredentialsSaved({ EMAIL_CREDENTIALS: 'test@outlook.com:oauth2' })
 
-      // Trigger completion
+      // Trigger completion (background poll fires this after Microsoft returns
+      // tokens and ``saveTokens`` persists them).
       await completionCallback()
 
+      expect(setState).toHaveBeenCalledWith('configured')
+      expect(markComplete).toHaveBeenCalledWith('outlook')
+    })
+
+    it('does not throw when setMarkSetupComplete hook is null on Outlook completion', async () => {
+      // Defensive: hook may not have been wired yet (early bootstrap or
+      // tests). Completion callback must still update setState without
+      // raising even if ``getMarkSetupComplete()`` returns null.
+      const mockAccounts = [{ email: 'test@outlook.com', imap: {}, authType: 'oauth2' }]
+      vi.mocked(parseCredentials).mockResolvedValue(mockAccounts as any)
+      vi.mocked(isOutlookDomain).mockReturnValue(true)
+
+      let completionCallback: any
+      vi.mocked(initiateOutlookDeviceCode).mockImplementation((_email, callback) => {
+        completionCallback = callback
+        return Promise.resolve({
+          verificationUri: 'uri',
+          userCode: 'code'
+        } as any)
+      })
+
+      vi.mocked(getMarkSetupComplete).mockReturnValue(null)
+
+      await onCredentialsSaved({ EMAIL_CREDENTIALS: 'test@outlook.com:oauth2' })
+
+      expect(() => completionCallback()).not.toThrow()
       expect(setState).toHaveBeenCalledWith('configured')
     })
 
