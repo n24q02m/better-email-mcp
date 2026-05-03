@@ -175,6 +175,20 @@ Optional environment overrides:
 - `OUTLOOK_CLIENT_ID` — override the bundled Azure public client (rarely needed; the bundled `d56f8c71-9f7c-43f4-9934-be29cb6e77b0` works out of the box)
 - `OUTLOOK_EMAIL` — workaround for Microsoft device-code responses missing the email field; sets the token persistence key (`tokens/<email>.json`)
 
+### Edge auth: relay password
+
+Public HTTP deployments expose `<your-domain>/authorize` to URL discovery. To prevent random Internet users from accessing the relay form, mint a relay password:
+
+```bash
+openssl rand -hex 32
+# Save in your skret / .env as:
+MCP_RELAY_PASSWORD=<generated-32-byte-hex>
+```
+
+Share this password out-of-band (Signal/email/SMS) with anyone you invite to use your server. They will see a login form when first opening `/authorize`; once logged in, the cookie persists 24 hours.
+
+**Single-user dev exception**: If `PUBLIC_URL=http://localhost:8080`, you can leave `MCP_RELAY_PASSWORD` empty to disable the gate. The server logs a warning if you skip the password with a non-localhost `PUBLIC_URL`.
+
 Point clients to your server URL:
 ```json
 {
