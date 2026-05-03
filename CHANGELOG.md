@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v1.27.0-beta.6 (2026-05-03)
+
+### Bug Fixes
+
+- Wire setup_complete_hook for outlook device-code OAuth
+  ([#542](https://github.com/n24q02m/better-email-mcp/pull/542),
+  [`be37f3f`](https://github.com/n24q02m/better-email-mcp/commit/be37f3fc5a7060d3b15d1c5683a6050d5e927c15))
+
+
 ## v1.27.0-beta.5 (2026-05-03)
 
 ### Features
