@@ -20,32 +20,28 @@ This plugin supports 3 install methods. Pick the one that matches your use case:
 
 All MCP servers across this stack share this priority hierarchy. Note: 2 plugins (`better-godot-mcp` and `better-code-review-graph`) only support Method 1 (stdio) -- they need direct host access to project files / repo paths and don't ship Docker / HTTP variants.
 
-## Option 1: Claude Code Plugin (Recommended -- stdio + env vars)
+## Option 1: Claude Code Plugin (Recommended -- stdio + userConfig prompt)
+
+### Step 0: Credential prompt
+
+When the install command runs, Claude Code prompts for the field declared in `plugin.json` `userConfig`:
+
+| Field | Required | Sensitive | Format |
+|:------|:---------|:----------|:-------|
+| `EMAIL_CREDENTIALS` | Yes | Yes | `user@gmail.com:app-password` (single) or `user1@x:p1,user2@y:p2` (multi). Custom IMAP host: append `:imap.host`. |
+
+The plugin manifest substitutes the value into `mcpServers.better-email-mcp.env.EMAIL_CREDENTIALS` via `${user_config.EMAIL_CREDENTIALS}`. Sensitive values are kept in the system keychain and persist across `/plugin update` -- you do not edit `env` manually.
+
+### Steps
 
 ```bash
 /plugin marketplace add n24q02m/claude-plugins
 /plugin install better-email-mcp@n24q02m-plugins
 ```
 
-This installs the server with skills: `/inbox-review`, `/follow-up`.
+Paste your `EMAIL_CREDENTIALS` value when prompted. This installs the server with skills: `/inbox-review`, `/follow-up`. Restart Claude Code -- the plugin auto-loads with your credentials.
 
-After install, set credentials in `~/.claude/settings.local.json` (or `.claude/settings.json` per-project):
-
-```json
-{
-  "mcpServers": {
-    "better-email-mcp": {
-      "env": {
-        "EMAIL_PROVIDER": "gmail",
-        "EMAIL_USER": "you@gmail.com",
-        "EMAIL_APP_PASSWORD": "abcd efgh ijkl mnop"
-      }
-    }
-  }
-}
-```
-
-Restart Claude Code after editing. For multi-account setups, use `EMAIL_CREDENTIALS` instead (see below).
+> **HTTP transport (Option 3)** is a separate install path; the `userConfig` prompt does not apply, and you manually configure `mcpServers` for HTTP per Option 3 below.
 
 ## Option 2: Docker stdio (fallback)
 

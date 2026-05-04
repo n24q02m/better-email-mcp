@@ -34,30 +34,30 @@ App Passwords are required for App-Password providers (NOT your regular password
 
 ## Method 1: Claude Code Plugin (Recommended)
 
-Plugin install runs in **stdio mode** with credentials from env vars.
+Plugin install runs in **stdio mode** with credentials provided via the `userConfig` install prompt.
 
-1. Open Claude Code in your terminal
-2. Run:
+### Step 0: Credential prompt
+
+When you run `/plugin install better-email-mcp@n24q02m-plugins`, Claude Code prompts for the value declared in `plugin.json` `userConfig`:
+
+| Field | Required | Sensitive | Format |
+|:------|:---------|:----------|:-------|
+| `EMAIL_CREDENTIALS` | Yes | Yes | `user@gmail.com:app-password`. Multi-account: `user1@x:p1,user2@y:p2`. Custom IMAP host: `user@custom.com:password:imap.custom.com` |
+
+The sensitive value is stored in the system keychain (or `~/.claude/.credentials.json` fallback) and persists across `/plugin update`. Claude Code substitutes the value into `mcpServers.better-email-mcp.env.EMAIL_CREDENTIALS` via `${user_config.EMAIL_CREDENTIALS}` -- you do not edit `env` manually.
+
+### Steps
+
+1. Prepare an App Password for each account (see "Create App Passwords" above).
+2. Open Claude Code in your terminal.
+3. Install the plugin (Claude Code prompts for `EMAIL_CREDENTIALS`):
    ```bash
    /plugin marketplace add n24q02m/claude-plugins
    /plugin install better-email-mcp@n24q02m-plugins
    ```
-3. Configure credentials in `~/.claude/settings.local.json` (or `.claude/settings.json` per-project):
-   ```json
-   {
-     "mcpServers": {
-       "better-email-mcp": {
-         "env": {
-           "EMAIL_PROVIDER": "gmail",
-           "EMAIL_USER": "you@gmail.com",
-           "EMAIL_APP_PASSWORD": "abcd efgh ijkl mnop"
-         }
-       }
-     }
-   }
-   ```
-   Multi-account: use `EMAIL_CREDENTIALS` instead with comma-separated `user:pass[:imap.host]` entries.
-4. Restart Claude Code.
+4. Restart Claude Code -- the plugin auto-loads with your credentials injected.
+
+> **HTTP transport (Method 3)** is a separate install path. The `userConfig` prompt only covers stdio Method 1; HTTP self-host still requires manual `mcpServers` config per Method 3 below.
 
 ## Method 2: Docker stdio (fallback)
 
