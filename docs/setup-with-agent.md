@@ -4,7 +4,7 @@
 > The previous "Zero-Config Relay" auto-spawn pattern has been removed.
 > If you relied on the relay form, please:
 > 1. Set env vars in plugin config (Option 1), OR
-> 2. Switch to HTTP mode (Option 4 hosted / Option 5 self-host) for browser-based setup.
+> 2. Switch to HTTP mode (Option 3 (Docker HTTP — Hosted or Self-host)) for browser-based setup.
 
 > Give this file to your AI agent to automatically set up better-email-mcp.
 
@@ -47,73 +47,7 @@ After install, set credentials in `~/.claude/settings.local.json` (or `.claude/s
 
 Restart Claude Code after editing. For multi-account setups, use `EMAIL_CREDENTIALS` instead (see below).
 
-## Option 2: MCP Direct (npx + env vars)
-
-### Claude Code (settings.json)
-
-Add to `.claude/settings.json` or `~/.claude/settings.json`:
-
-```json
-{
-  "mcpServers": {
-    "better-email-mcp": {
-      "command": "npx",
-      "args": ["-y", "@n24q02m/better-email-mcp"],
-      "env": {
-        "EMAIL_PROVIDER": "gmail",
-        "EMAIL_USER": "you@gmail.com",
-        "EMAIL_APP_PASSWORD": "abcd efgh ijkl mnop"
-      }
-    }
-  }
-}
-```
-
-For multiple accounts (legacy compact format):
-```json
-{
-  "env": {
-    "EMAIL_CREDENTIALS": "user1@gmail.com:pass1,user2@outlook.com:pass2"
-  }
-}
-```
-
-### Codex CLI (config.toml)
-
-Add to `~/.codex/config.toml`:
-
-```toml
-[mcp_servers.better-email-mcp]
-command = "npx"
-args = ["-y", "@n24q02m/better-email-mcp"]
-
-[mcp_servers.better-email-mcp.env]
-EMAIL_PROVIDER = "gmail"
-EMAIL_USER = "you@gmail.com"
-EMAIL_APP_PASSWORD = "abcd efgh ijkl mnop"
-```
-
-### OpenCode (opencode.json)
-
-Add to `opencode.json` in your project root:
-
-```json
-{
-  "mcpServers": {
-    "better-email-mcp": {
-      "command": "npx",
-      "args": ["-y", "@n24q02m/better-email-mcp"],
-      "env": {
-        "EMAIL_PROVIDER": "gmail",
-        "EMAIL_USER": "you@gmail.com",
-        "EMAIL_APP_PASSWORD": "abcd efgh ijkl mnop"
-      }
-    }
-  }
-}
-```
-
-## Option 3: Docker (stdio)
+## Option 2: Docker stdio (fallback)
 
 ```json
 {
@@ -145,7 +79,9 @@ Stdio mode is the default and works for single-user local development. Switch to
 - **Multi-user / team sharing** — per-JWT-sub credential isolation; one deployment serves the team
 - **Always-on persistent process** — required for webhooks, scheduled inbox scans, or long-running agents
 
-## Option 4: HTTP Hosted (Multi-User)
+## Option 3: Docker HTTP (recommended)
+
+### 3.1. Hosted (n24q02m.com)
 
 Multi-user mode with OAuth 2.1 + bundled Outlook OAuth (no local credentials needed):
 
@@ -185,7 +121,7 @@ url = "https://better-email-mcp.n24q02m.com/mcp"
 
 The first request from each user triggers either a Microsoft device-code link (Outlook) or a paste form (Gmail/Yahoo/iCloud/custom IMAP). Outlook OAuth uses the bundled public Azure client (`d56f8c71-9f7c-43f4-9934-be29cb6e77b0`, Thunderbird-pattern) — no user-side Azure app registration needed.
 
-## Option 5: Self-Hosting HTTP Mode
+### 3.2. Self-host with docker-compose
 
 Run your own multi-user instance:
 
