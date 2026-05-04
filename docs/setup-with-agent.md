@@ -8,6 +8,18 @@
 
 > Give this file to your AI agent to automatically set up better-email-mcp.
 
+## Method overview
+
+This plugin supports 3 install methods. Pick the one that matches your use case:
+
+| Priority | Method | Transport | Best for |
+|---|---|---|---|
+| **1. Default** | Plugin install (`uvx`/`npx`) | stdio | Quick local start, single workstation, no OAuth/HTTP needed. |
+| **2. Fallback** | Docker stdio (`docker run -i --rm`) | stdio | Windows/macOS where native uvx/npx hits PATH or Python version issues. |
+| **3. Recommended** | Docker HTTP (`docker run -p 8080:8080`) | HTTP | Multi-device, OAuth/relay-form auth, team self-host, claude.ai web compatibility. |
+
+All MCP servers across this stack share this priority hierarchy. Note: 2 plugins (`better-godot-mcp` and `better-code-review-graph`) only support Method 1 (stdio) -- they need direct host access to project files / repo paths and don't ship Docker / HTTP variants.
+
 ## Option 1: Claude Code Plugin (Recommended -- stdio + env vars)
 
 ```bash
