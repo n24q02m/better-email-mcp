@@ -2,6 +2,15 @@
   "name": "better-email-mcp",
   "description": "Email management via IMAP/SMTP — multi-account",
   "version": "1.27.0",
+  "userConfig": {
+    "EMAIL_CREDENTIALS": {
+      "type": "string",
+      "title": "Email credentials",
+      "description": "Format: user@gmail.com:app-password (multi: user1@x:p1,user2@y:p2)",
+      "sensitive": true,
+      "required": true
+    }
+  },
   "author": {
     "name": "n24q02m",
     "url": "https://github.com/n24q02m"
@@ -11,7 +20,10 @@
     "better-email-mcp": {
       "command": "npx",
       "args": ["--yes", "@n24q02m/better-email-mcp@latest"],
-      "env": { "MCP_TRANSPORT": "stdio" }
+      "env": {
+        "MCP_TRANSPORT": "stdio",
+        "EMAIL_CREDENTIALS": "${user_config.EMAIL_CREDENTIALS}"
+      }
     }
   }
 }
