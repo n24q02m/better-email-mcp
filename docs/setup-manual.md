@@ -36,15 +36,13 @@ App Passwords are required for App-Password providers (NOT your regular password
 
 Plugin install runs in **stdio mode** with credentials provided via the `userConfig` install prompt.
 
-### Step 0: Credential prompt
+### Credential prompts at install
 
-When you run `/plugin install better-email-mcp@n24q02m-plugins`, Claude Code prompts for the value declared in `plugin.json` `userConfig`:
+When you run `/plugin install`, Claude Code prompts you for the following credentials (declared in `userConfig` per CC docs). Sensitive values are stored in your system keychain and persist across `/plugin update`:
 
-| Field | Required | Sensitive | Format |
-|:------|:---------|:----------|:-------|
-| `EMAIL_CREDENTIALS` | Yes | Yes | `user@gmail.com:app-password`. Multi-account: `user1@x:p1,user2@y:p2`. Custom IMAP host: `user@custom.com:password:imap.custom.com` |
-
-The sensitive value is stored in the system keychain (or `~/.claude/.credentials.json` fallback) and persists across `/plugin update`. Claude Code substitutes the value into `mcpServers.better-email-mcp.env.EMAIL_CREDENTIALS` via `${user_config.EMAIL_CREDENTIALS}` -- you do not edit `env` manually.
+| Field | Required | Where to obtain |
+|---|---|---|
+| `EMAIL_CREDENTIALS` | Required | Format: `user@gmail.com:app-password` (multi: comma-separated) |
 
 ### Steps
 
@@ -56,8 +54,6 @@ The sensitive value is stored in the system keychain (or `~/.claude/.credentials
    /plugin install better-email-mcp@n24q02m-plugins
    ```
 4. Restart Claude Code -- the plugin auto-loads with your credentials injected.
-
-> **HTTP transport (Method 3)** is a separate install path. The `userConfig` prompt only covers stdio Method 1; HTTP self-host still requires manual `mcpServers` config per Method 3 below.
 
 ## Method 2: Docker stdio (fallback)
 
@@ -103,6 +99,8 @@ Stdio mode is the default and works for single-user local development. Consider 
 - **Always-on persistent process** — required for webhooks, scheduled inbox scans, or long-running agents
 
 ## Method 3: Docker HTTP (recommended)
+
+> **Switching transport vs. setting credentials**: The `userConfig` prompt only configures credentials for stdio mode (Method 1 / Option 1). To switch transport to HTTP, override `mcpServers` in your client settings per the snippets below -- this is a separate path from `userConfig` and is not driven by the install prompt.
 
 ### 3.1. Hosted (n24q02m.com)
 
