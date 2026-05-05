@@ -22,15 +22,13 @@ All MCP servers across this stack share this priority hierarchy. Note: 2 plugins
 
 ## Option 1: Claude Code Plugin (Recommended -- stdio + userConfig prompt)
 
-### Step 0: Credential prompt
+### Credential prompts at install
 
-When the install command runs, Claude Code prompts for the field declared in `plugin.json` `userConfig`:
+When you run `/plugin install`, Claude Code prompts you for the following credentials (declared in `userConfig` per CC docs). Sensitive values are stored in your system keychain and persist across `/plugin update`:
 
-| Field | Required | Sensitive | Format |
-|:------|:---------|:----------|:-------|
-| `EMAIL_CREDENTIALS` | Yes | Yes | `user@gmail.com:app-password` (single) or `user1@x:p1,user2@y:p2` (multi). Custom IMAP host: append `:imap.host`. |
-
-The plugin manifest substitutes the value into `mcpServers.better-email-mcp.env.EMAIL_CREDENTIALS` via `${user_config.EMAIL_CREDENTIALS}`. Sensitive values are kept in the system keychain and persist across `/plugin update` -- you do not edit `env` manually.
+| Field | Required | Where to obtain |
+|---|---|---|
+| `EMAIL_CREDENTIALS` | Required | Format: `user@gmail.com:app-password` (multi: comma-separated) |
 
 ### Steps
 
@@ -40,8 +38,6 @@ The plugin manifest substitutes the value into `mcpServers.better-email-mcp.env.
 ```
 
 Paste your `EMAIL_CREDENTIALS` value when prompted. This installs the server with skills: `/inbox-review`, `/follow-up`. Restart Claude Code -- the plugin auto-loads with your credentials.
-
-> **HTTP transport (Option 3)** is a separate install path; the `userConfig` prompt does not apply, and you manually configure `mcpServers` for HTTP per Option 3 below.
 
 ## Option 2: Docker stdio (fallback)
 
@@ -76,6 +72,8 @@ Stdio mode is the default and works for single-user local development. Switch to
 - **Always-on persistent process** — required for webhooks, scheduled inbox scans, or long-running agents
 
 ## Option 3: Docker HTTP (recommended)
+
+> **Switching transport vs. setting credentials**: The `userConfig` prompt only configures credentials for stdio mode (Method 1 / Option 1). To switch transport to HTTP, override `mcpServers` in your client settings per the snippets below -- this is a separate path from `userConfig` and is not driven by the install prompt.
 
 ### 3.1. Hosted (n24q02m.com)
 
