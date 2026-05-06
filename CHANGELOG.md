@@ -2,6 +2,46 @@
 
 <!-- version list -->
 
+## v1.28.0-beta.1 (2026-05-06)
+
+### Bug Fixes
+
+- Consolidate setup docs body to 3 methods (drop legacy Method 4/5)
+  ([#548](https://github.com/n24q02m/better-email-mcp/pull/548),
+  [`17b4eee`](https://github.com/n24q02m/better-email-mcp/commit/17b4eee26b4323e31dba5fed570834f4b9955e71))
+
+- **deps**: Update non-major dependencies
+  ([#535](https://github.com/n24q02m/better-email-mcp/pull/535),
+  [`73dada6`](https://github.com/n24q02m/better-email-mcp/commit/73dada6368756a7da397da80c0116494adfc8af6))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#536](https://github.com/n24q02m/better-email-mcp/pull/536),
+  [`ff3359d`](https://github.com/n24q02m/better-email-mcp/commit/ff3359d0ae9bdfb9dbd6ea703cc776cf049e4de7))
+
+- **deps**: Update step-security/harden-runner digest to a5ad31d
+  ([#534](https://github.com/n24q02m/better-email-mcp/pull/534),
+  [`f1ee162`](https://github.com/n24q02m/better-email-mcp/commit/f1ee162782c3a9d71a9ad7e7097531311bfc72a3))
+
+### Features
+
+- Add explicit Method overview section to setup docs
+  ([#547](https://github.com/n24q02m/better-email-mcp/pull/547),
+  [`645a6be`](https://github.com/n24q02m/better-email-mcp/commit/645a6be5cf84d4796f3bb1ea3a23c461ed4bb628))
+
+- Clarify Method 1/2/3 mutually exclusive (CC scope-by-endpoint)
+  ([#552](https://github.com/n24q02m/better-email-mcp/pull/552),
+  [`c901beb`](https://github.com/n24q02m/better-email-mcp/commit/c901bebeff8cbbd3f8e95d33e0216ae2f40e63e3))
+
+- Declare userConfig schema and document install prompt
+  ([#549](https://github.com/n24q02m/better-email-mcp/pull/549),
+  [`64f6d22`](https://github.com/n24q02m/better-email-mcp/commit/64f6d227f6860ae0259b64e7edd3efc7b5b28c01))
+
+- Document userConfig credential prompts per plugin
+  ([#551](https://github.com/n24q02m/better-email-mcp/pull/551),
+  [`aac3638`](https://github.com/n24q02m/better-email-mcp/commit/aac3638c06d91f1c1de417803a88662b9b2b41c7))
+
+
 ## v1.27.0 (2026-05-04)
 
 ### Bug Fixes
