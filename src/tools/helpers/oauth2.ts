@@ -11,6 +11,7 @@ import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { tryOpenBrowser } from '@n24q02m/mcp-core'
+import { isSafeUrl } from './security.js'
 
 // Microsoft OAuth2 endpoints — "consumers" tenant for personal Microsoft accounts
 const TENANT = 'consumers'
@@ -207,10 +208,14 @@ export function _resetBrowserOpenDedupe(): void {
 /**
  * Open a URL in the user's default browser safely. Wraps mcp-core's
  * ``tryOpenBrowser`` in a fire-and-forget fashion so OAuth callers do not
- * block on browser launch.
+ * block on browser launch. Validates URL before opening to prevent injection.
  */
 function openBrowser(url: string): void {
-  void tryOpenBrowser(url)
+  if (isSafeUrl(url)) {
+    void tryOpenBrowser(url)
+  } else {
+    console.error(`[SECURITY] Refused to open unsafe URL: ${url}`)
+  }
 }
 
 /**
