@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.28.0 (2026-05-06)
+
+### Bug Fixes
+
+- Remove redundant TRANSPORT_MODE=http baked into Dockerfile http target
+  ([`785b93b`](https://github.com/n24q02m/better-email-mcp/commit/785b93b649d70b47f3c3fa3a6a91decda5244624))
+
+
 ## v1.28.0-beta.1 (2026-05-06)
 
 ### Bug Fixes
