@@ -51,8 +51,7 @@ ENTRYPOINT ["node", "/usr/local/lib/node_modules/@n24q02m/better-email-mcp/bin/c
 
 # http target: HTTP daemon (runLocalServer). Self-hosted deployment.
 FROM base AS http
-ENV MCP_TRANSPORT=http
-ENV TRANSPORT_MODE=http
-ENV PORT=8080
+ENV MCP_TRANSPORT=http \
+    MCP_PORT=8080
 EXPOSE 8080
 ENTRYPOINT ["node", "/usr/local/lib/node_modules/@n24q02m/better-email-mcp/bin/cli.mjs"]
