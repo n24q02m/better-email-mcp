@@ -240,7 +240,7 @@ export function renderEmailCredentialForm(
     </style>
 </head>
 <body>
-    <div class="container">
+    <main class="container">
         <div class="card">
             <div class="server-header">
                 <h1 class="server-name">${displayName}</h1>
@@ -260,7 +260,7 @@ export function renderEmailCredentialForm(
                 <div class="status-box" id="status-box" role="alert"></div>
             </form>
         </div>
-    </div>
+    </main>
 
     <script>
         (function () {
@@ -336,7 +336,7 @@ export function renderEmailCredentialForm(
                 input.className = "field-input";
                 input.setAttribute("type", type);
                 input.setAttribute("name", key + "_" + idx);
-                input.setAttribute("autocomplete", "off");
+                input.setAttribute("autocomplete", type === "email" ? "email" : (type === "password" ? "current-password" : "off"));
                 input.setAttribute("autocorrect", "off");
                 input.setAttribute("autocapitalize", "off");
                 input.setAttribute("spellcheck", "false");
