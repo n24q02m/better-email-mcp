@@ -35,10 +35,6 @@ function escapeHtml(value: unknown): string {
 /**
  * Render the custom email credential form: multi-account cards with
  * domain auto-detect + Add/Remove buttons + Outlook OAuth notice.
- *
- * Submits EMAIL_CREDENTIALS to mcp-core OAuth /authorize endpoint as
- * comma-separated `email1:pass1,email2:pass2:imap_host` format. The
- * server-side onCredentialsSaved callback parses this back into accounts.
  */
 export function renderEmailCredentialForm(
   _schema: RelayConfigSchema,
@@ -59,6 +55,20 @@ export function renderEmailCredentialForm(
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${displayName}</title>
     <style>
+        ${renderStyles()}
+    </style>
+</head>
+<body>
+    ${renderFormHtml(displayName, server, description)}
+    <script>
+        ${renderScripts(submitUrl)}
+    </script>
+</body>
+</html>`
+}
+
+function renderStyles(): string {
+  return `
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             background-color: #0f0f0f;
@@ -236,10 +246,11 @@ export function renderEmailCredentialForm(
             margin-right: 0.5rem;
             vertical-align: text-bottom;
         }
+`
+}
 
-    </style>
-</head>
-<body>
+function renderFormHtml(displayName: string, server: string, description: string): string {
+  return `
     <div class="container">
         <div class="card">
             <div class="server-header">
@@ -261,8 +272,11 @@ export function renderEmailCredentialForm(
             </form>
         </div>
     </div>
+`
+}
 
-    <script>
+function renderScripts(submitUrl: string): string {
+  return `
         (function () {
             var submitUrl = "${submitUrl}";
 
@@ -448,43 +462,26 @@ export function renderEmailCredentialForm(
                 removeBtn.textContent = "Remove";
                 removeBtn.setAttribute("aria-label", "Remove Account " + (idx + 1));
                 removeBtn.addEventListener("click", function () {
-                    var inputs = card.querySelectorAll("input");
-                    var hasData = false;
-                    for (var i = 0; i < inputs.length; i++) {
-                        if (inputs[i].value.trim() !== "") {
-                            hasData = true;
-                            break;
+                    if (container.querySelectorAll(".account-card").length > 1) {
+                        if (confirm("Are you sure you want to remove this account?")) {
+                            container.removeChild(card);
+                            updateAccountNumbers();
                         }
                     }
-                    if (hasData && !window.confirm("This account has unsaved data. Are you sure you want to remove it?")) {
-                        return;
-                    }
-                    card.remove();
-                    updateAccountNumbers();
                 });
                 header.appendChild(removeBtn);
                 card.appendChild(header);
 
-                var emailField = createFieldGroup(idx, "email", "Email Address", "email", "you@example.com", true, "", "");
-                card.appendChild(emailField.group);
+                var emailGroup = createFieldGroup(idx, "email", "Email Address", "email", "user@example.com", true, "", "");
+                card.appendChild(emailGroup.group);
 
-                var extra = document.createElement("div");
-                extra.className = "extra-container";
-                extra.dataset.role = "extra";
-                card.appendChild(extra);
+                var extraFields = document.createElement("div");
+                card.appendChild(extraFields);
 
-                var state = { password: "", imap: "" };
-
-                emailField.input.addEventListener("input", function () {
-                    var pwNode = extra.querySelector('input[data-role="password"]');
-                    if (pwNode) state.password = pwNode.value;
-                    var imapNode = extra.querySelector('input[data-role="imap"]');
-                    if (imapNode) state.imap = imapNode.value;
-
-                    var val = emailField.input.value;
-                    var at = val.indexOf("@");
-                    var domain = at >= 0 ? val.slice(at + 1).trim().toLowerCase() : "";
-                    renderDomainSpecificFields(extra, idx, domain, state);
+                emailGroup.input.addEventListener("input", function (e) {
+                    var email = e.target.value.trim();
+                    var domain = email.split("@")[1];
+                    renderDomainSpecificFields(extraFields, idx, domain);
                 });
 
                 return card;
@@ -494,19 +491,17 @@ export function renderEmailCredentialForm(
                 var cards = container.querySelectorAll(".account-card");
                 var accounts = [];
                 var hasOauth = false;
+
                 for (var i = 0; i < cards.length; i++) {
                     var card = cards[i];
                     var emailInput = card.querySelector('input[data-role="email"]');
-                    var email = emailInput && emailInput.value ? emailInput.value.trim() : "";
+                    var email = emailInput ? emailInput.value.trim() : "";
                     if (!email) continue;
 
-                    var at = email.indexOf("@");
-                    var domain = at >= 0 ? email.slice(at + 1).toLowerCase() : "";
-
+                    var domain = email.split("@")[1];
                     if (OAUTH_DOMAINS.indexOf(domain) !== -1) {
                         hasOauth = true;
-                        // Outlook/Hotmail/Live: no password field. Server detects
-                        // email-only entries and runs Device Code OAuth2.
+                        // Outlook/Hotmail/Live: server triggers Device Code OAuth2.
                         accounts.push({ email: email, oauth: true });
                         continue;
                     }
@@ -689,7 +684,5 @@ export function renderEmailCredentialForm(
                     });
             });
         })();
-    </script>
-</body>
-</html>`
+`
 }
