@@ -336,7 +336,15 @@ export function renderEmailCredentialForm(
                 input.className = "field-input";
                 input.setAttribute("type", type);
                 input.setAttribute("name", key + "_" + idx);
-                input.setAttribute("autocomplete", "off");
+
+                if (type === "email") {
+                    input.setAttribute("autocomplete", "email");
+                } else if (type === "password") {
+                    input.setAttribute("autocomplete", "current-password");
+                } else {
+                    input.setAttribute("autocomplete", "off");
+                }
+
                 input.setAttribute("autocorrect", "off");
                 input.setAttribute("autocapitalize", "off");
                 input.setAttribute("spellcheck", "false");
