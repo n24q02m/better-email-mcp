@@ -44,11 +44,12 @@ async function handleList(accounts: AccountConfig[], input: FoldersInput): Promi
         account_email: account.email,
         folders: folderList
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       return {
         account_id: account.id,
         account_email: account.email,
-        error: error.message,
+        error: errorMessage,
         folders: []
       }
     }

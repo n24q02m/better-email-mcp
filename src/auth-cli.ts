@@ -26,7 +26,7 @@ export async function runAuth(): Promise<void> {
 
   try {
     await deviceCodeAuth(email)
-  } catch (error: any) {
+  } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)
     console.error(`\nError: ${message}`)
     process.exit(1)

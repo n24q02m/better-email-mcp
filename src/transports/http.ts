@@ -92,7 +92,7 @@ async function validateImapAccounts(imapAccounts: AccountConfig[]): Promise<Next
       })
     )
     return null
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error && typeof error === 'object' && 'type' in error) {
       return error as NextStep
     }

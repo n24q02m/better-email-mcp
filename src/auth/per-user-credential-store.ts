@@ -80,8 +80,8 @@ async function getSecret(): Promise<string> {
 
     try {
       return (await _fs.readFile(_paths.SECRET_PATH, 'utf-8')).trim()
-    } catch (err: any) {
-      if (err.code !== 'ENOENT') throw err
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'code' in err && err.code !== 'ENOENT') throw err
     }
 
     const secret = randomBytes(32).toString('hex')
@@ -161,8 +161,8 @@ export async function loadUserCredentials(userId: string): Promise<AccountConfig
     )
     const parsed = JSON.parse(new TextDecoder().decode(decrypted))
     return parsed.accounts as AccountConfig[]
-  } catch (err: any) {
-    if (err.code === 'ENOENT') return null
+  } catch (err: unknown) {
+    if (err && typeof err === 'object' && 'code' in err && err.code === 'ENOENT') return null
     throw err
   }
 }
@@ -178,8 +178,8 @@ export async function loadAllUserCredentials(): Promise<Map<string, AccountConfi
   let entries: any[]
   try {
     entries = (await _fs.readdir(_paths.DATA_DIR, { withFileTypes: true })) as any
-  } catch (err: any) {
-    if (err.code === 'ENOENT') return result
+  } catch (err: unknown) {
+    if (err && typeof err === 'object' && 'code' in err && err.code === 'ENOENT') return result
     throw err
   }
 
@@ -208,9 +208,9 @@ export async function loadAllUserCredentials(): Promise<Map<string, AccountConfi
       if (parsed.userId && Array.isArray(parsed.accounts)) {
         result.set(parsed.userId, parsed.accounts)
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Skip missing or corrupted entries
-      if (err.code !== 'ENOENT') {
+      if (err && typeof err === 'object' && 'code' in err && err.code !== 'ENOENT') {
         console.error(`Failed to load credentials from ${entry.name}:`, err)
       }
     }
