@@ -3,12 +3,22 @@
  * AI-friendly error messages and suggestions for email operations
  */
 
+interface RawError {
+  message?: string
+  name?: string
+  code?: string | number
+  status?: number
+  responseCode?: number
+  authenticationFailed?: boolean
+  [key: string]: unknown
+}
+
 export class EmailMCPError extends Error {
   constructor(
     message: string,
     public code: string,
     public suggestion?: string,
-    public details?: any
+    public details?: unknown
   ) {
     super(message)
     this.name = 'EmailMCPError'
@@ -28,17 +38,18 @@ export class EmailMCPError extends Error {
 /**
  * Sanitize error object to remove sensitive information (passwords, tokens)
  */
-function sanitizeErrorDetails(error: any): any {
+function sanitizeErrorDetails(error: unknown): Record<string, unknown> | unknown {
   if (!error || typeof error !== 'object') return error
 
-  const safe: any = {
-    message: error.message,
-    name: error.name,
-    code: error.code
+  const raw = error as RawError
+  const safe: Record<string, unknown> = {
+    message: raw.message,
+    name: raw.name,
+    code: raw.code
   }
 
-  if (error.status) safe.status = error.status
-  if (error.responseCode) safe.responseCode = error.responseCode
+  if (raw.status) safe.status = raw.status
+  if (raw.responseCode) safe.responseCode = raw.responseCode
 
   return safe
 }
@@ -46,18 +57,19 @@ function sanitizeErrorDetails(error: any): any {
 /**
  * Enhance email-related errors with helpful context
  */
-export function enhanceError(error: any): EmailMCPError {
+export function enhanceError(error: unknown): EmailMCPError {
   if (error instanceof EmailMCPError) {
     return error
   }
 
-  const message = error.message || 'Unknown error occurred'
+  const raw = error as RawError
+  const message = raw.message || 'Unknown error occurred'
 
   // IMAP authentication errors
   if (
     message.includes('Invalid credentials') ||
     message.includes('AUTHENTICATIONFAILED') ||
-    error.authenticationFailed
+    raw.authenticationFailed
   ) {
     return new EmailMCPError(
       'Email authentication failed',
@@ -94,8 +106,8 @@ export function enhanceError(error: any): EmailMCPError {
   }
 
   // SMTP errors
-  if (error.responseCode) {
-    return handleSmtpError(error)
+  if (raw.responseCode) {
+    return handleSmtpError(raw)
   }
 
   // Configuration errors
@@ -119,7 +131,7 @@ export function enhanceError(error: any): EmailMCPError {
 /**
  * Handle SMTP-specific errors
  */
-function handleSmtpError(error: any): EmailMCPError {
+function handleSmtpError(error: RawError): EmailMCPError {
   const code = error.responseCode
 
   switch (code) {
@@ -257,10 +269,10 @@ export function suggestFixes(error: EmailMCPError): string[] {
 /**
  * Wrap async function with error handling
  */
-export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
-  fn: T
-): (...args: Parameters<T>) => Promise<ReturnType<T>> {
-  return async (...args: Parameters<T>): Promise<ReturnType<T>> => {
+export function withErrorHandling<Args extends unknown[], Return>(
+  fn: (...args: Args) => Promise<Return>
+): (...args: Args) => Promise<Return> {
+  return async (...args: Args): Promise<Return> => {
     try {
       return await fn(...args)
     } catch (error) {
