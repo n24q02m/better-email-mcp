@@ -147,9 +147,10 @@ describe('enhanceError', () => {
   it('sanitizes error details (no password leakage)', () => {
     const result = enhanceError({ message: 'generic', password: 'secret123', status: 500 })
     // details should not contain password
-    if (result.details) {
-      expect(result.details.password).toBeUndefined()
-      expect(result.details.status).toBe(500)
+    const details = result.details as Record<string, unknown>
+    if (details) {
+      expect(details.password).toBeUndefined()
+      expect(details.status).toBe(500)
     }
   })
 })
