@@ -28,6 +28,7 @@ import { renderEmailCredentialForm } from '../credential-form.js'
 import {
   getMarkSetupComplete,
   resolveCredentialState,
+  setCredentials,
   setMarkSetupComplete,
   setSetupUrl,
   setState
@@ -216,7 +217,7 @@ function buildOptions(args: {
     } catch (err) {
       console.error(`[${SERVER_NAME}] Failed to persist credentials: ${(err as Error).message}`)
     }
-    process.env.EMAIL_CREDENTIALS = raw
+    setCredentials(raw)
     onAccountsLoaded(accounts)
     console.error(`[${SERVER_NAME}] ${accounts.length} email account(s) configured via /authorize`)
 

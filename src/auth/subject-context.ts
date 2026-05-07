@@ -9,7 +9,7 @@
  * store (``per-user-credential-store.ts``).
  *
  * Local-relay + stdio do NOT use this — they're explicitly single-user and
- * read from ``process.env.EMAIL_CREDENTIALS`` / the closure resolved at
+ * read from the credential state / the closure resolved at
  * server startup. The module still exports ``subjectContext`` unconditionally
  * so the serverFactory can safely call ``getStore()`` in any mode (returns
  * ``undefined`` outside an active scope ⇒ callers fall back to the closure).

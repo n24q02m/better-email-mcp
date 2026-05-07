@@ -26,7 +26,8 @@ vi.mock('../credential-state.js', () => ({
   setMarkSetupComplete: vi.fn(),
   setState: vi.fn(),
   getMarkSetupComplete: vi.fn(),
-  setSetupUrl: vi.fn()
+  setSetupUrl: vi.fn(),
+  setCredentials: vi.fn()
 }))
 
 vi.mock('../tools/helpers/config.js', () => ({

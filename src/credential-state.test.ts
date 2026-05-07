@@ -102,7 +102,7 @@ describe('credential-state', () => {
       process.env.EMAIL_APP_PASSWORD = 'app-pass-123'
       const result = await mod.resolveCredentialState()
       expect(result).toBe('configured')
-      expect(process.env.EMAIL_CREDENTIALS).toBe('user@gmail.com:app-pass-123')
+      expect(mod.getCredentials()).toBe('user@gmail.com:app-pass-123')
     })
 
     it('returns configured when config file has credentials', async () => {
@@ -115,7 +115,7 @@ describe('credential-state', () => {
 
       const result = await mod.resolveCredentialState()
       expect(result).toBe('configured')
-      expect(process.env.EMAIL_CREDENTIALS).toBe('user@test.com:pass')
+      expect(mod.getCredentials()).toBe('user@test.com:pass')
     })
 
     it('returns configured when saved OAuth tokens exist', async () => {
@@ -124,7 +124,7 @@ describe('credential-state', () => {
 
       const result = await mod.resolveCredentialState()
       expect(result).toBe('configured')
-      expect(process.env.EMAIL_CREDENTIALS).toBe('user@outlook.com:oauth2')
+      expect(mod.getCredentials()).toBe('user@outlook.com:oauth2')
     })
 
     it('returns awaiting_setup when nothing found', async () => {

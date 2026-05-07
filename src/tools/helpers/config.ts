@@ -3,6 +3,7 @@
  * Parses EMAIL_CREDENTIALS env var and auto-discovers IMAP/SMTP settings
  */
 
+import { getCredentials } from '../../credential-state.js'
 import { EmailMCPError } from './errors.js'
 import type { OAuth2Tokens } from './oauth2.js'
 import { isOutlookDomain, loadStoredTokens } from './oauth2.js'
@@ -228,7 +229,7 @@ export async function parseCredentials(envValue: string): Promise<AccountConfig[
  * Load and validate configuration from environment
  */
 export async function loadConfig(): Promise<AccountConfig[]> {
-  const credentials = process.env.EMAIL_CREDENTIALS
+  const credentials = getCredentials()
   if (!credentials) {
     return []
   }

@@ -29,6 +29,16 @@ export type CredentialState = 'awaiting_setup' | 'setup_in_progress' | 'configur
 let state: CredentialState = 'awaiting_setup'
 let setupUrl: string | null = null
 
+let resolvedCredentials: string | null = null
+
+export function getCredentials(): string | null {
+  return resolvedCredentials ?? process.env.EMAIL_CREDENTIALS ?? null
+}
+
+export function setCredentials(creds: string | null): void {
+  resolvedCredentials = creds
+}
+
 // Hook supplied by the HTTP transport layer (mcp-core's local OAuth app)
 // that lets background Outlook OAuth polls flip ``GET /setup-status`` to
 // ``complete`` so the credential form stops spinning.
@@ -67,7 +77,7 @@ export function setSetupUrl(url: string | null): void {
  */
 export async function resolveCredentialState(): Promise<CredentialState> {
   // 1. Check env vars (legacy combined form OR stdio per-field form)
-  if (process.env.EMAIL_CREDENTIALS) {
+  if (getCredentials()) {
     state = 'configured'
     return state
   }
@@ -75,7 +85,7 @@ export async function resolveCredentialState(): Promise<CredentialState> {
   // 1b. stdio per-field env vars (set by plugin config) — synthesize the
   // combined EMAIL_CREDENTIALS string the rest of the codebase expects.
   if (process.env.EMAIL_USER && process.env.EMAIL_APP_PASSWORD) {
-    process.env.EMAIL_CREDENTIALS = `${process.env.EMAIL_USER}:${process.env.EMAIL_APP_PASSWORD}`
+    setCredentials(`${process.env.EMAIL_USER}:${process.env.EMAIL_APP_PASSWORD}`)
     state = 'configured'
     return state
   }
@@ -86,7 +96,7 @@ export async function resolveCredentialState(): Promise<CredentialState> {
     if (result.config !== null) {
       const { formatCredentials } = await import('./relay-setup.js')
       const credentials = formatCredentials(result.config)
-      process.env.EMAIL_CREDENTIALS = credentials
+      setCredentials(credentials)
       console.error(`Email config loaded from ${result.source}`)
       state = 'configured'
       return state
@@ -107,7 +117,7 @@ export async function resolveCredentialState(): Promise<CredentialState> {
     const emails = Object.keys(store).filter((key) => key.includes('@'))
     if (emails.length > 0) {
       const credentials = emails.map((email) => `${email}:oauth2`).join(',')
-      process.env.EMAIL_CREDENTIALS = credentials
+      setCredentials(credentials)
       console.error(`Found saved OAuth2 tokens for: ${emails.join(', ')}`)
       state = 'configured'
       return state
@@ -134,6 +144,7 @@ export async function resetState(): Promise<void> {
   try {
     const { deleteConfig } = await import('@n24q02m/mcp-core')
     await deleteConfig(SERVER_NAME)
+    setCredentials(null)
   } catch {
     // Ignore
   }
