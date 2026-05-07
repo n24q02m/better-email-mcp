@@ -3,8 +3,8 @@
  * Manages connections to multiple IMAP servers with connection pooling
  */
 
-import { ImapFlow } from 'imapflow'
-import { simpleParser } from 'mailparser'
+import { ImapFlow, type ListResponse, type SearchObject } from 'imapflow'
+import { type AddressObject, type Attachment, type EmailAddress, simpleParser } from 'mailparser'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
 import { fastExtractSnippet, htmlToCleanText } from './html-utils.js'
@@ -131,21 +131,21 @@ const KV_MATCHERS = {
   TO: /\bTO\s+("[^"]+"|'[^']+'|\S+)/i
 } as const
 
-function buildSearchCriteria(query: string): any {
+function buildSearchCriteria(query: string): SearchObject {
   const trimmed = query.trim()
   if (!trimmed) return {}
 
   const upper = trimmed.toUpperCase()
   if (upper === 'ALL' || upper === '*') return {}
 
-  const criteria: Record<string, any> = {}
+  const criteria: SearchObject = {}
   let remaining = trimmed
 
   // 1. Extract standalone flag keywords (no arguments).
   //    Check longer prefixes first to avoid partial matches (UNFLAGGED before FLAGGED, etc.)
   for (const { pattern, key, value } of FLAG_MATCHERS) {
     if (pattern.test(remaining)) {
-      criteria[key] = value
+      ;(criteria as any)[key] = value
       remaining = remaining.replace(pattern, ' ').trim()
     }
   }
@@ -155,7 +155,7 @@ function buildSearchCriteria(query: string): any {
     const { valid, invalid } = DATE_MATCHERS[keyword]
     const dateMatch = remaining.match(valid)
     if (dateMatch) {
-      criteria[keyword.toLowerCase()] = new Date(dateMatch[1]!)
+      ;(criteria as any)[keyword.toLowerCase()] = new Date(dateMatch[1]!)
       remaining = remaining.replace(dateMatch[0], ' ').trim()
     } else if (invalid.test(remaining)) {
       throw new EmailMCPError(
@@ -170,7 +170,7 @@ function buildSearchCriteria(query: string): any {
   for (const keyword of ['FROM', 'TO'] as const) {
     const kvMatch = remaining.match(KV_MATCHERS[keyword])
     if (kvMatch) {
-      criteria[keyword.toLowerCase()] = kvMatch[1]!.replace(/^["']|["']$/g, '')
+      ;(criteria as any)[keyword.toLowerCase()] = kvMatch[1]!.replace(/^["']|["']$/g, '')
       remaining = remaining.replace(kvMatch[0], ' ').trim()
     }
   }
@@ -211,12 +211,15 @@ async function extractSnippet(source: string | Buffer, maxLength = 200): Promise
 /**
  * Format email address from parsed address object
  */
-function formatAddress(addr: any): string {
+function formatAddress(addr: AddressObject | AddressObject[] | string | undefined | null): string {
   if (!addr) return ''
   if (typeof addr === 'string') return addr
+  if (Array.isArray(addr)) {
+    return addr.map((a) => formatAddress(a)).join(', ')
+  }
   if (addr.text) return addr.text
-  if (Array.isArray(addr.value)) {
-    return addr.value.map((a: any) => (a.name ? `${a.name} <${a.address}>` : a.address)).join(', ')
+  if (addr.value && Array.isArray(addr.value)) {
+    return addr.value.map((a: EmailAddress) => (a.name ? `${a.name} <${a.address}>` : a.address)).join(', ')
   }
   return ''
 }
@@ -353,7 +356,7 @@ export async function searchEmails(
           from: msg.envelope?.from?.[0]
             ? `${msg.envelope.from[0].name || ''} <${msg.envelope.from[0].address || ''}>`.trim()
             : '',
-          to: msg.envelope?.to?.map((a: any) => a.address).join(', ') || '',
+          to: msg.envelope?.to?.map((a) => a.address).join(', ') || '',
           date: msg.envelope?.date?.toISOString() || '',
           flags: Array.from((msg.flags as Set<string> | string[]) || []),
           snippet
@@ -361,19 +364,20 @@ export async function searchEmails(
       }
 
       return summaries
-    } catch (error: any) {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
       // Include error info but continue with other accounts
       return [
         {
           account_id: account.id,
           account_email: account.email,
           uid: 0,
-          subject: `[ERROR] ${error.message}`,
+          subject: `[ERROR] ${message}`,
           from: '',
           to: '',
           date: '',
           flags: [],
-          snippet: `Failed to search ${account.email}: ${error.message}`
+          snippet: `Failed to search ${account.email}: ${message}`
         }
       ]
     }
@@ -418,7 +422,7 @@ export async function readEmail(account: AccountConfig, uid: number, folder: str
     date: parsed.date?.toISOString() || '',
     flags: Array.from(fetchResult.flags || []),
     body_text: bodyText,
-    attachments: (parsed.attachments || []).map((att: any) => ({
+    attachments: (parsed.attachments || []).map((att: Attachment) => ({
       filename: att.filename || 'unnamed',
       content_type: att.contentType || 'application/octet-stream',
       size: att.size || 0,
@@ -500,7 +504,7 @@ export async function trashEmails(
 export async function listFolders(account: AccountConfig): Promise<FolderInfo[]> {
   return withConnection(account, async (client) => {
     const mailboxes = await client.list()
-    return mailboxes.map((mb: any) => ({
+    return mailboxes.map((mb: ListResponse) => ({
       name: mb.name,
       path: mb.path,
       flags: Array.from(mb.flags || []),
