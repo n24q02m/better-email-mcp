@@ -12,3 +12,7 @@
 ## 2026-05-01 - [Avoid Promise.all for WebCrypto PBKDF2 Iterations]
 **Learning:** In `loadAllUserCredentials()`, reading the `entries` array (user directories) with `Promise.all(entries.map(...))` to derive an AES-GCM key using `crypto.subtle.deriveKey` (PBKDF2) triggers unbounded parallel cryptographic work. Node.js executes `crypto.subtle` tasks in its libuv thread pool. Submitting many heavy tasks (like 100k iteration PBKDF2s) at once quickly exhausts the thread pool, starving the event loop of I/O capability and heavily spiking the application's memory usage and startup/hot-reload latency.
 **Action:** When performing heavy cryptographic operations (especially Key Derivation Functions like PBKDF2) across a dynamically sized list of entities, always use a sequential `for...of` loop instead of `Promise.all` to keep memory pressure low and preserve available thread-pool threads for the rest of the application's asynchronous workload.
+
+## 2024-05-07 - Avoid Unbounded Promise.all() on CPU-Heavy Operations
+**Learning:** Using `Promise.all(items.map(...))` to execute CPU-intensive tasks (like `mailparser.simpleParser` for parsing emails) blocks the event loop and can cause memory spikes in high-concurrency situations, despite JavaScript's asynchronous nature.
+**Action:** Use a concurrency-limited mapper like `mapLimit` to balance throughput and event loop responsiveness for intensive parallel workloads.

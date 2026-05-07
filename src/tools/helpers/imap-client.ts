@@ -191,6 +191,26 @@ function buildSearchCriteria(query: string): any {
 }
 
 /**
+ * Executes an asynchronous mapper function over an array with a concurrency limit.
+ */
+async function mapLimit<T, R>(items: T[], limit: number, mapper: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length)
+  let currentIndex = 0
+
+  const worker = async () => {
+    while (currentIndex < items.length) {
+      const index = currentIndex++
+      results[index] = await mapper(items[index]!)
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker())
+  await Promise.all(workers)
+
+  return results
+}
+
+/**
  * Extract a short snippet from email body
  */
 async function extractSnippet(source: string | Buffer, maxLength = 200): Promise<string> {
@@ -338,13 +358,12 @@ export async function searchEmails(
 
       // ⚡ Bolt: Execute CPU-intensive snippet extraction outside of the `withConnection` block.
       // This ensures the IMAP connection and mailbox lock are released as quickly as possible.
-      // We use a sequential for...of loop instead of Promise.all to prevent event loop blocking
-      // and memory spikes caused by unbounded concurrent execution of CPU-heavy MIME parsing.
-      const summaries = []
-      for (const msg of emails) {
+      // We use `mapLimit` with a concurrency of 5 instead of a sequential for...of loop or unbounded Promise.all
+      // to improve performance without blocking the event loop or causing memory spikes from CPU-heavy MIME parsing.
+      const summaries = await mapLimit(emails, 5, async (msg: any) => {
         const snippet = msg.source ? await extractSnippet(msg.source) : ''
 
-        summaries.push({
+        return {
           account_id: account.id,
           account_email: account.email,
           uid: msg.uid,
@@ -357,8 +376,8 @@ export async function searchEmails(
           date: msg.envelope?.date?.toISOString() || '',
           flags: Array.from((msg.flags as Set<string> | string[]) || []),
           snippet
-        })
-      }
+        }
+      })
 
       return summaries
     } catch (error: any) {
