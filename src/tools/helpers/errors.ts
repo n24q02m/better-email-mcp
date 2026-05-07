@@ -66,11 +66,7 @@ export function enhanceError(error: unknown): EmailMCPError {
   const message = raw.message || 'Unknown error occurred'
 
   // IMAP authentication errors
-  if (
-    message.includes('Invalid credentials') ||
-    message.includes('AUTHENTICATIONFAILED') ||
-    raw.authenticationFailed
-  ) {
+  if (message.includes('Invalid credentials') || message.includes('AUTHENTICATIONFAILED') || raw.authenticationFailed) {
     return new EmailMCPError(
       'Email authentication failed',
       'AUTH_FAILED',
