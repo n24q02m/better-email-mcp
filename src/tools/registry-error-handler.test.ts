@@ -12,7 +12,9 @@ vi.mock('./composite/send.js', () => ({ send: vi.fn() }))
 // Mock credential state to return 'configured' so tools execute normally
 vi.mock('../credential-state.js', () => ({
   getState: vi.fn(() => 'configured'),
-  getSetupUrl: vi.fn(() => null)
+  getSetupUrl: vi.fn(() => null),
+  getCredentials: vi.fn(),
+  setCredentials: vi.fn()
 }))
 
 describe('CallToolRequestSchema handler - error handling', () => {
