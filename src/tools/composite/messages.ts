@@ -219,10 +219,7 @@ function isArchiveFolder(folder: { path: string; flags: string[] }): boolean {
   if (ARCHIVE_PATH_REGEX.test(folder.path)) {
     return true
   }
-  for (let i = 0; i < folder.flags.length; i++) {
-    if (ARCHIVE_FLAG_REGEX.test(folder.flags[i])) return true
-  }
-  return false
+  return folder.flags.some((flag) => ARCHIVE_FLAG_REGEX.test(flag))
 }
 
 /**
