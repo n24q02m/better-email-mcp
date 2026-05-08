@@ -28,7 +28,9 @@ vi.mock('./tools/registry.js', () => ({
 }))
 
 vi.mock('./credential-state.js', () => ({
-  resolveCredentialState: resolveCredentialStateMock
+  resolveCredentialState: resolveCredentialStateMock,
+  getCredentials: vi.fn(),
+  setCredentials: vi.fn()
 }))
 
 vi.mock('./tools/helpers/config.js', () => ({

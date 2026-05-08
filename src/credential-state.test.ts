@@ -102,7 +102,7 @@ describe('credential-state', () => {
       process.env.EMAIL_APP_PASSWORD = 'app-pass-123'
       const result = await mod.resolveCredentialState()
       expect(result).toBe('configured')
-      expect(process.env.EMAIL_CREDENTIALS).toBe('user@gmail.com:app-pass-123')
+      expect(mod.getCredentials()).toBe('user@gmail.com:app-pass-123')
     })
 
     it('returns configured when config file has credentials', async () => {
@@ -115,7 +115,7 @@ describe('credential-state', () => {
 
       const result = await mod.resolveCredentialState()
       expect(result).toBe('configured')
-      expect(process.env.EMAIL_CREDENTIALS).toBe('user@test.com:pass')
+      expect(mod.getCredentials()).toBe('user@test.com:pass')
     })
 
     it('returns configured when saved OAuth tokens exist', async () => {
@@ -124,7 +124,7 @@ describe('credential-state', () => {
 
       const result = await mod.resolveCredentialState()
       expect(result).toBe('configured')
-      expect(process.env.EMAIL_CREDENTIALS).toBe('user@outlook.com:oauth2')
+      expect(mod.getCredentials()).toBe('user@outlook.com:oauth2')
     })
 
     it('returns awaiting_setup when nothing found', async () => {
@@ -195,6 +195,32 @@ describe('credential-state', () => {
       mod.setState('configured')
       await mod.resetState()
       expect(mod.getState()).toBe('awaiting_setup')
+    })
+  })
+
+  describe('per-user subject scoping', () => {
+    it('prefers rawCredentials from subjectContext store if available', async () => {
+      const { subjectContext } = await import('./auth/subject-context.js')
+      const perUserCreds = 'user@scoped.com:pass'
+      process.env.EMAIL_CREDENTIALS = 'global@global.com:pass'
+
+      await subjectContext.run({ sub: 'user-1', accounts: [], rawCredentials: perUserCreds }, async () => {
+        expect(mod.getCredentials()).toBe(perUserCreds)
+      })
+
+      // Outside scope, falls back to env/global
+      expect(mod.getCredentials()).toBe('global@global.com:pass')
+    })
+
+    it('setCredentials updates the subjectContext store', async () => {
+      const { subjectContext } = await import('./auth/subject-context.js')
+      const scope = { sub: 'user-2', accounts: [] as any[], rawCredentials: 'initial' }
+
+      await subjectContext.run(scope, async () => {
+        mod.setCredentials('updated')
+        expect(scope.rawCredentials).toBe('updated')
+        expect(mod.getCredentials()).toBe('updated')
+      })
     })
   })
 })

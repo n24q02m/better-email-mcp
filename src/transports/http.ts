@@ -28,6 +28,7 @@ import { renderEmailCredentialForm } from '../credential-form.js'
 import {
   getMarkSetupComplete,
   resolveCredentialState,
+  setCredentials,
   setMarkSetupComplete,
   setSetupUrl,
   setState
@@ -203,7 +204,7 @@ function buildOptions(args: {
     const sub = context?.sub
     if (sub) {
       try {
-        await credStore.save(sub, { accounts })
+        await credStore.save(sub, { accounts, rawCredentials: raw })
       } catch (err) {
         console.error(`[${SERVER_NAME}] Failed to save per-user credentials for sub=${sub}: ${(err as Error).message}`)
         return { type: 'error', text: 'Failed to save credentials. Please retry.' }
@@ -216,7 +217,7 @@ function buildOptions(args: {
     } catch (err) {
       console.error(`[${SERVER_NAME}] Failed to persist credentials: ${(err as Error).message}`)
     }
-    process.env.EMAIL_CREDENTIALS = raw
+    setCredentials(raw)
     onAccountsLoaded(accounts)
     console.error(`[${SERVER_NAME}] ${accounts.length} email account(s) configured via /authorize`)
 
@@ -288,7 +289,8 @@ export async function startHttp(): Promise<void> {
       }
       const payload = await credStore.load(sub)
       const accounts = (payload?.accounts as AccountConfig[] | undefined) ?? []
-      await subjectContext.run({ sub, accounts }, next)
+      const rawCredentials = payload?.rawCredentials as string | undefined
+      await subjectContext.run({ sub, accounts, rawCredentials }, next)
     }
   }
 

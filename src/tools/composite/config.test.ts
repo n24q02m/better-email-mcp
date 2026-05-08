@@ -6,6 +6,8 @@ vi.mock('../../credential-state.js', () => ({
   getState: vi.fn(),
   getSetupUrl: vi.fn(),
   resetState: vi.fn(),
+  getCredentials: vi.fn(),
+  setCredentials: vi.fn(),
   resolveCredentialState: vi.fn()
 }))
 
