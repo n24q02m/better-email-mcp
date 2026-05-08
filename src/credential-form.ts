@@ -678,34 +678,41 @@ export function renderEmailCredentialForm(
                 })
                     .then(function (resp) {
                         return resp.json().then(function (data) {
-                            if (data.ok) {
-                                // Stash the OAuth redirect target so follow-up async steps
-                                // (device code poll, future OTP) can navigate to it when
-                                // they complete instead of orphaning the client callback.
-                                if (typeof data.redirect_url === "string" && data.redirect_url.length > 0) {
-                                    pendingRedirectUrl = data.redirect_url;
-                                }
-                                if (data.next_step && data.next_step.type === "oauth_device_code") {
-                                    submitBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Awaiting Microsoft...';
-                                    submitBtn.removeAttribute("aria-busy");
-                                    renderOAuthDeviceCode(data.next_step);
-                                } else if (pendingRedirectUrl) {
-                                    // No interactive next step — follow the OAuth redirect now.
-                                    showStatus("success", "Credentials saved. Redirecting...");
-                                    submitBtn.textContent = "Connected";
-                                    submitBtn.removeAttribute("aria-busy");
-                                    window.location.replace(pendingRedirectUrl);
-                                } else {
-                                    showStatus("success", data.message || "Setup complete! You can close this tab.");
-                                    submitBtn.textContent = "Connected";
-                                    submitBtn.removeAttribute("aria-busy");
-                                }
-                            } else {
+                            if (!data.ok) {
                                 showStatus("error", data.error || data.error_description || "Request failed.");
                                 submitBtn.disabled = false;
                                 submitBtn.removeAttribute("aria-busy");
                                 submitBtn.textContent = "Connect";
+                                return;
                             }
+
+                            // Stash the OAuth redirect target so follow-up async steps
+                            // (device code poll, future OTP) can navigate to it when
+                            // they complete instead of orphaning the client callback.
+                            if (typeof data.redirect_url === "string" && data.redirect_url.length > 0) {
+                                pendingRedirectUrl = data.redirect_url;
+                            }
+
+                            if (data.next_step && data.next_step.type === "oauth_device_code") {
+                                submitBtn.innerHTML =
+                                    '<span class="spinner" aria-hidden="true"></span> Awaiting Microsoft...';
+                                submitBtn.removeAttribute("aria-busy");
+                                renderOAuthDeviceCode(data.next_step);
+                                return;
+                            }
+
+                            if (pendingRedirectUrl) {
+                                // No interactive next step — follow the OAuth redirect now.
+                                showStatus("success", "Credentials saved. Redirecting...");
+                                submitBtn.textContent = "Connected";
+                                submitBtn.removeAttribute("aria-busy");
+                                window.location.replace(pendingRedirectUrl);
+                                return;
+                            }
+
+                            showStatus("success", data.message || "Setup complete! You can close this tab.");
+                            submitBtn.textContent = "Connected";
+                            submitBtn.removeAttribute("aria-busy");
                         });
                     })
                     .catch(function (err) {
