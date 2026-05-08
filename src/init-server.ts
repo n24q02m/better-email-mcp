@@ -79,9 +79,9 @@ Options:
      {"command": "npx", "args": [...], "env": {"EMAIL_USER": "...", "EMAIL_APP_PASSWORD": "..."}}
 
   2. Switch to HTTP mode (browser-based setup with bundled Outlook OAuth):
-     See docs/setup-manual.md "Method 5: Self-Hosting HTTP Mode"
+     See https://mcp.n24q02m.com/servers/better-email-mcp/setup/ "Self-Hosting HTTP Mode"
 
-Documentation: https://github.com/n24q02m/better-email-mcp#setup
+Documentation: https://mcp.n24q02m.com/servers/better-email-mcp/
 `
     process.stderr.write(msg)
     process.exit(1)
