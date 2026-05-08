@@ -56,6 +56,25 @@ export interface FolderInfo {
 }
 
 /**
+ * Concurrency-limited async mapper
+ */
+async function mapLimit<T, R>(items: T[], limit: number, mapper: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length)
+  let index = 0
+
+  async function worker() {
+    while (index < items.length) {
+      const i = index++
+      results[i] = await mapper(items[i])
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker())
+  await Promise.all(workers)
+  return results
+}
+
+/**
  * Create an ImapFlow client for the given account.
  * Uses XOAUTH2 for OAuth2 accounts, plain password otherwise.
  */
@@ -338,13 +357,12 @@ export async function searchEmails(
 
       // ⚡ Bolt: Execute CPU-intensive snippet extraction outside of the `withConnection` block.
       // This ensures the IMAP connection and mailbox lock are released as quickly as possible.
-      // We use a sequential for...of loop instead of Promise.all to prevent event loop blocking
-      // and memory spikes caused by unbounded concurrent execution of CPU-heavy MIME parsing.
-      const summaries = []
-      for (const msg of emails) {
+      // We use `mapLimit` to process snippet extraction with a concurrency limit of 5, balancing
+      // performance with resource usage to prevent event loop blocking and memory spikes.
+      return await mapLimit(emails, 5, async (msg) => {
         const snippet = msg.source ? await extractSnippet(msg.source) : ''
 
-        summaries.push({
+        return {
           account_id: account.id,
           account_email: account.email,
           uid: msg.uid,
@@ -357,10 +375,8 @@ export async function searchEmails(
           date: msg.envelope?.date?.toISOString() || '',
           flags: Array.from((msg.flags as Set<string> | string[]) || []),
           snippet
-        })
-      }
-
-      return summaries
+        }
+      })
     } catch (error: any) {
       // Include error info but continue with other accounts
       return [
