@@ -2,6 +2,64 @@
 
 <!-- version list -->
 
+## v1.29.0-beta.1 (2026-05-08)
+
+### Bug Fixes
+
+- Assert pollIntervalMs in outlook-device-code test
+  ([`1a5d36a`](https://github.com/n24q02m/better-email-mcp/commit/1a5d36a857a0a1b99668fdaa3640724c9e4236ad))
+
+- Collapse createFieldGroup positional args into options object
+  ([`2868ead`](https://github.com/n24q02m/better-email-mcp/commit/2868ead1d851ab67c9b895be012cb7615e567fe8))
+
+- Cover loadStoredTokens fallback when readFile rejects with non-ENOENT
+  ([`a36b9a2`](https://github.com/n24q02m/better-email-mcp/commit/a36b9a20d868c9ff88d0202a59339e8def74e8db))
+
+- Early returns in credential-form fetch handler
+  ([`179e12d`](https://github.com/n24q02m/better-email-mcp/commit/179e12da72636008d2e81dd6a2837a584b443c29))
+
+- Extract parseSingleCredential helpers
+  ([`4afcfb7`](https://github.com/n24q02m/better-email-mcp/commit/4afcfb7c10ac3826d210eb83652c80169f666c3e))
+
+- Improve password manager support and form semantics
+  ([`7c3ef21`](https://github.com/n24q02m/better-email-mcp/commit/7c3ef21534287eca02be2add0fa4ac76b146d03f))
+
+- Limit snippet extraction concurrency to avoid event loop blocking
+  ([`c0f5e7a`](https://github.com/n24q02m/better-email-mcp/commit/c0f5e7ab7e4592357f0ff96e6d4592a2a7912938))
+
+- Replace any with unknown in catch blocks
+  ([`866e620`](https://github.com/n24q02m/better-email-mcp/commit/866e6201ac23035bb96e7d3607b36f02d8f823d0))
+
+- Replace for-loop with .some() in isArchiveFolder
+  ([`9456288`](https://github.com/n24q02m/better-email-mcp/commit/9456288d7902925d25bda2bc14a7c952cef2e439))
+
+- Type buildSearchCriteria with imapflow SearchObject
+  ([`d9f7bf8`](https://github.com/n24q02m/better-email-mcp/commit/d9f7bf80aa0ffd7c5b27f90a6b196aa8c36243be))
+
+- Type sanitizeErrorDetails details param as unknown
+  ([`7192993`](https://github.com/n24q02m/better-email-mcp/commit/7192993cf4800a69aa870cf0dbd0be52d3037084))
+
+- Update setup-manual.md refs in error messages to mcp.n24q02m.com
+  ([`58af370`](https://github.com/n24q02m/better-email-mcp/commit/58af3708355db8eb19c54725fec7c35788f5d6c4))
+
+- **deps**: Lock file maintenance
+  ([`3dc4677`](https://github.com/n24q02m/better-email-mcp/commit/3dc467779a1fdbecb3c0e0e34c32ce7acd4fc072))
+
+- **deps**: Update non-major dependencies
+  ([`2c3ace5`](https://github.com/n24q02m/better-email-mcp/commit/2c3ace58497c1adb20d30f6a1074a8d21b3bc824))
+
+### Features
+
+- Add Table of contents heading + auto-generated link list (Spec E Wave 2)
+  ([`7040ea0`](https://github.com/n24q02m/better-email-mcp/commit/7040ea0e008e09425861f98087d688df4f502740))
+
+- Link to mcp.n24q02m.com unified docs site (Spec F Phase 4)
+  ([`aff43c2`](https://github.com/n24q02m/better-email-mcp/commit/aff43c26e5a2bfcd511630b9dba19f932ccc7b0c))
+
+- Sync cross-promo section ([#576](https://github.com/n24q02m/better-email-mcp/pull/576),
+  [`f6f3eb2`](https://github.com/n24q02m/better-email-mcp/commit/f6f3eb262c90595c563932e04cc8a8066aedf837))
+
+
 ## v1.28.0 (2026-05-06)
 
 ### Bug Fixes

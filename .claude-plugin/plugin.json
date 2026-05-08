@@ -1,7 +1,7 @@
 {
   "name": "better-email-mcp",
   "description": "Email management via IMAP/SMTP — multi-account",
-  "version": "1.28.0",
+  "version": "1.29.0-beta.1",
   "userConfig": {
     "EMAIL_CREDENTIALS": {
       "type": "string",
