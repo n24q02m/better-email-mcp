@@ -308,7 +308,16 @@ export function renderEmailCredentialForm(
                 while (el.firstChild) el.removeChild(el.firstChild);
             }
 
-            function createFieldGroup(idx, key, label, type, placeholder, required, helpText, helpUrl) {
+            function createFieldGroup(opts) {
+                var idx = opts.idx;
+                var key = opts.key;
+                var label = opts.label;
+                var type = opts.type;
+                var placeholder = opts.placeholder;
+                var required = opts.required;
+                var helpText = opts.helpText;
+                var helpUrl = opts.helpUrl;
+
                 var group = document.createElement("div");
                 group.className = "field-group";
 
@@ -397,35 +406,44 @@ export function renderEmailCredentialForm(
 
                 if (Object.prototype.hasOwnProperty.call(APP_PASSWORD_DOMAINS, domain)) {
                     var info = APP_PASSWORD_DOMAINS[domain];
-                    var pw = createFieldGroup(
-                        idx,
-                        "password",
-                        info.label,
-                        "password",
-                        "",
-                        true,
-                        info.helpText,
-                        info.helpUrl
-                    );
+                    var pw = createFieldGroup({
+                        idx: idx,
+                        key: "password",
+                        label: info.label,
+                        type: "password",
+                        placeholder: "",
+                        required: true,
+                        helpText: info.helpText,
+                        helpUrl: info.helpUrl
+                    });
                     if (state && state.password) pw.input.value = state.password;
                     extraContainer.appendChild(pw.group);
                     return;
                 }
 
-                var pwCustom = createFieldGroup(idx, "password", "Password", "password", "", true, "", "");
+                var pwCustom = createFieldGroup({
+                    idx: idx,
+                    key: "password",
+                    label: "Password",
+                    type: "password",
+                    placeholder: "",
+                    required: true,
+                    helpText: "",
+                    helpUrl: ""
+                });
                 if (state && state.password) pwCustom.input.value = state.password;
                 extraContainer.appendChild(pwCustom.group);
 
-                var imap = createFieldGroup(
-                    idx,
-                    "imap",
-                    "IMAP Host",
-                    "text",
-                    "imap.example.com",
-                    false,
-                    "Optional. Leave empty for auto-detection.",
-                    ""
-                );
+                var imap = createFieldGroup({
+                    idx: idx,
+                    key: "imap",
+                    label: "IMAP Host",
+                    type: "text",
+                    placeholder: "imap.example.com",
+                    required: false,
+                    helpText: "Optional. Leave empty for auto-detection.",
+                    helpUrl: ""
+                });
                 if (state && state.imap) imap.input.value = state.imap;
                 extraContainer.appendChild(imap.group);
             }
@@ -465,7 +483,16 @@ export function renderEmailCredentialForm(
                 header.appendChild(removeBtn);
                 card.appendChild(header);
 
-                var emailField = createFieldGroup(idx, "email", "Email Address", "email", "you@example.com", true, "", "");
+                var emailField = createFieldGroup({
+                    idx: idx,
+                    key: "email",
+                    label: "Email Address",
+                    type: "email",
+                    placeholder: "you@example.com",
+                    required: true,
+                    helpText: "",
+                    helpUrl: ""
+                });
                 card.appendChild(emailField.group);
 
                 var extra = document.createElement("div");
