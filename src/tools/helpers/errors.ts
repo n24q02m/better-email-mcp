@@ -8,7 +8,7 @@ export class EmailMCPError extends Error {
     message: string,
     public code: string,
     public suggestion?: string,
-    public details?: any
+    public details?: unknown
   ) {
     super(message)
     this.name = 'EmailMCPError'
@@ -28,17 +28,19 @@ export class EmailMCPError extends Error {
 /**
  * Sanitize error object to remove sensitive information (passwords, tokens)
  */
-function sanitizeErrorDetails(error: any): any {
-  if (!error || typeof error !== 'object') return error
-
-  const safe: any = {
-    message: error.message,
-    name: error.name,
-    code: error.code
+function sanitizeErrorDetails(error: unknown): unknown {
+  if (error === null || typeof error !== 'object') {
+    return error
   }
 
-  if (error.status) safe.status = error.status
-  if (error.responseCode) safe.responseCode = error.responseCode
+  const errObj = error as Record<string, unknown>
+  const safe: Record<string, unknown> = {}
+
+  if ('message' in errObj) safe.message = errObj.message
+  if ('name' in errObj) safe.name = errObj.name
+  if ('code' in errObj) safe.code = errObj.code
+  if ('status' in errObj) safe.status = errObj.status
+  if ('responseCode' in errObj) safe.responseCode = errObj.responseCode
 
   return safe
 }
@@ -46,18 +48,19 @@ function sanitizeErrorDetails(error: any): any {
 /**
  * Enhance email-related errors with helpful context
  */
-export function enhanceError(error: any): EmailMCPError {
+export function enhanceError(error: unknown): EmailMCPError {
   if (error instanceof EmailMCPError) {
     return error
   }
 
-  const message = error.message || 'Unknown error occurred'
+  const errObj = error !== null && typeof error === 'object' ? (error as Record<string, unknown>) : {}
+  const message = typeof errObj.message === 'string' ? errObj.message : 'Unknown error occurred'
 
   // IMAP authentication errors
   if (
     message.includes('Invalid credentials') ||
     message.includes('AUTHENTICATIONFAILED') ||
-    error.authenticationFailed
+    errObj.authenticationFailed === true
   ) {
     return new EmailMCPError(
       'Email authentication failed',
@@ -94,7 +97,7 @@ export function enhanceError(error: any): EmailMCPError {
   }
 
   // SMTP errors
-  if (error.responseCode) {
+  if (typeof errObj.responseCode === 'number') {
     return handleSmtpError(error)
   }
 
@@ -119,8 +122,9 @@ export function enhanceError(error: any): EmailMCPError {
 /**
  * Handle SMTP-specific errors
  */
-function handleSmtpError(error: any): EmailMCPError {
-  const code = error.responseCode
+function handleSmtpError(error: unknown): EmailMCPError {
+  const errObj = error !== null && typeof error === 'object' ? (error as Record<string, unknown>) : {}
+  const code = errObj.responseCode as number
 
   switch (code) {
     case 535:
@@ -147,7 +151,7 @@ function handleSmtpError(error: any): EmailMCPError {
 
     default:
       return new EmailMCPError(
-        error.message || `SMTP error ${code}`,
+        (typeof errObj.message === 'string' ? errObj.message : undefined) || `SMTP error ${code}`,
         `SMTP_${code}`,
         'Check the SMTP error code and try again.',
         sanitizeErrorDetails(error)

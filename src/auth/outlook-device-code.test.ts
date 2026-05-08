@@ -12,5 +12,6 @@ describe('buildOutlookUpstream', () => {
       'https://outlook.office.com/IMAP.AccessAsUser.All',
       'https://outlook.office.com/SMTP.Send'
     ])
+    expect(upstream.pollIntervalMs).toBe(5000)
   })
 })

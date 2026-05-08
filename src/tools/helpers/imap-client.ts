@@ -3,7 +3,7 @@
  * Manages connections to multiple IMAP servers with connection pooling
  */
 
-import { ImapFlow } from 'imapflow'
+import { ImapFlow, type SearchObject } from 'imapflow'
 import { simpleParser } from 'mailparser'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
@@ -110,7 +110,7 @@ async function withConnection<T>(account: AccountConfig, fn: (client: ImapFlow) 
  */
 // Pre-compile static RegExp patterns as module-level constants so
 // buildSearchCriteria does not recompile them per call.
-const FLAG_MATCHERS: ReadonlyArray<{ pattern: RegExp; key: string; value: boolean }> = [
+const FLAG_MATCHERS: ReadonlyArray<{ pattern: RegExp; key: keyof SearchObject; value: boolean }> = [
   { pattern: /\bUNFLAGGED\b/i, key: 'flagged', value: false },
   { pattern: /\bUNSTARRED\b/i, key: 'flagged', value: false },
   { pattern: /\bUNREAD\b/i, key: 'seen', value: false },
@@ -131,21 +131,21 @@ const KV_MATCHERS = {
   TO: /\bTO\s+("[^"]+"|'[^']+'|\S+)/i
 } as const
 
-function buildSearchCriteria(query: string): any {
+function buildSearchCriteria(query: string): SearchObject {
   const trimmed = query.trim()
   if (!trimmed) return {}
 
   const upper = trimmed.toUpperCase()
   if (upper === 'ALL' || upper === '*') return {}
 
-  const criteria: Record<string, any> = {}
+  const criteria: SearchObject = {}
   let remaining = trimmed
 
   // 1. Extract standalone flag keywords (no arguments).
   //    Check longer prefixes first to avoid partial matches (UNFLAGGED before FLAGGED, etc.)
   for (const { pattern, key, value } of FLAG_MATCHERS) {
     if (pattern.test(remaining)) {
-      criteria[key] = value
+      ;(criteria as any)[key] = value
       remaining = remaining.replace(pattern, ' ').trim()
     }
   }
@@ -155,7 +155,8 @@ function buildSearchCriteria(query: string): any {
     const { valid, invalid } = DATE_MATCHERS[keyword]
     const dateMatch = remaining.match(valid)
     if (dateMatch) {
-      criteria[keyword.toLowerCase()] = new Date(dateMatch[1]!)
+      const criteriaKey = keyword.toLowerCase() as keyof SearchObject
+      ;(criteria as any)[criteriaKey] = new Date(dateMatch[1]!)
       remaining = remaining.replace(dateMatch[0], ' ').trim()
     } else if (invalid.test(remaining)) {
       throw new EmailMCPError(
@@ -170,7 +171,8 @@ function buildSearchCriteria(query: string): any {
   for (const keyword of ['FROM', 'TO'] as const) {
     const kvMatch = remaining.match(KV_MATCHERS[keyword])
     if (kvMatch) {
-      criteria[keyword.toLowerCase()] = kvMatch[1]!.replace(/^["']|["']$/g, '')
+      const criteriaKey = keyword.toLowerCase() as keyof SearchObject
+      ;(criteria as any)[criteriaKey] = kvMatch[1]!.replace(/^["']|["']$/g, '')
       remaining = remaining.replace(kvMatch[0], ' ').trim()
     }
   }
@@ -188,6 +190,26 @@ function buildSearchCriteria(query: string): any {
   }
 
   return Object.keys(criteria).length > 0 ? criteria : {}
+}
+
+/**
+ * Executes an asynchronous mapper function over an array with a concurrency limit.
+ */
+async function mapLimit<T, R>(items: T[], limit: number, mapper: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length)
+  let currentIndex = 0
+
+  const worker = async () => {
+    while (currentIndex < items.length) {
+      const index = currentIndex++
+      results[index] = await mapper(items[index]!)
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker())
+  await Promise.all(workers)
+
+  return results
 }
 
 /**
@@ -338,13 +360,12 @@ export async function searchEmails(
 
       // ⚡ Bolt: Execute CPU-intensive snippet extraction outside of the `withConnection` block.
       // This ensures the IMAP connection and mailbox lock are released as quickly as possible.
-      // We use a sequential for...of loop instead of Promise.all to prevent event loop blocking
-      // and memory spikes caused by unbounded concurrent execution of CPU-heavy MIME parsing.
-      const summaries = []
-      for (const msg of emails) {
+      // We use `mapLimit` with a concurrency of 5 instead of a sequential for...of loop or unbounded Promise.all
+      // to improve performance without blocking the event loop or causing memory spikes from CPU-heavy MIME parsing.
+      const summaries = await mapLimit(emails, 5, async (msg: any) => {
         const snippet = msg.source ? await extractSnippet(msg.source) : ''
 
-        summaries.push({
+        return {
           account_id: account.id,
           account_email: account.email,
           uid: msg.uid,
@@ -357,23 +378,24 @@ export async function searchEmails(
           date: msg.envelope?.date?.toISOString() || '',
           flags: Array.from((msg.flags as Set<string> | string[]) || []),
           snippet
-        })
-      }
+        }
+      })
 
       return summaries
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       // Include error info but continue with other accounts
       return [
         {
           account_id: account.id,
           account_email: account.email,
           uid: 0,
-          subject: `[ERROR] ${error.message}`,
+          subject: `[ERROR] ${errorMessage}`,
           from: '',
           to: '',
           date: '',
           flags: [],
-          snippet: `Failed to search ${account.email}: ${error.message}`
+          snippet: `Failed to search ${account.email}: ${errorMessage}`
         }
       ]
     }

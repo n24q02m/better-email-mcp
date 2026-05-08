@@ -118,8 +118,8 @@ export async function loadStoredTokens(email: string): Promise<OAuth2Tokens | nu
     const store: TokenStore = JSON.parse(data)
     cachedTokenStore = store
     return store[email.toLowerCase()] || null
-  } catch (err: any) {
-    if (err.code !== 'ENOENT') {
+  } catch (err: unknown) {
+    if (err && typeof err === 'object' && 'code' in err && err.code !== 'ENOENT') {
       // Ignore parse errors or other issues, return null
     }
     return null

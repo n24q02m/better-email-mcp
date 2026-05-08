@@ -37,3 +37,9 @@
 **Learning:** When adding visual indicators (like `*`) for required form fields to assist sighted users, screen readers might redundantly announce "star" or "asterisk" alongside the native `required` attribute.
 
 **Action:** Always apply `aria-hidden="true"` to visual required indicators to keep the screen reader experience clean and native.
+
+## 2025-02-16 - Password Manager Compatibility & Semantics
+
+**Learning:** Unconditionally setting `autocomplete="off"` on dynamic form elements severely degrades user experience by preventing password managers from working and violates accessibility guidelines (WCAG 1.3.5 Identify Input Purpose).
+
+**Action:** Always dynamically assign semantic `autocomplete` attributes (like `email` or `current-password`) based on the input type to ensure password managers function correctly and assistive technologies understand the input's purpose.

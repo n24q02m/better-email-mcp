@@ -59,6 +59,22 @@ export function renderEmailCredentialForm(
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${displayName}</title>
     <style>
+        ${renderStyles()}
+    </style>
+</head>
+<body>
+    <main class="container">
+        ${renderFormHtml(displayName, server, description)}
+    </main>
+    <script>
+        ${renderScripts(submitUrl)}
+    </script>
+</body>
+</html>`
+}
+
+function renderStyles(): string {
+  return `
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             background-color: #0f0f0f;
@@ -236,11 +252,11 @@ export function renderEmailCredentialForm(
             margin-right: 0.5rem;
             vertical-align: text-bottom;
         }
+`
+}
 
-    </style>
-</head>
-<body>
-    <div class="container">
+function renderFormHtml(displayName: string, server: string, description: string): string {
+  return `
         <div class="card">
             <div class="server-header">
                 <h1 class="server-name">${displayName}</h1>
@@ -260,9 +276,11 @@ export function renderEmailCredentialForm(
                 <div class="status-box" id="status-box" role="alert"></div>
             </form>
         </div>
-    </div>
+`
+}
 
-    <script>
+function renderScripts(submitUrl: string): string {
+  return `
         (function () {
             var submitUrl = "${submitUrl}";
 
@@ -308,7 +326,16 @@ export function renderEmailCredentialForm(
                 while (el.firstChild) el.removeChild(el.firstChild);
             }
 
-            function createFieldGroup(idx, key, label, type, placeholder, required, helpText, helpUrl) {
+            function createFieldGroup(opts) {
+                var idx = opts.idx;
+                var key = opts.key;
+                var label = opts.label;
+                var type = opts.type;
+                var placeholder = opts.placeholder;
+                var required = opts.required;
+                var helpText = opts.helpText;
+                var helpUrl = opts.helpUrl;
+
                 var group = document.createElement("div");
                 group.className = "field-group";
 
@@ -336,7 +363,7 @@ export function renderEmailCredentialForm(
                 input.className = "field-input";
                 input.setAttribute("type", type);
                 input.setAttribute("name", key + "_" + idx);
-                input.setAttribute("autocomplete", "off");
+                input.setAttribute("autocomplete", type === "email" ? "email" : (type === "password" ? "current-password" : "off"));
                 input.setAttribute("autocorrect", "off");
                 input.setAttribute("autocapitalize", "off");
                 input.setAttribute("spellcheck", "false");
@@ -397,35 +424,44 @@ export function renderEmailCredentialForm(
 
                 if (Object.prototype.hasOwnProperty.call(APP_PASSWORD_DOMAINS, domain)) {
                     var info = APP_PASSWORD_DOMAINS[domain];
-                    var pw = createFieldGroup(
-                        idx,
-                        "password",
-                        info.label,
-                        "password",
-                        "",
-                        true,
-                        info.helpText,
-                        info.helpUrl
-                    );
+                    var pw = createFieldGroup({
+                        idx: idx,
+                        key: "password",
+                        label: info.label,
+                        type: "password",
+                        placeholder: "",
+                        required: true,
+                        helpText: info.helpText,
+                        helpUrl: info.helpUrl
+                    });
                     if (state && state.password) pw.input.value = state.password;
                     extraContainer.appendChild(pw.group);
                     return;
                 }
 
-                var pwCustom = createFieldGroup(idx, "password", "Password", "password", "", true, "", "");
+                var pwCustom = createFieldGroup({
+                    idx: idx,
+                    key: "password",
+                    label: "Password",
+                    type: "password",
+                    placeholder: "",
+                    required: true,
+                    helpText: "",
+                    helpUrl: ""
+                });
                 if (state && state.password) pwCustom.input.value = state.password;
                 extraContainer.appendChild(pwCustom.group);
 
-                var imap = createFieldGroup(
-                    idx,
-                    "imap",
-                    "IMAP Host",
-                    "text",
-                    "imap.example.com",
-                    false,
-                    "Optional. Leave empty for auto-detection.",
-                    ""
-                );
+                var imap = createFieldGroup({
+                    idx: idx,
+                    key: "imap",
+                    label: "IMAP Host",
+                    type: "text",
+                    placeholder: "imap.example.com",
+                    required: false,
+                    helpText: "Optional. Leave empty for auto-detection.",
+                    helpUrl: ""
+                });
                 if (state && state.imap) imap.input.value = state.imap;
                 extraContainer.appendChild(imap.group);
             }
@@ -448,43 +484,35 @@ export function renderEmailCredentialForm(
                 removeBtn.textContent = "Remove";
                 removeBtn.setAttribute("aria-label", "Remove Account " + (idx + 1));
                 removeBtn.addEventListener("click", function () {
-                    var inputs = card.querySelectorAll("input");
-                    var hasData = false;
-                    for (var i = 0; i < inputs.length; i++) {
-                        if (inputs[i].value.trim() !== "") {
-                            hasData = true;
-                            break;
+                    if (container.querySelectorAll(".account-card").length > 1) {
+                        if (confirm("Are you sure you want to remove this account?")) {
+                            container.removeChild(card);
+                            updateAccountNumbers();
                         }
                     }
-                    if (hasData && !window.confirm("This account has unsaved data. Are you sure you want to remove it?")) {
-                        return;
-                    }
-                    card.remove();
-                    updateAccountNumbers();
                 });
                 header.appendChild(removeBtn);
                 card.appendChild(header);
 
-                var emailField = createFieldGroup(idx, "email", "Email Address", "email", "you@example.com", true, "", "");
-                card.appendChild(emailField.group);
+                var emailGroup = createFieldGroup({
+                    idx: idx,
+                    key: "email",
+                    label: "Email Address",
+                    type: "email",
+                    placeholder: "user@example.com",
+                    required: true,
+                    helpText: "",
+                    helpUrl: ""
+                });
+                card.appendChild(emailGroup.group);
 
-                var extra = document.createElement("div");
-                extra.className = "extra-container";
-                extra.dataset.role = "extra";
-                card.appendChild(extra);
+                var extraFields = document.createElement("div");
+                card.appendChild(extraFields);
 
-                var state = { password: "", imap: "" };
-
-                emailField.input.addEventListener("input", function () {
-                    var pwNode = extra.querySelector('input[data-role="password"]');
-                    if (pwNode) state.password = pwNode.value;
-                    var imapNode = extra.querySelector('input[data-role="imap"]');
-                    if (imapNode) state.imap = imapNode.value;
-
-                    var val = emailField.input.value;
-                    var at = val.indexOf("@");
-                    var domain = at >= 0 ? val.slice(at + 1).trim().toLowerCase() : "";
-                    renderDomainSpecificFields(extra, idx, domain, state);
+                emailGroup.input.addEventListener("input", function (e) {
+                    var email = e.target.value.trim();
+                    var domain = email.split("@")[1];
+                    renderDomainSpecificFields(extraFields, idx, domain);
                 });
 
                 return card;
@@ -494,19 +522,17 @@ export function renderEmailCredentialForm(
                 var cards = container.querySelectorAll(".account-card");
                 var accounts = [];
                 var hasOauth = false;
+
                 for (var i = 0; i < cards.length; i++) {
                     var card = cards[i];
                     var emailInput = card.querySelector('input[data-role="email"]');
-                    var email = emailInput && emailInput.value ? emailInput.value.trim() : "";
+                    var email = emailInput ? emailInput.value.trim() : "";
                     if (!email) continue;
 
-                    var at = email.indexOf("@");
-                    var domain = at >= 0 ? email.slice(at + 1).toLowerCase() : "";
-
+                    var domain = email.split("@")[1];
                     if (OAUTH_DOMAINS.indexOf(domain) !== -1) {
                         hasOauth = true;
-                        // Outlook/Hotmail/Live: no password field. Server detects
-                        // email-only entries and runs Device Code OAuth2.
+                        // Outlook/Hotmail/Live: server triggers Device Code OAuth2.
                         accounts.push({ email: email, oauth: true });
                         continue;
                     }
@@ -651,34 +677,41 @@ export function renderEmailCredentialForm(
                 })
                     .then(function (resp) {
                         return resp.json().then(function (data) {
-                            if (data.ok) {
-                                // Stash the OAuth redirect target so follow-up async steps
-                                // (device code poll, future OTP) can navigate to it when
-                                // they complete instead of orphaning the client callback.
-                                if (typeof data.redirect_url === "string" && data.redirect_url.length > 0) {
-                                    pendingRedirectUrl = data.redirect_url;
-                                }
-                                if (data.next_step && data.next_step.type === "oauth_device_code") {
-                                    submitBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Awaiting Microsoft...';
-                                    submitBtn.removeAttribute("aria-busy");
-                                    renderOAuthDeviceCode(data.next_step);
-                                } else if (pendingRedirectUrl) {
-                                    // No interactive next step — follow the OAuth redirect now.
-                                    showStatus("success", "Credentials saved. Redirecting...");
-                                    submitBtn.textContent = "Connected";
-                                    submitBtn.removeAttribute("aria-busy");
-                                    window.location.replace(pendingRedirectUrl);
-                                } else {
-                                    showStatus("success", data.message || "Setup complete! You can close this tab.");
-                                    submitBtn.textContent = "Connected";
-                                    submitBtn.removeAttribute("aria-busy");
-                                }
-                            } else {
+                            if (!data.ok) {
                                 showStatus("error", data.error || data.error_description || "Request failed.");
                                 submitBtn.disabled = false;
                                 submitBtn.removeAttribute("aria-busy");
                                 submitBtn.textContent = "Connect";
+                                return;
                             }
+
+                            // Stash the OAuth redirect target so follow-up async steps
+                            // (device code poll, future OTP) can navigate to it when
+                            // they complete instead of orphaning the client callback.
+                            if (typeof data.redirect_url === "string" && data.redirect_url.length > 0) {
+                                pendingRedirectUrl = data.redirect_url;
+                            }
+
+                            if (data.next_step && data.next_step.type === "oauth_device_code") {
+                                submitBtn.innerHTML =
+                                    '<span class="spinner" aria-hidden="true"></span> Awaiting Microsoft...';
+                                submitBtn.removeAttribute("aria-busy");
+                                renderOAuthDeviceCode(data.next_step);
+                                return;
+                            }
+
+                            if (pendingRedirectUrl) {
+                                // No interactive next step — follow the OAuth redirect now.
+                                showStatus("success", "Credentials saved. Redirecting...");
+                                submitBtn.textContent = "Connected";
+                                submitBtn.removeAttribute("aria-busy");
+                                window.location.replace(pendingRedirectUrl);
+                                return;
+                            }
+
+                            showStatus("success", data.message || "Setup complete! You can close this tab.");
+                            submitBtn.textContent = "Connected";
+                            submitBtn.removeAttribute("aria-busy");
                         });
                     })
                     .catch(function (err) {
@@ -689,7 +722,5 @@ export function renderEmailCredentialForm(
                     });
             });
         })();
-    </script>
-</body>
-</html>`
+`
 }
