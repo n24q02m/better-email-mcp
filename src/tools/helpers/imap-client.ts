@@ -382,19 +382,20 @@ export async function searchEmails(
       })
 
       return summaries
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       // Include error info but continue with other accounts
       return [
         {
           account_id: account.id,
           account_email: account.email,
           uid: 0,
-          subject: `[ERROR] ${error.message}`,
+          subject: `[ERROR] ${errorMessage}`,
           from: '',
           to: '',
           date: '',
           flags: [],
-          snippet: `Failed to search ${account.email}: ${error.message}`
+          snippet: `Failed to search ${account.email}: ${errorMessage}`
         }
       ]
     }
