@@ -51,17 +51,18 @@ mcp-name: io.github.n24q02m/better-email-mcp
 >
 > All plugins share the same architecture -- install once, learn pattern transfers.
 
-## Setup
+## Documentation
 
-- **Stdio mode** (default) -- env var creds (`EMAIL_PROVIDER` + `EMAIL_USER` + `EMAIL_APP_PASSWORD`), single-user local. See [setup-manual.md](docs/setup-manual.md).
-- **HTTP mode** (optional, encouraged) -- multi-user, browser-based setup with bundled Outlook OAuth. See [setup-manual.md](docs/setup-manual.md) "Method 5: Self-Hosting HTTP Mode".
+Full docs at **[mcp.n24q02m.com/servers/better-email-mcp/](https://mcp.n24q02m.com/servers/better-email-mcp/)**:
 
-**With AI Agent** -- copy and send this to your AI agent:
+- [Setup](https://mcp.n24q02m.com/servers/better-email-mcp/setup/) -- install methods for Claude Code, Codex, Gemini CLI, Cursor, Windsurf, mcp.json
+- [Modes overview](https://mcp.n24q02m.com/get-started/modes-overview/) -- stdio / local-relay / remote-relay / remote-oauth
+- [Multi-user setup](https://mcp.n24q02m.com/get-started/multi-user/) -- per-JWT-sub credential model
 
-> Please set up @n24q02m/better-email-mcp for me. Follow this guide:
-> https://raw.githubusercontent.com/n24q02m/better-email-mcp/main/docs/setup-with-agent.md
+**Install with AI agent** -- paste this to your AI coding agent:
 
-**Manual Setup** -- follow [docs/setup-manual.md](docs/setup-manual.md)
+> Install MCP server `better-email-mcp` following the steps at
+> https://raw.githubusercontent.com/n24q02m/claude-plugins/main/plugins/better-email-mcp/setup-with-agent.md
 
 ## Tools
 
