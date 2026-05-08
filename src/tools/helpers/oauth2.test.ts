@@ -165,6 +165,12 @@ describe('loadStoredTokens', () => {
 
     expect(await loadStoredTokens('user@outlook.com')).toBeNull()
   })
+
+  it('returns null on non-ENOENT read error', async () => {
+    mockReadFile.mockRejectedValue({ code: 'EACCES' })
+
+    expect(await loadStoredTokens('user@outlook.com')).toBeNull()
+  })
 })
 
 // ============================================================================
