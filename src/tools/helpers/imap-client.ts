@@ -3,8 +3,8 @@
  * Manages connections to multiple IMAP servers with connection pooling
  */
 
-import { ImapFlow } from 'imapflow'
-import { simpleParser } from 'mailparser'
+import { ImapFlow, type ListResponse } from 'imapflow'
+import { type AddressObject, type Attachment, type EmailAddress, simpleParser } from 'mailparser'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
 import { fastExtractSnippet, htmlToCleanText } from './html-utils.js'
@@ -211,12 +211,15 @@ async function extractSnippet(source: string | Buffer, maxLength = 200): Promise
 /**
  * Format email address from parsed address object
  */
-function formatAddress(addr: any): string {
+function formatAddress(addr: AddressObject | AddressObject[] | string | undefined | null): string {
   if (!addr) return ''
   if (typeof addr === 'string') return addr
+  if (Array.isArray(addr)) {
+    return addr.map((a) => formatAddress(a)).join(', ')
+  }
   if (addr.text) return addr.text
-  if (Array.isArray(addr.value)) {
-    return addr.value.map((a: any) => (a.name ? `${a.name} <${a.address}>` : a.address)).join(', ')
+  if (addr.value && Array.isArray(addr.value)) {
+    return addr.value.map((a: EmailAddress) => (a.name ? `${a.name} <${a.address}>` : a.address)).join(', ')
   }
   return ''
 }
@@ -418,7 +421,7 @@ export async function readEmail(account: AccountConfig, uid: number, folder: str
     date: parsed.date?.toISOString() || '',
     flags: Array.from(fetchResult.flags || []),
     body_text: bodyText,
-    attachments: (parsed.attachments || []).map((att: any) => ({
+    attachments: (parsed.attachments || []).map((att: Attachment) => ({
       filename: att.filename || 'unnamed',
       content_type: att.contentType || 'application/octet-stream',
       size: att.size || 0,
@@ -500,7 +503,7 @@ export async function trashEmails(
 export async function listFolders(account: AccountConfig): Promise<FolderInfo[]> {
   return withConnection(account, async (client) => {
     const mailboxes = await client.list()
-    return mailboxes.map((mb: any) => ({
+    return mailboxes.map((mb: ListResponse) => ({
       name: mb.name,
       path: mb.path,
       flags: Array.from(mb.flags || []),
