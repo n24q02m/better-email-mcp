@@ -236,6 +236,15 @@ export function renderEmailCredentialForm(
             margin-right: 0.5rem;
             vertical-align: text-bottom;
         }
+        .form-fieldset {
+            border: none;
+            padding: 0;
+            margin: 0;
+            min-width: 0;
+        }
+        .form-fieldset:disabled {
+            opacity: 0.7;
+        }
 
     </style>
 </head>
@@ -251,13 +260,15 @@ export function renderEmailCredentialForm(
             <h2 class="form-title">Email Accounts</h2>
 
             <form id="credential-form" novalidate>
-                <div id="accounts-container"></div>
+                <fieldset id="form-fieldset" class="form-fieldset">
+                    <div id="accounts-container"></div>
 
-                <button type="button" class="add-btn" id="add-account-btn">+ Add Another Account</button>
+                    <button type="button" class="add-btn" id="add-account-btn">+ Add Another Account</button>
 
-                <button type="submit" class="submit-btn" id="submit-btn">Connect</button>
+                    <button type="submit" class="submit-btn" id="submit-btn">Connect</button>
 
-                <div class="status-box" id="status-box" role="alert"></div>
+                    <div class="status-box" id="status-box" role="alert"></div>
+                </fieldset>
             </form>
         </div>
     </main>
@@ -293,6 +304,7 @@ export function renderEmailCredentialForm(
             var container = document.getElementById("accounts-container");
             var addBtn = document.getElementById("add-account-btn");
             var form = document.getElementById("credential-form");
+            var formFieldset = document.getElementById("form-fieldset");
             var submitBtn = document.getElementById("submit-btn");
             var statusBox = document.getElementById("status-box");
 
@@ -668,6 +680,7 @@ export function renderEmailCredentialForm(
                 var payload = { EMAIL_CREDENTIALS: parts.join(",") };
 
                 submitBtn.disabled = true;
+                formFieldset.disabled = true;
                 submitBtn.setAttribute("aria-busy", "true");
                 submitBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Connecting...';
 
@@ -681,6 +694,7 @@ export function renderEmailCredentialForm(
                             if (!data.ok) {
                                 showStatus("error", data.error || data.error_description || "Request failed.");
                                 submitBtn.disabled = false;
+                                formFieldset.disabled = false;
                                 submitBtn.removeAttribute("aria-busy");
                                 submitBtn.textContent = "Connect";
                                 return;
@@ -718,6 +732,7 @@ export function renderEmailCredentialForm(
                     .catch(function (err) {
                         showStatus("error", "Network error: " + err.message);
                         submitBtn.disabled = false;
+                        formFieldset.disabled = false;
                         submitBtn.removeAttribute("aria-busy");
                         submitBtn.textContent = "Connect";
                     });
