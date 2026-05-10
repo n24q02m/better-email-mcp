@@ -251,11 +251,13 @@ export function renderEmailCredentialForm(
             <h2 class="form-title">Email Accounts</h2>
 
             <form id="credential-form" novalidate>
-                <div id="accounts-container"></div>
+                <fieldset id="form-fieldset" style="border: none; padding: 0; margin: 0;">
+                    <div id="accounts-container"></div>
 
-                <button type="button" class="add-btn" id="add-account-btn">+ Add Another Account</button>
+                    <button type="button" class="add-btn" id="add-account-btn">+ Add Another Account</button>
 
-                <button type="submit" class="submit-btn" id="submit-btn">Connect</button>
+                    <button type="submit" class="submit-btn" id="submit-btn">Connect</button>
+                </fieldset>
 
                 <div class="status-box" id="status-box" role="alert"></div>
             </form>
@@ -295,6 +297,7 @@ export function renderEmailCredentialForm(
             var form = document.getElementById("credential-form");
             var submitBtn = document.getElementById("submit-btn");
             var statusBox = document.getElementById("status-box");
+            var formFieldset = document.getElementById("form-fieldset");
 
             var accountIndex = 0;
 
@@ -667,7 +670,7 @@ export function renderEmailCredentialForm(
                 }
                 var payload = { EMAIL_CREDENTIALS: parts.join(",") };
 
-                submitBtn.disabled = true;
+                formFieldset.disabled = true;
                 submitBtn.setAttribute("aria-busy", "true");
                 submitBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Connecting...';
 
@@ -680,7 +683,7 @@ export function renderEmailCredentialForm(
                         return resp.json().then(function (data) {
                             if (!data.ok) {
                                 showStatus("error", data.error || data.error_description || "Request failed.");
-                                submitBtn.disabled = false;
+                                formFieldset.disabled = false;
                                 submitBtn.removeAttribute("aria-busy");
                                 submitBtn.textContent = "Connect";
                                 return;
@@ -717,7 +720,7 @@ export function renderEmailCredentialForm(
                     })
                     .catch(function (err) {
                         showStatus("error", "Network error: " + err.message);
-                        submitBtn.disabled = false;
+                        formFieldset.disabled = false;
                         submitBtn.removeAttribute("aria-busy");
                         submitBtn.textContent = "Connect";
                     });
