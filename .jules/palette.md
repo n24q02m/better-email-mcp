@@ -43,3 +43,9 @@
 **Learning:** Unconditionally setting `autocomplete="off"` on dynamic form elements severely degrades user experience by preventing password managers from working and violates accessibility guidelines (WCAG 1.3.5 Identify Input Purpose).
 
 **Action:** Always dynamically assign semantic `autocomplete` attributes (like `email` or `current-password`) based on the input type to ensure password managers function correctly and assistive technologies understand the input's purpose.
+
+## 2025-02-17 - HTML5 Form Validation and Screen Reader Compatibility
+
+**Learning:** Relying solely on `novalidate` and custom JavaScript validation often leads to inaccessible error states for screen reader users, who may not be notified of errors unless aria attributes and live regions are explicitly managed. Locking the submit button or relying on generic status boxes without connecting the error to the specific input is poor UX.
+
+**Action:** When implementing custom form validation, remove `novalidate` or explicitly manage `aria-invalid="true"` on invalid inputs. Create dedicated error message containers connected to the input via `aria-describedby` (in addition to any helper text) and use `role="alert"` or `aria-live="polite"` so screen readers immediately announce validation failures. Add visual styling (e.g., a red border) to draw sighted users' attention to the specific field.

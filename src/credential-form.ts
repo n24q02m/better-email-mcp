@@ -156,6 +156,8 @@ export function renderEmailCredentialForm(
             outline: none;
             transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
+        .field-input.invalid { border-color: #f87171; box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.2); }
+        .error-message { color: #f87171; font-size: 0.8125rem; margin-top: 0.375rem; display: none; }
         .field-input:focus {
             border-color: #4a6fa5;
             box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.2);
@@ -202,6 +204,8 @@ export function renderEmailCredentialForm(
         .submit-btn:hover { background-color: #5a7fb5; }
         .submit-btn:focus-visible { outline: 2px solid #4a6fa5; outline-offset: 2px; }
         .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        fieldset { border: none; padding: 0; margin: 0; }
+        .field-input:disabled, .add-btn:disabled, .remove-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .status-box {
             display: none;
             border-radius: 8px;
@@ -251,11 +255,13 @@ export function renderEmailCredentialForm(
             <h2 class="form-title">Email Accounts</h2>
 
             <form id="credential-form" novalidate>
-                <div id="accounts-container"></div>
+                <fieldset id="form-fieldset">
+                    <div id="accounts-container"></div>
 
-                <button type="button" class="add-btn" id="add-account-btn">+ Add Another Account</button>
+                    <button type="button" class="add-btn" id="add-account-btn">+ Add Another Account</button>
 
-                <button type="submit" class="submit-btn" id="submit-btn">Connect</button>
+                    <button type="submit" class="submit-btn" id="submit-btn">Connect</button>
+                </fieldset>
 
                 <div class="status-box" id="status-box" role="alert"></div>
             </form>
@@ -293,6 +299,7 @@ export function renderEmailCredentialForm(
             var container = document.getElementById("accounts-container");
             var addBtn = document.getElementById("add-account-btn");
             var form = document.getElementById("credential-form");
+            var formFieldset = document.getElementById("form-fieldset");
             var submitBtn = document.getElementById("submit-btn");
             var statusBox = document.getElementById("status-box");
 
@@ -354,11 +361,34 @@ export function renderEmailCredentialForm(
                 if (required) input.setAttribute("required", "required");
                 group.appendChild(input);
 
+                var errorMsg = document.createElement("div");
+                errorMsg.id = "error-" + key + "_" + idx;
+                errorMsg.className = "error-message";
+                errorMsg.setAttribute("role", "alert");
+                errorMsg.setAttribute("aria-live", "polite");
+                group.appendChild(errorMsg);
+
+                input.addEventListener("invalid", function (e) {
+                    e.preventDefault();
+                    input.classList.add("invalid");
+                    input.setAttribute("aria-invalid", "true");
+                    errorMsg.textContent = input.validationMessage || "This field is required.";
+                    errorMsg.style.display = "block";
+                });
+
+                input.addEventListener("input", function () {
+                    if (input.classList.contains("invalid")) {
+                        input.classList.remove("invalid");
+                        input.removeAttribute("aria-invalid");
+                        errorMsg.style.display = "none";
+                    }
+                });
+
                 if (helpText) {
                     var help = document.createElement("p");
                     help.id = "help-" + key + "_" + idx;
                     help.className = "help-text";
-                    input.setAttribute("aria-describedby", help.id);
+                    input.setAttribute("aria-describedby", help.id + " " + errorMsg.id);
                     if (helpUrl) {
                         var a = document.createElement("a");
                         a.setAttribute("href", helpUrl);
@@ -642,6 +672,13 @@ export function renderEmailCredentialForm(
                 evt.preventDefault();
                 statusBox.style.display = "none";
 
+                if (!form.checkValidity()) {
+                    showStatus("error", "Please correct the errors in the form.");
+                    var firstInvalid = form.querySelector(":invalid");
+                    if (firstInvalid) firstInvalid.focus();
+                    return;
+                }
+
                 var collected = collectAccounts();
 
                 if (collected.accounts.length === 0) {
@@ -667,7 +704,7 @@ export function renderEmailCredentialForm(
                 }
                 var payload = { EMAIL_CREDENTIALS: parts.join(",") };
 
-                submitBtn.disabled = true;
+                formFieldset.disabled = true;
                 submitBtn.setAttribute("aria-busy", "true");
                 submitBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Connecting...';
 
@@ -680,7 +717,7 @@ export function renderEmailCredentialForm(
                         return resp.json().then(function (data) {
                             if (!data.ok) {
                                 showStatus("error", data.error || data.error_description || "Request failed.");
-                                submitBtn.disabled = false;
+                                formFieldset.disabled = false;
                                 submitBtn.removeAttribute("aria-busy");
                                 submitBtn.textContent = "Connect";
                                 return;
@@ -717,7 +754,7 @@ export function renderEmailCredentialForm(
                     })
                     .catch(function (err) {
                         showStatus("error", "Network error: " + err.message);
-                        submitBtn.disabled = false;
+                        formFieldset.disabled = false;
                         submitBtn.removeAttribute("aria-busy");
                         submitBtn.textContent = "Connect";
                     });
