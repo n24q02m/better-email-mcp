@@ -16,3 +16,7 @@
 ## 2024-05-07 - Avoid Unbounded Promise.all() on CPU-Heavy Operations
 **Learning:** Using `Promise.all(items.map(...))` to execute CPU-intensive tasks (like `mailparser.simpleParser` for parsing emails) blocks the event loop and can cause memory spikes in high-concurrency situations, despite JavaScript's asynchronous nature.
 **Action:** Use a concurrency-limited mapper like `mapLimit` to balance throughput and event loop responsiveness for intensive parallel workloads.
+
+## 2024-05-13 - [Optimize findClosestMatch]
+**Learning:** When implementing in-memory caches (like `Map` or `Set`) for performance optimizations, avoid caching arbitrary user input to prevent unbounded memory growth and memory leaks.
+**Action:** Restrict caching to static or bounded data sets, such as valid tool names or configuration options.
