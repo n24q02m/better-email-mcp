@@ -43,3 +43,6 @@
 **Learning:** Unconditionally setting `autocomplete="off"` on dynamic form elements severely degrades user experience by preventing password managers from working and violates accessibility guidelines (WCAG 1.3.5 Identify Input Purpose).
 
 **Action:** Always dynamically assign semantic `autocomplete` attributes (like `email` or `current-password`) based on the input type to ensure password managers function correctly and assistive technologies understand the input's purpose.
+## 2026-05-13 - [Improve form loading state accessibility]
+**Learning:** Wrapping form inputs and buttons in a disabled `<fieldset>` is a clean, accessible way to visually lock an entire form and prevent double submissions, eliminating the need to target individual elements or manage complex state.
+**Action:** Apply this pattern to forms with async submission to quickly and accessibly indicate loading state across all inputs.
