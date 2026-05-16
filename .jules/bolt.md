@@ -16,3 +16,7 @@
 ## 2024-05-07 - Avoid Unbounded Promise.all() on CPU-Heavy Operations
 **Learning:** Using `Promise.all(items.map(...))` to execute CPU-intensive tasks (like `mailparser.simpleParser` for parsing emails) blocks the event loop and can cause memory spikes in high-concurrency situations, despite JavaScript's asynchronous nature.
 **Action:** Use a concurrency-limited mapper like `mapLimit` to balance throughput and event loop responsiveness for intensive parallel workloads.
+
+## 2024-10-31 - Cache Option Bigrams in Fuzzy Matching
+**Learning:** In utility functions performing string distance calculations (like bigram overlapping) against static/semi-static lists, repeatedly generating sets from the same target strings on every invocation causes unnecessary allocation overhead.
+**Action:** Implemented a module-level `Map` to cache the bigram `Set`s generated for `validOptions` in `findClosestMatch`. This prevents recreating Sets and slicing strings for constant known options (like tool names) across successive function calls.
