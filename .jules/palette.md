@@ -43,3 +43,7 @@
 **Learning:** Unconditionally setting `autocomplete="off"` on dynamic form elements severely degrades user experience by preventing password managers from working and violates accessibility guidelines (WCAG 1.3.5 Identify Input Purpose).
 
 **Action:** Always dynamically assign semantic `autocomplete` attributes (like `email` or `current-password`) based on the input type to ensure password managers function correctly and assistive technologies understand the input's purpose.
+
+## 2024-05-18 - Disable forms gracefully using fieldsets
+**Learning:** During form submission operations, individual button disabling leaves inputs active and creates complex state management requirements, especially if the user attempts to interact with the disabled form while it hangs.
+**Action:** Utilize the semantic `<fieldset>` element by wrapping form controls within it. Disabling the `fieldset` cascades the `disabled` property automatically down to its descendant inputs, textareas, and buttons. Coupled with CSS styling (`:disabled { cursor: not-allowed; opacity: 0.5 }`), this ensures uniform visual and functional locking with minimal JS logic.
