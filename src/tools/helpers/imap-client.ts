@@ -217,7 +217,11 @@ async function mapLimit<T, R>(items: T[], limit: number, mapper: (item: T) => Pr
  */
 async function extractSnippet(source: string | Buffer, maxLength = 200): Promise<string> {
   try {
-    const parsed = await simpleParser(source)
+    const parsed = (await simpleParser(source, {
+      skipHtmlToText: true,
+      skipTextToHtml: true,
+      skipTextLinks: true
+    } as any)) as unknown as import('mailparser').ParsedMail
     const text = parsed.text || (parsed.html ? fastExtractSnippet(parsed.html as string, maxLength) : '')
     if (!text) return ''
     // If we used fastExtractSnippet, it's already cleaned and truncated
@@ -422,7 +426,11 @@ export async function readEmail(account: AccountConfig, uid: number, folder: str
     throw new EmailMCPError(`Email UID ${uid} not found in ${folder}`, 'NOT_FOUND', 'Check the UID and folder')
   }
 
-  const parsed = await simpleParser(fetchResult.source)
+  const parsed = (await simpleParser(fetchResult.source, {
+    skipHtmlToText: true,
+    skipTextToHtml: true,
+    skipTextLinks: true
+  } as any)) as unknown as import('mailparser').ParsedMail
   const bodyText = parsed.text || (parsed.html ? htmlToCleanText(parsed.html as string) : '(Empty body)')
 
   return {
@@ -556,7 +564,11 @@ export async function getAttachment(
   // ⚡ Bolt: Execute CPU-intensive MIME parsing outside of the `withConnection` block.
   // This ensures the IMAP connection and mailbox lock are released as quickly as possible,
   // preventing other concurrent operations from being blocked while we parse attachments.
-  const parsed = await simpleParser(fetchResult.source)
+  const parsed = (await simpleParser(fetchResult.source, {
+    skipHtmlToText: true,
+    skipTextToHtml: true,
+    skipTextLinks: true
+  } as any)) as unknown as import('mailparser').ParsedMail
   const lowerFilename = filename.toLowerCase()
   const attachment = parsed.attachments?.find((att) => att.filename?.toLowerCase() === lowerFilename)
 
