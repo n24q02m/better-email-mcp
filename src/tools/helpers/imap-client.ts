@@ -4,7 +4,7 @@
  */
 
 import { ImapFlow, type SearchObject } from 'imapflow'
-import { simpleParser } from 'mailparser'
+import { type SimpleParserOptions, simpleParser } from 'mailparser'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
 import { fastExtractSnippet, htmlToCleanText } from './html-utils.js'
@@ -217,7 +217,15 @@ async function mapLimit<T, R>(items: T[], limit: number, mapper: (item: T) => Pr
  */
 async function extractSnippet(source: string | Buffer, maxLength = 200): Promise<string> {
   try {
-    const parsed = await simpleParser(source)
+    // ⚡ Bolt: Pass options to simpleParser to skip html-to-text processing for snippets.
+    // In our snippet extraction, we manually use fastExtractSnippet which is 30x faster.
+    // By skipping simpleParser's internal html-to-text conversion (which is very slow),
+    // we significantly speed up snippet generation for emails containing HTML.
+    const parsed = await simpleParser(source, {
+      skipHtmlToText: true,
+      skipTextToHtml: true,
+      skipTextLinks: true
+    } as SimpleParserOptions)
     const text = parsed.text || (parsed.html ? fastExtractSnippet(parsed.html as string, maxLength) : '')
     if (!text) return ''
     // If we used fastExtractSnippet, it's already cleaned and truncated
