@@ -112,6 +112,69 @@ describe('parseCredentials', () => {
     expect(result[0]!.password).toBe('pass:with:colons:nohostname')
   })
 
+  it('handles localhost IMAP host with custom port (issue #610)', async () => {
+    const result = await parseCredentials('user@example.com:secret:localhost:1993')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.email).toBe('user@example.com')
+    expect(result[0]!.password).toBe('secret')
+    expect(result[0]!.imap.host).toBe('localhost')
+    expect(result[0]!.imap.port).toBe(1993)
+    // Non-standard port should fall back to STARTTLS (secure=false)
+    expect(result[0]!.imap.secure).toBe(false)
+  })
+
+  it('handles localhost without port (defaults to 993/TLS)', async () => {
+    const result = await parseCredentials('user@example.com:secret:localhost')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.imap.host).toBe('localhost')
+    expect(result[0]!.imap.port).toBe(993)
+    expect(result[0]!.imap.secure).toBe(true)
+  })
+
+  it('handles IPv4 IMAP host with custom port (issue #610)', async () => {
+    const result = await parseCredentials('user@example.com:pw:127.0.0.1:1430')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.password).toBe('pw')
+    expect(result[0]!.imap.host).toBe('127.0.0.1')
+    expect(result[0]!.imap.port).toBe(1430)
+    expect(result[0]!.imap.secure).toBe(false)
+  })
+
+  it('handles hostname with explicit standard TLS port', async () => {
+    const result = await parseCredentials('user@custom.com:pw:imap.proxy.local:993')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.imap.host).toBe('imap.proxy.local')
+    expect(result[0]!.imap.port).toBe(993)
+    expect(result[0]!.imap.secure).toBe(true)
+  })
+
+  it('handles password with colons + custom host:port', async () => {
+    const result = await parseCredentials('user@x.com:pass:with:colons:localhost:1993')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.password).toBe('pass:with:colons')
+    expect(result[0]!.imap.host).toBe('localhost')
+    expect(result[0]!.imap.port).toBe(1993)
+  })
+
+  it('handles user with localhost-domain email and localhost IMAP (issue #610)', async () => {
+    // Setup from issue: email-oauth2-proxy on localhost with email like me@x.com
+    const result = await parseCredentials('me@example.com:pw:localhost:2143')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.imap.host).toBe('localhost')
+    expect(result[0]!.imap.port).toBe(2143)
+    // SMTP for localhost proxy: keep the same host (don't rewrite imap. → smtp.)
+    expect(result[0]!.smtp.host).toBe('localhost')
+  })
+
+  it('rejects port numbers > 65535 (treats as password chunk)', async () => {
+    // 99999 isn't a valid port — `localhost:99999` is therefore not a host
+    const result = await parseCredentials('user@gmail.com:pw:localhost:99999')
+    // Falls through to password-with-colons path
+    expect(result).toHaveLength(1)
+    expect(result[0]!.password).toBe('pw:localhost:99999')
+    expect(result[0]!.imap.host).toBe('imap.gmail.com')
+  })
+
   it('parses Outlook email-only entry as OAuth2 account', async () => {
     const result = await parseCredentials('user@outlook.com')
     expect(result).toHaveLength(1)
