@@ -160,6 +160,34 @@ function handleSmtpError(error: unknown): EmailMCPError {
 }
 
 /**
+ * Module-level cache for bigram Sets of static valid-option lists.
+ * Most callers pass the same enum array repeatedly (action names,
+ * supported folder paths, etc.). Caching avoids recomputing identical
+ * bigram Sets on every fuzzy-match call.
+ */
+const validOptionBigramCache = new WeakMap<readonly string[], Map<string, Set<string>>>()
+
+function getBigrams(value: string): Set<string> {
+  const bigrams = new Set<string>()
+  for (let i = 0; i < value.length - 1; i++) bigrams.add(value.slice(i, i + 2))
+  return bigrams
+}
+
+function getOptionBigrams(validOptions: readonly string[], optionLower: string): Set<string> {
+  let cache = validOptionBigramCache.get(validOptions)
+  if (!cache) {
+    cache = new Map()
+    validOptionBigramCache.set(validOptions, cache)
+  }
+  let bigrams = cache.get(optionLower)
+  if (!bigrams) {
+    bigrams = getBigrams(optionLower)
+    cache.set(optionLower, bigrams)
+  }
+  return bigrams
+}
+
+/**
  * Find the closest matching string from a list of valid options.
  * Uses bigram similarity for fuzzy matching.
  */
@@ -170,11 +198,7 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   let bestMatch: string | null = null
   let bestScore = 0
 
-  // ⚡ Bolt: Pre-compute the input bigrams outside the loop.
-  // This prevents redundant Set allocations and string slicing for the identical
-  // input string on every iteration of validOptions, reducing overhead from O(N*M) to O(N+M).
-  const inputBigrams = new Set<string>()
-  for (let i = 0; i < lower.length - 1; i++) inputBigrams.add(lower.slice(i, i + 2))
+  const inputBigrams = getBigrams(lower)
 
   for (const option of validOptions) {
     const optionLower = option.toLowerCase()
@@ -182,8 +206,7 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
       return option
     }
 
-    const optionBigrams = new Set<string>()
-    for (let i = 0; i < optionLower.length - 1; i++) optionBigrams.add(optionLower.slice(i, i + 2))
+    const optionBigrams = getOptionBigrams(validOptions, optionLower)
 
     let overlap = 0
     for (const b of inputBigrams) {

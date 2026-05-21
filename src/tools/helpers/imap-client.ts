@@ -217,10 +217,16 @@ async function mapLimit<T, R>(items: T[], limit: number, mapper: (item: T) => Pr
  */
 async function extractSnippet(source: string | Buffer, maxLength = 200): Promise<string> {
   try {
-    const parsed = await simpleParser(source)
+    // Snippet only needs plain-text body; skip mailparser's expensive HTML
+    // conversions which dominate parse time when the body is large MIME multipart.
+    const parsed = await simpleParser(source, {
+      skipHtmlToText: true,
+      skipTextToHtml: true,
+      skipTextLinks: true,
+      skipImageLinks: true
+    })
     const text = parsed.text || (parsed.html ? fastExtractSnippet(parsed.html as string, maxLength) : '')
     if (!text) return ''
-    // If we used fastExtractSnippet, it's already cleaned and truncated
     if (parsed.html && !parsed.text) return text
     const cleaned = text.replace(/\s+/g, ' ').trim()
     if (cleaned.length <= maxLength) return cleaned

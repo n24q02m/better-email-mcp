@@ -282,6 +282,18 @@ describe('findClosestMatch', () => {
     // "attach" should match "attachments" better than "send"
     expect(findClosestMatch('attach', ['send', 'attachments', 'folders'])).toBe('attachments')
   })
+
+  it('returns stable results across repeated calls with the same option list (memoized bigrams)', () => {
+    // The bigram cache uses the validOptions array as a WeakMap key, so the
+    // exact same array reference must produce identical results across calls.
+    const options = ['messages', 'folders', 'attachments']
+    const first = findClosestMatch('mesages', options)
+    const second = findClosestMatch('mesages', options)
+    const third = findClosestMatch('foldrs', options)
+    expect(first).toBe('messages')
+    expect(second).toBe('messages')
+    expect(third).toBe('folders')
+  })
 })
 
 describe('createUnknownActionError', () => {
