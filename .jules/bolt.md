@@ -16,3 +16,6 @@
 ## 2024-05-07 - Avoid Unbounded Promise.all() on CPU-Heavy Operations
 **Learning:** Using `Promise.all(items.map(...))` to execute CPU-intensive tasks (like `mailparser.simpleParser` for parsing emails) blocks the event loop and can cause memory spikes in high-concurrency situations, despite JavaScript's asynchronous nature.
 **Action:** Use a concurrency-limited mapper like `mapLimit` to balance throughput and event loop responsiveness for intensive parallel workloads.
+## 2025-05-21 - [Skip Expensive mailparser HTML Conversions]
+**Learning:** `simpleParser` from `mailparser` performs slow HTML-to-text conversion by default, which can be bypassed if the parsed text is not needed (e.g. for downloading attachments, or if we use our own snippet extraction logic) by passing `{ skipHtmlToText: true, skipTextToHtml: true, skipTextLinks: true }` as `SimpleParserOptions`.
+**Action:** When using `simpleParser` for extracting short snippets or fetching attachments, specify options to skip text/HTML conversion to save CPU cycles and reduce blocking time on the main thread, releasing IMAP locks sooner.
