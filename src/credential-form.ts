@@ -50,13 +50,23 @@ export function renderEmailCredentialForm(
     _schema.description ??
       'Configure one or more email accounts (Gmail, Yahoo, iCloud, Outlook/Hotmail/Live, or custom IMAP). Outlook accounts use OAuth2 and are handled automatically by the server.'
   )
-  const submitUrl = escapeHtml(options.submitUrl)
+  // submitUrl is interpolated into an inline <script>. HTML-escaping is not
+  // safe inside <script> blocks (HTML entities are NOT decoded there) — we
+  // need a JS-string-safe encoding. JSON.stringify gives us a quoted JS
+  // literal with `\u00xx`-escaped control chars and properly-escaped quotes
+  // and backslashes, so a malicious submitUrl cannot break out of the literal.
+  const submitUrlJsLiteral = JSON.stringify(String(options.submitUrl))
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none';" />
+    <meta name="referrer" content="no-referrer" />
     <title>${displayName}</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -202,6 +212,9 @@ export function renderEmailCredentialForm(
         .submit-btn:hover { background-color: #5a7fb5; }
         .submit-btn:focus-visible { outline: 2px solid #4a6fa5; outline-offset: 2px; }
         .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .form-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+        .form-fieldset[disabled] { opacity: 0.6; pointer-events: none; }
+        .form-fieldset[disabled] .field-input { background-color: #0a0a0a; cursor: not-allowed; }
         .status-box {
             display: none;
             border-radius: 8px;
@@ -251,11 +264,13 @@ export function renderEmailCredentialForm(
             <h2 class="form-title">Email Accounts</h2>
 
             <form id="credential-form" novalidate>
-                <div id="accounts-container"></div>
+                <fieldset id="form-fieldset" class="form-fieldset">
+                    <div id="accounts-container"></div>
 
-                <button type="button" class="add-btn" id="add-account-btn">+ Add Another Account</button>
+                    <button type="button" class="add-btn" id="add-account-btn">+ Add Another Account</button>
 
-                <button type="submit" class="submit-btn" id="submit-btn">Connect</button>
+                    <button type="submit" class="submit-btn" id="submit-btn">Connect</button>
+                </fieldset>
 
                 <div class="status-box" id="status-box" role="alert"></div>
             </form>
@@ -264,7 +279,7 @@ export function renderEmailCredentialForm(
 
     <script>
         (function () {
-            var submitUrl = "${submitUrl}";
+            var submitUrl = ${submitUrlJsLiteral};
 
             var OAUTH_DOMAINS = ["outlook.com", "hotmail.com", "live.com"];
             var APP_PASSWORD_DOMAINS = {
@@ -295,6 +310,11 @@ export function renderEmailCredentialForm(
             var form = document.getElementById("credential-form");
             var submitBtn = document.getElementById("submit-btn");
             var statusBox = document.getElementById("status-box");
+            var formFieldset = document.getElementById("form-fieldset");
+
+            function setFormBusy(busy) {
+                if (formFieldset) formFieldset.disabled = !!busy;
+            }
 
             var accountIndex = 0;
 
@@ -667,9 +687,17 @@ export function renderEmailCredentialForm(
                 }
                 var payload = { EMAIL_CREDENTIALS: parts.join(",") };
 
+                setFormBusy(true);
                 submitBtn.disabled = true;
                 submitBtn.setAttribute("aria-busy", "true");
-                submitBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Connecting...';
+                // Build spinner via DOM (no innerHTML on form-controlled content) so a
+                // strict CSP that blocks inline style would still allow it.
+                while (submitBtn.firstChild) submitBtn.removeChild(submitBtn.firstChild);
+                var spinner = document.createElement("span");
+                spinner.className = "spinner";
+                spinner.setAttribute("aria-hidden", "true");
+                submitBtn.appendChild(spinner);
+                submitBtn.appendChild(document.createTextNode(" Connecting..."));
 
                 fetch(submitUrl, {
                     method: "POST",
@@ -680,6 +708,7 @@ export function renderEmailCredentialForm(
                         return resp.json().then(function (data) {
                             if (!data.ok) {
                                 showStatus("error", data.error || data.error_description || "Request failed.");
+                                setFormBusy(false);
                                 submitBtn.disabled = false;
                                 submitBtn.removeAttribute("aria-busy");
                                 submitBtn.textContent = "Connect";
@@ -694,8 +723,12 @@ export function renderEmailCredentialForm(
                             }
 
                             if (data.next_step && data.next_step.type === "oauth_device_code") {
-                                submitBtn.innerHTML =
-                                    '<span class="spinner" aria-hidden="true"></span> Awaiting Microsoft...';
+                                while (submitBtn.firstChild) submitBtn.removeChild(submitBtn.firstChild);
+                                var sp = document.createElement("span");
+                                sp.className = "spinner";
+                                sp.setAttribute("aria-hidden", "true");
+                                submitBtn.appendChild(sp);
+                                submitBtn.appendChild(document.createTextNode(" Awaiting Microsoft..."));
                                 submitBtn.removeAttribute("aria-busy");
                                 renderOAuthDeviceCode(data.next_step);
                                 return;
@@ -717,6 +750,7 @@ export function renderEmailCredentialForm(
                     })
                     .catch(function (err) {
                         showStatus("error", "Network error: " + err.message);
+                        setFormBusy(false);
                         submitBtn.disabled = false;
                         submitBtn.removeAttribute("aria-busy");
                         submitBtn.textContent = "Connect";

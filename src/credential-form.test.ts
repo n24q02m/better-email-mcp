@@ -80,4 +80,78 @@ describe('renderEmailCredentialForm', () => {
     expect(html).not.toMatch(/Outlook[^"]*not supported yet/i)
     expect(html).not.toMatch(/Remove any Outlook accounts/i)
   })
+
+  describe('security hardening', () => {
+    it('includes a Content-Security-Policy meta tag', () => {
+      const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
+      expect(html).toMatch(/<meta\s+http-equiv="Content-Security-Policy"/i)
+      expect(html).toContain("default-src 'none'")
+      expect(html).toContain("frame-ancestors 'none'")
+      expect(html).toContain("base-uri 'none'")
+    })
+
+    it('serializes submitUrl as a JS literal (not HTML-escaped string)', () => {
+      const html = renderEmailCredentialForm(schema, { submitUrl: '/authorize?nonce=abc' })
+      // After the fix, submitUrl is interpolated via JSON.stringify, yielding
+      // `var submitUrl = "/authorize?nonce=abc";` -- never `var submitUrl = "${...}"`.
+      expect(html).toContain('var submitUrl = "/authorize?nonce=abc";')
+    })
+
+    it('escapes </script> in submitUrl so it cannot terminate the inline script', () => {
+      const html = renderEmailCredentialForm(schema, {
+        submitUrl: '/authorize?x=</script><script>alert(1)</script>'
+      })
+      // Look at the form's inline JS body (between its opening <script> tag
+      // and its closing </script>). The raw `<script>`/`</script>` payload
+      // must NOT appear inside the literal -- only the unicode-escaped form.
+      const openIdx = html.indexOf('<script>')
+      const scriptOpen = openIdx + '<script>'.length
+      const scriptEnd = html.indexOf('</script>', scriptOpen)
+      expect(scriptEnd).toBeGreaterThan(scriptOpen)
+      const scriptBody = html.slice(scriptOpen, scriptEnd)
+      expect(scriptBody).not.toContain('</script>')
+      expect(scriptBody).not.toContain('<script>')
+      expect(scriptBody).toContain('\\u003c/script\\u003e')
+      expect(scriptBody).toContain('\\u003cscript\\u003e')
+    })
+
+    it('escapes quote injection in submitUrl (no script-string breakout)', () => {
+      const html = renderEmailCredentialForm(schema, {
+        submitUrl: '/x";alert("xss");//'
+      })
+      // The JSON.stringify-encoded literal must appear verbatim. Every quote
+      // inside the value is escaped as \" so it cannot terminate the literal.
+      expect(html).toContain('var submitUrl = "/x\\";alert(\\"xss\\");//";')
+
+      // Defensive: every `alert(` (which only comes from the attacker payload)
+      // must be reachable only INSIDE the JS string literal -- meaning each
+      // `alert(` is preceded by `\";` (escaped-quote then semicolon, i.e.
+      // literal content), never by a bare `";` (which would terminate the
+      // literal and execute as JS).
+      const openIdx = html.indexOf('<script>')
+      const scriptOpen = openIdx + '<script>'.length
+      const scriptEnd = html.indexOf('</script>', scriptOpen)
+      const scriptBody = html.slice(scriptOpen, scriptEnd)
+      const alertIdxs = [...scriptBody.matchAll(/alert\(/g)].map((m) => m.index!)
+      expect(alertIdxs.length).toBeGreaterThan(0)
+      for (const idx of alertIdxs) {
+        // 3 characters preceding `alert(` should be `\";` -- the escaped
+        // quote (still inside the literal) followed by a literal semicolon.
+        expect(scriptBody.slice(idx - 3, idx)).toBe('\\";')
+      }
+    })
+
+    it('wraps form controls in a disable-able fieldset', () => {
+      const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
+      expect(html).toMatch(/<fieldset[^>]*id="form-fieldset"/i)
+      expect(html).toContain('formFieldset.disabled')
+    })
+
+    it('clears submit button via DOM API rather than innerHTML when busy', () => {
+      const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
+      // After the CSP-friendly fix, no innerHTML assignment of the spinner.
+      expect(html).not.toMatch(/submitBtn\.innerHTML\s*=\s*'<span class="spinner"/)
+      expect(html).toContain('createElement("span")')
+    })
+  })
 })
