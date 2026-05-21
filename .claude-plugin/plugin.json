@@ -1,7 +1,7 @@
 {
   "name": "better-email-mcp",
-  "description": "Email management via IMAP/SMTP — multi-account",
-  "version": "1.29.0",
+  "description": "Email management via IMAP/SMTP \u2014 multi-account",
+  "version": "1.30.0-beta.1",
   "userConfig": {
     "EMAIL_CREDENTIALS": {
       "type": "string",
@@ -19,7 +19,10 @@
   "mcpServers": {
     "better-email-mcp": {
       "command": "npx",
-      "args": ["--yes", "@n24q02m/better-email-mcp@latest"],
+      "args": [
+        "--yes",
+        "@n24q02m/better-email-mcp@latest"
+      ],
       "env": {
         "MCP_TRANSPORT": "stdio",
         "EMAIL_CREDENTIALS": "${user_config.EMAIL_CREDENTIALS}"
