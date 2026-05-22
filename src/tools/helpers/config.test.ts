@@ -165,6 +165,83 @@ describe('parseCredentials', () => {
   })
 })
 
+describe('parseCredentials — custom IMAP host and port (issue #610)', () => {
+  it('accepts "localhost" as an IMAP host even though it has no dot', async () => {
+    const result = await parseCredentials('user@custom.com:mypass:localhost')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.password).toBe('mypass')
+    expect(result[0]!.imap).toEqual({ host: 'localhost', port: 993, secure: true })
+  })
+
+  it('parses a custom IMAP port', async () => {
+    const result = await parseCredentials('user@custom.com:mypass:imap.custom.com:1993')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.password).toBe('mypass')
+    expect(result[0]!.imap.host).toBe('imap.custom.com')
+    expect(result[0]!.imap.port).toBe(1993)
+  })
+
+  it('parses localhost with a custom port', async () => {
+    const result = await parseCredentials('user@custom.com:mypass:localhost:2993')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.password).toBe('mypass')
+    expect(result[0]!.imap).toEqual({ host: 'localhost', port: 2993, secure: false })
+  })
+
+  it('treats a non-993 port as plaintext/STARTTLS (secure=false)', async () => {
+    const result = await parseCredentials('user@custom.com:mypass:localhost:1143')
+    expect(result[0]!.imap.secure).toBe(false)
+  })
+
+  it('keeps secure=true when the custom port is explicitly 993', async () => {
+    const result = await parseCredentials('user@custom.com:mypass:imap.custom.com:993')
+    expect(result[0]!.imap).toEqual({ host: 'imap.custom.com', port: 993, secure: true })
+  })
+
+  it('lets a custom host override provider auto-discovery (proxied Gmail)', async () => {
+    const result = await parseCredentials('user@gmail.com:apppass:localhost:1993')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.password).toBe('apppass')
+    expect(result[0]!.imap).toEqual({ host: 'localhost', port: 1993, secure: false })
+  })
+
+  it('parses a password containing colons together with host and port', async () => {
+    const result = await parseCredentials('user@custom.com:pa:ss:word:localhost:1993')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.password).toBe('pa:ss:word')
+    expect(result[0]!.imap).toEqual({ host: 'localhost', port: 1993, secure: false })
+  })
+
+  it('keeps password auth for an Outlook address routed through a custom host', async () => {
+    const result = await parseCredentials('user@outlook.com:proxypass:localhost:1993')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.authType).toBe('password')
+    expect(result[0]!.password).toBe('proxypass')
+    expect(result[0]!.imap).toEqual({ host: 'localhost', port: 1993, secure: false })
+  })
+
+  it('supports a different host and port per account', async () => {
+    const result = await parseCredentials('user1@gmail.com:p1,user2@custom.com:p2:localhost:1993')
+    expect(result).toHaveLength(2)
+    expect(result[0]!.imap.host).toBe('imap.gmail.com')
+    expect(result[1]!.imap).toEqual({ host: 'localhost', port: 1993, secure: false })
+  })
+
+  it('treats a numeric tail with no host segment as part of the password', async () => {
+    const result = await parseCredentials('user@gmail.com:pass:1993')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.password).toBe('pass:1993')
+    expect(result[0]!.imap.host).toBe('imap.gmail.com')
+  })
+
+  it('falls back to the default port when the port is out of range', async () => {
+    const result = await parseCredentials('user@custom.com:mypass:localhost:99999')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.password).toBe('mypass')
+    expect(result[0]!.imap).toEqual({ host: 'localhost', port: 993, secure: true })
+  })
+})
+
 describe('loadConfig', () => {
   it('returns empty array when EMAIL_CREDENTIALS is not set', async () => {
     const original = process.env.EMAIL_CREDENTIALS

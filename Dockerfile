@@ -4,7 +4,7 @@
 # syntax=docker/dockerfile:1
 
 # Build stage (shared by both targets)
-FROM oven/bun:1-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349 AS builder
+FROM oven/bun:1-alpine@sha256:5acc90a93e91ff07bf72aa90a7c9f0fa189765aec90b47bdbf2152d2196383c0 AS builder
 
 WORKDIR /app
 
@@ -21,7 +21,7 @@ COPY . .
 RUN bun run build
 
 # Base runtime stage (shared)
-FROM node:24.15.0-alpine@sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f AS base
+FROM node:24.16.0-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14 AS base
 
 LABEL org.opencontainers.image.source="https://github.com/n24q02m/better-email-mcp"
 LABEL io.modelcontextprotocol.server.name="io.github.n24q02m/better-email-mcp"

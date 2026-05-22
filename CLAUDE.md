@@ -63,6 +63,8 @@ src/
 - **stdio mode** (default): `EMAIL_CREDENTIALS` (bat buoc). Format: `user@gmail.com:app-password`
   - Multi-account: `user1@gmail.com:pass1,user2@outlook.com:pass2`
   - Custom IMAP host: `user@custom.com:password:imap.custom.com`
+  - Custom IMAP host + port: `user@custom.com:password:imap.custom.com:1993`
+  - Local IMAP proxy: `user@custom.com:password:localhost:1993` (`localhost` accepted as host; per-account port)
 - **http mode**: `TRANSPORT_MODE=http`, `PUBLIC_URL`, `DCR_SERVER_SECRET`
 - `PORT` (default 8080)
 - `OUTLOOK_CLIENT_ID` -- tu chon, cho self-hosted OAuth2 client
