@@ -190,8 +190,19 @@ EMAIL_CREDENTIALS=user1@gmail.com:pass1,user2@outlook.com:pass2,user3@yahoo.com:
 ### Custom IMAP Host
 
 ```bash
+# Custom hostname (default port 993, implicit TLS)
 EMAIL_CREDENTIALS=user@custom.com:password:imap.custom.com
+
+# Custom hostname with a custom port
+EMAIL_CREDENTIALS=user@custom.com:password:imap.custom.com:1993
+
+# Local IMAP proxy -- "localhost" is accepted as a host, even without a dot
+EMAIL_CREDENTIALS=user@custom.com:password:localhost:1993
 ```
+
+Each account can use its own host and port. A non-993 port is treated as
+plaintext/STARTTLS -- the usual shape for a local IMAP proxy (for example
+[email-oauth2-proxy](https://github.com/simonrob/email-oauth2-proxy)).
 
 ### Search Query Language
 

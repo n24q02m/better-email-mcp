@@ -39,8 +39,11 @@ EMAIL_CREDENTIALS=user@gmail.com:abcd-efgh-ijkl-mnop
 # Multiple accounts
 EMAIL_CREDENTIALS=user1@gmail.com:pass1,user2@outlook.com:pass2
 
-# Custom IMAP host
-EMAIL_CREDENTIALS=user@custom.com:password:imap.custom.com
+# Custom IMAP host (optional :port, default 993)
+EMAIL_CREDENTIALS=user@custom.com:password:imap.custom.com:1993
+
+# Local IMAP proxy ("localhost" is accepted as a host)
+EMAIL_CREDENTIALS=user@custom.com:password:localhost:1993
 ```
 
 ## Code Style

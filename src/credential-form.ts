@@ -6,9 +6,9 @@
  *  - Domain auto-detect: gmail/googlemail/yahoo/icloud => App Password label
  *    + provider help URL; outlook/hotmail/live => OAuth2 notice (handled
  *    automatically by the server via Microsoft Device Code flow); custom
- *    domain => password + optional IMAP host.
+ *    domain => password + optional IMAP host + optional IMAP port.
  *  - Final EMAIL_CREDENTIALS string format:
- *      email1:pass1,email2:pass2:imap_host,outlook_email
+ *      email1:pass1,email2:pass2:imap_host[:imap_port],outlook_email
  *    Comma-separated between accounts, colon-separated within. Outlook
  *    accounts have no password/colon -- the server detects them and runs
  *    Microsoft's OAuth Device Code flow, surfacing the verification URL +
@@ -441,11 +441,25 @@ export function renderEmailCredentialForm(
                     type: "text",
                     placeholder: "imap.example.com",
                     required: false,
-                    helpText: "Optional. Leave empty for auto-detection.",
+                    helpText: "Optional. Leave empty for auto-detection. Accepts localhost or a proxy host.",
                     helpUrl: ""
                 });
                 if (state && state.imap) imap.input.value = state.imap;
                 extraContainer.appendChild(imap.group);
+
+                var imapPort = createFieldGroup({
+                    idx: idx,
+                    key: "imapport",
+                    label: "IMAP Port",
+                    type: "text",
+                    placeholder: "993",
+                    required: false,
+                    helpText: "Optional. Default 993. Set a custom port for a local IMAP proxy.",
+                    helpUrl: ""
+                });
+                imapPort.input.setAttribute("inputmode", "numeric");
+                if (state && state.imapPort) imapPort.input.value = state.imapPort;
+                extraContainer.appendChild(imapPort.group);
             }
 
             function createAccountCard(idx) {
@@ -500,13 +514,15 @@ export function renderEmailCredentialForm(
                 extra.dataset.role = "extra";
                 card.appendChild(extra);
 
-                var state = { password: "", imap: "" };
+                var state = { password: "", imap: "", imapPort: "" };
 
                 emailField.input.addEventListener("input", function () {
                     var pwNode = extra.querySelector('input[data-role="password"]');
                     if (pwNode) state.password = pwNode.value;
                     var imapNode = extra.querySelector('input[data-role="imap"]');
                     if (imapNode) state.imap = imapNode.value;
+                    var imapPortNode = extra.querySelector('input[data-role="imapport"]');
+                    if (imapPortNode) state.imapPort = imapPortNode.value;
 
                     var val = emailField.input.value;
                     var at = val.indexOf("@");
@@ -545,7 +561,10 @@ export function renderEmailCredentialForm(
                     var imapInput = card.querySelector('input[data-role="imap"]');
                     var imapHost = imapInput && imapInput.value ? imapInput.value.trim() : "";
 
-                    accounts.push({ email: email, password: password, imapHost: imapHost });
+                    var imapPortInput = card.querySelector('input[data-role="imapport"]');
+                    var imapPort = imapPortInput && imapPortInput.value ? imapPortInput.value.trim() : "";
+
+                    accounts.push({ email: email, password: password, imapHost: imapHost, imapPort: imapPort });
                 }
                 return { accounts: accounts, hasOauth: hasOauth };
             }
@@ -660,7 +679,12 @@ export function renderEmailCredentialForm(
                         // Microsoft Device Code OAuth2 on receipt.
                         parts.push(a.email);
                     } else if (a.imapHost) {
-                        parts.push(a.email + ":" + a.password + ":" + a.imapHost);
+                        var imapSpec = a.imapHost;
+                        // Append the port unless the host field already carries one.
+                        if (a.imapPort && imapSpec.indexOf(":") === -1) {
+                            imapSpec = imapSpec + ":" + a.imapPort;
+                        }
+                        parts.push(a.email + ":" + a.password + ":" + imapSpec);
                     } else {
                         parts.push(a.email + ":" + a.password);
                     }
