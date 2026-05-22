@@ -43,3 +43,9 @@
 **Learning:** Unconditionally setting `autocomplete="off"` on dynamic form elements severely degrades user experience by preventing password managers from working and violates accessibility guidelines (WCAG 1.3.5 Identify Input Purpose).
 
 **Action:** Always dynamically assign semantic `autocomplete` attributes (like `email` or `current-password`) based on the input type to ensure password managers function correctly and assistive technologies understand the input's purpose.
+
+## 2024-05-21 - Form Lock down via Fieldset
+
+**Learning:** When submitting a dynamic form containing multiple sub-components (like "Add Account" buttons and numerous inputs), simply disabling the submit button (`<button type="submit" disabled>`) is insufficient to prevent user interaction during async loading states. Users can still modify inputs or click secondary action buttons, potentially causing corrupted state or accidental concurrent operations.
+
+**Action:** Wrap the entire interactive section of the form (inputs, secondary buttons, submit button) in a semantic `<fieldset>` element. During async operations (like API submission), set `fieldset.disabled = true` to instantly and cleanly lock down all child form controls simultaneously, ensuring a robust and predictable loading state.
