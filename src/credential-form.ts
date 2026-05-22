@@ -50,7 +50,7 @@ export function renderEmailCredentialForm(
     _schema.description ??
       'Configure one or more email accounts (Gmail, Yahoo, iCloud, Outlook/Hotmail/Live, or custom IMAP). Outlook accounts use OAuth2 and are handled automatically by the server.'
   )
-  const submitUrl = escapeHtml(options.submitUrl)
+  const submitUrlJson = JSON.stringify(options.submitUrl).replace(/</g, '\\u003c')
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -265,7 +265,7 @@ export function renderEmailCredentialForm(
 
     <script>
         (function () {
-            var submitUrl = "${submitUrl}";
+            var submitUrl = ${submitUrlJson};
 
             var OAUTH_DOMAINS = ["outlook.com", "hotmail.com", "live.com"];
             var APP_PASSWORD_DOMAINS = {
