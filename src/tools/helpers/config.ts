@@ -105,41 +105,65 @@ function emailToId(email: string): string {
 }
 
 /**
- * Parse password and custom IMAP host from credential parts
+ * Parse a credential segment as a TCP port. Returns the number only when it
+ * is all-digits and within the valid 1-65535 range, otherwise undefined.
+ */
+function parsePort(segment: string): number | undefined {
+  if (!/^\d+$/.test(segment)) return undefined
+  const port = Number(segment)
+  return port >= 1 && port <= 65535 ? port : undefined
+}
+
+/**
+ * Whether a credential segment looks like an IMAP host. A dotted name
+ * (hostname or IPv4 literal) qualifies, and so does the literal `localhost`
+ * — the latter lets users point an account at a local IMAP proxy.
+ */
+function looksLikeHost(segment: string): boolean {
+  return segment.includes('.') || segment.toLowerCase() === 'localhost'
+}
+
+/**
+ * Parse password, custom IMAP host, and custom IMAP port from the
+ * colon-separated segments of a credential entry (`parts[0]` is the email).
+ *
+ * Recognised tails, most specific first:
+ *  - `...:host:port` -- trailing all-digit port preceded by a host segment
+ *  - `...:host`      -- trailing host segment
+ *  - otherwise the whole tail is the password (embedded colons preserved)
  */
 function parsePasswordAndHost(parts: string[]): {
   password: string
   customImapHost?: string
+  customImapPort?: number
 } {
-  let password: string
-  let customImapHost: string | undefined
-
   if (parts.length === 2) {
     // email:password
-    password = parts[1]!
-  } else if (parts.length === 3) {
-    // Could be email:password:imap_host OR email:password_with_colon
-    // Heuristic: if last part looks like a hostname (contains a dot), treat as imap host
-    const lastPart = parts[2]!
-    if (lastPart.includes('.')) {
-      password = parts[1]!
-      customImapHost = lastPart
-    } else {
-      // password contains a colon
-      password = `${parts[1]}:${parts[2]}`
-    }
-  } else {
-    // 4+ parts: everything between email and last part (if hostname) is password
-    const lastPart = parts[parts.length - 1]!
-    if (lastPart.includes('.')) {
-      password = parts.slice(1, -1).join(':')
-      customImapHost = lastPart
-    } else {
-      password = parts.slice(1).join(':')
+    return { password: parts[1]! }
+  }
+
+  const last = parts[parts.length - 1]!
+  const secondLast = parts[parts.length - 2]!
+
+  // email:password[:...]:host:port -- a host segment followed by a numeric port
+  if (parts.length >= 4 && /^\d+$/.test(last) && looksLikeHost(secondLast)) {
+    return {
+      password: parts.slice(1, -2).join(':'),
+      customImapHost: secondLast,
+      customImapPort: parsePort(last)
     }
   }
 
-  return { password, customImapHost }
+  // email:password[:...]:host -- a trailing host segment, default port
+  if (looksLikeHost(last)) {
+    return {
+      password: parts.slice(1, -1).join(':'),
+      customImapHost: last
+    }
+  }
+
+  // No host segment -- the whole tail is the password (may contain colons)
+  return { password: parts.slice(1).join(':') }
 }
 
 /**
@@ -183,10 +207,14 @@ async function applyOutlookOAuth2(account: AccountConfig): Promise<void> {
  */
 function resolveServerConfig(
   email: string,
-  customImapHost?: string
+  customImapHost?: string,
+  customImapPort?: number
 ): { imap: ServerConfig; smtp: ServerConfig } | null {
   if (customImapHost) {
-    const imap = { host: customImapHost, port: 993, secure: true }
+    // Default to standard implicit-TLS IMAPS (993). A non-993 port is
+    // treated as plaintext/STARTTLS -- the common shape for a local proxy.
+    const port = customImapPort ?? 993
+    const imap = { host: customImapHost, port, secure: port === 993 }
     // Guess SMTP from IMAP host
     const smtp = { host: customImapHost.replace('imap.', 'smtp.'), port: 587, secure: false }
     return { imap, smtp }
@@ -219,10 +247,10 @@ async function parseSingleCredential(entry: string): Promise<AccountConfig | nul
     return null
   }
 
-  const { password, customImapHost } = parsePasswordAndHost(parts)
+  const { password, customImapHost, customImapPort } = parsePasswordAndHost(parts)
 
   // Auto-discover or use custom host
-  const servers = resolveServerConfig(email, customImapHost)
+  const servers = resolveServerConfig(email, customImapHost, customImapPort)
   if (!servers) return null
 
   const account: AccountConfig = {
@@ -234,8 +262,11 @@ async function parseSingleCredential(entry: string): Promise<AccountConfig | nul
     smtp: servers.smtp
   }
 
-  // For Outlook domains, always use OAuth2 — password auth is not supported.
-  await applyOutlookOAuth2(account)
+  // Outlook domains use OAuth2 by default. An explicit custom IMAP host means
+  // the account is routed through a proxy with password auth — honour that.
+  if (!customImapHost) {
+    await applyOutlookOAuth2(account)
+  }
 
   return account
 }
@@ -245,10 +276,14 @@ async function parseSingleCredential(entry: string): Promise<AccountConfig | nul
  *
  * Supported formats:
  * - Simple: email1:password1,email2:password2
- * - With custom IMAP host: email1:password1:imap.custom.com,email2:password2
+ * - Custom IMAP host: email1:password1:imap.custom.com,email2:password2
+ * - Custom IMAP host + port: email:password:imap.custom.com:1993
+ * - Local IMAP proxy: email:password:localhost:1993 (the literal `localhost`
+ *   is accepted as a host even though it has no dot; each account may use its
+ *   own host and port)
  * - Passwords with commas are NOT supported (use env var per account instead)
  *
- * For passwords containing colons, use the 3-field format to disambiguate:
+ * For passwords containing colons, append the host segment to disambiguate:
  *   email:password_with:colon:imap_host
  */
 export async function parseCredentials(envValue: string): Promise<AccountConfig[]> {

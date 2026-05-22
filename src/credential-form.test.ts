@@ -80,4 +80,22 @@ describe('renderEmailCredentialForm', () => {
     expect(html).not.toMatch(/Outlook[^"]*not supported yet/i)
     expect(html).not.toMatch(/Remove any Outlook accounts/i)
   })
+
+  it('renders an optional IMAP Port field for custom domains (issue #610)', () => {
+    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
+    expect(html).toContain('IMAP Port')
+    expect(html).toContain('imapport')
+  })
+
+  it('mentions localhost / proxy support in the IMAP host help text', () => {
+    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
+    expect(html).toMatch(/localhost/i)
+  })
+
+  it('appends a custom IMAP port to the credential string when provided', () => {
+    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
+    // The submit encoder builds email:password:host[:port] from collected fields.
+    expect(html).toContain('imapSpec')
+    expect(html).toContain('a.imapPort')
+  })
 })
