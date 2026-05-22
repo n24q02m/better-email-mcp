@@ -4,7 +4,7 @@
  */
 
 import { ImapFlow, type SearchObject } from 'imapflow'
-import { simpleParser } from 'mailparser'
+import { type SimpleParserOptions, simpleParser } from 'mailparser'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
 import { fastExtractSnippet, htmlToCleanText } from './html-utils.js'
@@ -212,12 +212,19 @@ async function mapLimit<T, R>(items: T[], limit: number, mapper: (item: T) => Pr
   return results
 }
 
+// ⚡ Bolt: Extract `mailparser` fast-path options into a module-scoped constant.
+const FAST_PARSER_OPTIONS: SimpleParserOptions = {
+  skipHtmlToText: true,
+  skipTextToHtml: true,
+  skipTextLinks: true
+}
+
 /**
  * Extract a short snippet from email body
  */
 async function extractSnippet(source: string | Buffer, maxLength = 200): Promise<string> {
   try {
-    const parsed = await simpleParser(source)
+    const parsed = await simpleParser(source, FAST_PARSER_OPTIONS)
     const text = parsed.text || (parsed.html ? fastExtractSnippet(parsed.html as string, maxLength) : '')
     if (!text) return ''
     // If we used fastExtractSnippet, it's already cleaned and truncated
@@ -556,7 +563,7 @@ export async function getAttachment(
   // ⚡ Bolt: Execute CPU-intensive MIME parsing outside of the `withConnection` block.
   // This ensures the IMAP connection and mailbox lock are released as quickly as possible,
   // preventing other concurrent operations from being blocked while we parse attachments.
-  const parsed = await simpleParser(fetchResult.source)
+  const parsed = await simpleParser(fetchResult.source, FAST_PARSER_OPTIONS)
   const lowerFilename = filename.toLowerCase()
   const attachment = parsed.attachments?.find((att) => att.filename?.toLowerCase() === lowerFilename)
 
