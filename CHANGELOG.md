@@ -2,6 +2,63 @@
 
 <!-- version list -->
 
+## v1.30.0-beta.1 (2026-05-24)
+
+### Bug Fixes
+
+- **a11y**: Lock entire credential form via fieldset during submission
+  ([#611](https://github.com/n24q02m/better-email-mcp/pull/611),
+  [`0888049`](https://github.com/n24q02m/better-email-mcp/commit/0888049ae2ea9a979911afc0ea085cbb5a8acb28))
+
+- **deps**: Refresh lock file maintenance
+  ([#577](https://github.com/n24q02m/better-email-mcp/pull/577),
+  [`235e030`](https://github.com/n24q02m/better-email-mcp/commit/235e0303e4cec0596c4a485b73870a613cf4479b))
+
+- **deps**: Update non-major dependencies
+  ([#581](https://github.com/n24q02m/better-email-mcp/pull/581),
+  [`f00354a`](https://github.com/n24q02m/better-email-mcp/commit/f00354a08e01215ef72d789c1588c9d327bba0b1))
+
+- **security**: Add Content-Security-Policy to credential form
+  ([#612](https://github.com/n24q02m/better-email-mcp/pull/612),
+  [`f40b1b0`](https://github.com/n24q02m/better-email-mcp/commit/f40b1b0a5ff2e0fca093dfa8e9884fb45942facf))
+
+- **security**: JSON-encode submitUrl in credential form to prevent script injection
+  ([#607](https://github.com/n24q02m/better-email-mcp/pull/607),
+  [`f08e627`](https://github.com/n24q02m/better-email-mcp/commit/f08e627baa90cd5d6a1f942fbaba1ecc509c91f1))
+
+### Chores
+
+- **deps**: Update actions/create-github-app-token digest to bcd2ba4
+  ([#589](https://github.com/n24q02m/better-email-mcp/pull/589),
+  [`35f33cd`](https://github.com/n24q02m/better-email-mcp/commit/35f33cd8144c32de75d82645139c4a10007f4060))
+
+- **deps**: Update actions/dependency-review-action action to v5
+  ([#578](https://github.com/n24q02m/better-email-mcp/pull/578),
+  [`69c0f88`](https://github.com/n24q02m/better-email-mcp/commit/69c0f88cf06a383a2f92f74bd562fcd3a524e323))
+
+- **deps**: Update codecov/codecov-action digest to e79a696
+  ([#616](https://github.com/n24q02m/better-email-mcp/pull/616),
+  [`535f405`](https://github.com/n24q02m/better-email-mcp/commit/535f40578efd69f52223d58f9e2a51795e0825ae))
+
+- **deps**: Update docker/build-push-action digest to f9f3042
+  ([#617](https://github.com/n24q02m/better-email-mcp/pull/617),
+  [`c2a2c46`](https://github.com/n24q02m/better-email-mcp/commit/c2a2c46e1b2dc6a2f3a1b97fac6399526dac8eb0))
+
+- **deps**: Update docker/login-action digest to 650006c
+  ([#618](https://github.com/n24q02m/better-email-mcp/pull/618),
+  [`11cc711`](https://github.com/n24q02m/better-email-mcp/commit/11cc711a7b58026ffc8df9ee5ba1d6e877680d62))
+
+- **deps**: Update oven/bun:1-alpine docker digest to 5acc90a
+  ([#590](https://github.com/n24q02m/better-email-mcp/pull/590),
+  [`a915e98`](https://github.com/n24q02m/better-email-mcp/commit/a915e9860f7cb81d2ed28f5a2bb36cc343add00f))
+
+### Features
+
+- Support localhost and custom IMAP port in credentials
+  ([#615](https://github.com/n24q02m/better-email-mcp/pull/615),
+  [`32952e8`](https://github.com/n24q02m/better-email-mcp/commit/32952e8d022cc941205968f3d6ac339adc0a310c))
+
+
 ## v1.29.0 (2026-05-09)
 
 
