@@ -161,8 +161,21 @@ export function renderEmailCredentialForm(
             border-color: #4a6fa5;
             box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.2);
         }
+        .field-input[aria-invalid="true"] {
+            border-color: #f87171;
+        }
+        .field-input[aria-invalid="true"]:focus {
+            box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.2);
+        }
         .field-input::placeholder { color: #9ca3af; }
         .help-text { font-size: 0.8125rem; color: #9ca3af; margin-top: 0.375rem; }
+        .field-error {
+            display: none;
+            font-size: 0.8125rem;
+            color: #f87171;
+            margin-top: 0.375rem;
+        }
+        .field-error.active { display: block; }
         .help-text a { color: #6c9bd2; text-decoration: none; }
         .help-text a:hover { text-decoration: underline; }
         .notice {
@@ -358,11 +371,19 @@ export function renderEmailCredentialForm(
                 if (required) input.setAttribute("required", "required");
                 group.appendChild(input);
 
+                var errorEl = document.createElement("div");
+                errorEl.id = "error-" + key + "_" + idx;
+                errorEl.className = "field-error";
+                errorEl.setAttribute("role", "alert");
+                errorEl.setAttribute("aria-live", "polite");
+
+                var describedBy = [errorEl.id];
+
                 if (helpText) {
                     var help = document.createElement("p");
                     help.id = "help-" + key + "_" + idx;
                     help.className = "help-text";
-                    input.setAttribute("aria-describedby", help.id);
+                    describedBy.push(help.id);
                     if (helpUrl) {
                         var a = document.createElement("a");
                         a.setAttribute("href", helpUrl);
@@ -375,6 +396,32 @@ export function renderEmailCredentialForm(
                     }
                     group.appendChild(help);
                 }
+
+                input.setAttribute("aria-describedby", describedBy.join(" "));
+                group.appendChild(errorEl);
+
+                input.addEventListener("invalid", function (event) {
+                    event.preventDefault();
+                    var inputEl = event.target;
+                    inputEl.setAttribute("aria-invalid", "true");
+                    if (inputEl.validity.valueMissing) {
+                        errorEl.textContent = "This field is required.";
+                    } else if (inputEl.validity.typeMismatch && inputEl.type === "email") {
+                        errorEl.textContent = "Please enter a valid email address.";
+                    } else {
+                        errorEl.textContent = "Invalid value.";
+                    }
+                    errorEl.classList.add("active");
+                });
+
+                input.addEventListener("input", function (event) {
+                    var inputEl = event.target;
+                    if (inputEl.hasAttribute("aria-invalid")) {
+                        inputEl.removeAttribute("aria-invalid");
+                        errorEl.textContent = "";
+                        errorEl.classList.remove("active");
+                    }
+                });
 
                 return { group: group, input: input };
             }
