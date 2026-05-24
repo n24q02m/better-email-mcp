@@ -3,7 +3,7 @@
  * Strips HTML tags, CSS, scripts and returns clean text for LLM consumption
  */
 
-import { convert } from 'html-to-text'
+import { compile } from 'html-to-text'
 
 const ENTITY_MAP: Record<string, string> = {
   '&nbsp;': ' ',
@@ -51,6 +51,8 @@ const HTML_TO_TEXT_OPTIONS: import('html-to-text').HtmlToTextOptions = {
   ]
 }
 
+const compiledHtmlToText = compile(HTML_TO_TEXT_OPTIONS)
+
 /**
  * Convert HTML email body to clean plain text
  * Removes CSS, scripts, images, and formatting noise to save LLM tokens
@@ -58,7 +60,7 @@ const HTML_TO_TEXT_OPTIONS: import('html-to-text').HtmlToTextOptions = {
 export function htmlToCleanText(html: string): string {
   if (!html) return ''
 
-  return convert(html, HTML_TO_TEXT_OPTIONS).trim()
+  return compiledHtmlToText(html).trim()
 }
 
 /**
