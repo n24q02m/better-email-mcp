@@ -23,3 +23,7 @@
 ## 2026-05-18 - [Precompile html-to-text options]
 **Learning:** `html-to-text`'s `convert` function rebuilds formatting and parsing rules from the provided options object on every invocation. When called frequently (e.g., parsing multiple search results), this dynamic setup introduces significant overhead.
 **Action:** Use the `compile` function from `html-to-text` to create a precompiled converter function during module initialization. This avoids redundant configuration parsing on every call and can be up to 5x faster.
+
+## 2025-02-23 - Bypass mailparser slow HTML-to-text processing
+**Learning:** `simpleParser` from `mailparser` can be extremely slow on large emails because it does full HTML-to-text conversion by default. This is often unnecessary when extracting attachments or when we already have a faster custom HTML-to-text parser (like our compiled `html-to-text`).
+**Action:** Always pass `{ skipHtmlToText: true, skipTextToHtml: true, skipTextLinks: true }` to `simpleParser` when full text extraction is not needed or when using an alternative HTML parser.
