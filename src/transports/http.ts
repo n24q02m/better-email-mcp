@@ -278,11 +278,21 @@ export async function startHttp(): Promise<void> {
   // AsyncLocalStorage scope so ``serverFactory`` can thread it into
   // ``registerTools``. Missing subject ⇒ empty account list ⇒ tools respond
   // with a setup prompt.
+  // MCP_AUTH_DISABLE=1 skips Bearer JWT verification — intended for
+  // deployments behind a reverse proxy / API gateway (agentgateway, etc.)
+  // that already enforces authentication. Caller's responsibility to lock
+  // down network access to /mcp. See mcp-core RunHttpServerOptions.
+  const authDisabled = process.env.MCP_AUTH_DISABLE === '1'
+
   const options = {
     ...baseOptions,
-    authScope: async (claims: { sub?: unknown }, next: () => Promise<void>) => {
+    authDisabled,
+    authScope: async (claims: { sub?: unknown; anonymous?: unknown }, next: () => Promise<void>) => {
       const sub = typeof claims.sub === 'string' ? claims.sub : null
-      if (!sub) {
+      // Anonymous (auth-disabled) caller: skip per-user store lookup and let
+      // serverFactory fall back to env-loaded currentAccounts (single-user
+      // deployment). Caller is single user behind external auth boundary.
+      if (!sub || claims.anonymous === true) {
         await next()
         return
       }
