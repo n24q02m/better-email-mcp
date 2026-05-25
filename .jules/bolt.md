@@ -19,3 +19,7 @@
 ## 2024-05-23 - Bypass unnecessary html-to-text in mailparser snippets
 **Learning:** `mailparser`'s `simpleParser` performs expensive HTML-to-text conversion by default, even when we already discard it in favor of a faster custom `fastExtractSnippet` fallback. This can add 1-2 seconds per email parsed for large messages.
 **Action:** Always pass `{ skipHtmlToText: true, skipTextToHtml: true, skipTextLinks: true }` to `simpleParser` when only basic metadata, text, or raw HTML is needed.
+
+## 2026-05-18 - [Precompile html-to-text options]
+**Learning:** `html-to-text`'s `convert` function rebuilds formatting and parsing rules from the provided options object on every invocation. When called frequently (e.g., parsing multiple search results), this dynamic setup introduces significant overhead.
+**Action:** Use the `compile` function from `html-to-text` to create a precompiled converter function during module initialization. This avoids redundant configuration parsing on every call and can be up to 5x faster.
