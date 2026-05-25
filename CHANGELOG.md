@@ -2,6 +2,34 @@
 
 <!-- version list -->
 
+## v1.30.0-beta.2 (2026-05-25)
+
+### Bug Fixes
+
+- **deps**: Update dependency nodemailer to ^8.0.8
+  ([#623](https://github.com/n24q02m/better-email-mcp/pull/623),
+  [`ce57c32`](https://github.com/n24q02m/better-email-mcp/commit/ce57c32092eb0428ad011266f12f14625faa9f9f))
+
+### Chores
+
+- **deps**: Update docker/setup-buildx-action digest to d7f5e7f
+  ([#621](https://github.com/n24q02m/better-email-mcp/pull/621),
+  [`4df737d`](https://github.com/n24q02m/better-email-mcp/commit/4df737d5dcf46b4a19e8744425e00a53873d090c))
+
+- **deps**: Update step-security/harden-runner digest to ab7a940
+  ([#622](https://github.com/n24q02m/better-email-mcp/pull/622),
+  [`08f8d44`](https://github.com/n24q02m/better-email-mcp/commit/08f8d4498d349fcc0910ae0dd54e8daf0159ccc9))
+
+### Features
+
+- Add MCP_AUTH_DISABLE env flag for deployments behind external auth boundary
+  ([`2856e59`](https://github.com/n24q02m/better-email-mcp/commit/2856e598202f1b08b4556bb38984df306c7a44b2))
+
+- Implement inline form validation with accessible feedback
+  ([#625](https://github.com/n24q02m/better-email-mcp/pull/625),
+  [`bddd02d`](https://github.com/n24q02m/better-email-mcp/commit/bddd02de62e707a6c6bac77a48c743fcd980e365))
+
+
 ## v1.30.0-beta.1 (2026-05-24)
 
 ### Bug Fixes
