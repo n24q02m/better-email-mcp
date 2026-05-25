@@ -49,3 +49,8 @@
 **Learning:** When submitting a dynamic form containing multiple sub-components (like "Add Account" buttons and numerous inputs), simply disabling the submit button (`<button type="submit" disabled>`) is insufficient to prevent user interaction during async loading states. Users can still modify inputs or click secondary action buttons, potentially causing corrupted state or accidental concurrent operations.
 
 **Action:** Wrap the entire interactive section of the form (inputs, secondary buttons, submit button) in a semantic `<fieldset>` element. During async operations (like API submission), set `fieldset.disabled = true` to instantly and cleanly lock down all child form controls simultaneously, ensuring a robust and predictable loading state.
+
+## 2025-05-24 - Form Validation with Inline Feedback
+
+**Learning:** Relying on default HTML5 form validation popups creates an inconsistent user experience across browsers and can be challenging for screen reader users to understand contextually. Additionally, users lack immediate visual feedback on errors before submission.
+**Action:** Implement custom inline form validation by overriding the default `invalid` event. Apply `aria-invalid="true"` for visual styling (e.g. red borders) and dynamically update a dedicated error message container connected to the input via `aria-describedby` (using `role="alert"` or `aria-live="polite"`) to provide accessible and immediate feedback.
