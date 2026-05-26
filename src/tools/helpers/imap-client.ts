@@ -425,7 +425,11 @@ export async function readEmail(account: AccountConfig, uid: number, folder: str
     throw new EmailMCPError(`Email UID ${uid} not found in ${folder}`, 'NOT_FOUND', 'Check the UID and folder')
   }
 
-  const parsed = await simpleParser(fetchResult.source)
+  // ⚡ Bolt: Pass optimization flags to skip slow default conversions.
+  // We use our own `htmlToCleanText` (which is highly optimized) for HTML-only emails,
+  // so we can safely bypass `mailparser`'s internal text generation.
+  const options: SimpleParserOptions = { skipHtmlToText: true, skipTextToHtml: true, skipTextLinks: true }
+  const parsed = await simpleParser(fetchResult.source, options)
   const bodyText = parsed.text || (parsed.html ? htmlToCleanText(parsed.html as string) : '(Empty body)')
 
   return {
@@ -559,7 +563,9 @@ export async function getAttachment(
   // ⚡ Bolt: Execute CPU-intensive MIME parsing outside of the `withConnection` block.
   // This ensures the IMAP connection and mailbox lock are released as quickly as possible,
   // preventing other concurrent operations from being blocked while we parse attachments.
-  const parsed = await simpleParser(fetchResult.source)
+  // We bypass slow HTML-to-text processing as we only need the attachments here.
+  const options: SimpleParserOptions = { skipHtmlToText: true, skipTextToHtml: true, skipTextLinks: true }
+  const parsed = await simpleParser(fetchResult.source, options)
   const lowerFilename = filename.toLowerCase()
   const attachment = parsed.attachments?.find((att) => att.filename?.toLowerCase() === lowerFilename)
 
