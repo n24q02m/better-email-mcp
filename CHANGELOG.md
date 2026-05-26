@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.30.0 (2026-05-26)
+
+### Chores
+
+- **deps**: Lock file maintenance ([#627](https://github.com/n24q02m/better-email-mcp/pull/627),
+  [`b1d309f`](https://github.com/n24q02m/better-email-mcp/commit/b1d309fa691f6d9b394c369c6607b27ed3b21cd5))
+
+
 ## v1.30.0-beta.2 (2026-05-25)
 
 ### Bug Fixes
