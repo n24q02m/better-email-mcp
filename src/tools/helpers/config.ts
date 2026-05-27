@@ -123,47 +123,114 @@ function looksLikeHost(segment: string): boolean {
   return segment.includes('.') || segment.toLowerCase() === 'localhost'
 }
 
+export type SmtpSecurity = 'tls' | 'ssl' | 'starttls' | 'none'
+
+function isSmtpSecurity(segment: string): segment is SmtpSecurity {
+  return /^(tls|ssl|starttls|none)$/i.test(segment)
+}
+
 /**
- * Parse password, custom IMAP host, and custom IMAP port from the
- * colon-separated segments of a credential entry (`parts[0]` is the email).
+ * Parse password, custom IMAP/SMTP host+port from the colon-separated
+ * segments of a credential entry (`parts[0]` is the email).
  *
- * Recognised tails, most specific first:
- *  - `...:host:port` -- trailing all-digit port preceded by a host segment
- *  - `...:host`      -- trailing host segment
- *  - otherwise the whole tail is the password (embedded colons preserved)
+ * Full canonical format (closes #634 — symmetric to IMAP override):
+ *   email:password:imap_host[:imap_port[:smtp_host[:smtp_port[:smtp_security]]]]
+ *
+ * Backward-compatible tails (most-specific first):
+ *  - `...:imap_host:imap_port:smtp_host:smtp_port:smtp_security`
+ *  - `...:imap_host:imap_port:smtp_host:smtp_port`
+ *  - `...:imap_host:imap_port:smtp_host` (smtp uses defaults: 587 + starttls)
+ *  - `...:imap_host:imap_port` -- existing behaviour, SMTP guessed
+ *  - `...:imap_host`           -- existing, default IMAP port + SMTP guessed
+ *  - else: whole tail is password (embedded colons preserved)
+ *
+ * Detection is greedy from the END so passwords with embedded colons keep
+ * working when no host suffix is supplied.
  */
 function parsePasswordAndHost(parts: string[]): {
   password: string
   customImapHost?: string
   customImapPort?: number
+  customSmtpHost?: string
+  customSmtpPort?: number
+  customSmtpSecurity?: SmtpSecurity
 } {
   if (parts.length === 2) {
     // email:password
     return { password: parts[1]! }
   }
 
-  const last = parts[parts.length - 1]!
-  const secondLast = parts[parts.length - 2]!
+  // Mutable tail; pop SMTP, then IMAP, then rest is password.
+  const tail = parts.slice(1)
+  let smtpSecurity: SmtpSecurity | undefined
+  let smtpHost: string | undefined
+  let smtpPort: number | undefined
+  let imapHost: string | undefined
+  let imapPort: number | undefined
 
-  // email:password[:...]:host:port -- a host segment followed by a numeric port
-  if (parts.length >= 4 && /^\d+$/.test(last) && looksLikeHost(secondLast)) {
-    return {
-      password: parts.slice(1, -2).join(':'),
-      customImapHost: secondLast,
-      customImapPort: parsePort(last)
-    }
+  // 1. Optional SMTP security keyword at end (only valid when an SMTP host
+  //    can also be detected; otherwise the keyword belongs to the password).
+  //    We tentatively pop + restore if SMTP host parsing fails.
+  let popped_security = false
+  if (tail.length >= 4 && isSmtpSecurity(tail.at(-1)!)) {
+    smtpSecurity = tail.at(-1)!.toLowerCase() as SmtpSecurity
+    tail.pop()
+    popped_security = true
   }
 
-  // email:password[:...]:host -- a trailing host segment, default port
-  if (looksLikeHost(last)) {
-    return {
-      password: parts.slice(1, -1).join(':'),
-      customImapHost: last
-    }
+  // Helper: an "all-digit" segment looks like a port attempt (even if value
+  // is out-of-range, in which case parsePort returns undefined and the
+  // caller falls back to the protocol-default port).
+  const isPortSegment = (s: string) => /^\d+$/.test(s)
+
+  // 2. SMTP host + port (host:port pair). Detected only when tail has BOTH:
+  //    - tail.at(-1) is all-digit (a port attempt)
+  //    - tail.at(-2) is a host
+  //    AND there's another preceding host (the IMAP host) — otherwise the
+  //    "host:port" we see IS the IMAP host:port and there's no SMTP suffix.
+  const canHaveSmtpHostPort =
+    tail.length >= 5 && isPortSegment(tail.at(-1)!) && looksLikeHost(tail.at(-2)!) && looksLikeHost(tail.at(-4) ?? '') // ensure there's an IMAP host before
+  if (canHaveSmtpHostPort) {
+    smtpPort = parsePort(tail.at(-1)!) // may be undefined if out-of-range → buildSmtpConfig defaults
+    tail.pop()
+    smtpHost = tail.pop()
   }
 
-  // No host segment -- the whole tail is the password (may contain colons)
-  return { password: parts.slice(1).join(':') }
+  // 3. SMTP host without explicit port (only valid when security was popped
+  //    OR when there's an explicit IMAP host:port already detected).
+  if (!smtpHost && popped_security && tail.length >= 3 && looksLikeHost(tail.at(-1)!)) {
+    smtpHost = tail.pop()
+  }
+
+  // If security keyword was tentatively popped but no SMTP host was found,
+  // restore it — the keyword is part of the password.
+  if (popped_security && !smtpHost) {
+    tail.push(smtpSecurity!)
+    smtpSecurity = undefined
+  }
+
+  // 4. IMAP host + port (port may be out-of-range; resolveServerConfig
+  //    falls back to default 993 when port is undefined).
+  if (tail.length >= 3 && isPortSegment(tail.at(-1)!) && looksLikeHost(tail.at(-2)!)) {
+    imapPort = parsePort(tail.at(-1)!)
+    tail.pop()
+    imapHost = tail.pop()
+  } else if (looksLikeHost(tail.at(-1)!)) {
+    // Trailing host segment, default IMAP port
+    imapHost = tail.pop()
+  }
+
+  // 5. Whatever remains (after the email shift) is the password.
+  const password = tail.join(':')
+
+  return {
+    password,
+    customImapHost: imapHost,
+    customImapPort: imapPort,
+    customSmtpHost: smtpHost,
+    customSmtpPort: smtpPort,
+    customSmtpSecurity: smtpSecurity
+  }
 }
 
 /**
@@ -203,29 +270,66 @@ async function applyOutlookOAuth2(account: AccountConfig): Promise<void> {
 }
 
 /**
- * Resolve IMAP/SMTP server configuration
+ * Build SMTP ServerConfig from explicit host/port/security override.
+ * Defaults follow standard mail-submission conventions:
+ *  - `tls` / `ssl` → secure=true, default port 465 (implicit TLS / SMTPS)
+ *  - `starttls`    → secure=false, default port 587 (submission + STARTTLS)
+ *  - `none`        → secure=false, default port 25 (rare, plain SMTP)
+ *  - unspecified   → secure=false, default port 587 (matches modern default)
+ */
+function buildSmtpConfig(host: string, port?: number, security?: SmtpSecurity): ServerConfig {
+  if (security === 'tls' || security === 'ssl') {
+    return { host, port: port ?? 465, secure: true }
+  }
+  if (security === 'none') {
+    return { host, port: port ?? 25, secure: false }
+  }
+  // starttls or unspecified
+  return { host, port: port ?? 587, secure: false }
+}
+
+/**
+ * Resolve IMAP/SMTP server configuration. SMTP override (host[:port[:sec]])
+ * takes precedence; otherwise SMTP is guessed from the IMAP host (existing
+ * behaviour). When neither IMAP nor SMTP is custom, auto-discover from
+ * provider table. Closes #634 for asymmetric SMTP/IMAP topologies.
  */
 function resolveServerConfig(
   email: string,
   customImapHost?: string,
-  customImapPort?: number
+  customImapPort?: number,
+  customSmtpHost?: string,
+  customSmtpPort?: number,
+  customSmtpSecurity?: SmtpSecurity
 ): { imap: ServerConfig; smtp: ServerConfig } | null {
   if (customImapHost) {
     // Default to standard implicit-TLS IMAPS (993). A non-993 port is
     // treated as plaintext/STARTTLS -- the common shape for a local proxy.
     const port = customImapPort ?? 993
     const imap = { host: customImapHost, port, secure: port === 993 }
-    // Guess SMTP from IMAP host
-    const smtp = { host: customImapHost.replace('imap.', 'smtp.'), port: 587, secure: false }
+    const smtp = customSmtpHost
+      ? buildSmtpConfig(customSmtpHost, customSmtpPort, customSmtpSecurity)
+      : // Guess SMTP from IMAP host (legacy)
+        { host: customImapHost.replace('imap.', 'smtp.'), port: 587, secure: false }
     return { imap, smtp }
   }
 
+  // No custom IMAP — env-var SMTP override is still honoured for accounts
+  // whose provider IS auto-discoverable but whose SMTP MUST route elsewhere
+  // (rare; primary use is corporate IMAP+SMTP both custom).
   const discovered = discoverSettings(email)
   if (!discovered) {
-    console.error('Cannot auto-discover settings for the provided email. Use format: email:password:imap.server.com')
+    if (customSmtpHost) {
+      console.error(
+        'Cannot auto-discover IMAP for the provided email. Custom SMTP alone is not enough — provide IMAP host too: email:password:imap.server.com:993:smtp.server.com:587:starttls'
+      )
+    } else {
+      console.error('Cannot auto-discover settings for the provided email. Use format: email:password:imap.server.com')
+    }
     return null
   }
-  return discovered
+  const smtp = customSmtpHost ? buildSmtpConfig(customSmtpHost, customSmtpPort, customSmtpSecurity) : discovered.smtp
+  return { imap: discovered.imap, smtp }
 }
 
 /**
@@ -247,10 +351,18 @@ async function parseSingleCredential(entry: string): Promise<AccountConfig | nul
     return null
   }
 
-  const { password, customImapHost, customImapPort } = parsePasswordAndHost(parts)
+  const { password, customImapHost, customImapPort, customSmtpHost, customSmtpPort, customSmtpSecurity } =
+    parsePasswordAndHost(parts)
 
-  // Auto-discover or use custom host
-  const servers = resolveServerConfig(email, customImapHost, customImapPort)
+  // Auto-discover or use custom host (SMTP override applied if provided)
+  const servers = resolveServerConfig(
+    email,
+    customImapHost,
+    customImapPort,
+    customSmtpHost,
+    customSmtpPort,
+    customSmtpSecurity
+  )
   if (!servers) return null
 
   const account: AccountConfig = {
@@ -278,6 +390,11 @@ async function parseSingleCredential(entry: string): Promise<AccountConfig | nul
  * - Simple: email1:password1,email2:password2
  * - Custom IMAP host: email1:password1:imap.custom.com,email2:password2
  * - Custom IMAP host + port: email:password:imap.custom.com:1993
+ * - Custom IMAP + SMTP (closes #634): email:password:imap.custom.com:993:smtp.custom.com:587:starttls
+ *   - SMTP host alone: email:password:imap.custom.com:993:smtp.custom.com (port 587, starttls)
+ *   - SMTP host + port: email:password:imap.custom.com:993:smtp.custom.com:587 (starttls)
+ *   - SMTP security keyword: `tls` / `ssl` (implicit TLS, default port 465) |
+ *     `starttls` (STARTTLS upgrade, default port 587) | `none` (plain, port 25)
  * - Local IMAP proxy: email:password:localhost:1993 (the literal `localhost`
  *   is accepted as a host even though it has no dot; each account may use its
  *   own host and port)
