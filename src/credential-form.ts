@@ -544,6 +544,10 @@ export function renderEmailCredentialForm(
                     }
                     card.remove();
                     updateAccountNumbers();
+
+                    // Return focus to the "Add Another Account" button after a card is removed
+                    // to prevent keyboard focus from being dropped back to the document body.
+                    if (addBtn) addBtn.focus();
                 });
                 header.appendChild(removeBtn);
                 card.appendChild(header);
@@ -704,8 +708,14 @@ export function renderEmailCredentialForm(
             updateAccountNumbers();
 
             addBtn.addEventListener("click", function () {
-                container.appendChild(createAccountCard(accountIndex++));
+                var newCard = createAccountCard(accountIndex++);
+                container.appendChild(newCard);
                 updateAccountNumbers();
+
+                // Immediately focus the first input field of the new card
+                // so keyboard users can seamlessly start typing.
+                var firstInput = newCard.querySelector("input");
+                if (firstInput) firstInput.focus();
             });
 
             form.addEventListener("submit", function (evt) {

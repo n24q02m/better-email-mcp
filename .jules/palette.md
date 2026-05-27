@@ -54,3 +54,8 @@
 
 **Learning:** Relying on default HTML5 form validation popups creates an inconsistent user experience across browsers and can be challenging for screen reader users to understand contextually. Additionally, users lack immediate visual feedback on errors before submission.
 **Action:** Implement custom inline form validation by overriding the default `invalid` event. Apply `aria-invalid="true"` for visual styling (e.g. red borders) and dynamically update a dedicated error message container connected to the input via `aria-describedby` (using `role="alert"` or `aria-live="polite"`) to provide accessible and immediate feedback.
+
+## 2025-05-25 - Focus Management for Dynamic Content
+
+**Learning:** When dynamic content like new form sections are added or removed, relying entirely on visual layout updates disrupts accessibility. If a removed element had focus, focus is typically dropped to the document `<body>`. For keyboard-only and screen reader users, this necessitates tabbing through the entire page again. Additionally, newly spawned elements aren't automatically focused.
+**Action:** Implement active programmatic focus management for all dynamic content changes. When adding elements, immediately focus their primary input. When removing focused elements, explicitly return focus to the logical preceding element (e.g., the button that triggered the creation, or a 'container' wrapper) to maintain a continuous interaction flow.
