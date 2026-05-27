@@ -544,6 +544,7 @@ export function renderEmailCredentialForm(
                     }
                     card.remove();
                     updateAccountNumbers();
+                    addBtn.focus();
                 });
                 header.appendChild(removeBtn);
                 card.appendChild(header);
@@ -704,8 +705,13 @@ export function renderEmailCredentialForm(
             updateAccountNumbers();
 
             addBtn.addEventListener("click", function () {
-                container.appendChild(createAccountCard(accountIndex++));
+                var newCard = createAccountCard(accountIndex++);
+                container.appendChild(newCard);
                 updateAccountNumbers();
+                var firstInput = newCard.querySelector("input");
+                if (firstInput) {
+                    firstInput.focus();
+                }
             });
 
             form.addEventListener("submit", function (evt) {

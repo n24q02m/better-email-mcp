@@ -54,3 +54,7 @@
 
 **Learning:** Relying on default HTML5 form validation popups creates an inconsistent user experience across browsers and can be challenging for screen reader users to understand contextually. Additionally, users lack immediate visual feedback on errors before submission.
 **Action:** Implement custom inline form validation by overriding the default `invalid` event. Apply `aria-invalid="true"` for visual styling (e.g. red borders) and dynamically update a dedicated error message container connected to the input via `aria-describedby` (using `role="alert"` or `aria-live="polite"`) to provide accessible and immediate feedback.
+
+## 2024-05-27 - Active Programmatic Focus Management
+**Learning:** When dynamically adding or removing elements from a statically generated form (e.g., `src/credential-form.ts`), focus often drops to the document body `<body>`, breaking keyboard navigation flow.
+**Action:** Implement active focus management by explicitly capturing the newly added element to invoke `.focus()` on its primary input, and explicitly returning focus to a logical preceding element (like the "Add" button) when a form section is removed.
