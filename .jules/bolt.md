@@ -30,3 +30,7 @@
 ## 2024-05-18 - Bigram Caching for Static Valid Options
 **Learning:** In string matching algorithms like `findClosestMatch` that compare user input against a static list of valid options, recomputing bigrams for the static options on every invocation is a significant overhead, especially since the number of valid options is small and fixed (e.g., tool names like "messages", "folders").
 **Action:** Always look for opportunities to pre-compute and cache derived data (like bigrams or regular expressions) for static, bounded sets to convert repeated allocations and string operations into fast memory lookups. A simple `Map` reduced the overhead for fuzzy matching by ~2.5x.
+
+## 2026-05-28 - [Advanced Bigram Caching and Overlap Optimization]
+**Learning:** In string similarity algorithms like Sorensen-Dice, performance can be further enhanced beyond basic caching by also caching normalized (lowercase) strings and optimizing the set intersection. Iterating over the smaller set for overlap calculation reduces the number of lookups.
+**Action:** When implementing set-based similarity, always iterate over the smaller set to find the intersection. Store all reusable derived states (e.g., lowercase version and bigram set) in a single cache object to minimize map lookups and redundant string operations.
