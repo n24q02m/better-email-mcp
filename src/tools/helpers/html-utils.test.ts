@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { escapeHtml, fastExtractSnippet, htmlToCleanText } from './html-utils.js'
+import { escapeHtml, fastExtractSnippet, htmlToCleanText, sanitizeHtml } from './html-utils.js'
 
 describe('escapeHtml', () => {
   it('escapes &, <, >, ", and \'', () => {
@@ -231,5 +231,33 @@ describe('fastExtractSnippet', () => {
     expect(result).toContain('A')
     expect(result).toContain('B')
     expect(result).toContain('C')
+  })
+})
+
+describe('sanitizeHtml', () => {
+  it('sanitizes basic HTML', () => {
+    const html = '<p>Hello <script>alert("xss")</script><b>World</b></p>'
+    const result = sanitizeHtml(html)
+    expect(result).toBe('<p>Hello <b>World</b></p>')
+  })
+
+  it('allows custom options', () => {
+    const html = '<div><custom>Hello</custom></div>'
+    const options = {
+      allowedTags: ['div', 'custom']
+    }
+    const result = sanitizeHtml(html, options)
+    expect(result).toBe('<div><custom>Hello</custom></div>')
+  })
+
+  it('handles a very large string without crashing (performance test)', () => {
+    const largeString = `<p>${'a'.repeat(1000000)}</p>`
+    const startTime = Date.now()
+    const result = sanitizeHtml(largeString)
+    const endTime = Date.now()
+
+    expect(result).toBe(largeString)
+    // Ensure it finishes in a reasonable time (e.g., < 1 second for 1MB)
+    expect(endTime - startTime).toBeLessThan(1000)
   })
 })
