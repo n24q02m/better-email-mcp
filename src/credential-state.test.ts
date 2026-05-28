@@ -89,6 +89,20 @@ describe('credential-state', () => {
     })
   })
 
+  describe('setSetupUrl', () => {
+    it('sets the setup URL', () => {
+      const url = 'http://localhost:3000/setup'
+      mod.setSetupUrl(url)
+      expect(mod.getSetupUrl()).toBe(url)
+    })
+
+    it('allows clearing the setup URL with null', () => {
+      mod.setSetupUrl('http://localhost:3000/setup')
+      mod.setSetupUrl(null)
+      expect(mod.getSetupUrl()).toBeNull()
+    })
+  })
+
   describe('resolveCredentialState', () => {
     it('returns configured when EMAIL_CREDENTIALS env is set', async () => {
       process.env.EMAIL_CREDENTIALS = 'user@gmail.com:pass'
