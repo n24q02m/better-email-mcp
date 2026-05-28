@@ -30,3 +30,7 @@
 ## 2024-05-18 - Bigram Caching for Static Valid Options
 **Learning:** In string matching algorithms like `findClosestMatch` that compare user input against a static list of valid options, recomputing bigrams for the static options on every invocation is a significant overhead, especially since the number of valid options is small and fixed (e.g., tool names like "messages", "folders").
 **Action:** Always look for opportunities to pre-compute and cache derived data (like bigrams or regular expressions) for static, bounded sets to convert repeated allocations and string operations into fast memory lookups. A simple `Map` reduced the overhead for fuzzy matching by ~2.5x.
+
+## 2026-05-28 - [Use asynchronous file reading in saveTokens]
+**Learning:** Synchronous file operations like `readFileSync`, `writeFileSync`, and `mkdirSync` block the event loop, which can lead to significant performance bottlenecks in high-concurrency Node.js applications. This is especially critical in I/O-heavy operations like token management.
+**Action:** Always prefer asynchronous file operations (`readFile`, `writeFile`, `mkdir`) from `node:fs/promises` in production code. Update all callers in the call chain to be `async` and use `await` to ensure the application remains responsive during disk I/O.

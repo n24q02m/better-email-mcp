@@ -6,8 +6,8 @@
  * persistent token storage, and automatic token refresh.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { tryOpenBrowser } from '@n24q02m/mcp-core'
@@ -130,15 +130,15 @@ export async function loadStoredTokens(email: string): Promise<OAuth2Tokens | nu
  * Persist OAuth2 tokens to disk.
  * Creates config directory if needed. File permissions: 0600.
  */
-export function saveTokens(email: string, tokens: OAuth2Tokens): void {
+export async function saveTokens(email: string, tokens: OAuth2Tokens): Promise<void> {
   if (!existsSync(CONFIG_DIR)) {
-    mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 })
+    await mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 })
   }
 
   let store: TokenStore = cachedTokenStore || {}
   try {
     if (!cachedTokenStore && existsSync(TOKEN_FILE)) {
-      store = JSON.parse(readFileSync(TOKEN_FILE, 'utf-8'))
+      store = JSON.parse(await readFile(TOKEN_FILE, 'utf-8'))
     }
   } catch {
     // Start fresh if file is corrupted
@@ -147,7 +147,7 @@ export function saveTokens(email: string, tokens: OAuth2Tokens): void {
 
   store[email.toLowerCase()] = tokens
   cachedTokenStore = store
-  writeFileSync(TOKEN_FILE, JSON.stringify(store, null, 2), { mode: 0o600 })
+  await writeFile(TOKEN_FILE, JSON.stringify(store, null, 2), { mode: 0o600 })
 }
 
 /**
@@ -278,7 +278,7 @@ function startBackgroundPoll(
 
       if (data.access_token) {
         const now = Math.floor(Date.now() / MS_PER_SECOND)
-        saveTokens(email, {
+        await saveTokens(email, {
           accessToken: data.access_token,
           refreshToken: data.refresh_token,
           expiresAt: now + data.expires_in,
@@ -433,7 +433,7 @@ export async function ensureValidToken(account: { email: string; oauth2?: OAuth2
   }
 
   // Persist updated tokens
-  saveTokens(account.email, account.oauth2)
+  await saveTokens(account.email, account.oauth2)
 
   return newTokens.access_token
 }
@@ -454,7 +454,7 @@ export async function saveOutlookTokens(tokens: Record<string, unknown>): Promis
   const email = typeof tokens.email === 'string' ? tokens.email : (process.env.OUTLOOK_EMAIL ?? 'outlook-device-code')
   const now = Math.floor(Date.now() / MS_PER_SECOND)
   const expiresIn = typeof tokens.expires_in === 'number' ? tokens.expires_in : 3600
-  saveTokens(email, {
+  await saveTokens(email, {
     accessToken: typeof tokens.access_token === 'string' ? tokens.access_token : '',
     refreshToken: typeof tokens.refresh_token === 'string' ? tokens.refresh_token : '',
     expiresAt: now + expiresIn,
@@ -503,7 +503,7 @@ export async function deviceCodeAuth(email: string, clientId?: string): Promise<
         clientId: resolvedClientId
       }
 
-      saveTokens(email, tokens)
+      await saveTokens(email, tokens)
       console.error(`\nSuccess! Token saved for ${email}`)
       return tokens
     }
