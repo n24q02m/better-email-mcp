@@ -1,0 +1,42 @@
+<<<<<<< SEARCH
+/**
+ * Sanitize error object to remove sensitive information (passwords, tokens)
+ */
+function sanitizeErrorDetails(error: unknown): unknown {
+  if (error === null || typeof error !== 'object') {
+    return error
+  }
+
+  const errObj = error as Record<string, unknown>
+  const safe: Record<string, unknown> = {}
+
+  if ('message' in errObj) safe.message = errObj.message
+  if ('name' in errObj) safe.name = errObj.name
+  if ('code' in errObj) safe.code = errObj.code
+  if ('status' in errObj) safe.status = errObj.status
+  if ('responseCode' in errObj) safe.responseCode = errObj.responseCode
+
+  return safe
+}
+=======
+/**
+ * Sanitize error object to remove sensitive information (passwords, tokens)
+ */
+export function sanitizeErrorDetails(error: unknown): unknown {
+  if (error === null || typeof error !== 'object') {
+    return error
+  }
+
+  const errObj = error as Record<string, unknown>
+  const safe: Record<string, unknown> = {}
+
+  const fields = ['message', 'name', 'code', 'status', 'responseCode']
+  for (const field of fields) {
+    if (field in errObj) {
+      safe[field] = errObj[field]
+    }
+  }
+
+  return safe
+}
+>>>>>>> REPLACE

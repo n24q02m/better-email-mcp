@@ -28,7 +28,7 @@ export class EmailMCPError extends Error {
 /**
  * Sanitize error object to remove sensitive information (passwords, tokens)
  */
-function sanitizeErrorDetails(error: unknown): unknown {
+export function sanitizeErrorDetails(error: unknown): unknown {
   if (error === null || typeof error !== 'object') {
     return error
   }
@@ -36,11 +36,12 @@ function sanitizeErrorDetails(error: unknown): unknown {
   const errObj = error as Record<string, unknown>
   const safe: Record<string, unknown> = {}
 
-  if ('message' in errObj) safe.message = errObj.message
-  if ('name' in errObj) safe.name = errObj.name
-  if ('code' in errObj) safe.code = errObj.code
-  if ('status' in errObj) safe.status = errObj.status
-  if ('responseCode' in errObj) safe.responseCode = errObj.responseCode
+  const fields = ['message', 'name', 'code', 'status', 'responseCode']
+  for (const field of fields) {
+    if (field in errObj) {
+      safe[field] = errObj[field]
+    }
+  }
 
   return safe
 }
@@ -274,7 +275,7 @@ export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
 ): (...args: Parameters<T>) => Promise<ReturnType<T>> {
   return async (...args: Parameters<T>): Promise<ReturnType<T>> => {
     try {
-      return await fn(...args)
+      return (await fn(...args)) as ReturnType<T>
     } catch (error) {
       throw enhanceError(error)
     }
