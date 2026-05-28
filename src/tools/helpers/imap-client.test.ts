@@ -46,6 +46,7 @@ import { ImapFlow } from 'imapflow'
 import { simpleParser } from 'mailparser'
 import {
   appendToFolder,
+  clearSentFolderCache,
   getAttachment,
   listFolders,
   modifyFlags,
@@ -1012,5 +1013,36 @@ describe('OAuth2 IMAP authentication', () => {
     await listFolders(account)
 
     expect(ensureValidToken).not.toHaveBeenCalled()
+  })
+})
+
+// ============================================================================
+// clearSentFolderCache
+// ============================================================================
+
+describe('clearSentFolderCache', () => {
+  it('returns 0 when the cache is empty', () => {
+    // Ensure cache is empty
+    clearSentFolderCache()
+
+    const count = clearSentFolderCache()
+    expect(count).toBe(0)
+  })
+
+  it('returns the correct count and clears the cache after resolveSentFolder', async () => {
+    // Clear initial state
+    clearSentFolderCache()
+
+    mockClient.list.mockResolvedValue([{ name: 'Sent', path: 'Sent', flags: new Set(['\\Sent']), delimiter: '/' }])
+
+    // Populate cache
+    await resolveSentFolder(account)
+    await resolveSentFolder({ ...account, id: 'another-account' })
+
+    const count = clearSentFolderCache()
+    expect(count).toBe(2)
+
+    // Verify it is empty
+    expect(clearSentFolderCache()).toBe(0)
   })
 })
