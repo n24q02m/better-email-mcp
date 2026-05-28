@@ -246,10 +246,6 @@ describe('http transport', () => {
       // → form spinner stuck on "Waiting for Microsoft authorization..."
       // forever even though tokens were persisted to disk.
       //
-      // Fix: device-code ``onComplete`` callback in ``initiateOutlookOAuth``
-      // must invoke ``getMarkSetupComplete()?.("outlook")`` AFTER ``saveTokens``
-      // returns (mcp-core's default ``mark_setup_complete()`` uses key
-      // "gdrive" -- email plugin must explicitly pass "outlook").
       const mockAccounts = [{ email: 'test@outlook.com', imap: {}, authType: 'oauth2' }]
       vi.mocked(parseCredentials).mockResolvedValue(mockAccounts as any)
       vi.mocked(isOutlookDomain).mockReturnValue(true)
