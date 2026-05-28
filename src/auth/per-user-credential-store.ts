@@ -115,6 +115,40 @@ export function hashUserId(userId: string): string {
   return createHash('sha256').update(userId).digest('hex').slice(0, 16)
 }
 
+function isValidServerConfig(obj: unknown): obj is import('../tools/helpers/config.js').ServerConfig {
+  if (!obj || typeof obj !== 'object') return false
+  const s = obj as Record<string, unknown>
+  return typeof s.host === 'string' && typeof s.port === 'number' && typeof s.secure === 'boolean'
+}
+
+function isValidOAuth2Tokens(obj: unknown): obj is import('../tools/helpers/oauth2.js').OAuth2Tokens {
+  if (!obj || typeof obj !== 'object') return false
+  const t = obj as Record<string, unknown>
+  return (
+    typeof t.accessToken === 'string' &&
+    typeof t.refreshToken === 'string' &&
+    typeof t.expiresAt === 'number' &&
+    typeof t.clientId === 'string'
+  )
+}
+
+function isValidAccountConfig(obj: unknown): obj is AccountConfig {
+  if (!obj || typeof obj !== 'object') return false
+  const a = obj as Record<string, unknown>
+  const basic = typeof a.id === 'string' && typeof a.email === 'string' && typeof a.password === 'string'
+  if (!basic) return false
+
+  if (a.authType !== undefined && a.authType !== 'password' && a.authType !== 'oauth2') return false
+  if (!isValidServerConfig(a.imap) || !isValidServerConfig(a.smtp)) return false
+  if (a.oauth2 !== undefined && !isValidOAuth2Tokens(a.oauth2)) return false
+
+  return true
+}
+
+function isValidAccountConfigs(obj: unknown): obj is AccountConfig[] {
+  return Array.isArray(obj) && obj.every(isValidAccountConfig)
+}
+
 /**
  * Store per-user email account configs encrypted on disk.
  */
@@ -160,7 +194,10 @@ export async function loadUserCredentials(userId: string): Promise<AccountConfig
       new Uint8Array(ciphertext)
     )
     const parsed = JSON.parse(new TextDecoder().decode(decrypted))
-    return parsed.accounts as AccountConfig[]
+    if (!isValidAccountConfigs(parsed.accounts)) {
+      throw new Error('Invalid account configuration in stored credentials')
+    }
+    return parsed.accounts
   } catch (err: unknown) {
     if (err && typeof err === 'object' && 'code' in err && err.code === 'ENOENT') return null
     throw err
@@ -205,7 +242,7 @@ export async function loadAllUserCredentials(): Promise<Map<string, AccountConfi
         new Uint8Array(ciphertext)
       )
       const parsed = JSON.parse(new TextDecoder().decode(decrypted))
-      if (parsed.userId && Array.isArray(parsed.accounts)) {
+      if (typeof parsed.userId === 'string' && isValidAccountConfigs(parsed.accounts)) {
         result.set(parsed.userId, parsed.accounts)
       }
     } catch (err: unknown) {

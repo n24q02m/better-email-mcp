@@ -393,5 +393,58 @@ describe('per-user-credential-store', () => {
       expect(all.has('bad-accounts')).toBe(false)
       spy.mockRestore()
     })
+
+    it('should skip entries with invalid server config in JSON', async () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const invalidDir = join(_paths.DATA_DIR, 'bad-server')
+      mkdirSync(invalidDir, { recursive: true })
+
+      // Manual encryption of invalid payload (missing imap.port)
+      const secret = await _getSecret()
+      const key = await _deriveKey(secret, 'bad-server')
+      const iv = crypto.getRandomValues(new Uint8Array(12))
+      const payload = JSON.stringify({
+        userId: 'bad-server',
+        accounts: [
+          {
+            id: '1',
+            email: 'a@b.com',
+            password: 'p',
+            imap: { host: 'h', secure: true }, // missing port
+            smtp: { host: 'h', port: 1, secure: true }
+          }
+        ]
+      })
+      const plaintext = new TextEncoder().encode(payload)
+      const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext)
+      const combined = Buffer.concat([iv, Buffer.from(encrypted)])
+      const { writeFileSync } = await import('node:fs')
+      writeFileSync(join(invalidDir, 'credentials.enc'), combined)
+
+      const all = await loadAllUserCredentials()
+      expect(all.has('bad-server')).toBe(false)
+      spy.mockRestore()
+    })
+  })
+
+  describe('load validation', () => {
+    it('should throw when loading individual user with malformed data', async () => {
+      const userId = 'malformed-user'
+      const dirHash = hashUserId(userId)
+      const userDir = join(_paths.DATA_DIR, dirHash)
+      mkdirSync(userDir, { recursive: true })
+
+      const secret = await _getSecret()
+      const key = await _deriveKey(secret, dirHash)
+      const iv = crypto.getRandomValues(new Uint8Array(12))
+      const payload = JSON.stringify({ userId, accounts: [{ email: 'missing-fields' }] })
+      const plaintext = new TextEncoder().encode(payload)
+      const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext)
+      const combined = Buffer.concat([iv, Buffer.from(encrypted)])
+      const { writeFileSync } = await import('node:fs')
+      writeFileSync(join(userDir, 'credentials.enc'), combined)
+
+      await expect(loadUserCredentials(userId)).rejects.toThrow('Invalid account configuration')
+    })
   })
 })
