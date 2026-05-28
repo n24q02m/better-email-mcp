@@ -9,3 +9,7 @@
 **Vulnerability:** The statically generated HTML form `renderEmailCredentialForm` lacked a `Content-Security-Policy` meta tag, making it more susceptible to potential Cross-Site Scripting (XSS) or data exfiltration if an injection vulnerability existed elsewhere.
 **Learning:** Defense-in-depth requires statically generated HTML to enforce strict CSP, even if user input is properly escaped.
 **Prevention:** Include a strict CSP meta tag (`default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'`) in statically served forms to mitigate the impact of injection flaws.
+## 2026-05-28 - Unvalidated JSON Parsing in OAuth Token Store
+**Vulnerability:** The OAuth token store was parsing JSON from disk and immediately caching it without validating its structure. If the file was corrupted or maliciously modified to be valid JSON but missing required fields (like `accessToken`), consumers would crash or behave unexpectedly.
+**Learning:** Always use structural validation (type guards) when reading persistent state or external data, even if it was previously written by the application itself.
+**Prevention:** Implement `isValidTokens` and `isValidTokenStore` type guards to ensure data integrity before caching.

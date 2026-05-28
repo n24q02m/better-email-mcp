@@ -70,6 +70,29 @@ interface TokenResponse {
   error_description?: string
 }
 
+/**
+ * Type guard to validate OAuth2Tokens structure
+ */
+export function isValidTokens(data: unknown): data is OAuth2Tokens {
+  if (!data || typeof data !== 'object' || data === null) return false
+  const d = data as Record<string, unknown>
+  return (
+    typeof d.accessToken === 'string' &&
+    typeof d.refreshToken === 'string' &&
+    typeof d.expiresAt === 'number' &&
+    typeof d.clientId === 'string'
+  )
+}
+
+/**
+ * Type guard to validate TokenStore structure
+ */
+export function isValidTokenStore(data: unknown): data is TokenStore {
+  if (!data || typeof data !== 'object' || data === null || Array.isArray(data)) return false
+  const d = data as Record<string, unknown>
+  return Object.values(d).every(isValidTokens)
+}
+
 /** Outlook/Hotmail/Live domains that require OAuth2 */
 const OUTLOOK_DOMAINS = new Set(['outlook.com', 'hotmail.com', 'live.com'])
 
@@ -115,7 +138,10 @@ export async function loadStoredTokens(email: string): Promise<OAuth2Tokens | nu
     }
 
     const data = await readFile(TOKEN_FILE, 'utf-8')
-    const store: TokenStore = JSON.parse(data)
+    const store: unknown = JSON.parse(data)
+    if (!isValidTokenStore(store)) {
+      return null
+    }
     cachedTokenStore = store
     return store[email.toLowerCase()] || null
   } catch (err: unknown) {
@@ -138,7 +164,12 @@ export function saveTokens(email: string, tokens: OAuth2Tokens): void {
   let store: TokenStore = cachedTokenStore || {}
   try {
     if (!cachedTokenStore && existsSync(TOKEN_FILE)) {
-      store = JSON.parse(readFileSync(TOKEN_FILE, 'utf-8'))
+      const data: unknown = JSON.parse(readFileSync(TOKEN_FILE, 'utf-8'))
+      if (isValidTokenStore(data)) {
+        store = data
+      } else {
+        store = {}
+      }
     }
   } catch {
     // Start fresh if file is corrupted
