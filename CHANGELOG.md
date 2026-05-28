@@ -2,6 +2,35 @@
 
 <!-- version list -->
 
+## v1.31.0-beta.1 (2026-05-28)
+
+### Bug Fixes
+
+- **deps**: Update non-major dependencies
+  ([#630](https://github.com/n24q02m/better-email-mcp/pull/630),
+  [`14b0419`](https://github.com/n24q02m/better-email-mcp/commit/14b0419c4b82c79f2f300dca534d7402e23d7c05))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#631](https://github.com/n24q02m/better-email-mcp/pull/631),
+  [`2afb05a`](https://github.com/n24q02m/better-email-mcp/commit/2afb05a9aad210f7fc9f06170dba1c0ae32f37de))
+
+### Features
+
+- Add custom SMTP host/port/security to EMAIL_CREDENTIALS format
+  ([`da2bb54`](https://github.com/n24q02m/better-email-mcp/commit/da2bb54dea9fbdbc1c83313026ecee04b78b7dd1))
+
+- Add programmatic focus management to dynamic account form
+  ([#632](https://github.com/n24q02m/better-email-mcp/pull/632),
+  [`13470f7`](https://github.com/n24q02m/better-email-mcp/commit/13470f751106990f1fb3aba62d6b91a8a230a0ef))
+
+### Performance Improvements
+
+- **errors**: Cache bigrams for valid options in findClosestMatch
+  ([#633](https://github.com/n24q02m/better-email-mcp/pull/633),
+  [`aad8d78`](https://github.com/n24q02m/better-email-mcp/commit/aad8d781274121ebc66f13c3cfc788b3962ac982))
+
+
 ## v1.30.0 (2026-05-26)
 
 ### Chores
