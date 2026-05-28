@@ -325,31 +325,31 @@ export function renderEmailCredentialForm(
                 while (el.firstChild) el.removeChild(el.firstChild);
             }
 
-            function createFieldGroup(opts) {
-                var idx = opts.idx;
-                var key = opts.key;
-                var label = opts.label;
-                var type = opts.type;
-                var placeholder = opts.placeholder;
-                var required = opts.required;
-                var helpText = opts.helpText;
-                var helpUrl = opts.helpUrl;
-
-                var group = document.createElement("div");
+            function createFieldGroup({
+                idx,
+                key,
+                label,
+                type,
+                placeholder,
+                required,
+                helpText,
+                helpUrl
+            }) {
+                const group = document.createElement("div");
                 group.className = "field-group";
 
-                var labelEl = document.createElement("label");
+                const labelEl = document.createElement("label");
                 labelEl.className = "field-label";
                 labelEl.setAttribute("for", "field-" + key + "_" + idx);
                 labelEl.textContent = label;
                 if (!required) {
-                    var badge = document.createElement("span");
+                    const badge = document.createElement("span");
                     badge.className = "optional-badge";
                     badge.textContent = "Optional";
                     labelEl.appendChild(document.createTextNode(" "));
                     labelEl.appendChild(badge);
                 } else {
-                    var reqInd = document.createElement("span");
+                    const reqInd = document.createElement("span");
                     reqInd.className = "required-indicator";
                     reqInd.setAttribute("aria-hidden", "true");
                     reqInd.textContent = "*";
@@ -357,7 +357,7 @@ export function renderEmailCredentialForm(
                 }
                 group.appendChild(labelEl);
 
-                var input = document.createElement("input");
+                const input = document.createElement("input");
                 input.id = "field-" + key + "_" + idx;
                 input.className = "field-input";
                 input.setAttribute("type", type);
@@ -371,21 +371,21 @@ export function renderEmailCredentialForm(
                 if (required) input.setAttribute("required", "required");
                 group.appendChild(input);
 
-                var errorEl = document.createElement("div");
+                const errorEl = document.createElement("div");
                 errorEl.id = "error-" + key + "_" + idx;
                 errorEl.className = "field-error";
                 errorEl.setAttribute("role", "alert");
                 errorEl.setAttribute("aria-live", "polite");
 
-                var describedBy = [errorEl.id];
+                const describedBy = [errorEl.id];
 
                 if (helpText) {
-                    var help = document.createElement("p");
+                    const help = document.createElement("p");
                     help.id = "help-" + key + "_" + idx;
                     help.className = "help-text";
                     describedBy.push(help.id);
                     if (helpUrl) {
-                        var a = document.createElement("a");
+                        const a = document.createElement("a");
                         a.setAttribute("href", helpUrl);
                         a.setAttribute("target", "_blank");
                         a.setAttribute("rel", "noopener noreferrer");
@@ -402,7 +402,7 @@ export function renderEmailCredentialForm(
 
                 input.addEventListener("invalid", function (event) {
                     event.preventDefault();
-                    var inputEl = event.target;
+                    const inputEl = event.target;
                     inputEl.setAttribute("aria-invalid", "true");
                     if (inputEl.validity.valueMissing) {
                         errorEl.textContent = "This field is required.";
@@ -415,7 +415,7 @@ export function renderEmailCredentialForm(
                 });
 
                 input.addEventListener("input", function (event) {
-                    var inputEl = event.target;
+                    const inputEl = event.target;
                     if (inputEl.hasAttribute("aria-invalid")) {
                         inputEl.removeAttribute("aria-invalid");
                         errorEl.textContent = "";
@@ -423,7 +423,7 @@ export function renderEmailCredentialForm(
                     }
                 });
 
-                return { group: group, input: input };
+                return { group, input };
             }
 
             function updateAccountNumbers() {
@@ -457,8 +457,8 @@ export function renderEmailCredentialForm(
 
                 if (Object.prototype.hasOwnProperty.call(APP_PASSWORD_DOMAINS, domain)) {
                     var info = APP_PASSWORD_DOMAINS[domain];
-                    var pw = createFieldGroup({
-                        idx: idx,
+                    const pw = createFieldGroup({
+                        idx,
                         key: "password",
                         label: info.label,
                         type: "password",
@@ -472,8 +472,8 @@ export function renderEmailCredentialForm(
                     return;
                 }
 
-                var pwCustom = createFieldGroup({
-                    idx: idx,
+                const pwCustom = createFieldGroup({
+                    idx,
                     key: "password",
                     label: "Password",
                     type: "password",
@@ -485,8 +485,8 @@ export function renderEmailCredentialForm(
                 if (state && state.password) pwCustom.input.value = state.password;
                 extraContainer.appendChild(pwCustom.group);
 
-                var imap = createFieldGroup({
-                    idx: idx,
+                const imap = createFieldGroup({
+                    idx,
                     key: "imap",
                     label: "IMAP Host",
                     type: "text",
@@ -498,8 +498,8 @@ export function renderEmailCredentialForm(
                 if (state && state.imap) imap.input.value = state.imap;
                 extraContainer.appendChild(imap.group);
 
-                var imapPort = createFieldGroup({
-                    idx: idx,
+                const imapPort = createFieldGroup({
+                    idx,
                     key: "imapport",
                     label: "IMAP Port",
                     type: "text",
@@ -552,8 +552,8 @@ export function renderEmailCredentialForm(
                 header.appendChild(removeBtn);
                 card.appendChild(header);
 
-                var emailField = createFieldGroup({
-                    idx: idx,
+                const emailField = createFieldGroup({
+                    idx,
                     key: "email",
                     label: "Email Address",
                     type: "email",
