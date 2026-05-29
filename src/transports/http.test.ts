@@ -102,8 +102,8 @@ describe('http transport', () => {
   async function runStartHttpAndTriggerShutdown(fn?: () => Promise<void>) {
     const startPromise = startHttp()
 
-    // Give it some time to run up to the signal wait
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    // Wait for the server to start
+    await vi.waitFor(() => expect(runHttpServer).toHaveBeenCalled())
 
     if (fn) await fn()
 
@@ -141,7 +141,7 @@ describe('http transport', () => {
     beforeEach(async () => {
       // Start server and capture the callback
       startHttp()
-      await new Promise((resolve) => setTimeout(resolve, 50))
+      await vi.waitFor(() => expect(runHttpServer).toHaveBeenCalled())
       onCredentialsSaved = vi.mocked(runHttpServer).mock.calls[0][1].onCredentialsSaved
     })
 
@@ -383,7 +383,7 @@ describe('http transport', () => {
       vi.mocked(loadConfig).mockResolvedValue(mockAccounts as any)
 
       const startPromise = startHttp()
-      await new Promise((resolve) => setTimeout(resolve, 50))
+      await vi.waitFor(() => expect(runHttpServer).toHaveBeenCalled())
 
       const factory = vi.mocked(runHttpServer).mock.calls[0][0]
 
