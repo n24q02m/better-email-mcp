@@ -45,6 +45,8 @@ import {
   getClientId,
   initiateOutlookDeviceCode,
   isOutlookDomain,
+  isValidTokenStore,
+  isValidTokens,
   loadStoredTokens,
   refreshAccessToken,
   saveOutlookTokens,
@@ -840,6 +842,50 @@ describe('saveTokens edge cases', () => {
 // ============================================================================
 // loadStoredTokens with cached store
 // ============================================================================
+
+describe('loadStoredTokens validation', () => {
+  beforeEach(() => {
+    _resetTokenCache()
+    vi.clearAllMocks()
+  })
+
+  it('returns null and does not cache if token file is valid JSON but invalid structure', async () => {
+    mockReadFile.mockResolvedValue(JSON.stringify({ 'user@outlook.com': { accessToken: 'missing-others' } }))
+
+    const result = await loadStoredTokens('user@outlook.com')
+    expect(result).toBeNull()
+
+    // Should not have cached the invalid store
+    mockReadFile.mockResolvedValue(
+      JSON.stringify({
+        'user@outlook.com': {
+          accessToken: 'at',
+          refreshToken: 'rt',
+          expiresAt: 123,
+          clientId: 'cid'
+        }
+      })
+    )
+    const retry = await loadStoredTokens('user@outlook.com')
+    expect(retry).not.toBeNull()
+  })
+
+  it('isValidTokens validates structure correctly', () => {
+    expect(isValidTokens({ accessToken: 'a', refreshToken: 'r', expiresAt: 1, clientId: 'c' })).toBe(true)
+    expect(isValidTokens({ accessToken: 'a', refreshToken: 'r', expiresAt: '1', clientId: 'c' })).toBe(false)
+    expect(isValidTokens({ accessToken: 'a', refreshToken: 'r', clientId: 'c' })).toBe(false)
+    expect(isValidTokens(null)).toBe(false)
+    expect(isValidTokens('not-an-object')).toBe(false)
+  })
+
+  it('isValidTokenStore validates store correctly', () => {
+    const valid = { 'a@b.com': { accessToken: 'a', refreshToken: 'r', expiresAt: 1, clientId: 'c' } }
+    expect(isValidTokenStore(valid)).toBe(true)
+    expect(isValidTokenStore({ ...valid, 'x@y.com': { bad: true } })).toBe(false)
+    expect(isValidTokenStore([])).toBe(false)
+    expect(isValidTokenStore(null)).toBe(false)
+  })
+})
 
 describe('loadStoredTokens cached', () => {
   beforeEach(() => {
