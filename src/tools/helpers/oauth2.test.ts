@@ -47,6 +47,7 @@ import {
   isOutlookDomain,
   loadStoredTokens,
   refreshAccessToken,
+  saveOutlookTokens,
   saveTokens
 } from './oauth2.js'
 
@@ -1082,5 +1083,92 @@ describe('initiateOutlookDeviceCode', () => {
     })
 
     await expect(initiateOutlookDeviceCode('bad@outlook.com')).rejects.toThrow('Unknown client ID')
+  })
+})
+
+// ============================================================================
+// saveOutlookTokens
+// ============================================================================
+
+describe('saveOutlookTokens', () => {
+  const originalOutlookEmail = process.env.OUTLOOK_EMAIL
+  const originalClientId = process.env.OUTLOOK_CLIENT_ID
+
+  beforeEach(() => {
+    _resetTokenCache()
+    vi.clearAllMocks()
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(1000000 * 1000)) // 1,000,000 seconds
+    process.env.OUTLOOK_CLIENT_ID = 'default-cid'
+  })
+
+  afterEach(() => {
+    process.env.OUTLOOK_EMAIL = originalOutlookEmail
+    process.env.OUTLOOK_CLIENT_ID = originalClientId
+    vi.useRealTimers()
+  })
+
+  it('saves tokens with email from input', async () => {
+    const tokens = {
+      email: 'user@outlook.com',
+      access_token: 'at-123',
+      refresh_token: 'rt-123',
+      expires_in: 7200,
+      client_id: 'custom-cid'
+    }
+
+    await saveOutlookTokens(tokens)
+
+    expect(mockWriteFileSync).toHaveBeenCalled()
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['user@outlook.com']).toEqual({
+      accessToken: 'at-123',
+      refreshToken: 'rt-123',
+      expiresAt: 1000000 + 7200,
+      clientId: 'custom-cid'
+    })
+  })
+
+  it('uses process.env.OUTLOOK_EMAIL if tokens.email is missing', async () => {
+    process.env.OUTLOOK_EMAIL = 'env@outlook.com'
+    const tokens = {
+      access_token: 'at-env',
+      refresh_token: 'rt-env'
+    }
+
+    await saveOutlookTokens(tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['env@outlook.com']).toBeDefined()
+    expect(written['env@outlook.com'].accessToken).toBe('at-env')
+  })
+
+  it('falls back to outlook-device-code if both email sources are missing', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    const tokens = {
+      access_token: 'at-fallback'
+    }
+
+    await saveOutlookTokens(tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['outlook-device-code']).toBeDefined()
+  })
+
+  it('uses default values for missing fields', async () => {
+    const tokens = {
+      email: 'defaults@outlook.com'
+      // missing access_token, refresh_token, expires_in, client_id
+    }
+
+    await saveOutlookTokens(tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['defaults@outlook.com']).toEqual({
+      accessToken: '',
+      refreshToken: '',
+      expiresAt: 1000000 + 3600, // default 1 hour
+      clientId: 'default-cid'
+    })
   })
 })
