@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.31.1 (2026-05-29)
+
+### Bug Fixes
+
+- Pin mcp-core 1.17.0 (stable OAuth refresh_token)
+  ([`9134e6c`](https://github.com/n24q02m/better-email-mcp/commit/9134e6c46ba60143432921117f4676e7f4a1a745))
+
+
 ## v1.31.1-beta.1 (2026-05-29)
 
 ### Bug Fixes
