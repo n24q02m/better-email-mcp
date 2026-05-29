@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.31.2 (2026-05-29)
+
+### Bug Fixes
+
+- Pin mcp-core 1.17.1 (BearerMCPApp resource_metadata #260)
+  ([`81defe5`](https://github.com/n24q02m/better-email-mcp/commit/81defe5d81ffbac007fe8a00bf7bc59fae4a09ea))
+
+
 ## v1.31.1 (2026-05-29)
 
 ### Bug Fixes
