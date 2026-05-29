@@ -46,8 +46,8 @@ export async function _getSecret(): Promise<string> {
 }
 
 /** Exposed for testing */
-export async function _deriveKey(secret: string, userId = ''): Promise<CryptoKey> {
-  return deriveKey(secret, userId)
+export async function _deriveKey(secret: string, userId = '', iterations?: number): Promise<CryptoKey> {
+  return deriveKey(secret, userId, iterations)
 }
 
 let secretPromise: Promise<string> | null = null
@@ -92,7 +92,7 @@ async function getSecret(): Promise<string> {
   return secretPromise
 }
 
-async function deriveKey(secret: string, userId = ''): Promise<CryptoKey> {
+async function deriveKey(secret: string, userId = '', iterations?: number): Promise<CryptoKey> {
   const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), 'PBKDF2', false, [
     'deriveKey'
   ])
@@ -101,7 +101,7 @@ async function deriveKey(secret: string, userId = ''): Promise<CryptoKey> {
       name: 'PBKDF2',
       hash: 'SHA-256',
       salt: new TextEncoder().encode(`mcp-email-per-user:${userId || 'default'}`),
-      iterations: process.env.VITEST ? 1000 : 600_000
+      iterations: iterations ?? (process.env.NODE_ENV === 'test' ? 1000 : 600_000)
     },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
