@@ -2,6 +2,56 @@
 
 <!-- version list -->
 
+## v1.31.1-beta.1 (2026-05-29)
+
+### Bug Fixes
+
+- Add clearSentFolderCache tests for imap-client
+  ([#642](https://github.com/n24q02m/better-email-mcp/pull/642),
+  [`d6d090b`](https://github.com/n24q02m/better-email-mcp/commit/d6d090b7020a97dd728348e444bdee14c8d0b3e8))
+
+- Add registry coverage tests ([#655](https://github.com/n24q02m/better-email-mcp/pull/655),
+  [`ae5df41`](https://github.com/n24q02m/better-email-mcp/commit/ae5df417bdfc286a9f2861f875292be9bc79d860))
+
+- Add saveOutlookTokens tests for oauth2 helper
+  ([#647](https://github.com/n24q02m/better-email-mcp/pull/647),
+  [`18c3426`](https://github.com/n24q02m/better-email-mcp/commit/18c3426f80891dd4318adece3658dd8eda6bd6db))
+
+- Add setSetupUrl tests for credential-state
+  ([#637](https://github.com/n24q02m/better-email-mcp/pull/637),
+  [`1dc9717`](https://github.com/n24q02m/better-email-mcp/commit/1dc971787ab1a44d3e38f8f6f3123358fa8341be))
+
+- Add subject-context auth scope tests
+  ([#638](https://github.com/n24q02m/better-email-mcp/pull/638),
+  [`245f7f7`](https://github.com/n24q02m/better-email-mcp/commit/245f7f76bb625a03f8b518b114687b01f50a4e96))
+
+- Bump mcp-core to 1.17.0-beta.1 for OAuth refresh_token
+  ([`4613668`](https://github.com/n24q02m/better-email-mcp/commit/4613668a5a57532a98731048075b5d8f1b19f079))
+
+- Lock file maintenance ([#660](https://github.com/n24q02m/better-email-mcp/pull/660),
+  [`7194528`](https://github.com/n24q02m/better-email-mcp/commit/7194528a65431753ad76ff1311f59202b1a7d2cc))
+
+- Replace setTimeout with vi.waitFor in http transport tests
+  ([#641](https://github.com/n24q02m/better-email-mcp/pull/641),
+  [`3a79624`](https://github.com/n24q02m/better-email-mcp/commit/3a796248dcf953363637236029e0bce1588eac2a))
+
+- Update dependency @n24q02m/mcp-core to v1.16.0
+  ([#659](https://github.com/n24q02m/better-email-mcp/pull/659),
+  [`3979e33`](https://github.com/n24q02m/better-email-mcp/commit/3979e336f5648bf931e2c102032b04b07563014f))
+
+- Use NODE_ENV check for PBKDF2 test-mode iteration downgrade
+  ([#640](https://github.com/n24q02m/better-email-mcp/pull/640),
+  [`c6cd4a3`](https://github.com/n24q02m/better-email-mcp/commit/c6cd4a32b1326c1248bf5020c578d0b14a9f299b))
+
+- Validate decrypted credential JSON with type guards
+  ([#649](https://github.com/n24q02m/better-email-mcp/pull/649),
+  [`11650ae`](https://github.com/n24q02m/better-email-mcp/commit/11650ae15d5c537264d7a95426c7fd251bc151bf))
+
+- Validate OAuth token store structure before caching
+  ([#646](https://github.com/n24q02m/better-email-mcp/pull/646),
+  [`df8d535`](https://github.com/n24q02m/better-email-mcp/commit/df8d53505182b8e729bce815b88f0268ca3e8dfa))
+
+
 ## v1.31.0 (2026-05-28)
 
 
