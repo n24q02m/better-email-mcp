@@ -720,6 +720,18 @@ export function renderEmailCredentialForm(
 
             form.addEventListener("submit", function (evt) {
                 evt.preventDefault();
+
+                if (!form.checkValidity()) {
+                    // Focus the first invalid input for keyboard and screen reader accessibility.
+                    // We must specifically target inputs/selects/textareas to avoid focusing
+                    // container elements like fieldsets which also match :invalid.
+                    var invalidInputs = form.querySelectorAll("input:invalid, select:invalid, textarea:invalid");
+                    if (invalidInputs.length > 0) {
+                        invalidInputs[0].focus();
+                    }
+                    return;
+                }
+
                 statusBox.style.display = "none";
 
                 var collected = collectAccounts();
