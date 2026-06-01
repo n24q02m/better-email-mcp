@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.31.3 (2026-06-01)
+
+### Bug Fixes
+
+- Pin mcp-core 1.17.2 (stable)
+  ([`3a6e2ac`](https://github.com/n24q02m/better-email-mcp/commit/3a6e2ac9d9b3230775419f0a9b91f8dfe626bc94))
+
+
 ## v1.31.3-beta.1 (2026-06-01)
 
 ### Bug Fixes
