@@ -2,6 +2,25 @@
 
 <!-- version list -->
 
+## v1.31.3-beta.1 (2026-06-01)
+
+### Bug Fixes
+
+- Bump mcp-core to 1.17.2-beta.1 for beta testing
+  ([`a61fb9f`](https://github.com/n24q02m/better-email-mcp/commit/a61fb9f6b5ec5bb68418a58a933e7f8d0964d574))
+
+- Repoint dead docs/setup-manual.md link to hosted setup guide
+  ([#676](https://github.com/n24q02m/better-email-mcp/pull/676),
+  [`e142882`](https://github.com/n24q02m/better-email-mcp/commit/e14288229a66b887293a88166745aa01c03bd375))
+
+- Sync docs with current code (env vars, modes, file structure)
+  ([#675](https://github.com/n24q02m/better-email-mcp/pull/675),
+  [`9024d8e`](https://github.com/n24q02m/better-email-mcp/commit/9024d8e9bad686abdbbb86d5014499ecf5c3364f))
+
+- Update non-major dependencies ([#668](https://github.com/n24q02m/better-email-mcp/pull/668),
+  [`e66c19e`](https://github.com/n24q02m/better-email-mcp/commit/e66c19e76d0f00d879258930fc69dc13ca5fbf8e))
+
+
 ## v1.31.2 (2026-05-29)
 
 ### Bug Fixes
