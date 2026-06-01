@@ -44,13 +44,14 @@ src/
   init-server.ts                 # Entry point, env validation
   relay-setup.ts                 # Zero-config relay: create session, poll for config
   relay-schema.ts                # Relay form schema (email credential fields)
-  auth/                          # OAuth 2.1 + DCR, per-user credential store
-    stateless-client-store.ts    # HMAC-based stateless DCR (shared with Notion MCP)
-    email-auth-provider.ts       # OAuthServerProvider for multi-user HTTP mode
+  credential-state.ts            # Single-user / stdio credential resolution from env
+  auth/                          # Per-user credential store + Outlook OAuth (HTTP mode)
     per-user-credential-store.ts # AES-256-GCM encrypted per-user credential storage
+    in-memory-cred-store.ts      # Ephemeral in-memory credential store
+    outlook-device-code.ts       # Microsoft device-code OAuth flow
+    subject-context.ts           # Per-request JWT-sub scope (AsyncLocalStorage)
   transports/
     http.ts                      # Multi-user HTTP transport with OAuth 2.1
-    credential-store.ts          # Single-user encrypted credential store (stdio mode)
   docs/                          # Markdown docs phuc vu qua MCP resources
   tools/
     registry.ts                  # Tool registration + routing
@@ -65,8 +66,8 @@ src/
   - Custom IMAP host: `user@custom.com:password:imap.custom.com`
   - Custom IMAP host + port: `user@custom.com:password:imap.custom.com:1993`
   - Local IMAP proxy: `user@custom.com:password:localhost:1993` (`localhost` accepted as host; per-account port)
-- **http mode**: `TRANSPORT_MODE=http`, `PUBLIC_URL`, `DCR_SERVER_SECRET`
-- `PORT` (default 8080)
+- **http mode** (opt-in via `--http`, `MCP_TRANSPORT=http`, or `TRANSPORT_MODE=http`): `PUBLIC_URL` (for relay/OAuth redirect URLs). `CREDENTIAL_SECRET` optional (per-user store encryption; auto-generated to a 0600 secret file if unset). `MCP_AUTH_DISABLE=1` skips Bearer JWT verification (for deploys behind an external auth gateway).
+- `PORT` (default `0` = OS-assigned random port), `HOST` (optional bind address)
 - `OUTLOOK_CLIENT_ID` -- tu chon, cho self-hosted OAuth2 client
 
 ## Code conventions
@@ -93,15 +94,12 @@ PSR v10 (workflow_dispatch) -> npm + Docker (amd64+arm64) + GHCR + MCP Registry.
 - Pre-commit: biome check --write, tsc --noEmit, bun run test.
 - Secrets: skret SSM namespace `/better-email-mcp/prod` (region `ap-southeast-1`)
 
-## Modes (Phase L2 restored 2026-04-18)
+## Modes
 
-Selected via `MCP_MODE` env var:
+Two transports, selected in `init-server.ts:52-53`. There is no `MCP_MODE` env var; the old `remote-relay` / `local-relay` distinction was removed (see `transports/http.ts:5`).
 
-- **`remote-relay` (default)**: HTTP + delegated device-code OAuth flow tới Microsoft (`login.microsoftonline.com/common/oauth2/v2.0/devicecode`). Bắt buộc env `OUTLOOK_CLIENT_ID` (Azure app client ID). Token lưu tại `~/.better-email-mcp/tokens.json`. Deploy tại `https://better-email-mcp.n24q02m.com`.
-- **`local-relay`**: HTTP + `runLocalServer` với relaySchema — user paste `email:app-password` vào `/authorize` form. Outlook accounts bị reject với hướng dẫn chuyển `MCP_MODE=remote-relay`. Gmail/Yahoo/iCloud/custom IMAP vẫn work qua paste form này.
-- **`stdio proxy`**: `--stdio` hoặc `MCP_TRANSPORT=stdio`. Backward compat.
-
-Chuyển giữa remote-relay ↔ local-relay qua `MCP_MODE` env var. Default = remote-relay nếu không set.
+- **stdio (default)**: MCP SDK `StdioServerTransport` directly. Reads credentials from `EMAIL_CREDENTIALS` OR `EMAIL_USER` + `EMAIL_APP_PASSWORD`. Outlook accounts use an App Password in this mode.
+- **http (opt-in)**: enabled via `--http`, `MCP_TRANSPORT=http`, or `TRANSPORT_MODE=http`. Single multi-user relay: `/authorize` form for App-Password providers (paste `email:app-password`) plus bundled Outlook device-code OAuth. Per-user credentials keyed by JWT `sub`. Outlook token file: `~/.better-email-mcp/tokens.json`. Deploy at `https://better-email-mcp.n24q02m.com`.
 
 ## Known bugs (phat hien 2026-04-18 E2E)
 
@@ -137,6 +135,6 @@ Tier policy:
 - **T2 non-interaction** (`make e2e-config CONFIG=<id>` locally) - driver pre-fills relay form from skret AWS SSM `/better-email-mcp/prod` (`ap-southeast-1`). No user gate.
 - **T2 interaction** - driver fills relay form, then prints upstream user-gate URL; user signs in / types OTP at provider. Driver enforces per-flow timeouts (device-code 900s, oauth-redirect 300s, browser-form 600s) and emits `[poll] elapsed=Xs remaining=Ys status=<body>` every 30s. On timeout, container logs + last `setup-status` are saved to `<tmp>/e2e-diag/` BEFORE teardown for post-mortem.
 
-Multi-user remote mode (deployment property; not a separate config) requires `MCP_DCR_SERVER_SECRET` in the same skret namespace - driver refuses to start the container without it when `PUBLIC_URL` is set.
+Multi-user remote mode (deployment property; not a separate config) uses `CREDENTIAL_SECRET` to encrypt the per-user credential store (`auth/per-user-credential-store.ts:78`). It is optional — if unset, a 32-byte secret is generated and persisted to a 0600 secret file. Provide it via the skret namespace to keep per-user stores decryptable across container restarts.
 
 References: `mcp-core/scripts/e2e/matrix.yaml`, `~/.claude/skills/mcp-dev/references/e2e-full-matrix.md` (harness-readiness gate), `~/.claude/skills/mcp-dev/references/secrets-skret.md` (per-server credential layout), `~/.claude/skills/mcp-dev/references/multi-user-pattern.md` (per-JWT-sub isolation).

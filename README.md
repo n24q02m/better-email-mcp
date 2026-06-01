@@ -146,8 +146,9 @@ Single multi-user mode (relay form for App-Password providers + bundled Outlook 
 
 ```bash
 docker run -p 8080:8080 \
+  -e PORT=8080 \
   -e PUBLIC_URL=https://your-domain.com \
-  -e DCR_SERVER_SECRET=$(openssl rand -hex 32) \
+  -e CREDENTIAL_SECRET=$(openssl rand -hex 32) \
   n24q02m/better-email-mcp:latest
 ```
 
@@ -175,9 +176,11 @@ In **stdio mode**, Outlook accounts use an **App Password** instead (Outlook Acc
 | `EMAIL_APP_PASSWORD` | Yes (stdio, single-account) | - | App password (Gmail/Yahoo/iCloud) or Outlook App Password |
 | `EMAIL_IMAP_HOST` | No (custom only) | - | Custom IMAP hostname when `EMAIL_PROVIDER=custom` |
 | `EMAIL_CREDENTIALS` | Alternative (multi-account) | - | Legacy `user@gmail.com:app-password` (comma-separated for multi-account) |
-| `PUBLIC_URL` | Yes (http) | - | Server's public URL for OAuth redirects |
-| `DCR_SERVER_SECRET` | Yes (http) | - | HMAC secret for stateless client registration |
-| `PORT` | No | `8080` | Server port (http mode) |
+| `PUBLIC_URL` | No (http) | - | Server's public URL for relay / OAuth redirect links |
+| `CREDENTIAL_SECRET` | No (http) | auto-generated | Secret used to encrypt the per-user credential store; if unset, a random 32-byte secret is generated and persisted to a 0600 file |
+| `PORT` | No | `0` (OS-assigned) | Server port (http mode); set explicitly (e.g. `8080`) to bind a fixed port |
+| `HOST` | No | - | Bind address (http mode) |
+| `MCP_AUTH_DISABLE` | No (http) | - | Set to `1` to skip Bearer JWT verification when behind an external auth gateway |
 | `OUTLOOK_CLIENT_ID` | No | `d56f8c71-9f7c-43f4-9934-be29cb6e77b0` (bundled public client) | Override the bundled Azure AD public client for self-hosted Outlook OAuth2 |
 | `OUTLOOK_EMAIL` | No | - | Workaround when Microsoft device-code response omits the email field |
 
