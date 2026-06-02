@@ -722,6 +722,15 @@ export function renderEmailCredentialForm(
                 evt.preventDefault();
                 statusBox.style.display = "none";
 
+                if (!form.checkValidity()) {
+                    showStatus("error", "Please fill out all required fields correctly.");
+                    var firstInvalid = form.querySelector('input:invalid, select:invalid, textarea:invalid');
+                    if (firstInvalid && 'focus' in firstInvalid) {
+                        firstInvalid.focus();
+                    }
+                    return;
+                }
+
                 var collected = collectAccounts();
 
                 if (collected.accounts.length === 0) {
