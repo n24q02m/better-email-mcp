@@ -24,3 +24,15 @@
 **Vulnerability:** The `deriveKey` function in `src/auth/per-user-credential-store.ts` used a generic `process.env.VITEST` check to downgrade PBKDF2 iterations from 600,000 to 1,000. This could potentially allow an attacker to downgrade security in production by setting the `VITEST` environment variable.
 **Learning:** Security-sensitive parameters like cryptographic iteration counts should rely on strict environment checks (e.g., `NODE_ENV === 'test'`) rather than generic or easily spoofable variables.
 **Prevention:** Use `process.env.NODE_ENV === 'test'` for test-only security downgrades and allow sensitive parameters to be explicitly configured via function arguments to avoid reliance on global state.
+
+## 2026-05-28 - Missing Test Coverage for Public Auth Utility
+
+**Vulnerability:** The  function was implemented with several defensive type-checks () but lacked explicit test coverage for the fallback branches. If the logic for email extraction or token adaptation were incorrectly modified, it could lead to tokens being stored under incorrect keys or with invalid fields, potentially causing authentication failures or stale credentials to persist.
+**Learning:** Publicly exported authentication utilities must have 100% branch coverage to ensure defensive checks behave correctly when encountering unexpected input types (e.g., from upstream JSON sources).
+**Prevention:** Always verify defensive  checks with dedicated test cases for both valid and invalid types to ensure fallback behavior is deterministic and robust.
+
+## 2026-05-28 - Missing Test Coverage for Public Auth Utility
+
+**Vulnerability:** The `saveOutlookTokens` function was implemented with several defensive type-checks (`typeof`) but lacked explicit test coverage for the fallback branches. If the logic for email extraction or token adaptation were incorrectly modified, it could lead to tokens being stored under incorrect keys or with invalid fields, potentially causing authentication failures or stale credentials to persist.
+**Learning:** Publicly exported authentication utilities must have 100% branch coverage to ensure defensive checks behave correctly when encountering unexpected input types (e.g., from upstream JSON sources).
+**Prevention:** Always verify defensive `typeof` checks with dedicated test cases for both valid and invalid types to ensure fallback behavior is deterministic and robust.

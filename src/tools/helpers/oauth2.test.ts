@@ -1217,4 +1217,25 @@ describe('saveOutlookTokens', () => {
       clientId: 'default-cid'
     })
   })
+
+  it('handles invalid types by falling back to defaults', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    const tokens = {
+      email: 123, // not a string
+      access_token: null, // not a string
+      refresh_token: undefined, // not a string
+      expires_in: '3600', // not a number
+      client_id: { id: 'abc' } // not a string
+    }
+
+    await saveOutlookTokens(tokens as unknown as Record<string, unknown>)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['outlook-device-code']).toEqual({
+      accessToken: '',
+      refreshToken: '',
+      expiresAt: 1000000 + 3600,
+      clientId: 'default-cid'
+    })
+  })
 })
