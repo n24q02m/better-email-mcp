@@ -103,7 +103,7 @@ describe('http transport', () => {
     const startPromise = startHttp()
 
     // Wait for the server to start
-    await vi.waitFor(() => expect(runHttpServer).toHaveBeenCalled())
+    await vi.waitFor(() => expect(sigintHandler).toBeTruthy())
 
     if (fn) await fn()
 
@@ -137,16 +137,21 @@ describe('http transport', () => {
 
   describe('onCredentialsSaved', () => {
     let onCredentialsSaved: any
+    let startPromise: Promise<void>
 
     beforeEach(async () => {
       // Start server and capture the callback
-      startHttp()
-      await vi.waitFor(() => expect(runHttpServer).toHaveBeenCalled())
+      startPromise = startHttp()
+      await vi.waitFor(() => {
+        expect(sigintHandler).toBeTruthy()
+        expect(runHttpServer).toHaveBeenCalled()
+      })
       onCredentialsSaved = vi.mocked(runHttpServer).mock.calls[0][1].onCredentialsSaved
     })
 
     afterEach(async () => {
       if (sigintHandler) await sigintHandler()
+      await startPromise
     })
 
     it('returns error if EMAIL_CREDENTIALS is missing', async () => {
@@ -383,7 +388,10 @@ describe('http transport', () => {
       vi.mocked(loadConfig).mockResolvedValue(mockAccounts as any)
 
       const startPromise = startHttp()
-      await vi.waitFor(() => expect(runHttpServer).toHaveBeenCalled())
+      await vi.waitFor(() => {
+        expect(sigintHandler).toBeTruthy()
+        expect(runHttpServer).toHaveBeenCalled()
+      })
 
       const factory = vi.mocked(runHttpServer).mock.calls[0][0]
 
