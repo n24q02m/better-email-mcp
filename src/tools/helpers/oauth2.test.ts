@@ -1130,6 +1130,10 @@ describe('initiateOutlookDeviceCode', () => {
 
     await expect(initiateOutlookDeviceCode('bad@outlook.com')).rejects.toThrow('Unknown client ID')
   })
+
+  it('throws "Email is required" when email is an empty string', async () => {
+    await expect(initiateOutlookDeviceCode('')).rejects.toThrow('Email is required')
+  })
 })
 
 // ============================================================================
