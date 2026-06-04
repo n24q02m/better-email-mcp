@@ -68,10 +68,10 @@ describe('renderEmailCredentialForm', () => {
     expect(html).toContain('user_code')
   })
 
-  it('polls /setup-status for outlook === "complete"', () => {
+  it('polls /setup-status for outlook !== "complete"', () => {
     const html = renderEmailCredentialForm(schema, { submitUrl: '/authorize?nonce=abc' })
     expect(html).toContain('/setup-status')
-    expect(html).toMatch(/s\.outlook\s*===\s*["']complete["']/)
+    expect(html).toMatch(/s\.outlook\s*!==\s*["']complete["']/)
   })
 
   it('no longer blocks submit when only Outlook accounts are present', () => {
