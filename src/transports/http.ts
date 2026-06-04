@@ -137,22 +137,73 @@ async function initiateOutlookOAuth(outlookAccounts: AccountConfig[]): Promise<N
 }
 
 /**
- * Build `RunHttpServerOptions` for the email HTTP mode. Per-user credentials
- * are keyed by the JWT `sub` from `SubjectContext`; the shared `config.enc`
- * is also written so single-user self-host deployments work the same way.
+ * Group accounts into Outlook/OAuth2 and standard IMAP categories.
+ * Clears cached tokens for Outlook/OAuth2 accounts to force fresh device-code flow.
  */
-function buildOptions(args: {
-  serverFactory: () => McpServer
-  port: number
-  host: string | undefined
-  onAccountsLoaded: (accounts: AccountConfig[]) => void
-}): RunHttpServerOptions {
-  const { port, host, onAccountsLoaded } = args
+function groupAccounts(accounts: AccountConfig[]): {
+  outlookAccounts: AccountConfig[]
+  imapAccounts: AccountConfig[]
+} {
+  const outlookAccounts: AccountConfig[] = []
+  const imapAccounts: AccountConfig[] = []
 
-  const onCredentialsSaved = async (
-    creds: Record<string, string>,
-    context: SubjectContext
-  ): Promise<NextStep | null> => {
+  for (const account of accounts) {
+    if (isOutlookDomain(account.email) || account.authType === 'oauth2') {
+      // Force fresh device-code flow for every form submit by clearing any
+      // cached tokens that ``parseCredentials`` may have populated via
+      // ``loadStoredTokens``. Without this, ``initiateOutlookOAuth`` filters
+      // out accounts with ``.oauth2`` set and silently returns ``null`` →
+      // the form shows "Setup complete" without ever displaying the Microsoft
+      // device-code step (UX bug reported 2026-04-24).
+      account.oauth2 = undefined
+      outlookAccounts.push(account)
+    } else {
+      imapAccounts.push(account)
+    }
+  }
+
+  return { outlookAccounts, imapAccounts }
+}
+
+/**
+ * Persist credentials to per-user store and shared config.
+ * Per-user store guarantees isolation in multi-user deployments. Shared
+ * config.enc lets single-user self-host installs survive process restarts
+ * and lets tool calls outside an HTTP request scope (e.g. internal calls)
+ * still see the saved credentials.
+ */
+async function persistCredentials(
+  raw: string,
+  accounts: AccountConfig[],
+  context: SubjectContext,
+  onAccountsLoaded: (accounts: AccountConfig[]) => void
+): Promise<NextStep | null> {
+  const sub = context?.sub
+  if (sub) {
+    try {
+      await credStore.save(sub, { accounts })
+    } catch (err) {
+      console.error(`[${SERVER_NAME}] Failed to save per-user credentials for sub=${sub}: ${(err as Error).message}`)
+      return { type: 'error', text: 'Failed to save credentials. Please retry.' }
+    }
+    console.error(`[${SERVER_NAME}] ${accounts.length} email account(s) configured for sub=${sub} (per-user scope)`)
+  }
+
+  try {
+    await writeConfig(SERVER_NAME, { EMAIL_CREDENTIALS: raw })
+  } catch (err) {
+    console.error(`[${SERVER_NAME}] Failed to persist credentials: ${(err as Error).message}`)
+  }
+  process.env.EMAIL_CREDENTIALS = raw
+  onAccountsLoaded(accounts)
+  console.error(`[${SERVER_NAME}] ${accounts.length} email account(s) configured via /authorize`)
+
+  return null
+}
+
+/** Create the onCredentialsSaved callback for the HTTP server. */
+function createOnCredentialsSaved(onAccountsLoaded: (accounts: AccountConfig[]) => void) {
+  return async (creds: Record<string, string>, context: SubjectContext): Promise<NextStep | null> => {
     const raw = creds?.EMAIL_CREDENTIALS?.trim()
     if (!raw) {
       return { type: 'error', text: 'Email credentials are required. Format: email:app-password' }
@@ -175,50 +226,13 @@ function buildOptions(args: {
       }
     }
 
-    const outlookAccounts: AccountConfig[] = []
-    const imapAccounts: AccountConfig[] = []
-    for (const account of accounts) {
-      if (isOutlookDomain(account.email) || account.authType === 'oauth2') {
-        // Force fresh device-code flow for every form submit by clearing any
-        // cached tokens that ``parseCredentials`` may have populated via
-        // ``loadStoredTokens``. Without this, ``initiateOutlookOAuth`` filters
-        // out accounts with ``.oauth2`` set and silently returns ``null`` →
-        // the form shows "Setup complete" without ever displaying the Microsoft
-        // device-code step (UX bug reported 2026-04-24).
-        account.oauth2 = undefined
-        outlookAccounts.push(account)
-      } else {
-        imapAccounts.push(account)
-      }
-    }
+    const { outlookAccounts, imapAccounts } = groupAccounts(accounts)
 
     const imapResult = await validateImapAccounts(imapAccounts)
     if (imapResult) return imapResult
 
-    // Persistence: per-user (multi-user JWT-sub) + shared config.enc fallback.
-    // Per-user store guarantees isolation in multi-user deployments. Shared
-    // config.enc lets single-user self-host installs survive process restarts
-    // and lets tool calls outside an HTTP request scope (e.g. internal calls)
-    // still see the saved credentials.
-    const sub = context?.sub
-    if (sub) {
-      try {
-        await credStore.save(sub, { accounts })
-      } catch (err) {
-        console.error(`[${SERVER_NAME}] Failed to save per-user credentials for sub=${sub}: ${(err as Error).message}`)
-        return { type: 'error', text: 'Failed to save credentials. Please retry.' }
-      }
-      console.error(`[${SERVER_NAME}] ${accounts.length} email account(s) configured for sub=${sub} (per-user scope)`)
-    }
-
-    try {
-      await writeConfig(SERVER_NAME, { EMAIL_CREDENTIALS: raw })
-    } catch (err) {
-      console.error(`[${SERVER_NAME}] Failed to persist credentials: ${(err as Error).message}`)
-    }
-    process.env.EMAIL_CREDENTIALS = raw
-    onAccountsLoaded(accounts)
-    console.error(`[${SERVER_NAME}] ${accounts.length} email account(s) configured via /authorize`)
+    const persistResult = await persistCredentials(raw, accounts, context, onAccountsLoaded)
+    if (persistResult) return persistResult
 
     const outlookResult = await initiateOutlookOAuth(outlookAccounts)
     if (outlookResult) return outlookResult
@@ -226,13 +240,27 @@ function buildOptions(args: {
     setState('configured')
     return null
   }
+}
+
+/**
+ * Build `RunHttpServerOptions` for the email HTTP mode. Per-user credentials
+ * are keyed by the JWT `sub` from `SubjectContext`; the shared `config.enc`
+ * is also written so single-user self-host deployments work the same way.
+ */
+function buildOptions(args: {
+  serverFactory: () => McpServer
+  port: number
+  host: string | undefined
+  onAccountsLoaded: (accounts: AccountConfig[]) => void
+}): RunHttpServerOptions {
+  const { port, host, onAccountsLoaded } = args
 
   return {
     serverName: SERVER_NAME,
     relaySchema: RELAY_SCHEMA as unknown as RelayConfigSchema,
     port,
     host,
-    onCredentialsSaved,
+    onCredentialsSaved: createOnCredentialsSaved(onAccountsLoaded),
     customCredentialFormHtml: renderEmailCredentialForm,
     setupCompleteHook: (markComplete: (key?: string) => void) => {
       setMarkSetupComplete(markComplete)
