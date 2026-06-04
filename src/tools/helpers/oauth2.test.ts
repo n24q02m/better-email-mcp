@@ -837,6 +837,19 @@ describe('saveTokens edge cases', () => {
     expect(written['first@outlook.com']).toEqual(tokens1)
     expect(written['second@outlook.com']).toEqual(tokens2)
   })
+
+  it('starts fresh store if existing token file is valid JSON but invalid structure (not object)', () => {
+    _resetTokenCache()
+    mockExistsSync.mockReturnValue(true)
+    mockReadFileSync.mockReturnValue('[]') // Array instead of object
+
+    const tokens = { accessToken: 'at', refreshToken: 'rt', expiresAt: 123, clientId: 'cid' }
+    saveTokens('user@outlook.com', tokens)
+
+    // Should ignore the array and start fresh with an object
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written).toEqual({ 'user@outlook.com': tokens })
+  })
 })
 
 // ============================================================================
@@ -1120,6 +1133,120 @@ describe('initiateOutlookDeviceCode', () => {
     expect(mockWriteFileSync).toHaveBeenCalled()
   })
 
+  it('handles authorization_pending and slow_down during background poll', async () => {
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        device_code: 'dc-poll',
+        user_code: 'POLL-123',
+        verification_uri: 'https://microsoft.com/devicelogin',
+        expires_in: 900,
+        interval: 0.01
+      })
+    })
+
+    // 1st poll: pending
+    mockFetch.mockResolvedValueOnce({ json: async () => ({ error: 'authorization_pending' }) })
+    // 2nd poll: slow_down (Wait for background poll to read the incremented interval)
+    mockFetch.mockResolvedValueOnce({ json: async () => ({ error: 'slow_down' }) })
+    // 3rd poll: success
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        access_token: 'at-poll',
+        refresh_token: 'rt-poll',
+        expires_in: 3600
+      })
+    })
+
+    // Use fake timers to speed up the background poll intervals
+    vi.useFakeTimers()
+
+    await initiateOutlookDeviceCode('poll@outlook.com')
+
+    // Advance timers for the 3 poll attempts:
+    // 1. Initial 0.01s poll interval
+    // 2. 1st retry after 0.01s (authorization_pending)
+    // 3. 2nd retry after (0.01s + 5s) = 5.01s (slow_down)
+
+    await vi.advanceTimersByTimeAsync(10) // 1st poll -> pending
+    await vi.advanceTimersByTimeAsync(10) // 2nd poll -> slow_down
+    await vi.advanceTimersByTimeAsync(5010) // 3rd poll -> success
+
+    vi.useRealTimers()
+
+    const lastCall = mockWriteFileSync.mock.calls[mockWriteFileSync.mock.calls.length - 1]
+    const written = JSON.parse(lastCall[1] as string)
+    expect(written['poll@outlook.com'].accessToken).toBe('at-poll')
+  })
+
+  it('stops background poll on other errors (declined, expired)', async () => {
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        device_code: 'dc-fail',
+        user_code: 'FAIL-123',
+        verification_uri: 'https://microsoft.com/devicelogin',
+        expires_in: 900,
+        interval: 0.01
+      })
+    })
+
+    // 1st poll: declined
+    mockFetch.mockResolvedValueOnce({ json: async () => ({ error: 'authorization_declined' }) })
+    // Subsequent calls should NOT happen
+    mockFetch.mockResolvedValue({ json: async () => ({ access_token: 'should-not-happen' }) })
+
+    await initiateOutlookDeviceCode('fail@outlook.com')
+
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    // Verify it was removed from pending auths
+    expect(_getPendingAuths().has('fail@outlook.com')).toBe(false)
+    // No tokens saved
+    expect(mockWriteFileSync).not.toHaveBeenCalled()
+  })
+
+  it('stops background poll on timeout', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(1000 * 1000)
+
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        device_code: 'dc-poll-timeout',
+        user_code: 'POLL-TIME',
+        verification_uri: 'https://microsoft.com/devicelogin',
+        expires_in: 1, // 1 second expiry
+        interval: 1
+      })
+    })
+
+    // Always pending
+    mockFetch.mockResolvedValue({ json: async () => ({ error: 'authorization_pending' }) })
+
+    await initiateOutlookDeviceCode('poll-timeout@outlook.com')
+
+    // Advance 2 seconds (exceeds 1s expires_in)
+    await vi.advanceTimersByTimeAsync(2000)
+
+    // Verify it was removed from pending auths (line 340)
+    expect(_getPendingAuths().has('poll-timeout@outlook.com')).toBe(false)
+
+    vi.useRealTimers()
+  })
+
+  it('uses default interval for codeData.interval if missing in initiateOutlookDeviceCode', async () => {
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        device_code: 'dc-no-interval',
+        user_code: 'NO-INT',
+        verification_uri: 'https://microsoft.com/devicelogin',
+        expires_in: 900
+        // interval is missing
+      })
+    })
+
+    const result = await initiateOutlookDeviceCode('no-interval@outlook.com')
+    expect(result.interval).toBe(5) // DEFAULT_POLLING_INTERVAL_SECONDS
+  })
+
   it('throws descriptive error when Microsoft rejects the device code request', async () => {
     mockFetch.mockResolvedValueOnce({
       json: async () => ({
@@ -1216,5 +1343,113 @@ describe('saveOutlookTokens', () => {
       expiresAt: 1000000 + 3600, // default 1 hour
       clientId: 'default-cid'
     })
+  })
+
+  it('extracts email from id_token fallback', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    const payload = JSON.stringify({ email: 'fallback@outlook.com' })
+    const idToken = `header.${Buffer.from(payload).toString('base64')}.signature`
+    const tokens = {
+      id_token: idToken,
+      access_token: 'at-id'
+    }
+
+    await saveOutlookTokens(tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['fallback@outlook.com']).toBeDefined()
+    expect(written['fallback@outlook.com'].accessToken).toBe('at-id')
+  })
+
+  it('uses upn or sub from id_token if email is missing', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    const payload = JSON.stringify({ upn: 'upn@outlook.com' })
+    const idToken = `header.${Buffer.from(payload).toString('base64')}.signature`
+
+    await saveOutlookTokens({ id_token: idToken })
+    expect(JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)['upn@outlook.com']).toBeDefined()
+
+    vi.clearAllMocks()
+    const payloadSub = JSON.stringify({ sub: 'sub-id' })
+    const idTokenSub = `header.${Buffer.from(payloadSub).toString('base64')}.signature`
+
+    await saveOutlookTokens({ id_token: idTokenSub })
+    expect(JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)['sub-id']).toBeDefined()
+  })
+
+  it('handles id_token with missing claims', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    const payload = JSON.stringify({ other: 'claim' })
+    const idToken = `header.${Buffer.from(payload).toString('base64')}.signature`
+
+    await saveOutlookTokens({ id_token: idToken })
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['outlook-device-code']).toBeDefined()
+  })
+
+  it('ignores invalid id_token parts', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    await saveOutlookTokens({ id_token: 'only.two' })
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['outlook-device-code']).toBeDefined()
+  })
+})
+
+describe('deviceCodeAuth timeouts', () => {
+  const mockFetch = vi.fn()
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', mockFetch)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('throws error on timeout', async () => {
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        device_code: 'dc-timeout',
+        user_code: 'TIME-OUT',
+        verification_uri: 'https://microsoft.com/devicelogin',
+        expires_in: 1, // 1 second expiry
+        interval: 1
+      })
+    })
+
+    // Always pending until timeout
+    mockFetch.mockResolvedValue({ json: async () => ({ error: 'authorization_pending' }) })
+
+    await expect(deviceCodeAuth('user@outlook.com')).rejects.toThrow('Authorization timed out')
+  })
+
+  it('uses default interval if missing in deviceCodeAuth', async () => {
+    vi.useFakeTimers()
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        device_code: 'dc-no-int-auth',
+        user_code: 'NO-INT-AUTH',
+        verification_uri: 'https://microsoft.com/devicelogin',
+        expires_in: 900
+      })
+    })
+
+    // Success on first poll
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        access_token: 'at-no-int',
+        expires_in: 3600
+      })
+    })
+
+    const authPromise = deviceCodeAuth('user@outlook.com')
+
+    // DEFAULT_POLLING_INTERVAL_SECONDS is 5, so wait 5s
+    await vi.advanceTimersByTimeAsync(5000)
+
+    await authPromise
+    vi.useRealTimers()
   })
 })

@@ -309,7 +309,7 @@ function startBackgroundPoll(
 
       if (data.access_token) {
         const now = Math.floor(Date.now() / MS_PER_SECOND)
-        saveTokens(email, {
+        await saveTokens(email, {
           accessToken: data.access_token,
           refreshToken: data.refresh_token,
           expiresAt: now + data.expires_in,
@@ -464,7 +464,7 @@ export async function ensureValidToken(account: { email: string; oauth2?: OAuth2
   }
 
   // Persist updated tokens
-  saveTokens(account.email, account.oauth2)
+  await saveTokens(account.email, account.oauth2)
 
   return newTokens.access_token
 }
@@ -482,10 +482,27 @@ export async function ensureValidToken(account: { email: string; oauth2?: OAuth2
  * claim as a fallback (uncommon in device-code flows).
  */
 export async function saveOutlookTokens(tokens: Record<string, unknown>): Promise<void> {
-  const email = typeof tokens.email === 'string' ? tokens.email : (process.env.OUTLOOK_EMAIL ?? 'outlook-device-code')
+  let email = typeof tokens.email === 'string' ? tokens.email : process.env.OUTLOOK_EMAIL
+
+  if (!email && typeof tokens.id_token === 'string') {
+    try {
+      const parts = tokens.id_token.split('.')
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString())
+        email = payload.email || payload.upn || payload.sub
+      }
+    } catch {
+      // Ignore parse errors
+    }
+  }
+
+  if (!email) {
+    email = 'outlook-device-code'
+  }
+
   const now = Math.floor(Date.now() / MS_PER_SECOND)
   const expiresIn = typeof tokens.expires_in === 'number' ? tokens.expires_in : 3600
-  saveTokens(email, {
+  await saveTokens(email, {
     accessToken: typeof tokens.access_token === 'string' ? tokens.access_token : '',
     refreshToken: typeof tokens.refresh_token === 'string' ? tokens.refresh_token : '',
     expiresAt: now + expiresIn,
@@ -534,7 +551,7 @@ export async function deviceCodeAuth(email: string, clientId?: string): Promise<
         clientId: resolvedClientId
       }
 
-      saveTokens(email, tokens)
+      await saveTokens(email, tokens)
       console.error(`\nSuccess! Token saved for ${email}`)
       return tokens
     }
