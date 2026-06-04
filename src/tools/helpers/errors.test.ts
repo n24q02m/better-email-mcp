@@ -5,6 +5,7 @@ import {
   EmailMCPError,
   enhanceError,
   findClosestMatch,
+  sanitizeErrorDetails,
   suggestFixes,
   withErrorHandling
 } from './errors.js'
@@ -41,6 +42,48 @@ describe('EmailMCPError', () => {
     const error = new EmailMCPError('test', 'CODE')
     expect(error).toBeInstanceOf(Error)
     expect(error).toBeInstanceOf(EmailMCPError)
+  })
+})
+
+describe('sanitizeErrorDetails', () => {
+  it('returns non-object inputs as is', () => {
+    expect(sanitizeErrorDetails(null)).toBeNull()
+    expect(sanitizeErrorDetails(undefined)).toBeUndefined()
+    expect(sanitizeErrorDetails('string')).toBe('string')
+    expect(sanitizeErrorDetails(123)).toBe(123)
+    expect(sanitizeErrorDetails(true)).toBe(true)
+  })
+
+  it('whitelists safe properties', () => {
+    const error = {
+      message: 'test message',
+      name: 'TestError',
+      code: 'ERR_CODE',
+      status: 500,
+      responseCode: 404,
+      other: 'hidden'
+    }
+    const sanitized = sanitizeErrorDetails(error) as Record<string, unknown>
+    expect(sanitized.message).toBe('test message')
+    expect(sanitized.name).toBe('TestError')
+    expect(sanitized.code).toBe('ERR_CODE')
+    expect(sanitized.status).toBe(500)
+    expect(sanitized.responseCode).toBe(404)
+    expect(sanitized.other).toBeUndefined()
+  })
+
+  it('removes sensitive properties like password or token', () => {
+    const error = {
+      message: 'error',
+      password: 'secret_password',
+      token: 'secret_token',
+      apiKey: 'secret_key'
+    }
+    const sanitized = sanitizeErrorDetails(error) as Record<string, unknown>
+    expect(sanitized.message).toBe('error')
+    expect(sanitized.password).toBeUndefined()
+    expect(sanitized.token).toBeUndefined()
+    expect(sanitized.apiKey).toBeUndefined()
   })
 })
 

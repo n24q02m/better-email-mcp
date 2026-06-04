@@ -28,7 +28,7 @@ export class EmailMCPError extends Error {
 /**
  * Sanitize error object to remove sensitive information (passwords, tokens)
  */
-function sanitizeErrorDetails(error: unknown): unknown {
+export function sanitizeErrorDetails(error: unknown): unknown {
   if (error === null || typeof error !== 'object') {
     return error
   }
@@ -269,10 +269,10 @@ export function suggestFixes(error: EmailMCPError): string[] {
 /**
  * Wrap async function with error handling
  */
-export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
-  fn: T
-): (...args: Parameters<T>) => Promise<ReturnType<T>> {
-  return async (...args: Parameters<T>): Promise<ReturnType<T>> => {
+export function withErrorHandling<Args extends unknown[], R>(
+  fn: (...args: Args) => Promise<R>
+): (...args: Args) => Promise<R> {
+  return async (...args: Args): Promise<R> => {
     try {
       return await fn(...args)
     } catch (error) {
