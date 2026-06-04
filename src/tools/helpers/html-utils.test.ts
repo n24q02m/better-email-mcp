@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { escapeHtml, fastExtractSnippet, htmlToCleanText } from './html-utils.js'
+import { escapeHtml, fastExtractSnippet, htmlToCleanText, sanitizeHtml } from './html-utils.js'
 
 describe('escapeHtml', () => {
   it('escapes &, <, >, ", and \'', () => {
@@ -55,7 +55,7 @@ describe('htmlToCleanText', () => {
   })
 
   it('removes img tags', () => {
-    const result = htmlToCleanText('<p>Before</p><img src="test.png" alt="test"><p>After</p>')
+    const result = htmlToCleanText('<p>Before</p><img src="test.png" alt="test" /><p>After</p>')
     expect(result).not.toContain('test.png')
     expect(result).toContain('Before')
     expect(result).toContain('After')
@@ -231,5 +231,44 @@ describe('fastExtractSnippet', () => {
     expect(result).toContain('A')
     expect(result).toContain('B')
     expect(result).toContain('C')
+  })
+})
+
+describe('sanitizeHtml', () => {
+  it('strips dangerous tags and attributes', () => {
+    const html = '<p>Hello <script>alert(1)</script><b onmouseover="alert(1)">World</b></p>'
+    const result = sanitizeHtml(html)
+    expect(result).toBe('<p>Hello <b>World</b></p>')
+  })
+
+  it('preserves safe formatting', () => {
+    const html = '<div><h1>Title</h1><p>Text with <b>bold</b> and <i>italics</i>.</p></div>'
+    const result = sanitizeHtml(html)
+    expect(result).toContain('<h1>Title</h1>')
+    expect(result).toContain('<b>bold</b>')
+    expect(result).toContain('<i>italics</i>')
+  })
+
+  it('handles custom options', () => {
+    const html = '<img src="test.png" alt="test" />'
+    // Default sanitize-html strips img unless configured
+    expect(sanitizeHtml(html)).not.toContain('<img')
+
+    const result = sanitizeHtml(html, { allowedTags: ['img'], allowedAttributes: { img: ['src', 'alt'] } })
+    expect(result).toContain('<img src="test.png" alt="test" />')
+  })
+
+  it('handles very large strings without crashing (1MB)', () => {
+    const largeContent = `<div>${'<p>some content</p>'.repeat(50000)}</div>`
+    // 50,000 * 18 bytes is ~900KB
+    const start = Date.now()
+    const result = sanitizeHtml(largeContent)
+    const duration = Date.now() - start
+
+    expect(result).toContain('<div>')
+    expect(result).toContain('</div>')
+    expect(result.length).toBeGreaterThan(800000)
+    // Ensure it completes in a reasonable time (e.g. under 5 seconds)
+    expect(duration).toBeLessThan(5000)
   })
 })
