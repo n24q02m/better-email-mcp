@@ -24,3 +24,8 @@
 **Vulnerability:** The `deriveKey` function in `src/auth/per-user-credential-store.ts` used a generic `process.env.VITEST` check to downgrade PBKDF2 iterations from 600,000 to 1,000. This could potentially allow an attacker to downgrade security in production by setting the `VITEST` environment variable.
 **Learning:** Security-sensitive parameters like cryptographic iteration counts should rely on strict environment checks (e.g., `NODE_ENV === 'test'`) rather than generic or easily spoofable variables.
 **Prevention:** Use `process.env.NODE_ENV === 'test'` for test-only security downgrades and allow sensitive parameters to be explicitly configured via function arguments to avoid reliance on global state.
+
+## 2026-06-04 - [CRITICAL] Unvalidated JSON Parsing in Credential Store (Fixed)
+**Vulnerability:** The `loadUserCredentials` and `loadAllUserCredentials` functions in `src/auth/per-user-credential-store.ts` parsed decrypted JSON and accessed properties without validating that the result was a non-null object. This could lead to unhandled TypeErrors if the store was corrupted.
+**Learning:** Even decrypted data must be treated as untrusted until validated against the application's schema.
+**Prevention:** Use `const parsed: unknown = JSON.parse(...)` followed by explicit non-null object and property existence checks.

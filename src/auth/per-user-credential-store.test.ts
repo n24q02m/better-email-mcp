@@ -448,3 +448,43 @@ describe('per-user-credential-store', () => {
     })
   })
 })
+
+describe('reproduction of unvalidated JSON parsing', () => {
+  async function storeRawPayload(userId: string, payload: any) {
+    const dirHash = hashUserId(userId)
+    const userDir = join(_paths.DATA_DIR, dirHash)
+    mkdirSync(userDir, { recursive: true })
+
+    const secret = await _getSecret()
+    const key = await _deriveKey(secret, dirHash)
+    const iv = crypto.getRandomValues(new Uint8Array(12))
+    const plaintext = new TextEncoder().encode(JSON.stringify(payload))
+    const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext)
+    const combined = Buffer.concat([iv, Buffer.from(encrypted)])
+    const { writeFileSync } = await import('node:fs')
+    writeFileSync(join(userDir, 'credentials.enc'), combined)
+  }
+
+  it('should handle null payload gracefully in loadUserCredentials', async () => {
+    await storeRawPayload('null-user', null)
+    await expect(loadUserCredentials('null-user')).rejects.toThrow('Invalid account configuration')
+  })
+
+  it('should handle empty object payload gracefully in loadUserCredentials', async () => {
+    await storeRawPayload('empty-user', {})
+    await expect(loadUserCredentials('empty-user')).rejects.toThrow('Invalid account configuration')
+  })
+
+  it('should handle null accounts gracefully in loadUserCredentials', async () => {
+    await storeRawPayload('null-accounts-user', { accounts: null })
+    await expect(loadUserCredentials('null-accounts-user')).rejects.toThrow('Invalid account configuration')
+  })
+
+  it('should handle null payload gracefully in loadAllUserCredentials', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await storeRawPayload('null-all-user', null)
+    const all = await loadAllUserCredentials()
+    expect(all.has('null-all-user')).toBe(false)
+    spy.mockRestore()
+  })
+})
