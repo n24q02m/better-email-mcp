@@ -185,6 +185,7 @@ function buildOptions(args: {
         // out accounts with ``.oauth2`` set and silently returns ``null`` →
         // the form shows "Setup complete" without ever displaying the Microsoft
         // device-code step (UX bug reported 2026-04-24).
+        // Fix: force fresh flow on form submit by clearing cached tokens.
         account.oauth2 = undefined
         outlookAccounts.push(account)
       } else {
