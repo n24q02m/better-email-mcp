@@ -96,6 +96,17 @@ describe('credential-state', () => {
       expect(mod.getSetupUrl()).toBe(url)
     })
 
+    it('updates the setup URL on subsequent calls', () => {
+      mod.setSetupUrl('http://localhost:3000/first')
+      mod.setSetupUrl('http://localhost:3000/second')
+      expect(mod.getSetupUrl()).toBe('http://localhost:3000/second')
+    })
+
+    it('allows setting the setup URL to an empty string', () => {
+      mod.setSetupUrl('')
+      expect(mod.getSetupUrl()).toBe('')
+    })
+
     it('allows clearing the setup URL with null', () => {
       mod.setSetupUrl('http://localhost:3000/setup')
       mod.setSetupUrl(null)
@@ -195,8 +206,9 @@ describe('credential-state', () => {
   })
 
   describe('resetState', () => {
-    it('resets to awaiting_setup', async () => {
+    it('resets to awaiting_setup and clears setupUrl', async () => {
       mod.setState('configured')
+      mod.setSetupUrl('http://localhost:3000/setup')
       await mod.resetState()
       expect(mod.getState()).toBe('awaiting_setup')
       expect(mod.getSetupUrl()).toBeNull()
