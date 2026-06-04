@@ -67,4 +67,36 @@ describe('subjectContext', () => {
       expect(subjectContext.getStore()).toBe(outerScope)
     })
   })
+
+  test('should clear store even if run() throws an error', () => {
+    const scope: EmailSubjectScope = { sub: 'error', accounts: [] }
+
+    expect(() => {
+      subjectContext.run(scope, () => {
+        expect(subjectContext.getStore()).toBe(scope)
+        throw new Error('test error')
+      })
+    }).toThrow('test error')
+
+    expect(subjectContext.getStore()).toBeUndefined()
+  })
+
+  test('should support deep nesting of scopes', () => {
+    const scope1: EmailSubjectScope = { sub: 'user-1', accounts: [] }
+    const scope2: EmailSubjectScope = { sub: 'user-2', accounts: [] }
+    const scope3: EmailSubjectScope = { sub: 'user-3', accounts: [] }
+
+    subjectContext.run(scope1, () => {
+      expect(subjectContext.getStore()).toBe(scope1)
+      subjectContext.run(scope2, () => {
+        expect(subjectContext.getStore()).toBe(scope2)
+        subjectContext.run(scope3, () => {
+          expect(subjectContext.getStore()).toBe(scope3)
+        })
+        expect(subjectContext.getStore()).toBe(scope2)
+      })
+      expect(subjectContext.getStore()).toBe(scope1)
+    })
+    expect(subjectContext.getStore()).toBeUndefined()
+  })
 })
