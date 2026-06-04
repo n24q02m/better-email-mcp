@@ -34,7 +34,7 @@ import {
 } from '../credential-state.js'
 import { RELAY_SCHEMA } from '../relay-schema.js'
 import { type AccountConfig, loadConfig, parseCredentials } from '../tools/helpers/config.js'
-import { initiateOutlookDeviceCode, isOutlookDomain } from '../tools/helpers/oauth2.js'
+import { _resetTokenCache, initiateOutlookDeviceCode, isOutlookDomain } from '../tools/helpers/oauth2.js'
 import { registerTools } from '../tools/registry.js'
 
 const SERVER_NAME = 'better-email-mcp'
@@ -153,6 +153,7 @@ function buildOptions(args: {
     creds: Record<string, string>,
     context: SubjectContext
   ): Promise<NextStep | null> => {
+    _resetTokenCache()
     const raw = creds?.EMAIL_CREDENTIALS?.trim()
     if (!raw) {
       return { type: 'error', text: 'Email credentials are required. Format: email:app-password' }
