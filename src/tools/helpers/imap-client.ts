@@ -4,7 +4,7 @@
  */
 
 import { ImapFlow, type SearchObject } from 'imapflow'
-import { type SimpleParserOptions, simpleParser } from 'mailparser'
+import { type AddressObject, type EmailAddress, type SimpleParserOptions, simpleParser } from 'mailparser'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
 import { fastExtractSnippet, htmlToCleanText } from './html-utils.js'
@@ -236,12 +236,18 @@ async function extractSnippet(source: string | Buffer, maxLength = 200): Promise
 /**
  * Format email address from parsed address object
  */
-function formatAddress(addr: any): string {
+function formatAddress(addr: AddressObject | AddressObject[] | string | undefined | null): string {
   if (!addr) return ''
   if (typeof addr === 'string') return addr
+  if (Array.isArray(addr)) {
+    return addr.map(formatAddress).filter(Boolean).join(', ')
+  }
   if (addr.text) return addr.text
   if (Array.isArray(addr.value)) {
-    return addr.value.map((a: any) => (a.name ? `${a.name} <${a.address}>` : a.address)).join(', ')
+    return addr.value
+      .map((a: EmailAddress) => (a.name ? `${a.name} <${a.address}>` : a.address))
+      .filter(Boolean)
+      .join(', ')
   }
   return ''
 }
