@@ -28,19 +28,19 @@ export class EmailMCPError extends Error {
 /**
  * Sanitize error object to remove sensitive information (passwords, tokens)
  */
-function sanitizeErrorDetails(error: unknown): unknown {
+export function sanitizeErrorDetails(error: unknown): unknown {
   if (error === null || typeof error !== 'object') {
     return error
   }
 
-  const errObj = error as Record<string, unknown>
   const safe: Record<string, unknown> = {}
+  const whitelist = ['message', 'name', 'code', 'status', 'responseCode']
 
-  if ('message' in errObj) safe.message = errObj.message
-  if ('name' in errObj) safe.name = errObj.name
-  if ('code' in errObj) safe.code = errObj.code
-  if ('status' in errObj) safe.status = errObj.status
-  if ('responseCode' in errObj) safe.responseCode = errObj.responseCode
+  for (const key of whitelist) {
+    if (key in error) {
+      safe[key] = (error as Record<string, unknown>)[key]
+    }
+  }
 
   return safe
 }
@@ -269,10 +269,10 @@ export function suggestFixes(error: EmailMCPError): string[] {
 /**
  * Wrap async function with error handling
  */
-export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
-  fn: T
-): (...args: Parameters<T>) => Promise<ReturnType<T>> {
-  return async (...args: Parameters<T>): Promise<ReturnType<T>> => {
+export function withErrorHandling<Args extends unknown[], R>(
+  fn: (...args: Args) => Promise<R>
+): (...args: Args) => Promise<R> {
+  return async (...args: Args): Promise<R> => {
     try {
       return await fn(...args)
     } catch (error) {

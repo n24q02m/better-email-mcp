@@ -5,6 +5,7 @@ import {
   EmailMCPError,
   enhanceError,
   findClosestMatch,
+  sanitizeErrorDetails,
   suggestFixes,
   withErrorHandling
 } from './errors.js'
@@ -41,6 +42,35 @@ describe('EmailMCPError', () => {
     const error = new EmailMCPError('test', 'CODE')
     expect(error).toBeInstanceOf(Error)
     expect(error).toBeInstanceOf(EmailMCPError)
+  })
+})
+
+describe('sanitizeErrorDetails', () => {
+  it('returns non-object values as-is', () => {
+    expect(sanitizeErrorDetails(null)).toBeNull()
+    expect(sanitizeErrorDetails(undefined)).toBeUndefined()
+    expect(sanitizeErrorDetails('string')).toBe('string')
+    expect(sanitizeErrorDetails(123)).toBe(123)
+  })
+
+  it('sanitizes objects based on whitelist', () => {
+    const input = {
+      message: 'err',
+      name: 'Error',
+      code: 'CODE',
+      status: 500,
+      responseCode: 535,
+      password: 'secret',
+      token: 'xyz'
+    }
+    const result = sanitizeErrorDetails(input) as Record<string, unknown>
+    expect(result.message).toBe('err')
+    expect(result.name).toBe('Error')
+    expect(result.code).toBe('CODE')
+    expect(result.status).toBe(500)
+    expect(result.responseCode).toBe(535)
+    expect(result.password).toBeUndefined()
+    expect(result.token).toBeUndefined()
   })
 })
 
