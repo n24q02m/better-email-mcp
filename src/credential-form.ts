@@ -32,34 +32,7 @@ function escapeHtml(value: unknown): string {
     .replace(/'/g, '&#39;')
 }
 
-/**
- * Render the custom email credential form: multi-account cards with
- * domain auto-detect + Add/Remove buttons + Outlook OAuth notice.
- *
- * Submits EMAIL_CREDENTIALS to mcp-core OAuth /authorize endpoint as
- * comma-separated `email1:pass1,email2:pass2:imap_host` format. The
- * server-side onCredentialsSaved callback parses this back into accounts.
- */
-export function renderEmailCredentialForm(
-  _schema: RelayConfigSchema,
-  options: { submitUrl: string; prefill?: Record<string, string> }
-): string {
-  const displayName = escapeHtml(_schema.displayName ?? _schema.server ?? 'Email MCP')
-  const server = escapeHtml(_schema.server ?? 'better-email-mcp')
-  const description = escapeHtml(
-    _schema.description ??
-      'Configure one or more email accounts (Gmail, Yahoo, iCloud, Outlook/Hotmail/Live, or custom IMAP). Outlook accounts use OAuth2 and are handled automatically by the server.'
-  )
-  const submitUrlJson = JSON.stringify(options.submitUrl).replace(/</g, '\\u003c')
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'" />
-    <title>${displayName}</title>
-    <style>
+const FORM_STYLES = `
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             background-color: #0f0f0f;
@@ -250,10 +223,10 @@ export function renderEmailCredentialForm(
             margin-right: 0.5rem;
             vertical-align: text-bottom;
         }
+`
 
-    </style>
-</head>
-<body>
+function renderFormBody(displayName: string, server: string, description: string): string {
+  return `
     <main class="container">
         <div class="card">
             <div class="server-header">
@@ -277,7 +250,11 @@ export function renderEmailCredentialForm(
             </form>
         </div>
     </main>
+`
+}
 
+function renderFormScripts(submitUrlJson: string): string {
+  return `
     <script>
         (function () {
             var submitUrl = ${submitUrlJson};
@@ -301,81 +278,73 @@ export function renderEmailCredentialForm(
                 },
                 "icloud.com": {
                     label: "App Password",
-                    helpUrl: "https://appleid.apple.com",
-                    helpText: "Generate an App Password at appleid.apple.com"
+                    helpUrl: "https://support.apple.com/en-us/HT204397",
+                    helpText: "Generate an App Password in your Apple ID security settings"
                 }
             };
 
             var container = document.getElementById("accounts-container");
             var addBtn = document.getElementById("add-account-btn");
             var form = document.getElementById("credential-form");
+            var formFieldset = document.getElementById("form-fieldset");
             var submitBtn = document.getElementById("submit-btn");
             var statusBox = document.getElementById("status-box");
-            var formFieldset = document.getElementById("form-fieldset");
 
             var accountIndex = 0;
-
-            function showStatus(type, message) {
-                statusBox.className = "status-box " + type;
-                statusBox.textContent = message;
-                statusBox.style.display = "block";
-            }
 
             function clearChildren(el) {
                 while (el.firstChild) el.removeChild(el.firstChild);
             }
 
-            function createFieldGroup(opts) {
-                var idx = opts.idx;
-                var key = opts.key;
-                var label = opts.label;
-                var type = opts.type;
-                var placeholder = opts.placeholder;
-                var required = opts.required;
-                var helpText = opts.helpText;
-                var helpUrl = opts.helpUrl;
+            function showStatus(type, message) {
+                statusBox.textContent = message;
+                statusBox.className = "status-box " + type;
+                statusBox.style.display = "block";
+            }
+
+            function createFieldGroup(config) {
+                var idx = config.idx;
+                var key = config.key;
+                var label = config.label;
+                var type = config.type;
+                var placeholder = config.placeholder;
+                var required = config.required;
+                var helpText = config.helpText;
+                var helpUrl = config.helpUrl;
 
                 var group = document.createElement("div");
                 group.className = "field-group";
 
                 var labelEl = document.createElement("label");
                 labelEl.className = "field-label";
-                labelEl.setAttribute("for", "field-" + key + "_" + idx);
+                labelEl.setAttribute("for", key + "_" + idx);
                 labelEl.textContent = label;
-                if (!required) {
-                    var badge = document.createElement("span");
-                    badge.className = "optional-badge";
-                    badge.textContent = "Optional";
-                    labelEl.appendChild(document.createTextNode(" "));
-                    labelEl.appendChild(badge);
+                if (required) {
+                    var star = document.createElement("span");
+                    star.className = "required-indicator";
+                    star.setAttribute("aria-hidden", "true");
+                    star.textContent = "*";
+                    labelEl.appendChild(star);
                 } else {
-                    var reqInd = document.createElement("span");
-                    reqInd.className = "required-indicator";
-                    reqInd.setAttribute("aria-hidden", "true");
-                    reqInd.textContent = "*";
-                    labelEl.appendChild(reqInd);
+                    var optional = document.createElement("span");
+                    optional.className = "optional-badge";
+                    optional.textContent = "Optional";
+                    labelEl.appendChild(optional);
                 }
                 group.appendChild(labelEl);
 
                 var input = document.createElement("input");
-                input.id = "field-" + key + "_" + idx;
+                input.id = key + "_" + idx;
                 input.className = "field-input";
-                input.setAttribute("type", type);
-                input.setAttribute("name", key + "_" + idx);
-                input.setAttribute("autocomplete", type === "email" ? "email" : (type === "password" ? "current-password" : "off"));
-                input.setAttribute("autocorrect", "off");
-                input.setAttribute("autocapitalize", "off");
-                input.setAttribute("spellcheck", "false");
+                input.type = type;
+                input.placeholder = placeholder;
+                input.required = !!required;
                 input.dataset.role = key;
-                if (placeholder) input.setAttribute("placeholder", placeholder);
-                if (required) input.setAttribute("required", "required");
                 group.appendChild(input);
 
                 var errorEl = document.createElement("div");
                 errorEl.id = "error-" + key + "_" + idx;
                 errorEl.className = "field-error";
-                errorEl.setAttribute("role", "alert");
-                errorEl.setAttribute("aria-live", "polite");
 
                 var describedBy = [errorEl.id];
 
@@ -598,28 +567,26 @@ export function renderEmailCredentialForm(
                     var email = emailInput && emailInput.value ? emailInput.value.trim() : "";
                     if (!email) continue;
 
-                    var at = email.indexOf("@");
-                    var domain = at >= 0 ? email.slice(at + 1).toLowerCase() : "";
-
-                    if (OAUTH_DOMAINS.indexOf(domain) !== -1) {
+                    var oauthNotice = card.querySelector('div[data-role="oauth-notice"]');
+                    if (oauthNotice) {
                         hasOauth = true;
-                        // Outlook/Hotmail/Live: no password field. Server detects
-                        // email-only entries and runs Device Code OAuth2.
                         accounts.push({ email: email, oauth: true });
                         continue;
                     }
 
-                    var pwInput = card.querySelector('input[data-role="password"]');
-                    var password = pwInput ? pwInput.value : "";
-                    if (!password) continue;
-
+                    var passInput = card.querySelector('input[data-role="password"]');
+                    var password = passInput ? passInput.value : "";
                     var imapInput = card.querySelector('input[data-role="imap"]');
-                    var imapHost = imapInput && imapInput.value ? imapInput.value.trim() : "";
-
+                    var imapHost = imapInput ? imapInput.value.trim() : "";
                     var imapPortInput = card.querySelector('input[data-role="imapport"]');
-                    var imapPort = imapPortInput && imapPortInput.value ? imapPortInput.value.trim() : "";
+                    var imapPort = imapPortInput ? imapPortInput.value.trim() : "";
 
-                    accounts.push({ email: email, password: password, imapHost: imapHost, imapPort: imapPort });
+                    accounts.push({
+                        email: email,
+                        password: password,
+                        imapHost: imapHost,
+                        imapPort: imapPort
+                    });
                 }
                 return { accounts: accounts, hasOauth: hasOauth };
             }
@@ -673,7 +640,7 @@ export function renderEmailCredentialForm(
                 statusBox.appendChild(waiting);
 
                 // Poll /setup-status until outlook === "complete"
-                var statusUrl = submitUrl.replace(/\\/authorize.*$/, "/setup-status");
+                var statusUrl = submitUrl.replace(/\\authorize.*$/, "/setup-status");
                 var pollId = setInterval(function () {
                     fetch(statusUrl)
                         .then(function (r) { return r.json(); })
@@ -809,6 +776,41 @@ export function renderEmailCredentialForm(
             });
         })();
     </script>
+`
+}
+
+/**
+ * Render the custom email credential form: multi-account cards with
+ * domain auto-detect + Add/Remove buttons + Outlook OAuth notice.
+ *
+ * Submits EMAIL_CREDENTIALS to mcp-core OAuth /authorize endpoint as
+ * comma-separated `email1:pass1,email2:pass2:imap_host` format. The
+ * server-side onCredentialsSaved callback parses this back into accounts.
+ */
+export function renderEmailCredentialForm(
+  _schema: RelayConfigSchema,
+  options: { submitUrl: string; prefill?: Record<string, string> }
+): string {
+  const displayName = escapeHtml(_schema.displayName ?? _schema.server ?? 'Email MCP')
+  const server = escapeHtml(_schema.server ?? 'better-email-mcp')
+  const description = escapeHtml(
+    _schema.description ??
+      'Configure one or more email accounts (Gmail, Yahoo, iCloud, Outlook/Hotmail/Live, or custom IMAP). Outlook accounts use OAuth2 and are handled automatically by the server.'
+  )
+  const submitUrlJson = JSON.stringify(options.submitUrl).replace(/</g, '\\u003c')
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'" />
+    <title>${displayName}</title>
+    <style>${FORM_STYLES}</style>
+</head>
+<body>
+    ${renderFormBody(displayName, server, description)}
+    ${renderFormScripts(submitUrlJson)}
 </body>
 </html>`
 }
