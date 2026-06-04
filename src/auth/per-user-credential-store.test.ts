@@ -67,6 +67,58 @@ describe('per-user-credential-store', () => {
       expect(key2).toBeDefined()
       expect(key3).toBeDefined()
     })
+
+    it('should use default iterations in test environment', async () => {
+      const deriveKeySpy = vi.spyOn(crypto.subtle, 'deriveKey')
+      await _deriveKey('secret')
+
+      expect(deriveKeySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'PBKDF2',
+          iterations: 1000
+        }),
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        expect.anything()
+      )
+      deriveKeySpy.mockRestore()
+    })
+
+    it('should use provided iterations override', async () => {
+      const deriveKeySpy = vi.spyOn(crypto.subtle, 'deriveKey')
+      const customIterations = 5000
+      await _deriveKey('secret', 'user', customIterations)
+
+      expect(deriveKeySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'PBKDF2',
+          iterations: customIterations
+        }),
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        expect.anything()
+      )
+      deriveKeySpy.mockRestore()
+    })
+  })
+
+  describe('public API configurability', () => {
+    it('should respect custom iterations in storeUserCredentials', async () => {
+      const deriveKeySpy = vi.spyOn(crypto.subtle, 'deriveKey')
+      const accounts = [makeAccount('api@gmail.com')]
+      await storeUserCredentials('api-user', accounts, 1234)
+
+      expect(deriveKeySpy).toHaveBeenCalledWith(
+        expect.objectContaining({ iterations: 1234 }),
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        expect.anything()
+      )
+      deriveKeySpy.mockRestore()
+    })
   })
 
   describe('hashUserId', () => {

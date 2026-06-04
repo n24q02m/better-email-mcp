@@ -37,6 +37,9 @@ export const _fs = {
 const DATA_DIR = join(homedir(), '.better-email-mcp', 'users')
 const SECRET_PATH = join(homedir(), '.better-email-mcp', '.user-secret')
 
+const PBKDF2_ITERATIONS_PROD = 600_000
+const PBKDF2_ITERATIONS_TEST = 1000
+
 /** Exposed for testing -- override storage paths */
 export const _paths = { DATA_DIR, SECRET_PATH }
 
@@ -101,7 +104,7 @@ async function deriveKey(secret: string, userId = '', iterations?: number): Prom
       name: 'PBKDF2',
       hash: 'SHA-256',
       salt: new TextEncoder().encode(`mcp-email-per-user:${userId || 'default'}`),
-      iterations: iterations ?? (process.env.NODE_ENV === 'test' ? 1000 : 600_000)
+      iterations: iterations ?? (process.env.NODE_ENV === 'test' ? PBKDF2_ITERATIONS_TEST : PBKDF2_ITERATIONS_PROD)
     },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
@@ -152,7 +155,11 @@ function isValidAccountConfigs(obj: unknown): obj is AccountConfig[] {
 /**
  * Store per-user email account configs encrypted on disk.
  */
-export async function storeUserCredentials(userId: string, accounts: AccountConfig[]): Promise<void> {
+export async function storeUserCredentials(
+  userId: string,
+  accounts: AccountConfig[],
+  iterations?: number
+): Promise<void> {
   const dirHash = hashUserId(userId)
   const userDir = join(_paths.DATA_DIR, dirHash)
   try {
@@ -162,7 +169,7 @@ export async function storeUserCredentials(userId: string, accounts: AccountConf
   }
 
   const secret = await getSecret()
-  const key = await deriveKey(secret, hashUserId(userId))
+  const key = await deriveKey(secret, hashUserId(userId), iterations)
   const iv = crypto.getRandomValues(new Uint8Array(12))
 
   // Store userId alongside accounts so we can reconstruct the mapping on loadAll()
@@ -178,7 +185,7 @@ export async function storeUserCredentials(userId: string, accounts: AccountConf
  * Load per-user email account configs from disk.
  * Returns null if no credentials stored for this user.
  */
-export async function loadUserCredentials(userId: string): Promise<AccountConfig[] | null> {
+export async function loadUserCredentials(userId: string, iterations?: number): Promise<AccountConfig[] | null> {
   const dirHash = hashUserId(userId)
   const credPath = join(_paths.DATA_DIR, dirHash, 'credentials.enc')
 
@@ -187,7 +194,7 @@ export async function loadUserCredentials(userId: string): Promise<AccountConfig
     const iv = data.subarray(0, 12)
     const ciphertext = data.subarray(12)
     const secret = await getSecret()
-    const key = await deriveKey(secret, dirHash)
+    const key = await deriveKey(secret, dirHash, iterations)
     const decrypted = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv: new Uint8Array(iv) },
       key,
@@ -209,7 +216,7 @@ export async function loadUserCredentials(userId: string): Promise<AccountConfig
  * Returns a map of userId -> AccountConfig[].
  * Used on startup to restore the userAccounts map.
  */
-export async function loadAllUserCredentials(): Promise<Map<string, AccountConfig[]>> {
+export async function loadAllUserCredentials(iterations?: number): Promise<Map<string, AccountConfig[]>> {
   const result = new Map<string, AccountConfig[]>()
 
   let entries: any[]
@@ -235,7 +242,7 @@ export async function loadAllUserCredentials(): Promise<Map<string, AccountConfi
       const data = await _fs.readFile(credPath)
       const iv = data.subarray(0, 12)
       const ciphertext = data.subarray(12)
-      const key = await deriveKey(secret, entryName)
+      const key = await deriveKey(secret, entryName, iterations)
       const decrypted = await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv: new Uint8Array(iv) },
         key,
