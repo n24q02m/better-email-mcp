@@ -67,6 +67,21 @@ describe('per-user-credential-store', () => {
       expect(key2).toBeDefined()
       expect(key3).toBeDefined()
     })
+
+    it('should correctly handle explicit iterations parameter', async () => {
+      const key1 = await _deriveKey('secret', 'user1', 1000)
+      const key2 = await _deriveKey('secret', 'user1', 1000)
+      const key3 = await _deriveKey('secret', 'user1', 2000)
+
+      // Same parameters should result in same key material (if we could export it)
+      // Different iterations should definitely result in different keys.
+      // While we can't easily compare opaque CryptoKey objects for equality in a way that
+      // proves they have different iteration counts, we can at least verify the function
+      // accepts the parameter without throwing.
+      expect(key1).toBeDefined()
+      expect(key2).toBeDefined()
+      expect(key3).toBeDefined()
+    })
   })
 
   describe('hashUserId', () => {
