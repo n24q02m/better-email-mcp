@@ -67,4 +67,36 @@ describe('subjectContext', () => {
       expect(subjectContext.getStore()).toBe(outerScope)
     })
   })
+
+  test('should isolate errors and restore context', async () => {
+    const scope: EmailSubjectScope = { sub: 'error-test', accounts: [] }
+
+    await expect(
+      subjectContext.run(scope, async () => {
+        expect(subjectContext.getStore()).toBe(scope)
+        throw new Error('test error')
+      })
+    ).rejects.toThrow('test error')
+
+    expect(subjectContext.getStore()).toBeUndefined()
+  })
+
+  test('should maintain complex nested async isolation', async () => {
+    const outerScope: EmailSubjectScope = { sub: 'outer', accounts: [] }
+    const innerScope: EmailSubjectScope = { sub: 'inner', accounts: [] }
+
+    await subjectContext.run(outerScope, async () => {
+      expect(subjectContext.getStore()).toBe(outerScope)
+
+      await new Promise((resolve) => setTimeout(resolve, 5))
+
+      await subjectContext.run(innerScope, async () => {
+        expect(subjectContext.getStore()).toBe(innerScope)
+        await new Promise((resolve) => setTimeout(resolve, 10))
+        expect(subjectContext.getStore()).toBe(innerScope)
+      })
+
+      expect(subjectContext.getStore()).toBe(outerScope)
+    })
+  })
 })
