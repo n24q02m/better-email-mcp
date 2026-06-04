@@ -101,6 +101,12 @@ describe('credential-state', () => {
       mod.setSetupUrl(null)
       expect(mod.getSetupUrl()).toBeNull()
     })
+
+    it('handles complex URLs with query parameters', () => {
+      const complexUrl = 'https://example.com/setup?token=123&callback=http%3A%2F%2Flocalhost%3A3000'
+      mod.setSetupUrl(complexUrl)
+      expect(mod.getSetupUrl()).toBe(complexUrl)
+    })
   })
 
   describe('resolveCredentialState', () => {
@@ -195,8 +201,9 @@ describe('credential-state', () => {
   })
 
   describe('resetState', () => {
-    it('resets to awaiting_setup', async () => {
+    it('resets to awaiting_setup and clears setup URL', async () => {
       mod.setState('configured')
+      mod.setSetupUrl('http://temporary-url.com')
       await mod.resetState()
       expect(mod.getState()).toBe('awaiting_setup')
       expect(mod.getSetupUrl()).toBeNull()
