@@ -114,6 +114,8 @@ async function initiateOutlookOAuth(outlookAccounts: AccountConfig[]): Promise<N
       // stops spinning and follows the OAuth redirect_url. Without this the
       // hook fires only on form-side `mark_setup_complete()` paths (gdrive
       // default key) — Outlook device-code completion never matches.
+      // This must happen AFTER tokens are persisted to disk by the background
+      // poll to ensure the redirected client sees the saved credentials.
       try {
         getMarkSetupComplete()?.('outlook')
       } catch {
