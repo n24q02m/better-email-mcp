@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { escapeHtml, fastExtractSnippet, htmlToCleanText } from './html-utils.js'
+import { escapeHtml, fastExtractSnippet, htmlToCleanText, sanitizeHtml } from './html-utils.js'
 
 describe('escapeHtml', () => {
   it('escapes &, <, >, ", and \'', () => {
@@ -231,5 +231,34 @@ describe('fastExtractSnippet', () => {
     expect(result).toContain('A')
     expect(result).toContain('B')
     expect(result).toContain('C')
+  })
+})
+
+describe('sanitizeHtml', () => {
+  it('sanitizes basic HTML', () => {
+    const input = '<p>Hello <script>alert(1)</script><b>World</b></p>'
+    const result = sanitizeHtml(input)
+    expect(result).toContain('Hello')
+    expect(result).toContain('<b>World</b>')
+    expect(result).not.toContain('<script>')
+  })
+
+  it('handles large strings efficiently (performance test)', () => {
+    // Generate ~1MB of HTML
+    const part = '<p>Some text with <b>bold</b> and <i>italics</i>.</p>'
+    const largeHtml = part.repeat(20000) // ~1MB
+
+    const start = Date.now()
+    const result = sanitizeHtml(largeHtml)
+    const end = Date.now()
+
+    expect(result.length).toBeGreaterThan(0)
+    expect(end - start).toBeLessThan(5000) // Should complete within 5 seconds
+  })
+
+  it('respects options', () => {
+    const input = '<div><img src="test.jpg"></div>'
+    const result = sanitizeHtml(input, { allowedTags: ['div'] })
+    expect(result).toBe('<div></div>')
   })
 })
