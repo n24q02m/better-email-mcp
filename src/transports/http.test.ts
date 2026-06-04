@@ -102,13 +102,13 @@ describe('http transport', () => {
   async function runStartHttpAndTriggerShutdown(fn?: () => Promise<void>) {
     const startPromise = startHttp()
 
-    // Wait for the server to start
-    await vi.waitFor(() => expect(runHttpServer).toHaveBeenCalled())
+    // Wait for the server to start and register shutdown signal handlers
+    await vi.waitFor(() => expect(sigintHandler).toBeInstanceOf(Function))
 
     if (fn) await fn()
 
     // Trigger shutdown
-    if (sigintHandler) await sigintHandler()
+    await sigintHandler()
     await startPromise
   }
 

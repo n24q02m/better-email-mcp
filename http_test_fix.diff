@@ -1,0 +1,17 @@
+<<<<<<< SEARCH
+    // Wait for the server to start
+    await vi.waitFor(() => expect(runHttpServer).toHaveBeenCalled())
+
+    if (fn) await fn()
+
+    // Trigger shutdown
+    if (sigintHandler) await sigintHandler()
+=======
+    // Wait for the server to start and register shutdown signal handlers
+    await vi.waitFor(() => expect(sigintHandler).toBeInstanceOf(Function))
+
+    if (fn) await fn()
+
+    // Trigger shutdown
+    await sigintHandler()
+>>>>>>> REPLACE
