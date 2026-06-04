@@ -910,6 +910,16 @@ describe('resolveSentFolder', () => {
 
     expect(result).toBe('Sent')
   })
+
+  it('removes from cache and rethrows if resolution fails', async () => {
+    clearSentFolderCache()
+    const malformedAccount = { id: 'malformed' } as any
+
+    await expect(resolveSentFolder(malformedAccount)).rejects.toThrow()
+
+    // Verify it is not in cache (count should be 0 if it was deleted)
+    expect(clearSentFolderCache()).toBe(0)
+  })
 })
 
 // ============================================================================
@@ -1044,5 +1054,25 @@ describe('clearSentFolderCache', () => {
 
     // Verify it is empty
     expect(clearSentFolderCache()).toBe(0)
+  })
+
+  it('forces re-resolution of sent folder after cache is cleared', async () => {
+    clearSentFolderCache()
+    mockClient.list.mockResolvedValue([{ name: 'Sent', path: 'Sent', flags: new Set(['\\Sent']), delimiter: '/' }])
+
+    // First call - should call listFolders
+    await resolveSentFolder(account)
+    expect(mockClient.list).toHaveBeenCalledTimes(1)
+
+    // Second call - should use cache, no new list call
+    await resolveSentFolder(account)
+    expect(mockClient.list).toHaveBeenCalledTimes(1)
+
+    // Clear cache
+    clearSentFolderCache()
+
+    // Third call - should re-resolve, calling listFolders again
+    await resolveSentFolder(account)
+    expect(mockClient.list).toHaveBeenCalledTimes(2)
   })
 })
