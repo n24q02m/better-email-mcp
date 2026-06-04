@@ -67,6 +67,13 @@ describe('per-user-credential-store', () => {
       expect(key2).toBeDefined()
       expect(key3).toBeDefined()
     })
+
+    it('should allow overriding iterations', async () => {
+      // We can't easily inspect the key object for iterations,
+      // but we can verify it doesn't throw and generates a key.
+      const key = await _deriveKey('secret', 'user', 5000)
+      expect(key).toBeDefined()
+    })
   })
 
   describe('hashUserId', () => {
