@@ -1,0 +1,13 @@
+<<<<<<< SEARCH
+import { ImapFlow, type SearchObject } from 'imapflow'
+import { type SimpleParserOptions, simpleParser } from 'mailparser'
+=======
+import { type FetchMessageObject, ImapFlow, type ListResponse, type SearchObject } from 'imapflow'
+import {
+  type AddressObject,
+  type Attachment,
+  type EmailAddress,
+  type SimpleParserOptions,
+  simpleParser
+} from 'mailparser'
+>>>>>>> REPLACE
