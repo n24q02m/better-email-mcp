@@ -37,7 +37,8 @@ vi.mock('../tools/helpers/config.js', () => ({
 vi.mock('../tools/helpers/oauth2.js', () => ({
   initiateOutlookDeviceCode: vi.fn(),
   isOutlookDomain: vi.fn(),
-  saveOutlookTokens: vi.fn()
+  saveOutlookTokens: vi.fn(),
+  _resetTokenCache: vi.fn()
 }))
 
 vi.mock('../tools/registry.js', () => ({
