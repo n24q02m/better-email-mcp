@@ -59,3 +59,7 @@
 
 **Learning:** When dynamic content like new form sections are added or removed, relying entirely on visual layout updates disrupts accessibility. If a removed element had focus, focus is typically dropped to the document `<body>`. For keyboard-only and screen reader users, this necessitates tabbing through the entire page again. Additionally, newly spawned elements aren't automatically focused.
 **Action:** Implement active programmatic focus management for all dynamic content changes. When adding elements, immediately focus their primary input. When removing focused elements, explicitly return focus to the logical preceding element (e.g., the button that triggered the creation, or a 'container' wrapper) to maintain a continuous interaction flow.
+
+## 2025-05-25 - Form Validation Focus Shift
+**Learning:** Even when implementing custom form validation on forms with `novalidate`, keyboard accessibility requires programmatic focus shifting to the invalid element when submission fails. Otherwise screen reader or keyboard users might not realize the submission failed or where the error is.
+**Action:** When manually intercepting form submission on `novalidate` forms, always check `form.checkValidity()`. If invalid, query for `input:invalid, select:invalid, textarea:invalid` and `.focus()` it before returning.
