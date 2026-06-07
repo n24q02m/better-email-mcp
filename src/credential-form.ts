@@ -722,6 +722,15 @@ export function renderEmailCredentialForm(
                 evt.preventDefault();
                 statusBox.style.display = "none";
 
+                if (!form.checkValidity()) {
+                    // Find the first invalid element and focus it for accessibility
+                    var firstInvalid = form.querySelector("input:invalid, select:invalid, textarea:invalid");
+                    if (firstInvalid && firstInvalid instanceof HTMLElement) {
+                        firstInvalid.focus();
+                    }
+                    return;
+                }
+
                 var collected = collectAccounts();
 
                 if (collected.accounts.length === 0) {

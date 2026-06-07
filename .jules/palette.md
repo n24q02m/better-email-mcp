@@ -59,3 +59,9 @@
 
 **Learning:** When dynamic content like new form sections are added or removed, relying entirely on visual layout updates disrupts accessibility. If a removed element had focus, focus is typically dropped to the document `<body>`. For keyboard-only and screen reader users, this necessitates tabbing through the entire page again. Additionally, newly spawned elements aren't automatically focused.
 **Action:** Implement active programmatic focus management for all dynamic content changes. When adding elements, immediately focus their primary input. When removing focused elements, explicitly return focus to the logical preceding element (e.g., the button that triggered the creation, or a 'container' wrapper) to maintain a continuous interaction flow.
+
+## 2025-05-26 - Native Form Validation on Submit
+
+**Learning:** When using `novalidate` on a form to provide custom inline validation feedback, the native validation is bypassed when the user submits the form. As a result, the custom `invalid` event handlers are not triggered, and invalid inputs are not highlighted, creating a poor user experience.
+
+**Action:** Always manually call `form.checkValidity()` in the form's `submit` event listener to ensure that all inputs are validated and custom `invalid` event handlers are fired. Additionally, programmatically focus the first invalid element to maintain accessibility and ensure the user's attention is directed to the first error.
