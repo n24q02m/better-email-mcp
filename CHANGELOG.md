@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.32.1 (2026-06-07)
+
+### Bug Fixes
+
+- Bump @n24q02m/mcp-core to 1.17.3 ([#760](https://github.com/n24q02m/better-email-mcp/pull/760),
+  [`69044a9`](https://github.com/n24q02m/better-email-mcp/commit/69044a944e27839215b2ef93ef447b369698e2a0))
+
+
 ## v1.32.0 (2026-06-07)
 
 
