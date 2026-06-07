@@ -135,6 +135,58 @@ async function initiateOutlookOAuth(outlookAccounts: AccountConfig[]): Promise<N
     }
   }
 }
+/**
+ * Categorize accounts into Outlook (OAuth2) and IMAP (Password) groups.
+ * Also resets .oauth2 tokens to force fresh device-code flows on submission.
+ */
+function categorizeAccounts(accounts: AccountConfig[]): {
+  outlook: AccountConfig[]
+  imap: AccountConfig[]
+} {
+  const outlook: AccountConfig[] = []
+  const imap: AccountConfig[] = []
+  for (const account of accounts) {
+    if (isOutlookDomain(account.email) || account.authType === 'oauth2') {
+      account.oauth2 = undefined
+      outlook.push(account)
+    } else {
+      imap.push(account)
+    }
+  }
+  return { outlook, imap }
+}
+
+/**
+ * Persist credentials to per-user store and shared config.enc fallback.
+ */
+async function persistAccounts(
+  raw: string,
+  accounts: AccountConfig[],
+  context: SubjectContext,
+  onAccountsLoaded: (accounts: AccountConfig[]) => void
+): Promise<NextStep | null> {
+  const sub = context?.sub
+  if (sub) {
+    try {
+      await credStore.save(sub, { accounts })
+    } catch (err) {
+      console.error(`[${SERVER_NAME}] Failed to save per-user credentials for sub=${sub}: ${(err as Error).message}`)
+      return { type: 'error', text: 'Failed to save credentials. Please retry.' }
+    }
+    console.error(`[${SERVER_NAME}] ${accounts.length} email account(s) configured for sub=${sub} (per-user scope)`)
+  }
+
+  try {
+    await writeConfig(SERVER_NAME, { EMAIL_CREDENTIALS: raw })
+  } catch (err) {
+    console.error(`[${SERVER_NAME}] Failed to persist credentials: ${(err as Error).message}`)
+  }
+
+  process.env.EMAIL_CREDENTIALS = raw
+  onAccountsLoaded(accounts)
+  console.error(`[${SERVER_NAME}] ${accounts.length} email account(s) configured via /authorize`)
+  return null
+}
 
 /**
  * Build `RunHttpServerOptions` for the email HTTP mode. Per-user credentials
@@ -175,52 +227,15 @@ function buildOptions(args: {
       }
     }
 
-    const outlookAccounts: AccountConfig[] = []
-    const imapAccounts: AccountConfig[] = []
-    for (const account of accounts) {
-      if (isOutlookDomain(account.email) || account.authType === 'oauth2') {
-        // Force fresh device-code flow for every form submit by clearing any
-        // cached tokens that ``parseCredentials`` may have populated via
-        // ``loadStoredTokens``. Without this, ``initiateOutlookOAuth`` filters
-        // out accounts with ``.oauth2`` set and silently returns ``null`` →
-        // the form shows "Setup complete" without ever displaying the Microsoft
-        // device-code step (UX bug reported 2026-04-24).
-        account.oauth2 = undefined
-        outlookAccounts.push(account)
-      } else {
-        imapAccounts.push(account)
-      }
-    }
+    const { outlook, imap } = categorizeAccounts(accounts)
 
-    const imapResult = await validateImapAccounts(imapAccounts)
+    const imapResult = await validateImapAccounts(imap)
     if (imapResult) return imapResult
 
-    // Persistence: per-user (multi-user JWT-sub) + shared config.enc fallback.
-    // Per-user store guarantees isolation in multi-user deployments. Shared
-    // config.enc lets single-user self-host installs survive process restarts
-    // and lets tool calls outside an HTTP request scope (e.g. internal calls)
-    // still see the saved credentials.
-    const sub = context?.sub
-    if (sub) {
-      try {
-        await credStore.save(sub, { accounts })
-      } catch (err) {
-        console.error(`[${SERVER_NAME}] Failed to save per-user credentials for sub=${sub}: ${(err as Error).message}`)
-        return { type: 'error', text: 'Failed to save credentials. Please retry.' }
-      }
-      console.error(`[${SERVER_NAME}] ${accounts.length} email account(s) configured for sub=${sub} (per-user scope)`)
-    }
+    const persistResult = await persistAccounts(raw, accounts, context, onAccountsLoaded)
+    if (persistResult) return persistResult
 
-    try {
-      await writeConfig(SERVER_NAME, { EMAIL_CREDENTIALS: raw })
-    } catch (err) {
-      console.error(`[${SERVER_NAME}] Failed to persist credentials: ${(err as Error).message}`)
-    }
-    process.env.EMAIL_CREDENTIALS = raw
-    onAccountsLoaded(accounts)
-    console.error(`[${SERVER_NAME}] ${accounts.length} email account(s) configured via /authorize`)
-
-    const outlookResult = await initiateOutlookOAuth(outlookAccounts)
+    const outlookResult = await initiateOutlookOAuth(outlook)
     if (outlookResult) return outlookResult
 
     setState('configured')
