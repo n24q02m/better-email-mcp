@@ -482,10 +482,31 @@ export async function ensureValidToken(account: { email: string; oauth2?: OAuth2
  * claim as a fallback (uncommon in device-code flows).
  */
 export async function saveOutlookTokens(tokens: Record<string, unknown>): Promise<void> {
-  const email = typeof tokens.email === 'string' ? tokens.email : (process.env.OUTLOOK_EMAIL ?? 'outlook-device-code')
+  let email = typeof tokens.email === 'string' ? tokens.email : process.env.OUTLOOK_EMAIL
+
+  if (!email && typeof tokens.sub === 'string') {
+    email = tokens.sub
+  }
+
+  if (!email && typeof tokens.id_token === 'string') {
+    try {
+      const parts = tokens.id_token.split('.')
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'))
+        if (typeof payload.sub === 'string') {
+          email = payload.sub
+        }
+      }
+    } catch {
+      // Ignore JWT decoding errors
+    }
+  }
+
+  const finalEmail = typeof email === 'string' ? email : 'outlook-device-code'
   const now = Math.floor(Date.now() / MS_PER_SECOND)
   const expiresIn = typeof tokens.expires_in === 'number' ? tokens.expires_in : 3600
-  saveTokens(email, {
+
+  saveTokens(finalEmail, {
     accessToken: typeof tokens.access_token === 'string' ? tokens.access_token : '',
     refreshToken: typeof tokens.refresh_token === 'string' ? tokens.refresh_token : '',
     expiresAt: now + expiresIn,

@@ -174,6 +174,17 @@ describe('loadStoredTokens', () => {
 
     expect(await loadStoredTokens('user@outlook.com')).toBeNull()
   })
+  it('starts fresh if file is corrupted (invalid JSON)', async () => {
+    mockReadFile.mockResolvedValue('invalid json')
+    mockExistsSync.mockReturnValue(true)
+    // We expect it to return null for the specific email because the store is reset to {}
+    expect(await loadStoredTokens('user@outlook.com')).toBeNull()
+  })
+  it('starts fresh if file contains non-object data (array)', async () => {
+    mockReadFile.mockResolvedValue('[]')
+    mockExistsSync.mockReturnValue(true)
+    expect(await loadStoredTokens('user@outlook.com')).toBeNull()
+  })
 })
 
 // ============================================================================
@@ -183,6 +194,27 @@ describe('loadStoredTokens', () => {
 describe('saveTokens', () => {
   beforeEach(() => {
     _resetTokenCache()
+  })
+  it('starts fresh if file is corrupted during save', () => {
+    mockReadFileSync.mockReturnValue('invalid json')
+    mockExistsSync.mockReturnValue(true)
+
+    saveTokens('user@outlook.com', tokens)
+
+    expect(mockWriteFileSync).toHaveBeenCalled()
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written).toEqual({ 'user@outlook.com': tokens })
+  })
+
+  it('starts fresh if file contains non-object data during save', () => {
+    mockReadFileSync.mockReturnValue('[]')
+    mockExistsSync.mockReturnValue(true)
+
+    saveTokens('user@outlook.com', tokens)
+
+    expect(mockWriteFileSync).toHaveBeenCalled()
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written).toEqual({ 'user@outlook.com': tokens })
   })
 
   const tokens: OAuth2Tokens = {
@@ -1189,9 +1221,40 @@ describe('saveOutlookTokens', () => {
     expect(written['env@outlook.com'].accessToken).toBe('at-env')
   })
 
-  it('falls back to outlook-device-code if both email sources are missing', async () => {
+  it('uses tokens.sub if email and env are missing', async () => {
     delete process.env.OUTLOOK_EMAIL
     const tokens = {
+      sub: 'sub-123',
+      access_token: 'at-sub'
+    }
+
+    await saveOutlookTokens(tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['sub-123']).toBeDefined()
+    expect(written['sub-123'].accessToken).toBe('at-sub')
+  })
+
+  it('decodes id_token for sub if email, env, and sub are missing', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    const payload = JSON.stringify({ sub: 'jwt-sub' })
+    const idToken = `header.${Buffer.from(payload).toString('base64url')}.signature`
+    const tokens = {
+      id_token: idToken,
+      access_token: 'at-jwt'
+    }
+
+    await saveOutlookTokens(tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['jwt-sub']).toBeDefined()
+    expect(written['jwt-sub'].accessToken).toBe('at-jwt')
+  })
+
+  it('falls back to outlook-device-code if all identifiers are missing or invalid', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    const tokens = {
+      id_token: 'invalid-jwt',
       access_token: 'at-fallback'
     }
 
