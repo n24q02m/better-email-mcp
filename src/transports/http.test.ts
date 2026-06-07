@@ -102,8 +102,11 @@ describe('http transport', () => {
   async function runStartHttpAndTriggerShutdown(fn?: () => Promise<void>) {
     const startPromise = startHttp()
 
-    // Wait for the server to start
-    await vi.waitFor(() => expect(runHttpServer).toHaveBeenCalled())
+    // Wait for the server to start AND signal handlers to be attached
+    await vi.waitFor(() => {
+      expect(runHttpServer).toHaveBeenCalled()
+      expect(sigintHandler).toBeTruthy()
+    })
 
     if (fn) await fn()
 
@@ -137,16 +140,22 @@ describe('http transport', () => {
 
   describe('onCredentialsSaved', () => {
     let onCredentialsSaved: any
+    let serverPromise: Promise<void> | null = null
 
     beforeEach(async () => {
       // Start server and capture the callback
-      startHttp()
-      await vi.waitFor(() => expect(runHttpServer).toHaveBeenCalled())
+      serverPromise = startHttp()
+      await vi.waitFor(() => {
+        expect(runHttpServer).toHaveBeenCalled()
+        expect(sigintHandler).toBeTruthy()
+      })
       onCredentialsSaved = vi.mocked(runHttpServer).mock.calls[0][1].onCredentialsSaved
     })
 
     afterEach(async () => {
       if (sigintHandler) await sigintHandler()
+      if (serverPromise) await serverPromise
+      serverPromise = null
     })
 
     it('returns error if EMAIL_CREDENTIALS is missing', async () => {
@@ -166,7 +175,7 @@ describe('http transport', () => {
       })
     })
 
-    it('returns error if no accounts are parsed', async () => {
+    it('returns error if no accounts parsed', async () => {
       vi.mocked(parseCredentials).mockResolvedValue([])
       const result = await onCredentialsSaved({ EMAIL_CREDENTIALS: 'valid:format' })
       expect(result).toEqual({
@@ -383,7 +392,10 @@ describe('http transport', () => {
       vi.mocked(loadConfig).mockResolvedValue(mockAccounts as any)
 
       const startPromise = startHttp()
-      await vi.waitFor(() => expect(runHttpServer).toHaveBeenCalled())
+      await vi.waitFor(() => {
+        expect(runHttpServer).toHaveBeenCalled()
+        expect(sigintHandler).toBeTruthy()
+      })
 
       const factory = vi.mocked(runHttpServer).mock.calls[0][0]
 
