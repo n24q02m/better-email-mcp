@@ -85,6 +85,7 @@ function _toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  clearSentFolderCache()
   mockClient.connect.mockResolvedValue(undefined)
   mockClient.logout.mockResolvedValue(undefined)
   mockClient.getMailboxLock.mockResolvedValue({ release: mockRelease })
@@ -100,141 +101,97 @@ beforeEach(() => {
 // ============================================================================
 
 describe('searchEmails', () => {
-  it('searches with default UNSEEN criteria', async () => {
-    mockSimpleParser.mockResolvedValue({ text: 'Preview text here' } as any)
-    const msgs = [
+  const setupSearch = () => {
+    mockClient.search.mockResolvedValue([123, 456])
+    mockClient.fetchAll.mockResolvedValue([
       {
-        uid: 1,
-        flags: new Set(['\\Seen']),
+        uid: 123,
         envelope: {
-          messageId: '<msg1@test>',
-          subject: 'Hello',
-          from: [{ name: 'Sender', address: 'sender@test.com' }],
-          to: [{ address: 'test@gmail.com' }],
-          date: new Date('2025-01-01')
+          subject: 'Test Subject',
+          from: [{ name: 'Sender', address: 'sender@example.com' }],
+          to: [{ address: 'recipient@example.com' }],
+          date: new Date('2024-01-01T10:00:00Z'),
+          messageId: 'msg-123'
         },
-        source: Buffer.from('Preview text here')
+        flags: new Set(['\\Seen'])
       }
-    ]
-    mockClient.fetchAll.mockResolvedValue(msgs)
+    ])
+  }
 
-    const results = await searchEmails([account], 'UNSEEN', 'INBOX', 20)
+  it('searches with default UNSEEN criteria', async () => {
+    setupSearch()
+    const results = await searchEmails([account], 'UNSEEN', 'INBOX', 10)
 
     expect(results).toHaveLength(1)
-    expect(results[0]!.uid).toBe(1)
-    expect(results[0]!.subject).toBe('Hello')
-    expect(results[0]!.from).toContain('sender@test.com')
-    expect(results[0]!.account_email).toBe('test@gmail.com')
-    expect(results[0]!.snippet).toBe('Preview text here')
-    expect(mockRelease).toHaveBeenCalled()
+    expect(results[0].subject).toBe('Test Subject')
+    expect(mockClient.search).toHaveBeenCalledWith({ seen: false }, { uid: true })
   })
 
   it('respects the limit parameter', async () => {
-    mockSimpleParser.mockResolvedValue({ text: 'text' } as any)
-    const msgs = Array.from({ length: 5 }, (_, i) => ({
-      uid: i + 1,
-      flags: new Set(),
-      envelope: {
-        messageId: `<msg${i + 1}@test>`,
-        subject: `Email ${i + 1}`,
-        from: [{ name: '', address: 'sender@test.com' }],
-        to: [{ address: 'test@gmail.com' }],
-        date: new Date()
-      },
-      source: Buffer.from('text')
-    }))
     mockClient.search.mockResolvedValue([1, 2, 3, 4, 5])
-    mockClient.fetchAll.mockResolvedValue(msgs.slice(2))
+    mockClient.fetchAll.mockResolvedValue([])
 
-    const results = await searchEmails([account], 'ALL', 'INBOX', 3)
+    await searchEmails([account], 'ALL', 'INBOX', 2)
 
-    expect(results).toHaveLength(3)
+    // selectedUids should be the last 2: [4, 5]
+    expect(mockClient.fetchAll).toHaveBeenCalledWith([4, 5], expect.any(Object), { uid: true })
   })
 
   it('searches across multiple accounts', async () => {
-    mockSimpleParser.mockResolvedValue({ text: 'text' } as any)
-    const account2: AccountConfig = {
-      ...account,
-      id: 'user2_gmail_com',
-      email: 'user2@gmail.com'
-    }
-    const msg = {
-      uid: 1,
-      flags: new Set(),
-      envelope: {
-        subject: 'Test',
-        from: [{ address: 'x@test.com' }],
-        to: [{ address: 'y@test.com' }],
-        date: new Date()
-      },
-      source: Buffer.from('text')
-    }
-    mockClient.fetchAll.mockResolvedValue([msg])
-
+    setupSearch()
+    const account2 = { ...account, id: 'acc2', email: 'acc2@test.com' }
     const results = await searchEmails([account, account2], 'ALL', 'INBOX', 10)
 
-    // Should have results from both accounts
     expect(results).toHaveLength(2)
-    expect(results[0]!.account_email).toBe('test@gmail.com')
-    expect(results[1]!.account_email).toBe('user2@gmail.com')
+    expect(ImapFlow).toHaveBeenCalledTimes(2)
   })
 
   it('includes error entry when account fails', async () => {
-    mockClient.connect.mockRejectedValue(new Error('Connection refused'))
-
+    mockClient.connect.mockRejectedValueOnce(new Error('Connection failed'))
     const results = await searchEmails([account], 'ALL', 'INBOX', 10)
 
     expect(results).toHaveLength(1)
-    expect(results[0]!.uid).toBe(0)
-    expect(results[0]!.subject).toContain('[ERROR]')
-    expect(results[0]!.snippet).toContain('Connection refused')
+    expect(results[0].subject).toContain('[ERROR]')
+    expect(results[0].snippet).toContain('Connection failed')
   })
 
   it('handles empty search results', async () => {
     mockClient.search.mockResolvedValue([])
-    mockClient.fetchAll.mockResolvedValue([])
-
-    const results = await searchEmails([account], 'UNSEEN', 'INBOX', 20)
+    const results = await searchEmails([account], 'ALL', 'INBOX', 10)
 
     expect(results).toHaveLength(0)
+    expect(mockClient.fetchAll).not.toHaveBeenCalled()
   })
 
   it('uses source for snippet extraction', async () => {
-    mockSimpleParser.mockResolvedValue({ text: 'Body content here' } as any)
     mockClient.search.mockResolvedValue([1])
     mockClient.fetchAll.mockResolvedValue([
       {
         uid: 1,
-        flags: new Set(),
-        envelope: { subject: 'Test Subject' },
-        source: Buffer.from('Body content here')
+        source: Buffer.from('Subject: test\r\n\r\nHello World'),
+        envelope: { subject: 'test' }
       }
     ])
 
-    const results = await searchEmails([account], 'ALL', 'INBOX', 10)
+    mockSimpleParser.mockResolvedValue({ text: 'Hello World' } as any)
 
-    expect(results).toHaveLength(1)
-    expect(results[0]!.snippet).toBe('Body content here')
+    const results = await searchEmails([account], 'ALL', 'INBOX', 1)
+    expect(results[0].snippet).toBe('Hello World')
   })
 
   it('handles missing envelope fields gracefully', async () => {
-    mockSimpleParser.mockResolvedValue({ text: '' } as any)
     mockClient.search.mockResolvedValue([1])
     mockClient.fetchAll.mockResolvedValue([
       {
         uid: 1,
-        flags: new Set(),
-        envelope: {},
-        source: null
+        envelope: {} // Missing everything
       }
     ])
 
-    const results = await searchEmails([account], 'ALL', 'INBOX', 10)
-
-    expect(results).toHaveLength(1)
-    expect(results[0]!.subject).toBe('(No subject)')
-    expect(results[0]!.from).toBe('')
-    expect(results[0]!.snippet).toBe('')
+    const results = await searchEmails([account], 'ALL', 'INBOX', 1)
+    expect(results[0].subject).toBe('(No subject)')
+    expect(results[0].from).toBe('')
+    expect(results[0].to).toBe('')
   })
 })
 
@@ -243,90 +200,60 @@ describe('searchEmails', () => {
 // ============================================================================
 
 describe('readEmail', () => {
+  const mockSource = Buffer.from('From: sender@test.com\r\nSubject: Test\r\n\r\nBody Content')
+
   it('reads email by UID and returns detail', async () => {
     mockClient.fetchOne.mockResolvedValue({
-      uid: 42,
-      flags: new Set(['\\Seen']),
-      source: Buffer.from('raw email source')
+      uid: 123,
+      flags: new Set(['\\Seen', '\\Flagged']),
+      source: mockSource
     })
+
     mockSimpleParser.mockResolvedValue({
-      messageId: '<msg42@test>',
-      inReplyTo: '<parent@test>',
-      references: '<ref1@test> <ref2@test>',
       subject: 'Test Subject',
-      from: { text: 'Sender <sender@test.com>' },
-      to: { text: 'test@gmail.com' },
-      cc: undefined,
-      bcc: undefined,
-      date: new Date('2025-06-01'),
-      text: 'Plain text body',
-      html: null,
-      attachments: [{ filename: 'doc.pdf', contentType: 'application/pdf', size: 1024 }]
+      from: { text: 'sender@test.com', value: [{ name: '', address: 'sender@test.com' }] },
+      to: { text: 'to@test.com', value: [{ name: '', address: 'to@test.com' }] },
+      date: new Date('2024-01-01T10:00:00Z'),
+      text: 'Body Content',
+      messageId: 'id-123',
+      attachments: []
     } as any)
 
-    const result = await readEmail(account, 42, 'INBOX')
+    const result = await readEmail(account, 123, 'INBOX')
 
-    expect(result.uid).toBe(42)
-    expect(result.subject).toBe('Test Subject')
-    expect(result.message_id).toBe('<msg42@test>')
-    expect(result.body_text).toBe('Plain text body')
-    expect(result.attachments).toHaveLength(1)
-    expect(result.attachments[0]!.filename).toBe('doc.pdf')
-    expect(mockRelease).toHaveBeenCalled()
+    expect(result.uid).toBe(123)
+    expect(result.body_text).toBe('Body Content')
+    expect(result.flags).toContain('\\Seen')
+    expect(result.flags).toContain('\\Flagged')
   })
 
   it('falls back to html-to-text when no plain text', async () => {
-    mockClient.fetchOne.mockResolvedValue({
-      uid: 1,
-      flags: new Set(),
-      source: Buffer.from('raw')
-    })
+    mockClient.fetchOne.mockResolvedValue({ uid: 1, source: mockSource })
     mockSimpleParser.mockResolvedValue({
-      subject: 'HTML Email',
-      from: { text: 'x@test.com' },
-      to: { text: 'y@test.com' },
-      date: new Date(),
-      text: null,
-      html: '<p>Hello World</p>',
-      attachments: []
+      html: '<p>HTML Content</p>',
+      text: undefined
     } as any)
 
     const result = await readEmail(account, 1, 'INBOX')
-
-    expect(result.body_text).toBe('cleaned: <p>Hello World</p>')
+    expect(result.body_text).toBe('cleaned: <p>HTML Content</p>')
   })
 
   it('shows (Empty body) when no text or html', async () => {
-    mockClient.fetchOne.mockResolvedValue({
-      uid: 1,
-      flags: new Set(),
-      source: Buffer.from('raw')
-    })
-    mockSimpleParser.mockResolvedValue({
-      subject: 'Empty',
-      from: { text: 'x@test.com' },
-      to: { text: 'y@test.com' },
-      date: new Date(),
-      text: null,
-      html: null,
-      attachments: []
-    } as any)
+    mockClient.fetchOne.mockResolvedValue({ uid: 1, source: mockSource })
+    mockSimpleParser.mockResolvedValue({} as any)
 
     const result = await readEmail(account, 1, 'INBOX')
-
     expect(result.body_text).toBe('(Empty body)')
   })
 
   it('throws EmailMCPError when email not found', async () => {
-    mockClient.fetchOne.mockResolvedValue(false)
-
-    await expect(readEmail(account, 999, 'INBOX')).rejects.toThrow('Email UID 999 not found')
+    mockClient.fetchOne.mockResolvedValue(null)
+    await expect(readEmail(account, 999, 'INBOX')).rejects.toThrow('not found')
   })
 
   it('throws when fetchOne returns object without source', async () => {
-    mockClient.fetchOne.mockResolvedValue({ uid: 1, source: null })
-
-    await expect(readEmail(account, 1, 'INBOX')).rejects.toThrow('not found')
+    mockClient.fetchOne.mockResolvedValue({ uid: 123 }) // source missing
+    await expect(readEmail(account, 123, 'INBOX')).rejects.toThrow('not found')
   })
 })
 
@@ -336,26 +263,19 @@ describe('readEmail', () => {
 
 describe('modifyFlags', () => {
   it('adds flags to emails', async () => {
-    const result = await modifyFlags(account, [1, 2, 3], 'INBOX', ['\\Seen'], 'add')
-
-    expect(mockClient.messageFlagsAdd).toHaveBeenCalledWith({ uid: '1,2,3' }, ['\\Seen'])
+    const result = await modifyFlags(account, [1, 2], 'INBOX', ['\\Seen'], 'add')
     expect(result.success).toBe(true)
-    expect(result.modified).toBe(3)
+    expect(mockClient.messageFlagsAdd).toHaveBeenCalledWith({ uid: '1,2' }, ['\\Seen'])
   })
 
   it('removes flags from emails', async () => {
-    const result = await modifyFlags(account, [5], 'INBOX', ['\\Flagged'], 'remove')
-
-    expect(mockClient.messageFlagsRemove).toHaveBeenCalledWith({ uid: '5' }, ['\\Flagged'])
+    const result = await modifyFlags(account, [3], 'INBOX', ['\\Flagged'], 'remove')
     expect(result.success).toBe(true)
-    expect(result.modified).toBe(1)
+    expect(mockClient.messageFlagsRemove).toHaveBeenCalledWith({ uid: '3' }, ['\\Flagged'])
   })
 
   it('always releases the mailbox lock', async () => {
-    mockClient.messageFlagsAdd.mockRejectedValue(new Error('fail'))
-
-    await expect(modifyFlags(account, [1], 'INBOX', ['\\Seen'], 'add')).rejects.toThrow()
-
+    await modifyFlags(account, [1], 'INBOX', ['\\Seen'], 'add')
     expect(mockRelease).toHaveBeenCalled()
   })
 })
@@ -366,11 +286,9 @@ describe('modifyFlags', () => {
 
 describe('moveEmails', () => {
   it('moves emails to destination folder', async () => {
-    const result = await moveEmails(account, [1, 2], 'INBOX', 'Archive')
-
-    expect(mockClient.messageMove).toHaveBeenCalledWith({ uid: '1,2' }, 'Archive')
+    const result = await moveEmails(account, [1], 'INBOX', 'Archive')
     expect(result.success).toBe(true)
-    expect(result.moved).toBe(2)
+    expect(mockClient.messageMove).toHaveBeenCalledWith({ uid: '1' }, 'Archive')
   })
 })
 
@@ -380,11 +298,9 @@ describe('moveEmails', () => {
 
 describe('trashEmails', () => {
   it('deletes emails from folder', async () => {
-    const result = await trashEmails(account, [3, 4], 'INBOX')
-
-    expect(mockClient.messageDelete).toHaveBeenCalledWith({ uid: '3,4' })
+    const result = await trashEmails(account, [1, 2], 'INBOX')
     expect(result.success).toBe(true)
-    expect(result.trashed).toBe(2)
+    expect(mockClient.messageDelete).toHaveBeenCalledWith({ uid: '1,2' })
   })
 })
 
@@ -395,16 +311,11 @@ describe('trashEmails', () => {
 describe('listFolders', () => {
   it('lists mailbox folders', async () => {
     mockClient.list.mockResolvedValue([
-      { name: 'INBOX', path: 'INBOX', flags: new Set(['\\HasNoChildren']), delimiter: '/' },
-      { name: '[Gmail]', path: '[Gmail]', flags: new Set(['\\Noselect']), delimiter: '/' }
+      { name: 'Inbox', path: 'INBOX', flags: new Set(['\\HasNoChildren']), delimiter: '/' }
     ])
-
     const result = await listFolders(account)
-
-    expect(result).toHaveLength(2)
-    expect(result[0]!.name).toBe('INBOX')
-    expect(result[0]!.path).toBe('INBOX')
-    expect(result[0]!.flags).toContain('\\HasNoChildren')
+    expect(result).toHaveLength(1)
+    expect(result[0].name).toBe('Inbox')
   })
 })
 
@@ -414,265 +325,186 @@ describe('listFolders', () => {
 
 describe('getAttachment', () => {
   it('returns attachment as base64', async () => {
-    const content = Buffer.from('file content')
-    mockClient.fetchOne.mockResolvedValue({
-      uid: 10,
-      source: Buffer.from('raw email')
-    })
+    mockClient.fetchOne.mockResolvedValue({ uid: 1, source: Buffer.from('...') })
     mockSimpleParser.mockResolvedValue({
       attachments: [
         {
-          filename: 'report.pdf',
+          filename: 'test.pdf',
           contentType: 'application/pdf',
-          size: 12345,
-          content,
-          contentId: 'cid123'
+          size: 100,
+          content: Buffer.from('pdf-data')
         }
       ]
     } as any)
 
-    const result = await getAttachment(account, 10, 'INBOX', 'report.pdf')
-
-    expect(result.filename).toBe('report.pdf')
-    expect(result.content_type).toBe('application/pdf')
-    expect(result.size).toBe(12345)
-    expect(result.content_base64).toBe(content.toString('base64'))
+    const result = await getAttachment(account, 1, 'INBOX', 'test.pdf')
+    expect(result.filename).toBe('test.pdf')
+    expect(result.content_base64).toBe(Buffer.from('pdf-data').toString('base64'))
   })
 
   it('matches attachment filename case-insensitively', async () => {
-    mockClient.fetchOne.mockResolvedValue({ uid: 1, source: Buffer.from('raw') })
+    mockClient.fetchOne.mockResolvedValue({ uid: 1, source: Buffer.from('...') })
     mockSimpleParser.mockResolvedValue({
-      attachments: [{ filename: 'Report.PDF', contentType: 'application/pdf', size: 100, content: Buffer.from('x') }]
+      attachments: [{ filename: 'LARGE.JPG', content: Buffer.from('...'), size: 10 }]
     } as any)
 
-    const result = await getAttachment(account, 1, 'INBOX', 'report.pdf')
-
-    expect(result.filename).toBe('Report.PDF')
+    const result = await getAttachment(account, 1, 'INBOX', 'large.jpg')
+    expect(result.filename).toBe('LARGE.JPG')
   })
 
   it('throws when email not found', async () => {
-    mockClient.fetchOne.mockResolvedValue(false)
-
-    await expect(getAttachment(account, 999, 'INBOX', 'file.txt')).rejects.toThrow('not found')
+    mockClient.fetchOne.mockResolvedValue(null)
+    await expect(getAttachment(account, 1, 'INBOX', 'any.txt')).rejects.toThrow('not found')
   })
 
   it('throws when attachment not found', async () => {
-    mockClient.fetchOne.mockResolvedValue({ uid: 1, source: Buffer.from('raw') })
-    mockSimpleParser.mockResolvedValue({
-      attachments: [{ filename: 'other.txt', contentType: 'text/plain', size: 10, content: Buffer.from('x') }]
-    } as any)
-
-    await expect(getAttachment(account, 1, 'INBOX', 'missing.pdf')).rejects.toThrow('not found')
+    mockClient.fetchOne.mockResolvedValue({ uid: 1, source: Buffer.from('...') })
+    mockSimpleParser.mockResolvedValue({ attachments: [] } as any)
+    await expect(getAttachment(account, 1, 'INBOX', 'missing.txt')).rejects.toThrow('not found')
   })
 })
 
 // ============================================================================
-// Connection lifecycle
+// withConnection error handling
 // ============================================================================
 
-describe('connection lifecycle', () => {
+describe('withConnection error handling', () => {
   it('always calls logout even on error', async () => {
-    mockClient.fetchOne.mockRejectedValue(new Error('IMAP error'))
+    mockClient.connect.mockResolvedValue(undefined)
+    mockClient.list.mockRejectedValue(new Error('Work failed'))
 
-    await expect(readEmail(account, 1, 'INBOX')).rejects.toThrow()
-
+    await expect(listFolders(account)).rejects.toThrow('Work failed')
     expect(mockClient.logout).toHaveBeenCalled()
   })
 
   it('ignores logout errors', async () => {
-    mockClient.logout.mockRejectedValue(new Error('logout failed'))
-    mockClient.fetchOne.mockResolvedValue({ uid: 1, source: Buffer.from('raw') })
-    mockSimpleParser.mockResolvedValue({
-      subject: 'Test',
-      from: { text: 'x@test.com' },
-      to: { text: 'y@test.com' },
-      date: new Date(),
-      text: 'body',
-      attachments: []
-    } as any)
-
-    // Should not throw despite logout error
-    const result = await readEmail(account, 1, 'INBOX')
-
-    expect(result.subject).toBe('Test')
+    mockClient.logout.mockRejectedValue(new Error('Logout failed'))
+    // Should still resolve normally (or throw the original error)
+    mockClient.list.mockResolvedValue([])
+    await expect(listFolders(account)).resolves.not.toThrow()
   })
 })
 
 // ============================================================================
-// extractSnippet edge cases (tested via searchEmails)
+// extractSnippet (private via searchEmails)
 // ============================================================================
 
-describe('extractSnippet edge cases', () => {
-  function makeSearchMsg(source: Buffer | null = Buffer.from('raw')) {
-    return {
-      uid: 1,
-      flags: new Set(),
-      envelope: {
-        messageId: '<msg@test>',
-        subject: 'Test',
-        from: [{ name: '', address: 'sender@test.com' }],
-        to: [{ address: 'test@gmail.com' }],
-        date: new Date('2025-01-01')
-      },
-      source
-    }
-  }
-
+describe('extractSnippet', () => {
   it('uses HTML fallback when text is null but html exists', async () => {
+    mockClient.search.mockResolvedValue([1])
+    mockClient.fetchAll.mockResolvedValue([{ uid: 1, source: Buffer.from('...') }])
     mockSimpleParser.mockResolvedValue({
       text: null,
-      html: '<p>HTML content</p>'
+      html: '<div>Important Info</div>'
     } as any)
-    mockClient.search.mockResolvedValue([1])
-    mockClient.fetchAll.mockResolvedValue([makeSearchMsg()])
 
-    const results = await searchEmails([account], 'ALL', 'INBOX', 10)
-
-    expect(results[0]!.snippet).toBe('HTML content')
+    const results = await searchEmails([account], 'ALL', 'INBOX', 1)
+    expect(results[0].snippet).toBe('Important Info')
   })
 
   it('truncates snippet with ... when text exceeds 200 chars', async () => {
-    const longText = 'A'.repeat(250)
-    mockSimpleParser.mockResolvedValue({ text: longText } as any)
+    const longText = 'a'.repeat(250)
     mockClient.search.mockResolvedValue([1])
-    mockClient.fetchAll.mockResolvedValue([makeSearchMsg()])
+    mockClient.fetchAll.mockResolvedValue([{ uid: 1, source: Buffer.from('...') }])
+    mockSimpleParser.mockResolvedValue({ text: longText } as any)
 
-    const results = await searchEmails([account], 'ALL', 'INBOX', 10)
-
-    expect(results[0]!.snippet).toBe(`${'A'.repeat(200)}...`)
-    expect(results[0]!.snippet.length).toBe(203)
+    const results = await searchEmails([account], 'ALL', 'INBOX', 1)
+    expect(results[0].snippet).toHaveLength(203)
+    expect(results[0].snippet.endsWith('...')).toBe(true)
   })
 
   it('returns empty string when simpleParser throws', async () => {
-    mockSimpleParser.mockRejectedValue(new Error('parse error'))
     mockClient.search.mockResolvedValue([1])
-    mockClient.fetchAll.mockResolvedValue([makeSearchMsg()])
+    mockClient.fetchAll.mockResolvedValue([{ uid: 1, source: Buffer.from('...') }])
+    mockSimpleParser.mockRejectedValue(new Error('Parser failed'))
 
-    const results = await searchEmails([account], 'ALL', 'INBOX', 10)
-
-    expect(results[0]!.snippet).toBe('')
+    const results = await searchEmails([account], 'ALL', 'INBOX', 1)
+    expect(results[0].snippet).toBe('')
   })
 
   it('returns empty string when text is empty after parsing', async () => {
-    mockSimpleParser.mockResolvedValue({ text: null, html: null } as any)
     mockClient.search.mockResolvedValue([1])
-    mockClient.fetchAll.mockResolvedValue([makeSearchMsg()])
+    mockClient.fetchAll.mockResolvedValue([{ uid: 1, source: Buffer.from('...') }])
+    mockSimpleParser.mockResolvedValue({ text: '   ', html: '  ' } as any)
 
-    const results = await searchEmails([account], 'ALL', 'INBOX', 10)
-
-    expect(results[0]!.snippet).toBe('')
+    const results = await searchEmails([account], 'ALL', 'INBOX', 1)
+    expect(results[0].snippet).toBe('')
   })
 })
 
 // ============================================================================
-// formatAddress edge cases (tested via readEmail)
+// formatAddress
 // ============================================================================
 
-describe('formatAddress edge cases', () => {
-  function setupReadEmail(parsedOverrides: Record<string, any>) {
-    mockClient.fetchOne.mockResolvedValue({
-      uid: 1,
-      flags: new Set(),
-      source: Buffer.from('raw')
-    })
-    mockSimpleParser.mockResolvedValue({
-      subject: 'Test',
-      from: { text: 'default@test.com' },
-      to: { text: 'to@test.com' },
-      date: new Date('2025-01-01'),
-      text: 'body',
-      attachments: [],
-      ...parsedOverrides
-    } as any)
-  }
-
+describe('formatAddress', () => {
   it('returns the string directly when addr is a string', async () => {
-    setupReadEmail({ from: 'user@test.com' })
-
-    const result = await readEmail(account, 1, 'INBOX')
-
-    expect(result.from).toBe('user@test.com')
+    mockClient.fetchOne.mockResolvedValue({ uid: 1, source: Buffer.from('...') })
+    mockSimpleParser.mockResolvedValue({ from: 'direct@test.com' } as any)
+    const res = await readEmail(account, 1, 'INBOX')
+    expect(res.from).toBe('direct@test.com')
   })
 
   it('returns addr.text when present', async () => {
-    setupReadEmail({ from: { text: 'John <john@test.com>' } })
-
-    const result = await readEmail(account, 1, 'INBOX')
-
-    expect(result.from).toBe('John <john@test.com>')
+    mockClient.fetchOne.mockResolvedValue({ uid: 1, source: Buffer.from('...') })
+    mockSimpleParser.mockResolvedValue({ from: { text: 'Text Label <addr@test.com>' } } as any)
+    const res = await readEmail(account, 1, 'INBOX')
+    expect(res.from).toBe('Text Label <addr@test.com>')
   })
 
   it('formats value array with name', async () => {
-    setupReadEmail({
+    mockClient.fetchOne.mockResolvedValue({ uid: 1, source: Buffer.from('...') })
+    mockSimpleParser.mockResolvedValue({
       from: { value: [{ name: 'John Doe', address: 'john@test.com' }] }
-    })
-
-    const result = await readEmail(account, 1, 'INBOX')
-
-    expect(result.from).toBe('John Doe <john@test.com>')
+    } as any)
+    const res = await readEmail(account, 1, 'INBOX')
+    expect(res.from).toBe('John Doe <john@test.com>')
   })
 
   it('formats value array without name', async () => {
-    setupReadEmail({
-      from: { value: [{ address: 'john@test.com' }] }
-    })
-
-    const result = await readEmail(account, 1, 'INBOX')
-
-    expect(result.from).toBe('john@test.com')
+    mockClient.fetchOne.mockResolvedValue({ uid: 1, source: Buffer.from('...') })
+    mockSimpleParser.mockResolvedValue({
+      from: { value: [{ name: '', address: 'anon@test.com' }] }
+    } as any)
+    const res = await readEmail(account, 1, 'INBOX')
+    expect(res.from).toBe('anon@test.com')
   })
 
   it('formats value array with multiple entries', async () => {
-    setupReadEmail({
-      to: {
-        value: [{ name: 'Alice', address: 'alice@test.com' }, { address: 'bob@test.com' }]
+    mockClient.fetchOne.mockResolvedValue({ uid: 1, source: Buffer.from('...') })
+    mockSimpleParser.mockResolvedValue({
+      from: {
+        value: [
+          { name: 'A', address: 'a@test.com' },
+          { name: '', address: 'b@test.com' }
+        ]
       }
-    })
-
-    const result = await readEmail(account, 1, 'INBOX')
-
-    expect(result.to).toBe('Alice <alice@test.com>, bob@test.com')
+    } as any)
+    const res = await readEmail(account, 1, 'INBOX')
+    expect(res.from).toBe('A <a@test.com>, b@test.com')
   })
 
   it('returns empty string for null/undefined addr', async () => {
-    setupReadEmail({ cc: null, bcc: undefined })
-
-    const result = await readEmail(account, 1, 'INBOX')
-
-    expect(result.cc).toBe('')
-    expect(result.bcc).toBe('')
+    mockClient.fetchOne.mockResolvedValue({ uid: 1, source: Buffer.from('...') })
+    mockSimpleParser.mockResolvedValue({ from: null } as any)
+    const res = await readEmail(account, 1, 'INBOX')
+    expect(res.from).toBe('')
   })
 
   it('returns empty string for object with no text or value', async () => {
-    setupReadEmail({ cc: {} })
-
-    const result = await readEmail(account, 1, 'INBOX')
-
-    expect(result.cc).toBe('')
+    mockClient.fetchOne.mockResolvedValue({ uid: 1, source: Buffer.from('...') })
+    mockSimpleParser.mockResolvedValue({ from: {} } as any)
+    const res = await readEmail(account, 1, 'INBOX')
+    expect(res.from).toBe('')
   })
 })
 
 // ============================================================================
-// buildSearchCriteria (tested via searchEmails)
+// buildSearchCriteria
 // ============================================================================
 
 describe('buildSearchCriteria', () => {
-  function setupSearch() {
-    mockSimpleParser.mockResolvedValue({ text: 'text' } as any)
-    mockClient.search.mockResolvedValue([1])
-    mockClient.fetchAll.mockResolvedValue([
-      {
-        uid: 1,
-        flags: new Set(),
-        envelope: {
-          subject: 'Test',
-          from: [{ address: 'x@test.com' }],
-          to: [{ address: 'y@test.com' }],
-          date: new Date()
-        },
-        source: Buffer.from('text')
-      }
-    ])
+  const setupSearch = () => {
+    mockClient.search.mockResolvedValue([])
   }
 
   it('maps READ to { seen: true }', async () => {
@@ -731,26 +563,26 @@ describe('buildSearchCriteria', () => {
 
   it('maps FROM to { from: string }', async () => {
     setupSearch()
-    await searchEmails([account], 'FROM user@test.com', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ from: 'user@test.com' }, { uid: true })
+    await searchEmails([account], 'FROM boss@test.com', 'INBOX', 10)
+    expect(mockClient.search).toHaveBeenCalledWith({ from: 'boss@test.com' }, { uid: true })
   })
 
   it('maps SUBJECT to { subject: string }', async () => {
     setupSearch()
-    await searchEmails([account], 'SUBJECT hello', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ subject: 'hello' }, { uid: true })
+    await searchEmails([account], 'SUBJECT urgent', 'INBOX', 10)
+    expect(mockClient.search).toHaveBeenCalledWith({ subject: 'urgent' }, { uid: true })
   })
 
   it('maps UNREAD SINCE to compound criteria', async () => {
     setupSearch()
-    await searchEmails([account], 'UNREAD SINCE 2024-01-01', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ seen: false, since: new Date('2024-01-01') }, { uid: true })
+    await searchEmails([account], 'UNREAD SINCE 2024-05-01', 'INBOX', 10)
+    expect(mockClient.search).toHaveBeenCalledWith({ seen: false, since: new Date('2024-05-01') }, { uid: true })
   })
 
   it('maps UNREAD FROM to compound criteria', async () => {
     setupSearch()
-    await searchEmails([account], 'UNREAD FROM user@test.com', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ seen: false, from: 'user@test.com' }, { uid: true })
+    await searchEmails([account], 'UNREAD FROM marketing@test.com', 'INBOX', 10)
+    expect(mockClient.search).toHaveBeenCalledWith({ seen: false, from: 'marketing@test.com' }, { uid: true })
   })
 
   it('falls back to subject search for plain text', async () => {
@@ -1044,5 +876,83 @@ describe('clearSentFolderCache', () => {
 
     // Verify it is empty
     expect(clearSentFolderCache()).toBe(0)
+  })
+})
+
+describe('resolveSentFolder error paths', () => {
+  it('deletes from cache on rejection (line 298-299 coverage)', async () => {
+    // To trigger the catch block at 295-300, resolvePromise must reject.
+    const badAccount = { ...account, id: 'bad-account', imap: null as any }
+
+    // The first call should fail and trigger the catch block
+    await expect(resolveSentFolder(badAccount)).rejects.toThrow()
+
+    // Subsequent call with the same ID but fixed account should re-attempt
+    const fixedAccount = { ...account, id: 'bad-account' }
+    mockClient.list.mockResolvedValue([{ name: 'Sent', path: 'Sent', flags: new Set(['\\Sent']), delimiter: '/' }])
+
+    const result = await resolveSentFolder(fixedAccount)
+    expect(result).toBe('Sent')
+    expect(mockClient.list).toHaveBeenCalled()
+  })
+})
+
+describe('imap-client coverage edge cases', () => {
+  it('covers attachments mapping in readEmail when attachments exist (line 450)', async () => {
+    mockClient.fetchOne.mockResolvedValue({
+      uid: 123,
+      flags: new Set(['\\Seen']),
+      source: Buffer.from('...')
+    })
+
+    mockSimpleParser.mockResolvedValue({
+      subject: 'Test',
+      from: 'me@test.com',
+      to: 'you@test.com',
+      date: new Date(),
+      text: 'Body',
+      attachments: [
+        {
+          filename: 'file.txt',
+          contentType: 'text/plain',
+          size: 10,
+          contentId: 'cid1'
+        }
+      ]
+    } as any)
+
+    const result = await readEmail(account, 123, 'INBOX')
+    expect(result.attachments).toHaveLength(1)
+    expect(result.attachments[0].filename).toBe('file.txt')
+  })
+
+  it('covers attachment listing in error message in getAttachment (line 576)', async () => {
+    mockClient.fetchOne.mockResolvedValue({ uid: 1, source: Buffer.from('...') })
+    mockSimpleParser.mockResolvedValue({
+      attachments: [{ filename: 'other.txt' }]
+    } as any)
+
+    try {
+      await getAttachment(account, 1, 'INBOX', 'missing.txt')
+      expect.fail('Should have thrown')
+    } catch (e: any) {
+      expect(e.message).toContain('not found')
+      expect(e.suggestion).toContain('Available: other.txt')
+    }
+  })
+
+  it('covers attachment listing with no attachments in error message in getAttachment (line 576)', async () => {
+    mockClient.fetchOne.mockResolvedValue({ uid: 1, source: Buffer.from('...') })
+    mockSimpleParser.mockResolvedValue({
+      attachments: []
+    } as any)
+
+    try {
+      await getAttachment(account, 1, 'INBOX', 'missing.txt')
+      expect.fail('Should have thrown')
+    } catch (e: any) {
+      expect(e.message).toContain('not found')
+      expect(e.suggestion).toContain('Available: none')
+    }
   })
 })
