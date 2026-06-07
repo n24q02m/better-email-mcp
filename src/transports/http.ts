@@ -185,7 +185,7 @@ function buildOptions(args: {
         // out accounts with ``.oauth2`` set and silently returns ``null`` →
         // the form shows "Setup complete" without ever displaying the Microsoft
         // device-code step (UX bug reported 2026-04-24).
-        account.oauth2 = undefined
+        delete account.oauth2
         outlookAccounts.push(account)
       } else {
         imapAccounts.push(account)
