@@ -293,3 +293,24 @@ describe('createUnknownActionError', () => {
     expect(error.suggestion).toBe('Supported actions: bar, baz')
   })
 })
+
+describe('enhanceError normalization', () => {
+  it('normalizes string errors', () => {
+    const result = enhanceError('string error')
+    expect(result.message).toBe('string error')
+    expect(result.code).toBe('UNKNOWN_ERROR')
+  })
+
+  it('normalizes null/undefined errors', () => {
+    const result = enhanceError(null)
+    expect(result.message).toBe('Unknown error')
+
+    const result2 = enhanceError(undefined)
+    expect(result2.message).toBe('Unknown error')
+  })
+
+  it('normalizes number errors', () => {
+    const result = enhanceError(500)
+    expect(result.message).toBe('500')
+  })
+})
