@@ -2,6 +2,31 @@
 
 <!-- version list -->
 
+## v1.32.0-beta.1 (2026-06-07)
+
+### Bug Fixes
+
+- Add setSetupUrl edge-case tests
+  ([`7e3980e`](https://github.com/n24q02m/better-email-mcp/commit/7e3980e3a284cdef598233e35686ef4fc524510b))
+
+- Add subject-context store-restoration error tests
+  ([`13f6a7d`](https://github.com/n24q02m/better-email-mcp/commit/13f6a7dbcb304fd080a7b904dbc9c83147156f68))
+
+- **deps**: Lock file maintenance
+  ([`78f49c9`](https://github.com/n24q02m/better-email-mcp/commit/78f49c9da09210da67a45e71b2baf6842f605dac))
+
+- **deps**: Update actions/checkout digest to df4cb1c
+  ([`92efd81`](https://github.com/n24q02m/better-email-mcp/commit/92efd818148fb2829db5bbbbe60d4a3e4771d38b))
+
+- **deps**: Update non-major dependencies
+  ([`4114e1a`](https://github.com/n24q02m/better-email-mcp/commit/4114e1a55d88962dd38cfba15753faf79b23e52e))
+
+### Features
+
+- Add registry error-path coverage tests
+  ([`232b50a`](https://github.com/n24q02m/better-email-mcp/commit/232b50af66410bf4514d748b16722db16240b5d4))
+
+
 ## v1.31.3 (2026-06-01)
 
 ### Bug Fixes
