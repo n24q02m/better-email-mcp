@@ -67,4 +67,31 @@ describe('subjectContext', () => {
       expect(subjectContext.getStore()).toBe(outerScope)
     })
   })
+
+  test('should restore store after synchronous error', () => {
+    const scope: EmailSubjectScope = { sub: 'sync-error', accounts: [] }
+
+    expect(() => {
+      subjectContext.run(scope, () => {
+        expect(subjectContext.getStore()).toBe(scope)
+        throw new Error('sync error')
+      })
+    }).toThrow('sync error')
+
+    expect(subjectContext.getStore()).toBeUndefined()
+  })
+
+  test('should restore store after asynchronous error', async () => {
+    const scope: EmailSubjectScope = { sub: 'async-error', accounts: [] }
+
+    await expect(
+      subjectContext.run(scope, async () => {
+        expect(subjectContext.getStore()).toBe(scope)
+        await new Promise((resolve) => setTimeout(resolve, 10))
+        throw new Error('async error')
+      })
+    ).rejects.toThrow('async error')
+
+    expect(subjectContext.getStore()).toBeUndefined()
+  })
 })
