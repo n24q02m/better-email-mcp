@@ -6,6 +6,8 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AccountConfig } from '../tools/helpers/config.js'
 import {
+  PBKDF2_ITERATIONS_PROD,
+  PBKDF2_ITERATIONS_TEST,
   _deriveKey,
   _fs,
   _getSecret,
@@ -67,6 +69,35 @@ describe('per-user-credential-store', () => {
       expect(key2).toBeDefined()
       expect(key3).toBeDefined()
     })
+    it("should respect the iterations parameter", async () => {
+      const spy = vi.spyOn(crypto.subtle, "deriveKey")
+      await _deriveKey("secret", "user", 5000)
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({ iterations: 5000 }),
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        expect.anything()
+      )
+      spy.mockRestore()
+    })
+
+    it("should use PBKDF2_ITERATIONS_TEST when NODE_ENV is test", async () => {
+      const originalEnv = process.env.NODE_ENV
+      process.env.NODE_ENV = "test"
+      const spy = vi.spyOn(crypto.subtle, "deriveKey")
+      await _deriveKey("secret", "user")
+      expect(spy).toHaveBeenCalledWith(
+        expect.objectContaining({ iterations: PBKDF2_ITERATIONS_TEST }),
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        expect.anything()
+      )
+      process.env.NODE_ENV = originalEnv
+      spy.mockRestore()
+    })
+
   })
 
   describe('hashUserId', () => {
