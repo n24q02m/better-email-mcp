@@ -101,6 +101,16 @@ describe('credential-state', () => {
       mod.setSetupUrl(null)
       expect(mod.getSetupUrl()).toBeNull()
     })
+
+    it('handles empty string', () => {
+      mod.setSetupUrl('')
+      expect(mod.getSetupUrl()).toBe('')
+    })
+
+    it('handles malformed URL', () => {
+      mod.setSetupUrl('not-a-url')
+      expect(mod.getSetupUrl()).toBe('not-a-url')
+    })
   })
 
   describe('resolveCredentialState', () => {
