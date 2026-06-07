@@ -29,3 +29,11 @@ docs/superpowers/
 coverage.xml
 htmlcov/
 .coverage
+
+# Bot/merge junk artifacts (prevent accidental commits) — 2026-06-07
+*.orig
+*.rej
+*.cover
+*.bak
+/*.patch
+/*.diff
