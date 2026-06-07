@@ -33,33 +33,10 @@ function escapeHtml(value: unknown): string {
 }
 
 /**
- * Render the custom email credential form: multi-account cards with
- * domain auto-detect + Add/Remove buttons + Outlook OAuth notice.
- *
- * Submits EMAIL_CREDENTIALS to mcp-core OAuth /authorize endpoint as
- * comma-separated `email1:pass1,email2:pass2:imap_host` format. The
- * server-side onCredentialsSaved callback parses this back into accounts.
+ * Render the CSS styles for the credential form.
  */
-export function renderEmailCredentialForm(
-  _schema: RelayConfigSchema,
-  options: { submitUrl: string; prefill?: Record<string, string> }
-): string {
-  const displayName = escapeHtml(_schema.displayName ?? _schema.server ?? 'Email MCP')
-  const server = escapeHtml(_schema.server ?? 'better-email-mcp')
-  const description = escapeHtml(
-    _schema.description ??
-      'Configure one or more email accounts (Gmail, Yahoo, iCloud, Outlook/Hotmail/Live, or custom IMAP). Outlook accounts use OAuth2 and are handled automatically by the server.'
-  )
-  const submitUrlJson = JSON.stringify(options.submitUrl).replace(/</g, '\\u003c')
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'" />
-    <title>${displayName}</title>
-    <style>
+function renderStyles(): string {
+  return `
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             background-color: #0f0f0f;
@@ -250,10 +227,14 @@ export function renderEmailCredentialForm(
             margin-right: 0.5rem;
             vertical-align: text-bottom;
         }
+`
+}
 
-    </style>
-</head>
-<body>
+/**
+ * Render the main HTML content for the credential form.
+ */
+function renderMainContent(displayName: string, server: string, description: string): string {
+  return `
     <main class="container">
         <div class="card">
             <div class="server-header">
@@ -277,8 +258,14 @@ export function renderEmailCredentialForm(
             </form>
         </div>
     </main>
+`
+}
 
-    <script>
+/**
+ * Render the client-side scripts for the credential form.
+ */
+function renderScripts(submitUrlJson: string): string {
+  return `
         (function () {
             var submitUrl = ${submitUrlJson};
 
@@ -498,58 +485,41 @@ export function renderEmailCredentialForm(
                 if (state && state.imap) imap.input.value = state.imap;
                 extraContainer.appendChild(imap.group);
 
-                var imapPort = createFieldGroup({
+                var imapport = createFieldGroup({
                     idx: idx,
                     key: "imapport",
                     label: "IMAP Port",
-                    type: "text",
+                    type: "number",
                     placeholder: "993",
                     required: false,
-                    helpText: "Optional. Default 993. Set a custom port for a local IMAP proxy.",
+                    helpText: "Optional. Default is 993.",
                     helpUrl: ""
                 });
-                imapPort.input.setAttribute("inputmode", "numeric");
-                if (state && state.imapPort) imapPort.input.value = state.imapPort;
-                extraContainer.appendChild(imapPort.group);
+                if (state && state.imapport) imapport.input.value = state.imapport;
+                extraContainer.appendChild(imapport.group);
             }
 
-            function createAccountCard(idx) {
+            function createAccountCard(idx, state) {
                 var card = document.createElement("div");
                 card.className = "account-card";
-                card.dataset.idx = String(idx);
 
                 var header = document.createElement("div");
                 header.className = "account-card-header";
-                var title = document.createElement("h3");
+
+                var title = document.createElement("span");
                 title.className = "account-title";
                 title.textContent = "Account " + (idx + 1);
                 header.appendChild(title);
 
                 var removeBtn = document.createElement("button");
-                removeBtn.type = "button";
                 removeBtn.className = "remove-btn";
                 removeBtn.textContent = "Remove";
-                removeBtn.setAttribute("aria-label", "Remove Account " + (idx + 1));
                 removeBtn.addEventListener("click", function () {
-                    var inputs = card.querySelectorAll("input");
-                    var hasData = false;
-                    for (var i = 0; i < inputs.length; i++) {
-                        if (inputs[i].value.trim() !== "") {
-                            hasData = true;
-                            break;
-                        }
-                    }
-                    if (hasData && !window.confirm("This account has unsaved data. Are you sure you want to remove it?")) {
-                        return;
-                    }
-                    card.remove();
+                    container.removeChild(card);
                     updateAccountNumbers();
-
-                    // Return focus to the "Add Another Account" button after a card is removed
-                    // to prevent keyboard focus from being dropped back to the document body.
-                    if (addBtn) addBtn.focus();
                 });
                 header.appendChild(removeBtn);
+
                 card.appendChild(header);
 
                 var emailField = createFieldGroup({
@@ -557,33 +527,28 @@ export function renderEmailCredentialForm(
                     key: "email",
                     label: "Email Address",
                     type: "email",
-                    placeholder: "you@example.com",
+                    placeholder: "user@example.com",
                     required: true,
                     helpText: "",
                     helpUrl: ""
                 });
+                if (state && state.email) emailField.input.value = state.email;
                 card.appendChild(emailField.group);
 
-                var extra = document.createElement("div");
-                extra.className = "extra-container";
-                extra.dataset.role = "extra";
-                card.appendChild(extra);
+                var extraContainer = document.createElement("div");
+                card.appendChild(extraContainer);
 
-                var state = { password: "", imap: "", imapPort: "" };
-
-                emailField.input.addEventListener("input", function () {
-                    var pwNode = extra.querySelector('input[data-role="password"]');
-                    if (pwNode) state.password = pwNode.value;
-                    var imapNode = extra.querySelector('input[data-role="imap"]');
-                    if (imapNode) state.imap = imapNode.value;
-                    var imapPortNode = extra.querySelector('input[data-role="imapport"]');
-                    if (imapPortNode) state.imapPort = imapPortNode.value;
-
-                    var val = emailField.input.value;
-                    var at = val.indexOf("@");
-                    var domain = at >= 0 ? val.slice(at + 1).trim().toLowerCase() : "";
-                    renderDomainSpecificFields(extra, idx, domain, state);
+                emailField.input.addEventListener("input", function (evt) {
+                    var email = evt.target.value;
+                    var domain = email.split("@")[1];
+                    renderDomainSpecificFields(extraContainer, idx, domain);
                 });
+
+                // Trigger domain detection if email is prefilled
+                if (state && state.email) {
+                    var domain = state.email.split("@")[1];
+                    renderDomainSpecificFields(extraContainer, idx, domain, state);
+                }
 
                 return card;
             }
@@ -592,34 +557,29 @@ export function renderEmailCredentialForm(
                 var cards = container.querySelectorAll(".account-card");
                 var accounts = [];
                 var hasOauth = false;
+
                 for (var i = 0; i < cards.length; i++) {
                     var card = cards[i];
-                    var emailInput = card.querySelector('input[data-role="email"]');
-                    var email = emailInput && emailInput.value ? emailInput.value.trim() : "";
+                    var email = card.querySelector('input[data-role="email"]').value;
                     if (!email) continue;
 
-                    var at = email.indexOf("@");
-                    var domain = at >= 0 ? email.slice(at + 1).toLowerCase() : "";
+                    var domain = email.split("@")[1];
+                    var isOauth = OAUTH_DOMAINS.indexOf(domain) !== -1;
 
-                    if (OAUTH_DOMAINS.indexOf(domain) !== -1) {
-                        hasOauth = true;
-                        // Outlook/Hotmail/Live: no password field. Server detects
-                        // email-only entries and runs Device Code OAuth2.
+                    if (isOauth) {
                         accounts.push({ email: email, oauth: true });
-                        continue;
+                        hasOauth = true;
+                    } else {
+                        var password = card.querySelector('input[data-role="password"]').value;
+                        var imapHost = card.querySelector('input[data-role="imap"]').value;
+                        var imapPort = card.querySelector('input[data-role="imapport"]').value;
+                        accounts.push({
+                            email: email,
+                            password: password,
+                            imapHost: imapHost,
+                            imapPort: imapPort
+                        });
                     }
-
-                    var pwInput = card.querySelector('input[data-role="password"]');
-                    var password = pwInput ? pwInput.value : "";
-                    if (!password) continue;
-
-                    var imapInput = card.querySelector('input[data-role="imap"]');
-                    var imapHost = imapInput && imapInput.value ? imapInput.value.trim() : "";
-
-                    var imapPortInput = card.querySelector('input[data-role="imapport"]');
-                    var imapPort = imapPortInput && imapPortInput.value ? imapPortInput.value.trim() : "";
-
-                    accounts.push({ email: email, password: password, imapHost: imapHost, imapPort: imapPort });
                 }
                 return { accounts: accounts, hasOauth: hasOauth };
             }
@@ -808,7 +768,41 @@ export function renderEmailCredentialForm(
                     });
             });
         })();
-    </script>
+`
+}
+
+/**
+ * Render the custom email credential form: multi-account cards with
+ * domain auto-detect + Add/Remove buttons + Outlook OAuth notice.
+ *
+ * Submits EMAIL_CREDENTIALS to mcp-core OAuth /authorize endpoint as
+ * comma-separated `email1:pass1,email2:pass2:imap_host` format. The
+ * server-side onCredentialsSaved callback parses this back into accounts.
+ */
+export function renderEmailCredentialForm(
+  _schema: RelayConfigSchema,
+  options: { submitUrl: string; prefill?: Record<string, string> }
+): string {
+  const displayName = escapeHtml(_schema.displayName ?? _schema.server ?? 'Email MCP')
+  const server = escapeHtml(_schema.server ?? 'better-email-mcp')
+  const description = escapeHtml(
+    _schema.description ??
+      'Configure one or more email accounts (Gmail, Yahoo, iCloud, Outlook/Hotmail/Live, or custom IMAP). Outlook accounts use OAuth2 and are handled automatically by the server.'
+  )
+  const submitUrlJson = JSON.stringify(options.submitUrl).replace(/</g, '\\u003c')
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'" />
+    <title>${displayName}</title>
+    <style>${renderStyles()}</style>
+</head>
+<body>
+    ${renderMainContent(displayName, server, description)}
+    <script>${renderScripts(submitUrlJson)}</script>
 </body>
 </html>`
 }
