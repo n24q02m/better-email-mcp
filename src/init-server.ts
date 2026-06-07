@@ -36,7 +36,7 @@ function getVersion(): string {
       const pkgPath = join(dir, 'package.json')
       if (existsSync(pkgPath)) {
         const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
-        if (pkg.name === '@n24q02m/better-email-mcp') {
+        if (pkg && typeof pkg === 'object' && pkg.name === '@n24q02m/better-email-mcp') {
           return pkg.version ?? '0.0.0'
         }
       }
