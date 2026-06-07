@@ -5,9 +5,9 @@
 
 import { marked } from 'marked'
 import { createTransport } from 'nodemailer'
-import sanitizeHtml from 'sanitize-html'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
+import { sanitizeHtml, sanitizeHtmlDefaults } from './html-utils.js'
 import { ensureValidToken } from './oauth2.js'
 
 export interface SendEmailOptions {
@@ -54,8 +54,8 @@ function createSmtpTransport(account: AccountConfig) {
 // This prevents recreating configuration objects and evaluating `Array.prototype.concat`
 // on every function call, significantly reducing allocation overhead during high-frequency email parsing.
 const MARKED_OPTIONS: import('marked').MarkedOptions = { async: false, breaks: true }
-const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
-  allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img'])
+const SANITIZE_OPTIONS: import('sanitize-html').IOptions = {
+  allowedTags: sanitizeHtmlDefaults.allowedTags.concat(['img'])
 }
 
 /**

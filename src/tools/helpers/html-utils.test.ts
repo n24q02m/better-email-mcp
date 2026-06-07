@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { escapeHtml, fastExtractSnippet, htmlToCleanText } from './html-utils.js'
+import { escapeHtml, fastExtractSnippet, htmlToCleanText, sanitizeHtml } from './html-utils.js'
 
 describe('escapeHtml', () => {
   it('escapes &, <, >, ", and \'', () => {
@@ -231,5 +231,26 @@ describe('fastExtractSnippet', () => {
     expect(result).toContain('A')
     expect(result).toContain('B')
     expect(result).toContain('C')
+  })
+})
+
+describe('sanitizeHtml', () => {
+  it('sanitizes malicious HTML', () => {
+    const malicious = '<p>Hello <script>alert("xss")</script><img src="x" onerror="alert(1)"> world</p>'
+    const sanitized = sanitizeHtml(malicious)
+    expect(sanitized).toContain('<p>Hello ')
+    expect(sanitized).toContain(' world</p>')
+    expect(sanitized).not.toContain('<script>')
+    expect(sanitized).not.toContain('onerror')
+  })
+
+  it('performance: processes 1MB string in under 5 seconds', () => {
+    const largeHtml = `<div>${'<span>Content</span>'.repeat(50000)}</div>` // ~1MB
+    const start = Date.now()
+    const sanitized = sanitizeHtml(largeHtml)
+    const end = Date.now()
+
+    expect(sanitized.length).toBeGreaterThan(0)
+    expect(end - start).toBeLessThan(5000)
   })
 })
