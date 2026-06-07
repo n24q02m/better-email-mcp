@@ -6,8 +6,6 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AccountConfig } from '../tools/helpers/config.js'
 import {
-  PBKDF2_ITERATIONS_PROD,
-  PBKDF2_ITERATIONS_TEST,
   _deriveKey,
   _fs,
   _getSecret,
@@ -17,6 +15,8 @@ import {
   hashUserId,
   loadAllUserCredentials,
   loadUserCredentials,
+  PBKDF2_ITERATIONS_PROD,
+  PBKDF2_ITERATIONS_TEST,
   storeUserCredentials
 } from './per-user-credential-store.js'
 
@@ -67,11 +67,12 @@ describe('per-user-credential-store', () => {
       // Web Crypto keys are opaque, but we can verify they are generated
       expect(key1).toBeDefined()
       expect(key2).toBeDefined()
+      expect(PBKDF2_ITERATIONS_PROD).toBe(600_000)
       expect(key3).toBeDefined()
     })
-    it("should respect the iterations parameter", async () => {
-      const spy = vi.spyOn(crypto.subtle, "deriveKey")
-      await _deriveKey("secret", "user", 5000)
+    it('should respect the iterations parameter', async () => {
+      const spy = vi.spyOn(crypto.subtle, 'deriveKey')
+      await _deriveKey('secret', 'user', 5000)
       expect(spy).toHaveBeenCalledWith(
         expect.objectContaining({ iterations: 5000 }),
         expect.anything(),
@@ -82,11 +83,11 @@ describe('per-user-credential-store', () => {
       spy.mockRestore()
     })
 
-    it("should use PBKDF2_ITERATIONS_TEST when NODE_ENV is test", async () => {
+    it('should use PBKDF2_ITERATIONS_TEST when NODE_ENV is test', async () => {
       const originalEnv = process.env.NODE_ENV
-      process.env.NODE_ENV = "test"
-      const spy = vi.spyOn(crypto.subtle, "deriveKey")
-      await _deriveKey("secret", "user")
+      process.env.NODE_ENV = 'test'
+      const spy = vi.spyOn(crypto.subtle, 'deriveKey')
+      await _deriveKey('secret', 'user')
       expect(spy).toHaveBeenCalledWith(
         expect.objectContaining({ iterations: PBKDF2_ITERATIONS_TEST }),
         expect.anything(),
@@ -97,7 +98,6 @@ describe('per-user-credential-store', () => {
       process.env.NODE_ENV = originalEnv
       spy.mockRestore()
     })
-
   })
 
   describe('hashUserId', () => {

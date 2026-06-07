@@ -36,7 +36,6 @@ export const _fs = {
 export const PBKDF2_ITERATIONS_PROD = 600_000
 export const PBKDF2_ITERATIONS_TEST = 1_000
 
-
 const DATA_DIR = join(homedir(), '.better-email-mcp', 'users')
 const SECRET_PATH = join(homedir(), '.better-email-mcp', '.user-secret')
 
