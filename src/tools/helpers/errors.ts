@@ -159,8 +159,36 @@ function handleSmtpError(error: unknown): EmailMCPError {
   }
 }
 
-// ⚡ Bolt: Cache bigrams for static valid options to avoid recomputing them on every request.
-const validOptionBigramCache = new Map<string, Set<string>>()
+// ⚡ Bolt: Cache bigrams and lowercased versions for static valid options to avoid recomputing them on every request.
+const stringBigramCache = new Map<string, Set<string>>()
+const lowerCaseCache = new Map<string, string>()
+
+/**
+ * Get or compute bigrams for a string.
+ */
+function getBigrams(s: string): Set<string> {
+  let bigrams = stringBigramCache.get(s)
+  if (!bigrams) {
+    bigrams = new Set<string>()
+    for (let i = 0; i < s.length - 1; i++) {
+      bigrams.add(s.slice(i, i + 2))
+    }
+    stringBigramCache.set(s, bigrams)
+  }
+  return bigrams
+}
+
+/**
+ * Get or compute lowercased version of a string.
+ */
+function getLower(s: string): string {
+  let lower = lowerCaseCache.get(s)
+  if (!lower) {
+    lower = s.toLowerCase()
+    lowerCaseCache.set(s, lower)
+  }
+  return lower
+}
 
 /**
  * Find the closest matching string from a list of valid options.
@@ -169,41 +197,43 @@ const validOptionBigramCache = new Map<string, Set<string>>()
 export function findClosestMatch(input: string, validOptions: string[]): string | null {
   if (!input || validOptions.length === 0) return null
 
-  const lower = input.toLowerCase()
+  const lowerInput = input.toLowerCase()
+
+  // ⚡ Bolt: Pass 1: Fast prefix match.
+  // We check this before computing any bigrams to avoid unnecessary work.
+  for (const option of validOptions) {
+    const optionLower = getLower(option)
+    if (optionLower.startsWith(lowerInput) || lowerInput.startsWith(optionLower)) {
+      return option
+    }
+  }
+
+  // ⚡ Bolt: Pass 2: Bigram similarity.
+  // Pre-compute input bigrams once, only if no prefix match was found.
+  const inputBigrams = getBigrams(lowerInput)
+  if (inputBigrams.size === 0) return null
+
   let bestMatch: string | null = null
   let bestScore = 0
 
-  // ⚡ Bolt: Pre-compute the input bigrams outside the loop.
-  // This prevents redundant Set allocations and string slicing for the identical
-  // input string on every iteration of validOptions, reducing overhead from O(N*M) to O(N+M).
-  const inputBigrams = new Set<string>()
-  for (let i = 0; i < lower.length - 1; i++) inputBigrams.add(lower.slice(i, i + 2))
-
   for (const option of validOptions) {
-    const optionLower = option.toLowerCase()
-    if (optionLower.startsWith(lower) || lower.startsWith(optionLower)) {
-      return option
-    }
-
-    // ⚡ Bolt: Use cached bigrams if available, otherwise compute and cache them.
-    let optionBigrams = validOptionBigramCache.get(optionLower)
-    if (!optionBigrams) {
-      optionBigrams = new Set<string>()
-      for (let i = 0; i < optionLower.length - 1; i++) optionBigrams.add(optionLower.slice(i, i + 2))
-      validOptionBigramCache.set(optionLower, optionBigrams)
-    }
+    const optionLower = getLower(option)
+    const optionBigrams = getBigrams(optionLower)
 
     let overlap = 0
     for (const b of inputBigrams) {
       if (optionBigrams.has(b)) overlap++
     }
-    const score = (2 * overlap) / (inputBigrams.size + optionBigrams.size)
+
+    const totalBigrams = inputBigrams.size + optionBigrams.size
+    if (totalBigrams === 0) continue
+
+    const score = (2 * overlap) / totalBigrams
     if (score > bestScore && score > 0.4) {
       bestScore = score
       bestMatch = option
     }
   }
-
   return bestMatch
 }
 

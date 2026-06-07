@@ -293,3 +293,29 @@ describe('createUnknownActionError', () => {
     expect(error.suggestion).toBe('Supported actions: bar, baz')
   })
 })
+
+describe('findClosestMatch performance and edge cases', () => {
+  it('handles single character input (no bigrams)', () => {
+    // Should match by prefix
+    expect(findClosestMatch('m', ['messages', 'folders'])).toBe('messages')
+    // Should return null if no prefix match and too short for bigrams
+    expect(findClosestMatch('x', ['messages', 'folders'])).toBeNull()
+  })
+
+  it('handles options with single character (no bigrams)', () => {
+    expect(findClosestMatch('a', ['a', 'b', 'c'])).toBe('a')
+  })
+
+  it('is case insensitive', () => {
+    expect(findClosestMatch('MESSAGES', ['messages', 'folders'])).toBe('messages')
+    expect(findClosestMatch('mes', ['MESSAGES', 'folders'])).toBe('MESSAGES')
+  })
+
+  it('uses cache for repeated calls', () => {
+    const options = ['very_long_option_name_to_trigger_caching']
+    // First call computes
+    expect(findClosestMatch('very', options)).toBe('very_long_option_name_to_trigger_caching')
+    // Second call should use cache
+    expect(findClosestMatch('very', options)).toBe('very_long_option_name_to_trigger_caching')
+  })
+})
