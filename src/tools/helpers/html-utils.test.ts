@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { escapeHtml, fastExtractSnippet, htmlToCleanText } from './html-utils.js'
+import { escapeHtml, fastExtractSnippet, htmlToCleanText, sanitizeHtml } from './html-utils.js'
 
 describe('escapeHtml', () => {
   it('escapes &, <, >, ", and \'', () => {
@@ -231,5 +231,29 @@ describe('fastExtractSnippet', () => {
     expect(result).toContain('A')
     expect(result).toContain('B')
     expect(result).toContain('C')
+  })
+})
+
+describe('sanitizeHtml', () => {
+  it('sanitizes basic HTML', () => {
+    const unsafe = '<p>Hello <script>alert("xss")</script> <b>world</b></p>'
+    const sanitized = sanitizeHtml(unsafe)
+    expect(sanitized).toContain('<p>Hello ')
+    expect(sanitized).toContain(' <b>world</b></p>')
+    expect(sanitized).not.toContain('<script>')
+  })
+
+  it('handles performance test with a very large string', () => {
+    // Generate ~1MB of HTML content
+    const baseContent = '<p>Some text and <a href="http://example.com">a link</a> and <b>bold text</b>.</p>'
+    const largeHtml = `<div>${baseContent.repeat(10000)}</div>`
+
+    const start = Date.now()
+    const sanitized = sanitizeHtml(largeHtml)
+    const duration = Date.now() - start
+
+    expect(sanitized.length).toBeGreaterThan(0)
+    // Performance threshold: should complete within 5 seconds
+    expect(duration).toBeLessThan(5000)
   })
 })

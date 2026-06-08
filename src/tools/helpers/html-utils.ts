@@ -4,6 +4,7 @@
  */
 
 import { compile } from 'html-to-text'
+import sanitize from 'sanitize-html'
 
 const ENTITY_MAP: Record<string, string> = {
   '&nbsp;': ' ',
@@ -30,6 +31,13 @@ export function escapeHtml(unsafe: string): string {
   // ⚡ Bolt: Replace 5 chained `.replace()` calls with a single regex pass.
   // This reduces string allocation overhead and speeds up escaping by iterating over the string only once.
   return unsafe.replace(/[&<>"']/g, (match) => HTML_ESCAPE_MAP[match]!)
+}
+
+/**
+ * Sanitize HTML to prevent XSS and remove unwanted tags/attributes
+ */
+export function sanitizeHtml(html: string, options?: sanitize.IOptions): string {
+  return sanitize(html, options)
 }
 
 // ⚡ Bolt: Extract `html-to-text` options into a module-scoped constant.
