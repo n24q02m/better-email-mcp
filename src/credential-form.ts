@@ -325,15 +325,16 @@ export function renderEmailCredentialForm(
                 while (el.firstChild) el.removeChild(el.firstChild);
             }
 
-            function createFieldGroup(opts) {
-                var idx = opts.idx;
-                var key = opts.key;
-                var label = opts.label;
-                var type = opts.type;
-                var placeholder = opts.placeholder;
-                var required = opts.required;
-                var helpText = opts.helpText;
-                var helpUrl = opts.helpUrl;
+            function createFieldGroup({
+                idx,
+                key,
+                label,
+                type,
+                placeholder = "",
+                required = false,
+                helpText = "",
+                helpUrl = ""
+            }) {
 
                 var group = document.createElement("div");
                 group.className = "field-group";
@@ -461,10 +462,7 @@ export function renderEmailCredentialForm(
                         idx: idx,
                         key: "password",
                         label: info.label,
-                        type: "password",
-                        placeholder: "",
-                        required: true,
-                        helpText: info.helpText,
+                        type: "password", required: true, helpText: info.helpText,
                         helpUrl: info.helpUrl
                     });
                     if (state && state.password) pw.input.value = state.password;
@@ -476,11 +474,7 @@ export function renderEmailCredentialForm(
                     idx: idx,
                     key: "password",
                     label: "Password",
-                    type: "password",
-                    placeholder: "",
-                    required: true,
-                    helpText: "",
-                    helpUrl: ""
+                    type: "password", required: true
                 });
                 if (state && state.password) pwCustom.input.value = state.password;
                 extraContainer.appendChild(pwCustom.group);
@@ -490,10 +484,7 @@ export function renderEmailCredentialForm(
                     key: "imap",
                     label: "IMAP Host",
                     type: "text",
-                    placeholder: "imap.example.com",
-                    required: false,
-                    helpText: "Optional. Leave empty for auto-detection. Accepts localhost or a proxy host.",
-                    helpUrl: ""
+                    placeholder: "imap.example.com", helpText: "Optional. Leave empty for auto-detection. Accepts localhost or a proxy host."
                 });
                 if (state && state.imap) imap.input.value = state.imap;
                 extraContainer.appendChild(imap.group);
@@ -503,10 +494,7 @@ export function renderEmailCredentialForm(
                     key: "imapport",
                     label: "IMAP Port",
                     type: "text",
-                    placeholder: "993",
-                    required: false,
-                    helpText: "Optional. Default 993. Set a custom port for a local IMAP proxy.",
-                    helpUrl: ""
+                    placeholder: "993", helpText: "Optional. Default 993. Set a custom port for a local IMAP proxy."
                 });
                 imapPort.input.setAttribute("inputmode", "numeric");
                 if (state && state.imapPort) imapPort.input.value = state.imapPort;
@@ -557,10 +545,7 @@ export function renderEmailCredentialForm(
                     key: "email",
                     label: "Email Address",
                     type: "email",
-                    placeholder: "you@example.com",
-                    required: true,
-                    helpText: "",
-                    helpUrl: ""
+                    placeholder: "you@example.com", required: true
                 });
                 card.appendChild(emailField.group);
 
