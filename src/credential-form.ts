@@ -722,6 +722,14 @@ export function renderEmailCredentialForm(
                 evt.preventDefault();
                 statusBox.style.display = "none";
 
+                if (!form.checkValidity()) {
+                    var firstInvalid = form.querySelector("input:invalid, select:invalid, textarea:invalid");
+                    if (firstInvalid && typeof firstInvalid.focus === "function") {
+                        (firstInvalid as HTMLElement).focus();
+                    }
+                    return;
+                }
+
                 var collected = collectAccounts();
 
                 if (collected.accounts.length === 0) {
