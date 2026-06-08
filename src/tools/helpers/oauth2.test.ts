@@ -1217,4 +1217,78 @@ describe('saveOutlookTokens', () => {
       clientId: 'default-cid'
     })
   })
+  it('falls back to tokens.sub if email and env are missing', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    const tokens = {
+      sub: 'sub-123',
+      access_token: 'at-sub'
+    }
+
+    await saveOutlookTokens(tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['sub-123']).toBeDefined()
+    expect(written['sub-123'].accessToken).toBe('at-sub')
+  })
+
+  it('falls back to id_token subject if email, env, and sub are missing', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    // Payload: {"sub": "id-sub-456"}
+    // Base64url: eyJzdWIiOiAiaWQtc3ViLTQ1NiJ9
+    const idToken = 'header.eyJzdWIiOiAiaWQtc3ViLTQ1NiJ9.signature'
+    const tokens = {
+      id_token: idToken,
+      access_token: 'at-id-token'
+    }
+
+    await saveOutlookTokens(tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['id-sub-456']).toBeDefined()
+    expect(written['id-sub-456'].accessToken).toBe('at-id-token')
+  })
+
+  it('handles malformed id_token gracefully', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    const tokens = {
+      id_token: 'not-a-jwt',
+      access_token: 'at-malformed'
+    }
+
+    await saveOutlookTokens(tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['outlook-device-code']).toBeDefined()
+  })
+  it('handles id_token with invalid JSON payload', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    // Payload: "not-json"
+    // Base64url: bm90LWpzb24=
+    const idToken = 'header.bm90LWpzb24=.signature'
+    const tokens = {
+      id_token: idToken,
+      access_token: 'at-invalid-json'
+    }
+
+    await saveOutlookTokens(tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['outlook-device-code']).toBeDefined()
+  })
+
+  it('handles id_token with missing sub claim', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    // Payload: {"name": "Test"}
+    // Base64url: eyJuYW1lIjogIlRlc3QifQ
+    const idToken = 'header.eyJuYW1lIjogIlRlc3QifQ.signature'
+    const tokens = {
+      id_token: idToken,
+      access_token: 'at-no-sub'
+    }
+
+    await saveOutlookTokens(tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['outlook-device-code']).toBeDefined()
+  })
 })

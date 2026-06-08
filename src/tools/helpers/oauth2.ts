@@ -481,8 +481,28 @@ export async function ensureValidToken(account: { email: string; oauth2?: OAuth2
  * When neither is present, tokens are stored under the ``id_token`` subject
  * claim as a fallback (uncommon in device-code flows).
  */
+/**
+ * Extract 'sub' claim from JWT id_token without full verification.
+ * Only used as a fallback identifier for token storage keys.
+ */
+function decodeIdTokenSubject(idToken: string): string | null {
+  try {
+    const parts = idToken.split('.')
+    if (parts.length !== 3) return null
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'))
+    return typeof payload.sub === 'string' ? payload.sub : null
+  } catch {
+    return null
+  }
+}
+
 export async function saveOutlookTokens(tokens: Record<string, unknown>): Promise<void> {
-  const email = typeof tokens.email === 'string' ? tokens.email : (process.env.OUTLOOK_EMAIL ?? 'outlook-device-code')
+  const email =
+    (typeof tokens.email === 'string' ? tokens.email : null) ??
+    process.env.OUTLOOK_EMAIL ??
+    (typeof tokens.sub === 'string' ? tokens.sub : null) ??
+    (typeof tokens.id_token === 'string' ? decodeIdTokenSubject(tokens.id_token) : null) ??
+    'outlook-device-code'
   const now = Math.floor(Date.now() / MS_PER_SECOND)
   const expiresIn = typeof tokens.expires_in === 'number' ? tokens.expires_in : 3600
   saveTokens(email, {
