@@ -5,6 +5,7 @@ import {
   EmailMCPError,
   enhanceError,
   findClosestMatch,
+  sanitizeErrorDetails,
   suggestFixes,
   withErrorHandling
 } from './errors.js'
@@ -291,5 +292,43 @@ describe('createUnknownActionError', () => {
     expect(error.message).toBe('Unknown action: foo')
     expect(error.code).toBe('VALIDATION_ERROR')
     expect(error.suggestion).toBe('Supported actions: bar, baz')
+  })
+})
+
+describe('sanitizeErrorDetails', () => {
+  it('returns non-object inputs as-is', () => {
+    expect(sanitizeErrorDetails(null)).toBeNull()
+    expect(sanitizeErrorDetails('string')).toBe('string')
+    expect(sanitizeErrorDetails(123)).toBe(123)
+    expect(sanitizeErrorDetails(undefined)).toBeUndefined()
+  })
+
+  it('filters out sensitive properties', () => {
+    const error = {
+      message: 'error msg',
+      password: 'secret_password',
+      token: 'secret_token',
+      apiKey: 'secret_key',
+      name: 'Error',
+      code: 'ERR_CODE',
+      status: 500,
+      responseCode: 550,
+      custom: 'data'
+    }
+    const sanitized = sanitizeErrorDetails(error) as Record<string, unknown>
+    expect(sanitized.message).toBe('error msg')
+    expect(sanitized.name).toBe('Error')
+    expect(sanitized.code).toBe('ERR_CODE')
+    expect(sanitized.status).toBe(500)
+    expect(sanitized.responseCode).toBe(550)
+
+    expect(sanitized.password).toBeUndefined()
+    expect(sanitized.token).toBeUndefined()
+    expect(sanitized.apiKey).toBeUndefined()
+    expect(sanitized.custom).toBeUndefined()
+  })
+
+  it('handles empty objects', () => {
+    expect(sanitizeErrorDetails({})).toEqual({})
   })
 })
