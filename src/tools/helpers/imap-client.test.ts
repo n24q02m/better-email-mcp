@@ -84,6 +84,7 @@ function _toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
 }
 
 beforeEach(() => {
+  clearSentFolderCache()
   vi.clearAllMocks()
   mockClient.connect.mockResolvedValue(undefined)
   mockClient.logout.mockResolvedValue(undefined)
@@ -1046,3 +1047,23 @@ describe('clearSentFolderCache', () => {
     expect(clearSentFolderCache()).toBe(0)
   })
 })
+
+describe('resolveSentFolder coverage reinforcement', () => {
+  it('cleans up cache on error (hits lines 298-299)', async () => {
+    // We need to make the IIFE throw.
+    // The IIFE catches errors from listFolders, but it doesn't catch errors
+    // in the setup logic before the internal try-catch.
+    // However, the setup logic is just string checks on account.imap.host.
+    // If we pass an account where imap.host is NOT a string, it might throw.
+
+    const badAccount = {
+      id: 'bad-account',
+      imap: { host: null as any }
+    } as any;
+
+    await expect(resolveSentFolder(badAccount)).rejects.toThrow();
+
+    // Verify it was removed from cache (count should be 0)
+    expect(clearSentFolderCache()).toBe(0);
+  });
+});
