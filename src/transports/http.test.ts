@@ -103,7 +103,10 @@ describe('http transport', () => {
     const startPromise = startHttp()
 
     // Wait for the server to start
-    await vi.waitFor(() => expect(runHttpServer).toHaveBeenCalled())
+    await vi.waitFor(() => {
+      expect(runHttpServer).toHaveBeenCalled()
+      expect(sigintHandler).toBeTruthy()
+    })
 
     if (fn) await fn()
 
@@ -141,7 +144,10 @@ describe('http transport', () => {
     beforeEach(async () => {
       // Start server and capture the callback
       startHttp()
-      await vi.waitFor(() => expect(runHttpServer).toHaveBeenCalled())
+      await vi.waitFor(() => {
+        expect(runHttpServer).toHaveBeenCalled()
+        expect(sigintHandler).toBeTruthy()
+      })
       onCredentialsSaved = vi.mocked(runHttpServer).mock.calls[0][1].onCredentialsSaved
     })
 
@@ -383,7 +389,10 @@ describe('http transport', () => {
       vi.mocked(loadConfig).mockResolvedValue(mockAccounts as any)
 
       const startPromise = startHttp()
-      await vi.waitFor(() => expect(runHttpServer).toHaveBeenCalled())
+      await vi.waitFor(() => {
+        expect(runHttpServer).toHaveBeenCalled()
+        expect(sigintHandler).toBeTruthy()
+      })
 
       const factory = vi.mocked(runHttpServer).mock.calls[0][0]
 
