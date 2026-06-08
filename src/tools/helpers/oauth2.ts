@@ -142,8 +142,9 @@ export async function loadStoredTokens(email: string): Promise<OAuth2Tokens | nu
     if (!isValidTokenStore(store)) {
       return null
     }
-    cachedTokenStore = store
-    return store[email.toLowerCase()] || null
+    const safeStore: TokenStore = Object.assign(Object.create(null), store)
+    cachedTokenStore = safeStore
+    return safeStore[email.toLowerCase()] || null
   } catch (err: unknown) {
     if (err && typeof err === 'object' && 'code' in err && err.code !== 'ENOENT') {
       // Ignore parse errors or other issues, return null
@@ -161,19 +162,19 @@ export function saveTokens(email: string, tokens: OAuth2Tokens): void {
     mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 })
   }
 
-  let store: TokenStore = cachedTokenStore || {}
+  let store: TokenStore = cachedTokenStore || Object.create(null)
   try {
     if (!cachedTokenStore && existsSync(TOKEN_FILE)) {
       const data: unknown = JSON.parse(readFileSync(TOKEN_FILE, 'utf-8'))
       if (isValidTokenStore(data)) {
-        store = data
+        store = Object.assign(Object.create(null), data)
       } else {
-        store = {}
+        store = Object.create(null)
       }
     }
   } catch {
     // Start fresh if file is corrupted
-    store = {}
+    store = Object.create(null)
   }
 
   store[email.toLowerCase()] = tokens

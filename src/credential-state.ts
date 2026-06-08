@@ -103,7 +103,11 @@ export async function resolveCredentialState(): Promise<CredentialState> {
     const tokenFile = join(homedir(), '.better-email-mcp', 'tokens.json')
 
     const data = await readFile(tokenFile, 'utf-8')
-    const store: Record<string, unknown> = JSON.parse(data)
+    const parsedData = JSON.parse(data)
+    const store: Record<string, unknown> =
+      parsedData && typeof parsedData === 'object' && !Array.isArray(parsedData)
+        ? Object.assign(Object.create(null), parsedData)
+        : Object.create(null)
     const emails = Object.keys(store).filter((key) => key.includes('@'))
     if (emails.length > 0) {
       const credentials = emails.map((email) => `${email}:oauth2`).join(',')
