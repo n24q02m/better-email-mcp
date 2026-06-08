@@ -147,6 +147,62 @@ describe('registry.ts coverage - error and edge paths', () => {
       expect(result.isError).toBe(true)
       expect(result.content[0].text).toContain('Error: Unknown error occurred')
     })
+
+    it('should handle generic Error objects in the main catch block', async () => {
+      const { attachments } = await import('./composite/attachments.js')
+      vi.mocked(attachments).mockRejectedValue(new Error('Generic error message'))
+
+      const { callToolHandler } = setupHandler([{ email: 'test@example.com' }])
+
+      const result = await callToolHandler({
+        params: {
+          name: 'attachments',
+          arguments: { action: 'get', messageId: '123', fileName: 'test.txt' }
+        }
+      })
+
+      expect(result.isError).toBe(true)
+      expect(result.content[0].text).toContain('Error: Generic error message')
+    })
+
+    it('should handle JSON.stringify failures in the main catch block', async () => {
+      const { attachments } = await import('./composite/attachments.js')
+      const circular: any = {}
+      circular.self = circular
+      vi.mocked(attachments).mockResolvedValue(circular)
+
+      const { callToolHandler } = setupHandler([{ email: 'test@example.com' }])
+
+      const result = await callToolHandler({
+        params: {
+          name: 'attachments',
+          arguments: { action: 'get', messageId: '123', fileName: 'test.txt' }
+        }
+      })
+
+      expect(result.isError).toBe(true)
+      expect(result.content[0].text).toContain('Error:')
+      // JSON.stringify circular error message varies by node version but contains "circular"
+      expect(result.content[0].text.toLowerCase()).toContain('circular')
+    })
+
+    it('should handle IMAP authentication errors in the main catch block', async () => {
+      const { messages } = await import('./composite/messages.js')
+      vi.mocked(messages).mockRejectedValue(new Error('AUTHENTICATIONFAILED'))
+
+      const { callToolHandler } = setupHandler([{ email: 'test@example.com' }])
+
+      const result = await callToolHandler({
+        params: {
+          name: 'messages',
+          arguments: { action: 'search', query: 'ALL' }
+        }
+      })
+
+      expect(result.isError).toBe(true)
+      expect(result.content[0].text).toContain('Error: Email authentication failed')
+      expect(result.content[0].text).toContain('Suggestion: Check that your email and App Password are correct')
+    })
   })
 
   describe('config__open_relay', () => {
