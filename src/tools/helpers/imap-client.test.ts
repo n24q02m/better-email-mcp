@@ -1059,11 +1059,11 @@ describe('resolveSentFolder coverage reinforcement', () => {
     const badAccount = {
       id: 'bad-account',
       imap: { host: null as any }
-    } as any;
+    } as any
 
-    await expect(resolveSentFolder(badAccount)).rejects.toThrow();
+    await expect(resolveSentFolder(badAccount)).rejects.toThrow()
 
     // Verify it was removed from cache (count should be 0)
-    expect(clearSentFolderCache()).toBe(0);
-  });
-});
+    expect(clearSentFolderCache()).toBe(0)
+  })
+})
