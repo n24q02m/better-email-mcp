@@ -678,26 +678,29 @@ export function renderEmailCredentialForm(
                     fetch(statusUrl)
                         .then(function (r) { return r.json(); })
                         .then(function (s) {
-                            if (s && s.outlook === "complete") {
-                                clearInterval(pollId);
-                                statusBox.className = "status-box success";
-                                while (statusBox.firstChild) statusBox.removeChild(statusBox.firstChild);
-                                var done = document.createElement("strong");
-                                done.textContent = "Setup complete!";
-                                statusBox.appendChild(done);
-                                statusBox.appendChild(document.createElement("br"));
-                                statusBox.appendChild(document.createElement("br"));
-                                submitBtn.textContent = "Connected";
-                                if (typeof pendingRedirectUrl === "string" && pendingRedirectUrl.length > 0) {
-                                    // Follow the OAuth redirect so external clients receive the
-                                    // auth code. Without this the form stalls on "close tab" and
-                                    // the client callback server hangs forever.
-                                    statusBox.appendChild(document.createTextNode("Outlook authorized. Redirecting..."));
-                                    window.location.replace(pendingRedirectUrl);
-                                } else {
-                                    statusBox.appendChild(document.createTextNode("Outlook authorized. You can close this tab."));
-                                }
+                            if (!s || s.outlook !== "complete") return;
+
+                            clearInterval(pollId);
+                            statusBox.className = "status-box success";
+                            while (statusBox.firstChild) statusBox.removeChild(statusBox.firstChild);
+
+                            var done = document.createElement("strong");
+                            done.textContent = "Setup complete!";
+                            statusBox.appendChild(done);
+                            statusBox.appendChild(document.createElement("br"));
+                            statusBox.appendChild(document.createElement("br"));
+                            submitBtn.textContent = "Connected";
+
+                            if (typeof pendingRedirectUrl === "string" && pendingRedirectUrl.length > 0) {
+                                // Follow the OAuth redirect so external clients receive the
+                                // auth code. Without this the form stalls on "close tab" and
+                                // the client callback server hangs forever.
+                                statusBox.appendChild(document.createTextNode("Outlook authorized. Redirecting..."));
+                                window.location.replace(pendingRedirectUrl);
+                                return;
                             }
+
+                            statusBox.appendChild(document.createTextNode("Outlook authorized. You can close this tab."));
                         })
                         .catch(function () {});
                 }, 3000);
@@ -762,7 +765,9 @@ export function renderEmailCredentialForm(
                     body: JSON.stringify(payload)
                 })
                     .then(function (resp) {
-                        return resp.json().then(function (data) {
+                        return resp.json();
+                    })
+                    .then(function (data) {
                             if (!data.ok) {
                                 showStatus("error", data.error || data.error_description || "Request failed.");
                                 formFieldset.disabled = false;
@@ -798,7 +803,6 @@ export function renderEmailCredentialForm(
                             showStatus("success", data.message || "Setup complete! You can close this tab.");
                             submitBtn.textContent = "Connected";
                             submitBtn.removeAttribute("aria-busy");
-                        });
                     })
                     .catch(function (err) {
                         showStatus("error", "Network error: " + err.message);
