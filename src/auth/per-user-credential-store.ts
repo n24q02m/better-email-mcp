@@ -25,6 +25,9 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { AccountConfig } from '../tools/helpers/config.js'
 
+export const PBKDF2_ITERATIONS_PROD = 600_000
+export const PBKDF2_ITERATIONS_TEST = 1_000
+
 // Exporting fs for easier testing/mocking
 export const _fs = {
   mkdir: fsPromises.mkdir,
@@ -101,7 +104,7 @@ async function deriveKey(secret: string, userId = '', iterations?: number): Prom
       name: 'PBKDF2',
       hash: 'SHA-256',
       salt: new TextEncoder().encode(`mcp-email-per-user:${userId || 'default'}`),
-      iterations: iterations ?? (process.env.NODE_ENV === 'test' ? 1000 : 600_000)
+      iterations: iterations ?? (process.env.NODE_ENV === 'test' ? PBKDF2_ITERATIONS_TEST : PBKDF2_ITERATIONS_PROD)
     },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },

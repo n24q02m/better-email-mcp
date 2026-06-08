@@ -15,7 +15,9 @@ import {
   hashUserId,
   loadAllUserCredentials,
   loadUserCredentials,
-  storeUserCredentials
+  storeUserCredentials,
+  PBKDF2_ITERATIONS_TEST,
+  PBKDF2_ITERATIONS_PROD
 } from './per-user-credential-store.js'
 
 const makeAccount = (email: string): AccountConfig => ({
@@ -54,6 +56,7 @@ describe('per-user-credential-store', () => {
     if (existsSync(testDir)) {
       rmSync(testDir, { recursive: true, force: true })
     }
+    vi.restoreAllMocks()
   })
 
   describe('deriveKey', () => {
@@ -66,6 +69,41 @@ describe('per-user-credential-store', () => {
       expect(key1).toBeDefined()
       expect(key2).toBeDefined()
       expect(key3).toBeDefined()
+    })
+
+    it('should respect the iterations parameter', async () => {
+      const deriveKeySpy = vi.spyOn(crypto.subtle, 'deriveKey')
+      const customIterations = 5000
+
+      await _deriveKey('secret', 'user-1', customIterations)
+
+      expect(deriveKeySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'PBKDF2',
+          iterations: customIterations
+        }),
+        expect.any(Object),
+        expect.any(Object),
+        expect.any(Boolean),
+        expect.any(Array)
+      )
+    })
+
+    it('should use PBKDF2_ITERATIONS_TEST when NODE_ENV is test', async () => {
+      const deriveKeySpy = vi.spyOn(crypto.subtle, 'deriveKey')
+
+      // NODE_ENV is 'test' by default in vitest
+      await _deriveKey('secret', 'user-1')
+
+      expect(deriveKeySpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          iterations: PBKDF2_ITERATIONS_TEST
+        }),
+        expect.any(Object),
+        expect.any(Object),
+        expect.any(Boolean),
+        expect.any(Array)
+      )
     })
   })
 
