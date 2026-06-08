@@ -1,6 +1,12 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tryOpenBrowser } from '@n24q02m/mcp-core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { getMarkSetupComplete, setState } from '../../credential-state.js'
+
+vi.mock('../../credential-state.js', () => ({
+  getMarkSetupComplete: vi.fn(),
+  setState: vi.fn()
+}))
 
 vi.mock('@n24q02m/mcp-core', () => ({
   tryOpenBrowser: vi.fn().mockResolvedValue(true)
@@ -1216,5 +1222,23 @@ describe('saveOutlookTokens', () => {
       expiresAt: 1000000 + 3600, // default 1 hour
       clientId: 'default-cid'
     })
+  })
+
+  it('signals setup completionto the form and updates state', async () => {
+    const markComplete = vi.fn()
+    vi.mocked(getMarkSetupComplete).mockReturnValue(markComplete)
+
+    await saveOutlookTokens({ email: 'complete@outlook.com', access_token: 'at' })
+
+    expect(setState).toHaveBeenCalledWith('configured')
+    expect(markComplete).toHaveBeenCalledWith('outlook')
+  })
+
+  it('does not throw if markSetupCompleteFn is missing', async () => {
+    vi.mocked(getMarkSetupComplete).mockReturnValue(null)
+
+    await saveOutlookTokens({ email: 'no-hook@outlook.com', access_token: 'at' })
+
+    expect(setState).toHaveBeenCalledWith('configured')
   })
 })
