@@ -116,13 +116,13 @@ export function hashUserId(userId: string): string {
 }
 
 function isValidServerConfig(obj: unknown): obj is import('../tools/helpers/config.js').ServerConfig {
-  if (!obj || typeof obj !== 'object') return false
+  if (!obj || typeof obj !== 'object' || obj === null) return false
   const s = obj as Record<string, unknown>
   return typeof s.host === 'string' && typeof s.port === 'number' && typeof s.secure === 'boolean'
 }
 
 function isValidOAuth2Tokens(obj: unknown): obj is import('../tools/helpers/oauth2.js').OAuth2Tokens {
-  if (!obj || typeof obj !== 'object') return false
+  if (!obj || typeof obj !== 'object' || obj === null) return false
   const t = obj as Record<string, unknown>
   return (
     typeof t.accessToken === 'string' &&
@@ -133,7 +133,7 @@ function isValidOAuth2Tokens(obj: unknown): obj is import('../tools/helpers/oaut
 }
 
 function isValidAccountConfig(obj: unknown): obj is AccountConfig {
-  if (!obj || typeof obj !== 'object') return false
+  if (!obj || typeof obj !== 'object' || obj === null) return false
   const a = obj as Record<string, unknown>
   const basic = typeof a.id === 'string' && typeof a.email === 'string' && typeof a.password === 'string'
   if (!basic) return false
@@ -194,7 +194,7 @@ export async function loadUserCredentials(userId: string): Promise<AccountConfig
       new Uint8Array(ciphertext)
     )
     const parsed = JSON.parse(new TextDecoder().decode(decrypted))
-    if (!isValidAccountConfigs(parsed.accounts)) {
+    if (!parsed || typeof parsed !== 'object' || !isValidAccountConfigs(parsed.accounts)) {
       throw new Error('Invalid account configuration in stored credentials')
     }
     return parsed.accounts
@@ -242,7 +242,12 @@ export async function loadAllUserCredentials(): Promise<Map<string, AccountConfi
         new Uint8Array(ciphertext)
       )
       const parsed = JSON.parse(new TextDecoder().decode(decrypted))
-      if (typeof parsed.userId === 'string' && isValidAccountConfigs(parsed.accounts)) {
+      if (
+        parsed &&
+        typeof parsed === 'object' &&
+        typeof parsed.userId === 'string' &&
+        isValidAccountConfigs(parsed.accounts)
+      ) {
         result.set(parsed.userId, parsed.accounts)
       }
     } catch (err: unknown) {
