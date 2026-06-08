@@ -159,7 +159,7 @@ function handleSmtpError(error: unknown): EmailMCPError {
   }
 }
 
-// ⚡ Bolt: Cache bigrams for static valid options to avoid recomputing them on every request.
+const lowercaseCache = new Map<string, string>()
 const validOptionBigramCache = new Map<string, Set<string>>()
 
 /**
@@ -170,33 +170,51 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   if (!input || validOptions.length === 0) return null
 
   const lower = input.toLowerCase()
-  let bestMatch: string | null = null
-  let bestScore = 0
 
-  // ⚡ Bolt: Pre-compute the input bigrams outside the loop.
-  // This prevents redundant Set allocations and string slicing for the identical
-  // input string on every iteration of validOptions, reducing overhead from O(N*M) to O(N+M).
-  const inputBigrams = new Set<string>()
-  for (let i = 0; i < lower.length - 1; i++) inputBigrams.add(lower.slice(i, i + 2))
-
+  // First pass: look for prefix matches (fast path)
   for (const option of validOptions) {
-    const optionLower = option.toLowerCase()
+    let optionLower = lowercaseCache.get(option)
+    if (!optionLower) {
+      optionLower = option.toLowerCase()
+      lowercaseCache.set(option, optionLower)
+    }
+
     if (optionLower.startsWith(lower) || lower.startsWith(optionLower)) {
       return option
     }
+  }
 
-    // ⚡ Bolt: Use cached bigrams if available, otherwise compute and cache them.
+  // Second pass: bigram similarity
+  const inputBigrams = new Set<string>()
+  for (let i = 0; i < lower.length - 1; i++) {
+    inputBigrams.add(lower.slice(i, i + 2))
+  }
+
+  if (inputBigrams.size === 0) return null
+
+  let bestMatch: string | null = null
+  let bestScore = 0
+
+  for (const option of validOptions) {
+    // We know optionLower exists in cache because of the first pass
+    const optionLower = lowercaseCache.get(option)!
+
     let optionBigrams = validOptionBigramCache.get(optionLower)
     if (!optionBigrams) {
       optionBigrams = new Set<string>()
-      for (let i = 0; i < optionLower.length - 1; i++) optionBigrams.add(optionLower.slice(i, i + 2))
+      for (let i = 0; i < optionLower.length - 1; i++) {
+        optionBigrams.add(optionLower.slice(i, i + 2))
+      }
       validOptionBigramCache.set(optionLower, optionBigrams)
     }
+
+    if (optionBigrams.size === 0) continue
 
     let overlap = 0
     for (const b of inputBigrams) {
       if (optionBigrams.has(b)) overlap++
     }
+
     const score = (2 * overlap) / (inputBigrams.size + optionBigrams.size)
     if (score > bestScore && score > 0.4) {
       bestScore = score
