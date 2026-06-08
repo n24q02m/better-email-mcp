@@ -1218,3 +1218,45 @@ describe('saveOutlookTokens', () => {
     })
   })
 })
+
+describe('loadStoredTokens validation', () => {
+  it('returns null if token store is invalid (array)', async () => {
+    vi.mocked(readFile).mockResolvedValue('[]')
+    _resetTokenCache()
+    const result = await loadStoredTokens('user@outlook.com')
+    expect(result).toBeNull()
+  })
+
+  it('returns null if token store is invalid (missing fields)', async () => {
+    vi.mocked(readFile).mockResolvedValue(
+      JSON.stringify({
+        'user@outlook.com': { accessToken: 'tok' }
+      })
+    )
+    _resetTokenCache()
+    const result = await loadStoredTokens('user@outlook.com')
+    expect(result).toBeNull()
+  })
+
+  it('returns null if token store is invalid (empty strings)', async () => {
+    vi.mocked(readFile).mockResolvedValue(
+      JSON.stringify({
+        'user@outlook.com': { accessToken: '', refreshToken: 'ref', expiresAt: 123, clientId: 'cid' }
+      })
+    )
+    _resetTokenCache()
+    const result = await loadStoredTokens('user@outlook.com')
+    expect(result).toBeNull()
+  })
+
+  it('returns null if token store is invalid (NaN expiresAt)', async () => {
+    vi.mocked(readFile).mockResolvedValue(
+      JSON.stringify({
+        'user@outlook.com': { accessToken: 'tok', refreshToken: 'ref', expiresAt: NaN, clientId: 'cid' }
+      })
+    )
+    _resetTokenCache()
+    const result = await loadStoredTokens('user@outlook.com')
+    expect(result).toBeNull()
+  })
+})

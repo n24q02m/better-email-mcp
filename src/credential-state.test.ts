@@ -22,6 +22,10 @@ vi.mock('./tools/helpers/config.js', () => ({
 vi.mock('./tools/helpers/oauth2.js', () => ({
   ensureValidToken: vi.fn(),
   isOutlookDomain: vi.fn().mockReturnValue(false),
+  isValidTokenStore: vi.fn().mockImplementation((data: unknown) => {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return false
+    return Object.values(data as object).every((t) => t && typeof t === 'object' && 'accessToken' in t)
+  }),
   _getPendingAuths: vi.fn().mockReturnValue(new Set())
 }))
 
@@ -144,7 +148,11 @@ describe('credential-state', () => {
 
     it('returns configured when saved OAuth tokens exist', async () => {
       vi.mocked(resolveConfig).mockResolvedValue({ config: null, source: '' } as any)
-      vi.mocked(readFile).mockResolvedValue(JSON.stringify({ 'user@outlook.com': { accessToken: 'tok' } }) as any)
+      vi.mocked(readFile).mockResolvedValue(
+        JSON.stringify({
+          'user@outlook.com': { accessToken: 'tok', refreshToken: 'ref', expiresAt: 123, clientId: 'cid' }
+        }) as any
+      )
 
       const result = await mod.resolveCredentialState()
       expect(result).toBe('configured')

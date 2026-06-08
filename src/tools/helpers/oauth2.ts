@@ -78,9 +78,14 @@ export function isValidTokens(data: unknown): data is OAuth2Tokens {
   const d = data as Record<string, unknown>
   return (
     typeof d.accessToken === 'string' &&
+    d.accessToken !== '' &&
     typeof d.refreshToken === 'string' &&
+    d.refreshToken !== '' &&
     typeof d.expiresAt === 'number' &&
-    typeof d.clientId === 'string'
+    !Number.isNaN(d.expiresAt) &&
+    d.expiresAt >= 0 &&
+    typeof d.clientId === 'string' &&
+    d.clientId !== ''
   )
 }
 

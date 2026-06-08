@@ -100,10 +100,14 @@ export async function resolveCredentialState(): Promise<CredentialState> {
     const { readFile } = await import('node:fs/promises')
     const { homedir } = await import('node:os')
     const { join } = await import('node:path')
+    const { isValidTokenStore } = await import('./tools/helpers/oauth2.js')
     const tokenFile = join(homedir(), '.better-email-mcp', 'tokens.json')
 
     const data = await readFile(tokenFile, 'utf-8')
-    const store: Record<string, unknown> = JSON.parse(data)
+    const store: unknown = JSON.parse(data)
+    if (!isValidTokenStore(store)) {
+      throw new Error('Invalid token store')
+    }
     const emails = Object.keys(store).filter((key) => key.includes('@'))
     if (emails.length > 0) {
       const credentials = emails.map((email) => `${email}:oauth2`).join(',')
