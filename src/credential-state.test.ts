@@ -107,6 +107,12 @@ describe('credential-state', () => {
       expect(mod.getSetupUrl()).toBe('')
     })
 
+    it('handles complex URLs with query parameters', () => {
+      const url = 'http://localhost:3000/setup?token=123&env=prod'
+      mod.setSetupUrl(url)
+      expect(mod.getSetupUrl()).toBe(url)
+    })
+
     it('handles malformed URL', () => {
       mod.setSetupUrl('not-a-url')
       expect(mod.getSetupUrl()).toBe('not-a-url')
@@ -205,11 +211,16 @@ describe('credential-state', () => {
   })
 
   describe('resetState', () => {
-    it('resets to awaiting_setup', async () => {
+    it('resets to awaiting_setup and clears all state', async () => {
       mod.setState('configured')
+      mod.setSetupUrl('http://localhost:3000')
+      mod.setMarkSetupComplete(vi.fn())
+
       await mod.resetState()
+
       expect(mod.getState()).toBe('awaiting_setup')
       expect(mod.getSetupUrl()).toBeNull()
+      expect(mod.getMarkSetupComplete()).toBeNull()
     })
 
     it('handles deleteConfig error gracefully', async () => {

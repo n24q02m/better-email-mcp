@@ -130,6 +130,7 @@ export function setState(newState: CredentialState): void {
 /** Reset to awaiting_setup (used by setup reset action). */
 export async function resetState(): Promise<void> {
   state = 'awaiting_setup'
+  markSetupCompleteFn = null
   setupUrl = null
   try {
     const { deleteConfig } = await import('@n24q02m/mcp-core')
