@@ -357,7 +357,12 @@ export async function initiateOutlookDeviceCode(
   email: string,
   onComplete?: () => void
 ): Promise<{ verificationUri: string; userCode: string; expiresIn: number; interval: number }> {
+  if (!email) {
+    throw new Error('Email is required')
+  }
+
   const emailKey = email.toLowerCase()
+
   const existing = pendingAuths.get(emailKey)
   if (existing && existing.expiresAt > Date.now()) {
     return {
