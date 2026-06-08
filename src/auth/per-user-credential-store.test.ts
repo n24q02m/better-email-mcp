@@ -15,9 +15,8 @@ import {
   hashUserId,
   loadAllUserCredentials,
   loadUserCredentials,
-  storeUserCredentials,
   PBKDF2_ITERATIONS_TEST,
-  PBKDF2_ITERATIONS_PROD
+  storeUserCredentials
 } from './per-user-credential-store.js'
 
 const makeAccount = (email: string): AccountConfig => ({
