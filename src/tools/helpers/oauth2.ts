@@ -11,6 +11,7 @@ import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { tryOpenBrowser } from '@n24q02m/mcp-core'
+import { getMarkSetupComplete, setState } from '../../credential-state.js'
 import { isSafeUrl } from './security.js'
 
 // Microsoft OAuth2 endpoints — "consumers" tenant for personal Microsoft accounts
@@ -491,6 +492,13 @@ export async function saveOutlookTokens(tokens: Record<string, unknown>): Promis
     expiresAt: now + expiresIn,
     clientId: typeof tokens.client_id === 'string' ? tokens.client_id : getClientId()
   })
+
+  setState('configured')
+  try {
+    getMarkSetupComplete()?.('outlook')
+  } catch {
+    // Best-effort -- ignore hook errors.
+  }
 }
 
 /**
