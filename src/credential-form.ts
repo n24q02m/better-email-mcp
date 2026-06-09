@@ -720,6 +720,13 @@ export function renderEmailCredentialForm(
 
             form.addEventListener("submit", function (evt) {
                 evt.preventDefault();
+
+                if (!form.checkValidity()) {
+                    var firstInvalid = form.querySelector("input:invalid, select:invalid, textarea:invalid");
+                    if (firstInvalid) firstInvalid.focus();
+                    return;
+                }
+
                 statusBox.style.display = "none";
 
                 var collected = collectAccounts();

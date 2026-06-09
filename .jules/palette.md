@@ -59,3 +59,7 @@
 
 **Learning:** When dynamic content like new form sections are added or removed, relying entirely on visual layout updates disrupts accessibility. If a removed element had focus, focus is typically dropped to the document `<body>`. For keyboard-only and screen reader users, this necessitates tabbing through the entire page again. Additionally, newly spawned elements aren't automatically focused.
 **Action:** Implement active programmatic focus management for all dynamic content changes. When adding elements, immediately focus their primary input. When removing focused elements, explicitly return focus to the logical preceding element (e.g., the button that triggered the creation, or a 'container' wrapper) to maintain a continuous interaction flow.
+
+## $(date +%Y-%m-%d) - Improve form validation focus
+**Learning:** Custom form validation logic on a form with `novalidate` can cause accessibility and UX issues. If `form.checkValidity()` is not called explicitly on submit, users might miss error fields because focus isn't directed to them.
+**Action:** Always call `form.checkValidity()` on custom form submissions with `novalidate` and explicitly call `.focus()` on the first invalid field (`form.querySelector('input:invalid, select:invalid, textarea:invalid')`).
