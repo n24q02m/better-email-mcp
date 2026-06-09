@@ -58,9 +58,9 @@
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@n24q02m/mcp-core": "1.17.3",
+    "@n24q02m/mcp-core": "1.17.4",
     "html-to-text": "^10.0.0",
-    "imapflow": "^1.3.7",
+    "imapflow": "^1.4.0",
     "mailparser": "^3.9.9",
     "marked": "^17.0.6",
     "nodemailer": "^8.0.10",
