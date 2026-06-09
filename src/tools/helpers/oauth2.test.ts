@@ -22,8 +22,13 @@ vi.mock('node:os', () => ({
 }))
 
 const mockTryOpenBrowser = vi.mocked(tryOpenBrowser)
+vi.mock('../../credential-state.js', () => ({
+  setState: vi.fn(),
+  getMarkSetupComplete: vi.fn()
+}))
 
 import { readFile } from 'node:fs/promises'
+import { getMarkSetupComplete, setState } from '../../credential-state.js'
 
 const mockReadFile = vi.mocked(readFile)
 const mockExistsSync = vi.mocked(existsSync)
@@ -1137,6 +1142,25 @@ describe('initiateOutlookDeviceCode', () => {
 // ============================================================================
 
 describe('saveOutlookTokens', () => {
+  it('triggers setup completion signals after saving tokens', async () => {
+    const markComplete = vi.fn()
+    vi.mocked(getMarkSetupComplete).mockReturnValue(markComplete)
+    const tokens = { email: 'user@outlook.com', access_token: 'at-123' }
+
+    await saveOutlookTokens(tokens)
+
+    expect(setState).toHaveBeenCalledWith('configured')
+    expect(markComplete).toHaveBeenCalledWith('outlook')
+  })
+
+  it('does not throw if completion hook is missing', async () => {
+    vi.mocked(getMarkSetupComplete).mockReturnValue(null)
+    const tokens = { email: 'user@outlook.com' }
+
+    await expect(saveOutlookTokens(tokens)).resolves.not.toThrow()
+    expect(setState).toHaveBeenCalledWith('configured')
+  })
+
   const originalOutlookEmail = process.env.OUTLOOK_EMAIL
   const originalClientId = process.env.OUTLOOK_CLIENT_ID
 
