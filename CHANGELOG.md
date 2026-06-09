@@ -2,6 +2,32 @@
 
 <!-- version list -->
 
+## v1.32.2-beta.1 (2026-06-09)
+
+### Bug Fixes
+
+- Gitignore bot/merge junk artifacts (*.orig/*.rej/*.patch/*.diff/*.cover/*.bak)
+  ([#761](https://github.com/n24q02m/better-email-mcp/pull/761),
+  [`f5c657b`](https://github.com/n24q02m/better-email-mcp/commit/f5c657b44910b28596edb46eedf312fa3eb79db7))
+
+- Invoke markSetupCompleteFn after saving Outlook tokens
+  ([#788](https://github.com/n24q02m/better-email-mcp/pull/788),
+  [`493e54f`](https://github.com/n24q02m/better-email-mcp/commit/493e54f843aca6b1d1f4abc90446f261ac6bddde))
+
+- **deps**: Update non-major dependencies to ^1.3.7
+  ([#789](https://github.com/n24q02m/better-email-mcp/pull/789),
+  [`48be382`](https://github.com/n24q02m/better-email-mcp/commit/48be3829d57a4333ae3a266ae8ec06dcf9be57f7))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#790](https://github.com/n24q02m/better-email-mcp/pull/790),
+  [`64d8923`](https://github.com/n24q02m/better-email-mcp/commit/64d89236beae5d61aa23cfdfbf89bcf1d98a3763))
+
+- **deps**: Update codecov/codecov-action action to v7
+  ([#763](https://github.com/n24q02m/better-email-mcp/pull/763),
+  [`3749985`](https://github.com/n24q02m/better-email-mcp/commit/3749985b9421210a8a5740937cb27c0045044de1))
+
+
 ## v1.32.1 (2026-06-07)
 
 ### Bug Fixes
