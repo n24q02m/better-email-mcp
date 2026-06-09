@@ -30,3 +30,7 @@
 ## 2024-05-18 - Bigram Caching for Static Valid Options
 **Learning:** In string matching algorithms like `findClosestMatch` that compare user input against a static list of valid options, recomputing bigrams for the static options on every invocation is a significant overhead, especially since the number of valid options is small and fixed (e.g., tool names like "messages", "folders").
 **Action:** Always look for opportunities to pre-compute and cache derived data (like bigrams or regular expressions) for static, bounded sets to convert repeated allocations and string operations into fast memory lookups. A simple `Map` reduced the overhead for fuzzy matching by ~2.5x.
+
+## 2026-06-09 - [Extract inline static arrays in hot paths]
+**Learning:** In functions that parse user input or are called frequently (like `buildSearchCriteria` in `src/tools/helpers/imap-client.ts`), iterating over inline arrays like `['SINCE', 'BEFORE']` causes the JavaScript engine to allocate a new array object on every single function invocation, even if the array values never change.
+**Action:** Always pre-allocate static arrays and objects by extracting them to module-scoped constants using `as const` (e.g., `const DATE_KEYWORDS = ['SINCE', 'BEFORE'] as const`). This eliminates redundant allocations and reduces garbage collection pressure on hot paths.
