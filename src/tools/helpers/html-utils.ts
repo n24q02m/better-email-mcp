@@ -4,6 +4,7 @@
  */
 
 import { compile } from 'html-to-text'
+import sanitize from 'sanitize-html'
 
 const ENTITY_MAP: Record<string, string> = {
   '&nbsp;': ' ',
@@ -121,4 +122,18 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
 
   if (text.length <= maxLength) return text
   return `${text.substring(0, maxLength)}...`
+}
+
+/**
+ * Centralized HTML sanitization options for emails
+ */
+export const EMAIL_SANITIZE_OPTIONS: sanitize.IOptions = {
+  allowedTags: sanitize.defaults.allowedTags.concat(['img'])
+}
+
+/**
+ * Sanitize HTML content using centralized options
+ */
+export function sanitizeHtml(html: string, options: sanitize.IOptions = EMAIL_SANITIZE_OPTIONS): string {
+  return sanitize(html, options)
 }
