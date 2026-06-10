@@ -48,6 +48,7 @@ mcp-name: io.github.n24q02m/better-email-mcp
 - [Status](#status)
 - [Documentation](#documentation)
 - [Tools](#tools)
+- [Comparison](#comparison)
 - [Remote (HTTP Mode)](#remote-http-mode)
 - [Outlook OAuth Device Code (HTTP mode)](#outlook-oauth-device-code-http-mode)
 - [Configuration](#configuration)
@@ -126,6 +127,20 @@ Full docs at **[mcp.n24q02m.com/servers/better-email-mcp/setup/](https://mcp.n24
 | `email://docs/send` | Send/compose reference |
 | `email://docs/config` | Credential setup and runtime configuration reference |
 | `email://docs/help` | Full documentation |
+
+## Comparison
+
+How better-email-mcp stacks up against direct competitors in each pillar:
+
+| Capability | better-email-mcp | [email-mcp](https://github.com/codefuturist/email-mcp) | [Gmail-MCP-Server](https://github.com/GongRzhe/Gmail-MCP-Server) | [mcp-mail-server](https://github.com/yunfeizhu/mcp-mail-server) |
+|---|---|---|---|---|
+| IMAP/SMTP (provider-agnostic) | Yes | Yes | No (Gmail API only) | Yes |
+| Multi-account | Yes (comma-separated creds) | Yes | No (single global credential) | No (single account per instance) |
+| App Passwords | Yes (no OAuth setup) | Yes | No (OAuth2 only) | Yes |
+| Auto-discovery from email address | Yes | Yes (8 providers) | n/a (Gmail only) | No (manual host/port) |
+| Bundled Outlook OAuth (no user Azure app) | Yes (device-code, Thunderbird-pattern client) | partial (OAuth2 XOAUTH2, experimental) | No (user-supplied Google OAuth) | No |
+| Attachments (list + download) | Yes | Yes | Yes | Yes |
+| HTTP multi-user mode (per-JWT-sub) | Yes (OAuth 2.1, self-hostable) | No (stdio only) | No (stdio only) | No (stdio only) |
 
 ## Remote (HTTP Mode)
 
