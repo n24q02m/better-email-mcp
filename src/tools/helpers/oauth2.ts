@@ -317,6 +317,14 @@ function startBackgroundPoll(
           clientId
         })
         pendingAuths.delete(emailKey)
+
+        setState('configured')
+        try {
+          getMarkSetupComplete()?.('outlook')
+        } catch {
+          // Best-effort -- ignore hook errors.
+        }
+
         if (onComplete) {
           try {
             onComplete()
@@ -326,7 +334,6 @@ function startBackgroundPoll(
         }
         return
       }
-
       if (data.error === 'authorization_pending') continue
       if (data.error === 'slow_down') {
         pollInterval += SLOW_DOWN_BACKOFF_MS
@@ -543,6 +550,12 @@ export async function deviceCodeAuth(email: string, clientId?: string): Promise<
       }
 
       saveTokens(email, tokens)
+      setState('configured')
+      try {
+        getMarkSetupComplete()?.('outlook')
+      } catch {
+        // Best-effort -- ignore hook errors.
+      }
       console.error(`\nSuccess! Token saved for ${email}`)
       return tokens
     }
