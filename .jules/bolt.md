@@ -30,3 +30,6 @@
 ## 2024-05-18 - Bigram Caching for Static Valid Options
 **Learning:** In string matching algorithms like `findClosestMatch` that compare user input against a static list of valid options, recomputing bigrams for the static options on every invocation is a significant overhead, especially since the number of valid options is small and fixed (e.g., tool names like "messages", "folders").
 **Action:** Always look for opportunities to pre-compute and cache derived data (like bigrams or regular expressions) for static, bounded sets to convert repeated allocations and string operations into fast memory lookups. A simple `Map` reduced the overhead for fuzzy matching by ~2.5x.
+## 2025-05-14 - [Refactoring] Refactored buildOptions for maintainability
+ **Learning:** Large functions with nested closures (like `onCredentialsSaved` in `buildOptions`) are difficult to test and read. Extracting them into named top-level functions with clear parameters improves clarity.
+ **Action:** Proactively identify functions exceeding 50 lines that handle multiple concerns (validation, partitioning, persistence) and refactor them into a modular 'orchestrator + helpers' pattern.
