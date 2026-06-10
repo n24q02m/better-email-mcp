@@ -33,14 +33,14 @@ function sanitizeErrorDetails(error: unknown): unknown {
     return error
   }
 
-  const errObj = error as Record<string, unknown>
   const safe: Record<string, unknown> = {}
+  const props = ['message', 'name', 'code', 'status', 'responseCode'] as const
 
-  if ('message' in errObj) safe.message = errObj.message
-  if ('name' in errObj) safe.name = errObj.name
-  if ('code' in errObj) safe.code = errObj.code
-  if ('status' in errObj) safe.status = errObj.status
-  if ('responseCode' in errObj) safe.responseCode = errObj.responseCode
+  for (const prop of props) {
+    if (prop in error && (error as Record<string, unknown>)[prop] !== undefined) {
+      safe[prop] = (error as Record<string, unknown>)[prop]
+    }
+  }
 
   return safe
 }
@@ -269,10 +269,10 @@ export function suggestFixes(error: EmailMCPError): string[] {
 /**
  * Wrap async function with error handling
  */
-export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
-  fn: T
-): (...args: Parameters<T>) => Promise<ReturnType<T>> {
-  return async (...args: Parameters<T>): Promise<ReturnType<T>> => {
+export function withErrorHandling<Args extends unknown[], R>(
+  fn: (...args: Args) => Promise<R>
+): (...args: Args) => Promise<R> {
+  return async (...args: Args): Promise<R> => {
     try {
       return await fn(...args)
     } catch (error) {
