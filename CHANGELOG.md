@@ -2,6 +2,23 @@
 
 <!-- version list -->
 
+## v1.32.3-beta.2 (2026-06-10)
+
+### Bug Fixes
+
+- Add Comparison section to README capability matrix
+  ([#801](https://github.com/n24q02m/better-email-mcp/pull/801),
+  [`873b959`](https://github.com/n24q02m/better-email-mcp/commit/873b959933c463dfe842607935a2d6a16fd04602))
+
+- Correct docs drift in tool count, tool name, env vars, and dead links
+  ([#799](https://github.com/n24q02m/better-email-mcp/pull/799),
+  [`50e0610`](https://github.com/n24q02m/better-email-mcp/commit/50e06104c3f2d5ec6ffca42da717b148ea26b5be))
+
+- Sync registry test tool surface with actual 7-tool registry
+  ([#800](https://github.com/n24q02m/better-email-mcp/pull/800),
+  [`32a8e9e`](https://github.com/n24q02m/better-email-mcp/commit/32a8e9e42758c3ed1f722ccbdd3cf615b02f0b0d))
+
+
 ## v1.32.3-beta.1 (2026-06-10)
 
 ### Bug Fixes
