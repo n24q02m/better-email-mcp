@@ -1,0 +1,300 @@
+/**
+ * Custom credential form for better-email-mcp.
+ *
+ * Renders a dark-themed multi-account email form with:
+ *  - Dynamic account cards (Add/Remove)
+ *  - Domain auto-detect: gmail/googlemail/yahoo/icloud => App Password label
+ *    + provider help URL; outlook/hotmail/live => OAuth2 notice (handled
+ *    automatically by the server via Microsoft Device Code flow); custom
+ *    domain => password + optional IMAP host + optional IMAP port.
+ *  - Final EMAIL_CREDENTIALS string format:
+ *      email1:pass1,email2:pass2:imap_host[:imap_port],outlook_email
+ *    Comma-separated between accounts, colon-separated within. Outlook
+ *    accounts have no password/colon -- the server detects them and runs
+ *    Microsoft's OAuth Device Code flow, surfacing the verification URL +
+ *    user code back into this form.
+ *
+ * This form POSTs plain JSON `{ EMAIL_CREDENTIALS: "..." }` to the
+ * mcp-core OAuth `/authorize?nonce=<nonce>` endpoint.
+ *
+ * All dynamic DOM content is built with createElement + textContent +
+ * setAttribute. No innerHTML with user-provided values anywhere.
+ */
+
+import type { RelayConfigSchema } from '@n24q02m/mcp-core'
+
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/**
+ * Render the custom email credential form: multi-account cards with
+ * domain auto-detect + Add/Remove buttons + Outlook OAuth notice.
+ *
+ * Submits EMAIL_CREDENTIALS to mcp-core OAuth /authorize endpoint as
+ * comma-separated `email1:pass1,email2:pass2:imap_host` format. The
+ * server-side onCredentialsSaved callback parses this back into accounts.
+ */
+export function renderEmailCredentialForm(
+  _schema: RelayConfigSchema,
+  options: { submitUrl: string; prefill?: Record<string, string> }
+): string {
+  const displayName = escapeHtml(_schema.displayName ?? _schema.server ?? 'Email MCP')
+  const server = escapeHtml(_schema.server ?? 'better-email-mcp')
+  const description = escapeHtml(
+    _schema.description ??
+      'Configure one or more email accounts (Gmail, Yahoo, iCloud, Outlook/Hotmail/Live, or custom IMAP). Outlook accounts use OAuth2 and are handled automatically by the server.'
+  )
+  const submitUrlJson = JSON.stringify(options.submitUrl).replace(/</g, '\\u003c')
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'" />
+    <title>${displayName}</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #0f0f0f;
+            color: #e8e8e8;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 15px;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 2rem 1rem;
+        }
+        .container { width: 100%; max-width: 520px; }
+        .card {
+            background-color: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 1.25rem;
+        }
+        .server-header { margin-bottom: 1.5rem; }
+        .server-name { font-size: 1.375rem; font-weight: 600; color: #fff; margin-bottom: 0.375rem; }
+        .server-id {
+            font-size: 0.8125rem;
+            color: #9ca3af;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            margin-bottom: 0.5rem;
+        }
+        .server-description { font-size: 0.9rem; color: #9ca3af; margin-top: 0.5rem; }
+        .form-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1.25rem;
+        }
+        .account-card {
+            border: 1px solid #2a2a2a;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 0.875rem;
+            background-color: #121212;
+        }
+        .account-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        .account-title { font-size: 0.95rem; font-weight: 600; color: #ddd; }
+        .remove-btn {
+            background: transparent;
+            color: #f87171;
+            border: 1px solid rgba(248, 113, 113, 0.3);
+            border-radius: 6px;
+            padding: 0.25rem 0.6rem;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+        .remove-btn:hover { background-color: rgba(248, 113, 113, 0.08); }
+        .remove-btn:focus-visible { outline: 2px solid #f87171; outline-offset: 2px; }
+        .field-group { margin-bottom: 0.875rem; }
+        .field-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: #ccc;
+            margin-bottom: 0.375rem;
+        }
+        .optional-badge {
+            font-size: 0.6875rem;
+            font-weight: 400;
+            color: #9ca3af;
+            background-color: rgba(255, 255, 255, 0.04);
+            border: 1px solid #4b5563;
+            border-radius: 4px;
+            padding: 0.1rem 0.4rem;
+        }
+        .required-indicator {
+            color: #f87171;
+            margin-left: 0.25rem;
+        }
+        .field-input {
+            width: 100%;
+            background-color: #0d0d0d;
+            border: 1px solid #2e2e2e;
+            border-radius: 8px;
+            color: #e8e8e8;
+            font-size: 0.9375rem;
+            padding: 0.55rem 0.8rem;
+            outline: none;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .field-input:focus {
+            border-color: #4a6fa5;
+            box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.2);
+        }
+        .field-input[aria-invalid="true"] {
+            border-color: #f87171;
+        }
+        .field-input[aria-invalid="true"]:focus {
+            box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.2);
+        }
+        .field-input::placeholder { color: #9ca3af; }
+        .help-text { font-size: 0.8125rem; color: #9ca3af; margin-top: 0.375rem; }
+        .field-error {
+            display: none;
+            font-size: 0.8125rem;
+            color: #f87171;
+            margin-top: 0.375rem;
+        }
+        .field-error.active { display: block; }
+        .help-text a { color: #6c9bd2; text-decoration: none; }
+        .help-text a:hover { text-decoration: underline; }
+        .notice {
+            font-size: 0.85rem;
+            color: #fbbf24;
+            background-color: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.25);
+            border-radius: 8px;
+            padding: 0.625rem 0.75rem;
+            margin-top: 0.5rem;
+        }
+        .add-btn {
+            width: 100%;
+            background-color: transparent;
+            color: #6c9bd2;
+            border: 1px dashed #3a5a8a;
+            border-radius: 8px;
+            padding: 0.625rem 1rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+            transition: background-color 0.15s ease, border-color 0.15s ease;
+        }
+        .add-btn:hover { background-color: rgba(108, 155, 210, 0.08); border-color: #4a6fa5; }
+        .add-btn:focus-visible { outline: 2px solid #6c9bd2; outline-offset: 2px; }
+        .submit-btn {
+            width: 100%;
+            background-color: #4a6fa5;
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.9375rem;
+            font-weight: 500;
+            padding: 0.75rem 1.5rem;
+            margin-top: 0.5rem;
+        }
+        .submit-btn:hover { background-color: #5a7fb5; }
+        .submit-btn:focus-visible { outline: 2px solid #4a6fa5; outline-offset: 2px; }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .status-box {
+            display: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+        }
+        .status-box.success {
+            background-color: rgba(52, 199, 89, 0.1);
+            border: 1px solid rgba(52, 199, 89, 0.3);
+            color: #34c759;
+        }
+        .status-box.error {
+            background-color: rgba(248, 113, 113, 0.1);
+            border: 1px solid rgba(248, 113, 113, 0.3);
+            color: #f87171;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner {
+            display: inline-block;
+            width: 1.125rem;
+            height: 1.125rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 0.5rem;
+            vertical-align: text-bottom;
+        }
+
+    </style>
+</head>
+<body>
+    <main class="container">
+        <div class="card">
+            <div class="server-header">
+                <h1 class="server-name">${displayName}</h1>
+                <div class="server-id">${server}</div>
+                <p class="server-description">${description}</p>
+            </div>
+
+            <h2 class="form-title">Email Accounts</h2>
+
+            <form id="credential-form" novalidate>
+                <fieldset id="form-fieldset" style="border: none; padding: 0; margin: 0;">
+                    <div id="accounts-container"></div>
+
+                    <button type="button" class="add-btn" id="add-account-btn">+ Add Another Account</button>
+
+                    <button type="submit" class="submit-btn" id="submit-btn">Connect</button>
+                </fieldset>
+
+                <div class="status-box" id="status-box" role="alert"></div>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        (function () {
+            var submitUrl = ${submitUrlJson};
+
+            var OAUTH_DOMAINS = ["outlook.com", "hotmail.com", "live.com"];
+            var APP_PASSWORD_DOMAINS = {
+                "gmail.com": {
+                    label: "App Password",
+                    helpUrl: "https://myaccount.google.com/apppasswords",
+                    helpText: "Generate an App Password in your Google Account settings"
+                },
+                "googlemail.com": {
+                    label: "App Password",
+                    helpUrl: "https://myaccount.google.com/apppasswords",
+                    helpText: "Generate an App Password in your Google Account settings"
+                },
+                "yahoo.com": {
+                    label: "App Password",
+                    helpUrl: "https://login.yahoo.com/account/security",
+                    helpText: "Generate an App Password in Yahoo Account Security settings"

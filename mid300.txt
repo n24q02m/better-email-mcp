@@ -1,0 +1,299 @@
+                },
+                "icloud.com": {
+                    label: "App Password",
+                    helpUrl: "https://appleid.apple.com",
+                    helpText: "Generate an App Password at appleid.apple.com"
+                }
+            };
+
+            var container = document.getElementById("accounts-container");
+            var addBtn = document.getElementById("add-account-btn");
+            var form = document.getElementById("credential-form");
+            var submitBtn = document.getElementById("submit-btn");
+            var statusBox = document.getElementById("status-box");
+            var formFieldset = document.getElementById("form-fieldset");
+
+            var accountIndex = 0;
+
+            function showStatus(type, message) {
+                statusBox.className = "status-box " + type;
+                statusBox.textContent = message;
+                statusBox.style.display = "block";
+            }
+
+            function clearChildren(el) {
+                while (el.firstChild) el.removeChild(el.firstChild);
+            }
+
+            function createFieldGroup(opts) {
+                var idx = opts.idx;
+                var key = opts.key;
+                var label = opts.label;
+                var type = opts.type;
+                var placeholder = opts.placeholder;
+                var required = opts.required;
+                var helpText = opts.helpText;
+                var helpUrl = opts.helpUrl;
+
+                var group = document.createElement("div");
+                group.className = "field-group";
+
+                var labelEl = document.createElement("label");
+                labelEl.className = "field-label";
+                labelEl.setAttribute("for", "field-" + key + "_" + idx);
+                labelEl.textContent = label;
+                if (!required) {
+                    var badge = document.createElement("span");
+                    badge.className = "optional-badge";
+                    badge.textContent = "Optional";
+                    labelEl.appendChild(document.createTextNode(" "));
+                    labelEl.appendChild(badge);
+                } else {
+                    var reqInd = document.createElement("span");
+                    reqInd.className = "required-indicator";
+                    reqInd.setAttribute("aria-hidden", "true");
+                    reqInd.textContent = "*";
+                    labelEl.appendChild(reqInd);
+                }
+                group.appendChild(labelEl);
+
+                var input = document.createElement("input");
+                input.id = "field-" + key + "_" + idx;
+                input.className = "field-input";
+                input.setAttribute("type", type);
+                input.setAttribute("name", key + "_" + idx);
+                input.setAttribute("autocomplete", type === "email" ? "email" : (type === "password" ? "current-password" : "off"));
+                input.setAttribute("autocorrect", "off");
+                input.setAttribute("autocapitalize", "off");
+                input.setAttribute("spellcheck", "false");
+                input.dataset.role = key;
+                if (placeholder) input.setAttribute("placeholder", placeholder);
+                if (required) input.setAttribute("required", "required");
+                group.appendChild(input);
+
+                var errorEl = document.createElement("div");
+                errorEl.id = "error-" + key + "_" + idx;
+                errorEl.className = "field-error";
+                errorEl.setAttribute("role", "alert");
+                errorEl.setAttribute("aria-live", "polite");
+
+                var describedBy = [errorEl.id];
+
+                if (helpText) {
+                    var help = document.createElement("p");
+                    help.id = "help-" + key + "_" + idx;
+                    help.className = "help-text";
+                    describedBy.push(help.id);
+                    if (helpUrl) {
+                        var a = document.createElement("a");
+                        a.setAttribute("href", helpUrl);
+                        a.setAttribute("target", "_blank");
+                        a.setAttribute("rel", "noopener noreferrer");
+                        a.textContent = helpText;
+                        help.appendChild(a);
+                    } else {
+                        help.textContent = helpText;
+                    }
+                    group.appendChild(help);
+                }
+
+                input.setAttribute("aria-describedby", describedBy.join(" "));
+                group.appendChild(errorEl);
+
+                input.addEventListener("invalid", function (event) {
+                    event.preventDefault();
+                    var inputEl = event.target;
+                    inputEl.setAttribute("aria-invalid", "true");
+                    if (inputEl.validity.valueMissing) {
+                        errorEl.textContent = "This field is required.";
+                    } else if (inputEl.validity.typeMismatch && inputEl.type === "email") {
+                        errorEl.textContent = "Please enter a valid email address.";
+                    } else {
+                        errorEl.textContent = "Invalid value.";
+                    }
+                    errorEl.classList.add("active");
+                });
+
+                input.addEventListener("input", function (event) {
+                    var inputEl = event.target;
+                    if (inputEl.hasAttribute("aria-invalid")) {
+                        inputEl.removeAttribute("aria-invalid");
+                        errorEl.textContent = "";
+                        errorEl.classList.remove("active");
+                    }
+                });
+
+                return { group: group, input: input };
+            }
+
+            function updateAccountNumbers() {
+                var cards = container.querySelectorAll(".account-card");
+                for (var i = 0; i < cards.length; i++) {
+                    var titleEl = cards[i].querySelector(".account-title");
+                    if (titleEl) titleEl.textContent = "Account " + (i + 1);
+                    var removeBtn = cards[i].querySelector(".remove-btn");
+                    if (removeBtn) {
+                        removeBtn.style.display = i === 0 ? "none" : "";
+                        removeBtn.setAttribute("aria-label", "Remove Account " + (i + 1));
+                    }
+                }
+            }
+
+            function renderDomainSpecificFields(extraContainer, idx, domain, state) {
+                clearChildren(extraContainer);
+                if (!domain) return;
+
+                if (OAUTH_DOMAINS.indexOf(domain) !== -1) {
+                    var notice = document.createElement("div");
+                    notice.className = "notice";
+                    notice.dataset.role = "oauth-notice";
+                    notice.setAttribute("role", "status");
+                    notice.setAttribute("aria-live", "polite");
+                    notice.textContent =
+                        "Outlook/Hotmail/Live requires OAuth2. This will be handled automatically by the server after you submit -- a Microsoft sign-in URL + code will appear here.";
+                    extraContainer.appendChild(notice);
+                    return;
+                }
+
+                if (Object.prototype.hasOwnProperty.call(APP_PASSWORD_DOMAINS, domain)) {
+                    var info = APP_PASSWORD_DOMAINS[domain];
+                    var pw = createFieldGroup({
+                        idx: idx,
+                        key: "password",
+                        label: info.label,
+                        type: "password",
+                        placeholder: "",
+                        required: true,
+                        helpText: info.helpText,
+                        helpUrl: info.helpUrl
+                    });
+                    if (state && state.password) pw.input.value = state.password;
+                    extraContainer.appendChild(pw.group);
+                    return;
+                }
+
+                var pwCustom = createFieldGroup({
+                    idx: idx,
+                    key: "password",
+                    label: "Password",
+                    type: "password",
+                    placeholder: "",
+                    required: true,
+                    helpText: "",
+                    helpUrl: ""
+                });
+                if (state && state.password) pwCustom.input.value = state.password;
+                extraContainer.appendChild(pwCustom.group);
+
+                var imap = createFieldGroup({
+                    idx: idx,
+                    key: "imap",
+                    label: "IMAP Host",
+                    type: "text",
+                    placeholder: "imap.example.com",
+                    required: false,
+                    helpText: "Optional. Leave empty for auto-detection. Accepts localhost or a proxy host.",
+                    helpUrl: ""
+                });
+                if (state && state.imap) imap.input.value = state.imap;
+                extraContainer.appendChild(imap.group);
+
+                var imapPort = createFieldGroup({
+                    idx: idx,
+                    key: "imapport",
+                    label: "IMAP Port",
+                    type: "text",
+                    placeholder: "993",
+                    required: false,
+                    helpText: "Optional. Default 993. Set a custom port for a local IMAP proxy.",
+                    helpUrl: ""
+                });
+                imapPort.input.setAttribute("inputmode", "numeric");
+                if (state && state.imapPort) imapPort.input.value = state.imapPort;
+                extraContainer.appendChild(imapPort.group);
+            }
+
+            function createAccountCard(idx) {
+                var card = document.createElement("div");
+                card.className = "account-card";
+                card.dataset.idx = String(idx);
+
+                var header = document.createElement("div");
+                header.className = "account-card-header";
+                var title = document.createElement("h3");
+                title.className = "account-title";
+                title.textContent = "Account " + (idx + 1);
+                header.appendChild(title);
+
+                var removeBtn = document.createElement("button");
+                removeBtn.type = "button";
+                removeBtn.className = "remove-btn";
+                removeBtn.textContent = "Remove";
+                removeBtn.setAttribute("aria-label", "Remove Account " + (idx + 1));
+                removeBtn.addEventListener("click", function () {
+                    var inputs = card.querySelectorAll("input");
+                    var hasData = false;
+                    for (var i = 0; i < inputs.length; i++) {
+                        if (inputs[i].value.trim() !== "") {
+                            hasData = true;
+                            break;
+                        }
+                    }
+                    if (hasData && !window.confirm("This account has unsaved data. Are you sure you want to remove it?")) {
+                        return;
+                    }
+                    card.remove();
+                    updateAccountNumbers();
+
+                    // Return focus to the "Add Another Account" button after a card is removed
+                    // to prevent keyboard focus from being dropped back to the document body.
+                    if (addBtn) addBtn.focus();
+                });
+                header.appendChild(removeBtn);
+                card.appendChild(header);
+
+                var emailField = createFieldGroup({
+                    idx: idx,
+                    key: "email",
+                    label: "Email Address",
+                    type: "email",
+                    placeholder: "you@example.com",
+                    required: true,
+                    helpText: "",
+                    helpUrl: ""
+                });
+                card.appendChild(emailField.group);
+
+                var extra = document.createElement("div");
+                extra.className = "extra-container";
+                extra.dataset.role = "extra";
+                card.appendChild(extra);
+
+                var state = { password: "", imap: "", imapPort: "" };
+
+                emailField.input.addEventListener("input", function () {
+                    var pwNode = extra.querySelector('input[data-role="password"]');
+                    if (pwNode) state.password = pwNode.value;
+                    var imapNode = extra.querySelector('input[data-role="imap"]');
+                    if (imapNode) state.imap = imapNode.value;
+                    var imapPortNode = extra.querySelector('input[data-role="imapport"]');
+                    if (imapPortNode) state.imapPort = imapPortNode.value;
+
+                    var val = emailField.input.value;
+                    var at = val.indexOf("@");
+                    var domain = at >= 0 ? val.slice(at + 1).trim().toLowerCase() : "";
+                    renderDomainSpecificFields(extra, idx, domain, state);
+                });
+
+                return card;
+            }
+
+            function collectAccounts() {
+                var cards = container.querySelectorAll(".account-card");
+                var accounts = [];
+                var hasOauth = false;
+                for (var i = 0; i < cards.length; i++) {
+                    var card = cards[i];
+                    var emailInput = card.querySelector('input[data-role="email"]');
+                    var email = emailInput && emailInput.value ? emailInput.value.trim() : "";
+                    if (!email) continue;
