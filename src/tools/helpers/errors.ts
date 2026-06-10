@@ -3,6 +3,16 @@
  * AI-friendly error messages and suggestions for email operations
  */
 
+export interface RawError {
+  message?: string
+  name?: string
+  code?: string | number
+  status?: number
+  responseCode?: number
+  authenticationFailed?: boolean
+  [key: string]: unknown
+}
+
 export class EmailMCPError extends Error {
   constructor(
     message: string,
@@ -26,21 +36,27 @@ export class EmailMCPError extends Error {
 }
 
 /**
+ * Type guard for RawError
+ */
+function isRawError(error: unknown): error is RawError {
+  return error !== null && typeof error === 'object' && !Array.isArray(error)
+}
+
+/**
  * Sanitize error object to remove sensitive information (passwords, tokens)
  */
 function sanitizeErrorDetails(error: unknown): unknown {
-  if (error === null || typeof error !== 'object') {
+  if (!isRawError(error)) {
     return error
   }
 
-  const errObj = error as Record<string, unknown>
   const safe: Record<string, unknown> = {}
 
-  if ('message' in errObj) safe.message = errObj.message
-  if ('name' in errObj) safe.name = errObj.name
-  if ('code' in errObj) safe.code = errObj.code
-  if ('status' in errObj) safe.status = errObj.status
-  if ('responseCode' in errObj) safe.responseCode = errObj.responseCode
+  if ('message' in error) safe.message = error.message
+  if ('name' in error) safe.name = error.name
+  if ('code' in error) safe.code = error.code
+  if ('status' in error) safe.status = error.status
+  if ('responseCode' in error) safe.responseCode = error.responseCode
 
   return safe
 }
@@ -53,7 +69,7 @@ export function enhanceError(error: unknown): EmailMCPError {
     return error
   }
 
-  const errObj = error !== null && typeof error === 'object' ? (error as Record<string, unknown>) : {}
+  const errObj: RawError = isRawError(error) ? error : {}
   const message = typeof errObj.message === 'string' ? errObj.message : 'Unknown error occurred'
 
   // IMAP authentication errors
@@ -98,7 +114,7 @@ export function enhanceError(error: unknown): EmailMCPError {
 
   // SMTP errors
   if (typeof errObj.responseCode === 'number') {
-    return handleSmtpError(error)
+    return handleSmtpError(errObj)
   }
 
   // Configuration errors
@@ -122,9 +138,8 @@ export function enhanceError(error: unknown): EmailMCPError {
 /**
  * Handle SMTP-specific errors
  */
-function handleSmtpError(error: unknown): EmailMCPError {
-  const errObj = error !== null && typeof error === 'object' ? (error as Record<string, unknown>) : {}
-  const code = errObj.responseCode as number
+function handleSmtpError(error: RawError): EmailMCPError {
+  const code = error.responseCode
 
   switch (code) {
     case 535:
@@ -151,7 +166,7 @@ function handleSmtpError(error: unknown): EmailMCPError {
 
     default:
       return new EmailMCPError(
-        (typeof errObj.message === 'string' ? errObj.message : undefined) || `SMTP error ${code}`,
+        (typeof error.message === 'string' ? error.message : undefined) || `SMTP error ${code}`,
         `SMTP_${code}`,
         'Check the SMTP error code and try again.',
         sanitizeErrorDetails(error)
@@ -269,10 +284,10 @@ export function suggestFixes(error: EmailMCPError): string[] {
 /**
  * Wrap async function with error handling
  */
-export function withErrorHandling<T extends (...args: any[]) => Promise<any>>(
-  fn: T
-): (...args: Parameters<T>) => Promise<ReturnType<T>> {
-  return async (...args: Parameters<T>): Promise<ReturnType<T>> => {
+export function withErrorHandling<Args extends unknown[], R>(
+  fn: (...args: Args) => Promise<R>
+): (...args: Args) => Promise<R> {
+  return async (...args: Args): Promise<R> => {
     try {
       return await fn(...args)
     } catch (error) {
