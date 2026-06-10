@@ -51,11 +51,8 @@ bun test            # Run tests
 # Run the server in dev mode (with watch)
 bun run dev
 
-# For testing, set email credentials:
-export EMAIL_IMAP_HOST="imap.gmail.com"
-export EMAIL_SMTP_HOST="smtp.gmail.com"
-export EMAIL_ADDRESS="your-email@gmail.com"
-export EMAIL_PASSWORD="your-app-password"
+# For testing, set email credentials (email:app-password, comma-separated for multiple):
+export EMAIL_CREDENTIALS="your-email@gmail.com:your-app-password"
 ```
 
 ### Making Changes
@@ -80,21 +77,14 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 
 - `feat`: New feature
 - `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes
-- `refactor`: Code refactoring
-- `perf`: Performance improvements
-- `test`: Adding or updating tests
-- `chore`: Maintenance tasks
-- `ci`: CI/CD changes
-- `build`: Build system changes
+
+Only `feat` and `fix` are used. Do not use other types (`docs`, `style`, `refactor`, `perf`, `test`, `chore`, `ci`, `build`) or the `!` breaking-change marker.
 
 ### Examples
 
 ```text
 feat: add attachment preview support
 fix: handle IMAP connection timeout gracefully
-docs: update configuration examples
 ```
 
 ## Release Process

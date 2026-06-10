@@ -2,7 +2,7 @@
 
 mcp-name: io.github.n24q02m/better-email-mcp
 
-**IMAP/SMTP email server for AI agents -- 6 composite tools with multi-account and auto-discovery**
+**IMAP/SMTP email server for AI agents -- 7 composite tools with multi-account and auto-discovery**
 
 <!-- Badge Row 1: Status -->
 [![CI](https://github.com/n24q02m/better-email-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/n24q02m/better-email-mcp/actions/workflows/ci.yml)
@@ -66,7 +66,7 @@ mcp-name: io.github.n24q02m/better-email-mcp
 
 - **Multi-account support** -- manage 6+ email accounts (Gmail, Outlook, Yahoo, iCloud, Zoho, ProtonMail, custom IMAP)
 - **App Passwords** -- no OAuth2 setup required for most providers; clone and run in 1 minute
-- **6 composite tools** with 20 actions -- search, read, send, reply, forward, organize, credential setup in single calls
+- **7 composite tools** with 20 actions -- search, read, send, reply, forward, organize, credential setup in single calls
 - **Auto-discovery** -- provider settings detected from email address, custom IMAP host supported
 - **Thread-aware** -- reply/forward maintains In-Reply-To and References headers
 - **Tiered token optimization** -- compressed descriptions + on-demand `help` tool + MCP Resources
@@ -93,7 +93,7 @@ mcp-name: io.github.n24q02m/better-email-mcp
 
 ## Documentation
 
-Full docs at **[mcp.n24q02m.com/servers/better-email-mcp/](https://mcp.n24q02m.com/servers/better-email-mcp/)**:
+Full docs at **[mcp.n24q02m.com/servers/better-email-mcp/setup/](https://mcp.n24q02m.com/servers/better-email-mcp/setup/)**:
 
 - [Setup](https://mcp.n24q02m.com/servers/better-email-mcp/setup/) -- install methods for Claude Code, Codex, Gemini CLI, Cursor, Windsurf, mcp.json
 - [Modes overview](https://mcp.n24q02m.com/get-started/modes-overview/) -- stdio / local-relay / remote-relay / remote-oauth
@@ -112,7 +112,8 @@ Full docs at **[mcp.n24q02m.com/servers/better-email-mcp/](https://mcp.n24q02m.c
 | `folders` | `list` | List mailbox folders |
 | `attachments` | `list`, `download` | List and download email attachments |
 | `send` | `new`, `reply`, `forward` | Compose, reply, and forward emails |
-| `setup` | `status`, `start`, `reset`, `complete` | Credential setup via browser relay, status check, reset, re-resolve |
+| `config` | `status`, `setup_start`, `setup_reset`, `setup_complete`, `set`, `cache_clear` | Credential setup via browser relay, status check, reset, re-resolve, cache clear |
+| `config__open_relay` | - | Open the relay configuration form in the browser and return the relay URL |
 | `help` | - | Get full documentation for any tool |
 
 ### MCP Resources
@@ -123,6 +124,7 @@ Full docs at **[mcp.n24q02m.com/servers/better-email-mcp/](https://mcp.n24q02m.c
 | `email://docs/folders` | Folder operations reference |
 | `email://docs/attachments` | Attachment operations reference |
 | `email://docs/send` | Send/compose reference |
+| `email://docs/config` | Credential setup and runtime configuration reference |
 | `email://docs/help` | Full documentation |
 
 ## Remote (HTTP Mode)
@@ -171,11 +173,9 @@ In **stdio mode**, Outlook accounts use an **App Password** instead (Outlook Acc
 
 | Variable | Required | Default | Description |
 |:---------|:---------|:--------|:------------|
-| `EMAIL_PROVIDER` | Yes (stdio, single-account) | - | Provider key: `gmail`, `outlook`, `yahoo`, `icloud`, `zoho`, `custom` |
-| `EMAIL_USER` | Yes (stdio, single-account) | - | Email address |
-| `EMAIL_APP_PASSWORD` | Yes (stdio, single-account) | - | App password (Gmail/Yahoo/iCloud) or Outlook App Password |
-| `EMAIL_IMAP_HOST` | No (custom only) | - | Custom IMAP hostname when `EMAIL_PROVIDER=custom` |
-| `EMAIL_CREDENTIALS` | Alternative (multi-account) | - | Legacy `user@gmail.com:app-password` (comma-separated for multi-account) |
+| `EMAIL_CREDENTIALS` | Yes (stdio) | - | Email credentials, `email:app-password` per account, comma-separated for multi-account. Optional custom IMAP host/port: `email:password:imap_host:imap_port` |
+| `EMAIL_USER` | Alternative (stdio, single-account) | - | Email address. Used with `EMAIL_APP_PASSWORD` as a per-field alternative to `EMAIL_CREDENTIALS`; merged into `EMAIL_CREDENTIALS` at boot |
+| `EMAIL_APP_PASSWORD` | Alternative (stdio, single-account) | - | App password (Gmail/Yahoo/iCloud) or Outlook App Password; used with `EMAIL_USER` |
 | `PUBLIC_URL` | No (http) | - | Server's public URL for relay / OAuth redirect links |
 | `CREDENTIAL_SECRET` | No (http) | auto-generated | Secret used to encrypt the per-user credential store; if unset, a random 32-byte secret is generated and persisted to a 0600 file |
 | `PORT` | No | `0` (OS-assigned) | Server port (http mode); set explicitly (e.g. `8080`) to bind a fixed port |
@@ -248,7 +248,7 @@ bun run dev
 
 ## Trust Model
 
-This plugin implements **TC-NearZK** (in-memory, ephemeral). See [mcp-core/docs/TRUST-MODEL.md](https://github.com/n24q02m/mcp-core/blob/main/docs/TRUST-MODEL.md) for full classification.
+This plugin implements **TC-NearZK** (in-memory, ephemeral). See the [mcp-core trust model](https://mcp.n24q02m.com/servers/mcp-core/trust-model/) for full classification.
 
 | Mode | Storage | Encryption | Who can read your data? |
 |---|---|---|---|

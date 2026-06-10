@@ -8,7 +8,7 @@ Get full documentation for any email MCP tool. Returns detailed usage instructio
 
 - Use when the compressed tool description is insufficient
 - Returns markdown documentation for the requested tool
-- Available for: messages, folders, attachments, send
+- Available for: messages, folders, attachments, send, config, help
 
 ## Actions
 
