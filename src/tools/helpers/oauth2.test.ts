@@ -1213,18 +1213,6 @@ describe('saveOutlookTokens', () => {
     expect(written['env@outlook.com'].accessToken).toBe('at-env')
   })
 
-  it('falls back to outlook-device-code if both email sources are missing', async () => {
-    delete process.env.OUTLOOK_EMAIL
-    const tokens = {
-      access_token: 'at-fallback'
-    }
-
-    await saveOutlookTokens(tokens)
-
-    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
-    expect(written['outlook-device-code']).toBeDefined()
-  })
-
   it('uses default values for missing fields', async () => {
     const tokens = {
       email: 'defaults@outlook.com'
@@ -1240,5 +1228,49 @@ describe('saveOutlookTokens', () => {
       expiresAt: 1000000 + 3600, // default 1 hour
       clientId: 'default-cid'
     })
+  })
+
+  it('uses tokens.sub as fallback when email and env var are missing', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    const tokens = {
+      sub: 'sub-id',
+      access_token: 'at-sub'
+    }
+
+    await saveOutlookTokens(tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['sub-id']).toBeDefined()
+    expect(written['sub-id'].accessToken).toBe('at-sub')
+  })
+
+  it('decodes id_token subject as fallback when others are missing', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    // Valid JWT structure: header.payload.signature
+    // Payload: {"sub": "jwt-sub"}
+    // Base64URL(payload): eyJzdWIiOiAiand0LXN1YiJ9
+    const idToken = 'eyJhbGciOiJub25lIn0.eyJzdWIiOiJqd3Qtc3ViIn0.'
+    const tokens = {
+      id_token: idToken,
+      access_token: 'at-jwt'
+    }
+
+    await saveOutlookTokens(tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['jwt-sub']).toBeDefined()
+    expect(written['jwt-sub'].accessToken).toBe('at-jwt')
+  })
+
+  it('falls back to outlook-device-code when all other sources fail', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    const tokens = {
+      access_token: 'at-final'
+    }
+
+    await saveOutlookTokens(tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['outlook-device-code']).toBeDefined()
   })
 })

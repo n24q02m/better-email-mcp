@@ -471,8 +471,21 @@ export async function ensureValidToken(account: { email: string; oauth2?: OAuth2
 }
 
 /**
+ * Extract the subject (sub) claim from a JWT id_token without full verification.
+ * Used as a fallback identifier for OAuth2 accounts.
+ */
+function decodeIdTokenSubject(idToken: string): string | undefined {
+  try {
+    const parts = idToken.split('.')
+    if (parts.length < 2) return undefined
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'))
+    return typeof payload.sub === 'string' ? payload.sub : undefined
+  } catch {
+    return undefined
+  }
+}
+/**
  * Save Outlook tokens received via mcp-core delegated OAuth callback.
- *
  * mcp-core's ``TokenCallback`` delivers ``OAuthTokens`` (Record<string, unknown>).
  * Adapts that to the existing ``saveTokens(email, OAuth2Tokens)`` format so
  * remote-relay mode shares the same token file as local-relay / CLI auth flows.
@@ -483,7 +496,13 @@ export async function ensureValidToken(account: { email: string; oauth2?: OAuth2
  * claim as a fallback (uncommon in device-code flows).
  */
 export async function saveOutlookTokens(tokens: Record<string, unknown>): Promise<void> {
-  const email = typeof tokens.email === 'string' ? tokens.email : (process.env.OUTLOOK_EMAIL ?? 'outlook-device-code')
+  const email =
+    (typeof tokens.email === 'string' ? tokens.email : undefined) ??
+    process.env.OUTLOOK_EMAIL ??
+    (typeof tokens.sub === 'string' ? tokens.sub : undefined) ??
+    (typeof tokens.id_token === 'string' ? decodeIdTokenSubject(tokens.id_token) : undefined) ??
+    'outlook-device-code'
+
   const now = Math.floor(Date.now() / MS_PER_SECOND)
   const expiresIn = typeof tokens.expires_in === 'number' ? tokens.expires_in : 3600
   saveTokens(email, {
