@@ -160,8 +160,8 @@ describe('loadStoredTokens', () => {
     const tokens: OAuth2Tokens = {
       accessToken: 'at',
       refreshToken: 'rt',
-      expiresAt: 0,
-      clientId: 'c'
+      expiresAt: 1,
+      clientId: 'c-valid'
     }
     mockReadFile.mockResolvedValue(JSON.stringify({ 'user@outlook.com': tokens }))
 
@@ -224,7 +224,9 @@ describe('saveTokens', () => {
   })
 
   it('merges with existing tokens', () => {
-    const existing = { 'other@hotmail.com': { accessToken: 'old', refreshToken: 'old', expiresAt: 0, clientId: 'c' } }
+    const existing = {
+      'other@hotmail.com': { accessToken: 'old', refreshToken: 'old', expiresAt: 1, clientId: 'c-valid' }
+    }
 
     mockExistsSync.mockImplementation((path) => {
       if (String(path).endsWith('tokens.json')) return true
@@ -391,7 +393,7 @@ describe('ensureValidToken', () => {
       oauth2: {
         accessToken: 'old',
         refreshToken: 'old-rt',
-        expiresAt: 0,
+        expiresAt: 1,
         clientId: 'cid'
       }
     }
@@ -535,7 +537,7 @@ describe('ensureValidToken', () => {
       oauth2: {
         accessToken: 'old',
         refreshToken: 'keep-this-rt',
-        expiresAt: 0,
+        expiresAt: 1,
         clientId: 'cid'
       }
     }
@@ -876,15 +878,15 @@ describe('loadStoredTokens validation', () => {
   })
 
   it('isValidTokens validates structure correctly', () => {
-    expect(isValidTokens({ accessToken: 'a', refreshToken: 'r', expiresAt: 1, clientId: 'c' })).toBe(true)
-    expect(isValidTokens({ accessToken: 'a', refreshToken: 'r', expiresAt: '1', clientId: 'c' })).toBe(false)
-    expect(isValidTokens({ accessToken: 'a', refreshToken: 'r', clientId: 'c' })).toBe(false)
+    expect(isValidTokens({ accessToken: 'a', refreshToken: 'r', expiresAt: 1, clientId: 'c-valid' })).toBe(true)
+    expect(isValidTokens({ accessToken: 'a', refreshToken: 'r', expiresAt: '1', clientId: 'c-valid' })).toBe(false)
+    expect(isValidTokens({ accessToken: 'a', refreshToken: 'r', clientId: 'c-valid' })).toBe(false)
     expect(isValidTokens(null)).toBe(false)
     expect(isValidTokens('not-an-object')).toBe(false)
   })
 
   it('isValidTokenStore validates store correctly', () => {
-    const valid = { 'a@b.com': { accessToken: 'a', refreshToken: 'r', expiresAt: 1, clientId: 'c' } }
+    const valid = { 'a@b.com': { accessToken: 'a', refreshToken: 'r', expiresAt: 1, clientId: 'c-valid' } }
     expect(isValidTokenStore(valid)).toBe(true)
     expect(isValidTokenStore({ ...valid, 'x@y.com': { bad: true } })).toBe(false)
     expect(isValidTokenStore([])).toBe(false)
