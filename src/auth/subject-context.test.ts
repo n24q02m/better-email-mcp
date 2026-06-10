@@ -20,6 +20,31 @@ describe('subjectContext', () => {
     expect(subjectContext.getStore()).toBeUndefined()
   })
 
+  test('should preserve all fields in AccountConfig', () => {
+    const scope: EmailSubjectScope = {
+      sub: 'full-scope',
+      accounts: [
+        {
+          id: 'acc-1',
+          email: 'user@example.com',
+          password: 'password',
+          authType: 'password',
+          imap: { host: 'imap.example.com', port: 993, secure: true },
+          smtp: { host: 'smtp.example.com', port: 465, secure: true }
+        }
+      ]
+    }
+
+    subjectContext.run(scope, () => {
+      const stored = subjectContext.getStore()
+      expect(stored).toBeDefined()
+      expect(stored?.accounts).toHaveLength(1)
+      expect(stored?.accounts[0]).toEqual(scope.accounts[0])
+      expect(stored?.accounts[0].email).toBe('user@example.com')
+      expect(stored?.accounts[0].authType).toBe('password')
+    })
+  })
+
   test('should maintain scope across async boundaries', async () => {
     const scope: EmailSubjectScope = {
       sub: 'user-async',
