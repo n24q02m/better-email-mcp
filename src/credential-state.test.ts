@@ -22,6 +22,7 @@ vi.mock('./tools/helpers/config.js', () => ({
 vi.mock('./tools/helpers/oauth2.js', () => ({
   ensureValidToken: vi.fn(),
   isOutlookDomain: vi.fn().mockReturnValue(false),
+  isValidTokenStore: vi.fn().mockReturnValue(true),
   _getPendingAuths: vi.fn().mockReturnValue(new Set())
 }))
 

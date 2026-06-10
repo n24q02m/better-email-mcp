@@ -194,7 +194,7 @@ export async function loadUserCredentials(userId: string): Promise<AccountConfig
       new Uint8Array(ciphertext)
     )
     const parsed = JSON.parse(new TextDecoder().decode(decrypted))
-    if (!isValidAccountConfigs(parsed.accounts)) {
+    if (!parsed || typeof parsed !== 'object' || !isValidAccountConfigs(parsed.accounts)) {
       throw new Error('Invalid account configuration in stored credentials')
     }
     return parsed.accounts
@@ -242,7 +242,12 @@ export async function loadAllUserCredentials(): Promise<Map<string, AccountConfi
         new Uint8Array(ciphertext)
       )
       const parsed = JSON.parse(new TextDecoder().decode(decrypted))
-      if (typeof parsed.userId === 'string' && isValidAccountConfigs(parsed.accounts)) {
+      if (
+        parsed &&
+        typeof parsed === 'object' &&
+        typeof parsed.userId === 'string' &&
+        isValidAccountConfigs(parsed.accounts)
+      ) {
         result.set(parsed.userId, parsed.accounts)
       }
     } catch (err: unknown) {
