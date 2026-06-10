@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v1.32.3-beta.1 (2026-06-10)
+
+### Bug Fixes
+
+- **deps**: Update non-major dependencies
+  ([#795](https://github.com/n24q02m/better-email-mcp/pull/795),
+  [`47077a3`](https://github.com/n24q02m/better-email-mcp/commit/47077a3fe1eeb71091c5a9329eff2175200e6707))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#796](https://github.com/n24q02m/better-email-mcp/pull/796),
+  [`08d419c`](https://github.com/n24q02m/better-email-mcp/commit/08d419c443bff7a2dc5a66b7834e12b0fa511240))
+
+- **deps**: Update step-security/harden-runner digest to 9af89fc
+  ([#794](https://github.com/n24q02m/better-email-mcp/pull/794),
+  [`33e8ea4`](https://github.com/n24q02m/better-email-mcp/commit/33e8ea40098f9dea768d563eddaa41e0aea850cf))
+
+
 ## v1.32.2 (2026-06-09)
 
 
