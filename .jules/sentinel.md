@@ -24,3 +24,7 @@
 **Vulnerability:** The `deriveKey` function in `src/auth/per-user-credential-store.ts` used a generic `process.env.VITEST` check to downgrade PBKDF2 iterations from 600,000 to 1,000. This could potentially allow an attacker to downgrade security in production by setting the `VITEST` environment variable.
 **Learning:** Security-sensitive parameters like cryptographic iteration counts should rely on strict environment checks (e.g., `NODE_ENV === 'test'`) rather than generic or easily spoofable variables.
 **Prevention:** Use `process.env.NODE_ENV === 'test'` for test-only security downgrades and allow sensitive parameters to be explicitly configured via function arguments to avoid reliance on global state.
+## 2025-05-14 - Insecure Default for PBKDF2 Iterations
+ **Vulnerability:** Use of generic environment variables (like `process.env.VITEST`) or insecure defaults for PBKDF2 iteration counts can lead to weakened cryptographic protection in production if the environment is misconfigured.
+ **Learning:** Iteration counts should be strictly tied to `NODE_ENV === 'test'` and centralized in named constants to prevent accidental use of low iteration counts in non-test environments.
+ **Prevention:** Use exported constants for iteration counts and perform strict environment checks. Provide an override parameter for testing flexibility while maintaining safe defaults.

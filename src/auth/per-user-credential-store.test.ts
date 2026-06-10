@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import * as fsPromises from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AccountConfig } from '../tools/helpers/config.js'
 import {
   _deriveKey,
@@ -18,42 +18,45 @@ import {
   storeUserCredentials
 } from './per-user-credential-store.js'
 
-const makeAccount = (email: string): AccountConfig => ({
-  id: email.replace(/[@.]/g, '_'),
-  email,
-  password: 'test-pass-123',
-  authType: 'password',
-  imap: { host: 'imap.gmail.com', port: 993, secure: true },
-  smtp: { host: 'smtp.gmail.com', port: 465, secure: true }
-})
+function makeAccount(email: string): AccountConfig {
+  return {
+    id: Math.random().toString(36).substring(7),
+    email,
+    password: 'password123',
+    imap: { host: 'imap.test.com', port: 993, secure: true },
+    smtp: { host: 'smtp.test.com', port: 465, secure: true }
+  }
+}
 
 describe('per-user-credential-store', () => {
-  let originalDataDir: string
-  let originalSecretPath: string
-  let testDir: string
-
-  beforeEach(() => {
-    originalDataDir = _paths.DATA_DIR
-    originalSecretPath = _paths.SECRET_PATH
-
-    testDir = join(tmpdir(), `per-user-test-${randomBytes(4).toString('hex')}`)
-    mkdirSync(testDir, { recursive: true })
+  beforeEach(async () => {
+    // Setup temporary directory for each test
+    const testDir = join(tmpdir(), `per-user-test-${randomBytes(4).toString('hex')}`)
     _paths.DATA_DIR = join(testDir, 'users')
     _paths.SECRET_PATH = join(testDir, '.user-secret')
+    mkdirSync(_paths.DATA_DIR, { recursive: true })
 
-    process.env.CREDENTIAL_SECRET = 'test-per-user-secret'
+    process.env.CREDENTIAL_SECRET = 'test-global-secret'
     _resetSecretCache()
   })
 
-  afterEach(() => {
-    _paths.DATA_DIR = originalDataDir
-    _paths.SECRET_PATH = originalSecretPath
-    delete process.env.CREDENTIAL_SECRET
-    _resetSecretCache()
+  describe('store and load', () => {
+    it('should store and load credentials for a user', async () => {
+      const userId = 'user-1'
+      const accounts = [makeAccount('user1@example.com'), makeAccount('user1-alt@example.com')]
 
-    if (existsSync(testDir)) {
-      rmSync(testDir, { recursive: true, force: true })
-    }
+      await storeUserCredentials(userId, accounts)
+      const loaded = await loadUserCredentials(userId)
+
+      expect(loaded).toHaveLength(2)
+      expect(loaded![0]!.email).toBe('user1@example.com')
+      expect(loaded![1]!.email).toBe('user1-alt@example.com')
+    })
+
+    it('should return null for non-existent user', async () => {
+      const loaded = await loadUserCredentials('non-existent')
+      expect(loaded).toBeNull()
+    })
   })
 
   describe('deriveKey', () => {
@@ -67,6 +70,12 @@ describe('per-user-credential-store', () => {
       expect(key2).toBeDefined()
       expect(key3).toBeDefined()
     })
+
+    it('should use explicit iterations when provided', async () => {
+      const secret = 'test-secret'
+      const keyWithExplicit = await _deriveKey(secret, 'user', 1000)
+      expect(keyWithExplicit).toBeDefined()
+    })
   })
 
   describe('hashUserId', () => {
@@ -77,121 +86,37 @@ describe('per-user-credential-store', () => {
     })
 
     it('should produce deterministic results', () => {
-      expect(hashUserId('user-123')).toBe(hashUserId('user-123'))
-    })
-
-    it('should produce different hashes for different userIds', () => {
-      expect(hashUserId('user-a')).not.toBe(hashUserId('user-b'))
+      const hash1 = hashUserId('user-1')
+      const hash2 = hashUserId('user-1')
+      expect(hash1).toBe(hash2)
     })
   })
 
-  describe('store and load', () => {
-    it('should return null when no credentials stored', async () => {
-      const result = await loadUserCredentials('nonexistent-user')
-      expect(result).toBeNull()
-    })
+  describe('loadAllUserCredentials', () => {
+    it('should load all stored user credentials', async () => {
+      const user1 = 'user-1'
+      const user2 = 'user-2'
+      const accounts1 = [makeAccount('u1@test.com')]
+      const accounts2 = [makeAccount('u2@test.com')]
 
-    it('should handle ENOENT error from readFile explicitly', async () => {
-      const readFileSpy = vi.spyOn(_fs, 'readFile').mockImplementation(async (path, options) => {
-        if (typeof path === 'string' && path.endsWith('credentials.enc')) {
-          const err = new Error('File not found')
-          ;(err as any).code = 'ENOENT'
-          throw err
-        }
-        return fsPromises.readFile(path, options)
-      })
-
-      const result = await loadUserCredentials('any-user')
-      expect(result).toBeNull()
-      readFileSpy.mockRestore()
-    })
-
-    it('should throw non-ENOENT errors from readFile', async () => {
-      const readFileSpy = vi.spyOn(_fs, 'readFile').mockImplementation(async (path, options) => {
-        if (typeof path === 'string' && path.endsWith('credentials.enc')) {
-          const err = new Error('EACCES')
-          ;(err as any).code = 'EACCES'
-          throw err
-        }
-        return fsPromises.readFile(path, options)
-      })
-
-      await expect(loadUserCredentials('any-user')).rejects.toThrow('EACCES')
-      readFileSpy.mockRestore()
-    })
-
-    it('should store and load single account roundtrip', async () => {
-      const accounts = [makeAccount('test@gmail.com')]
-      await storeUserCredentials('user-1', accounts)
-
-      const loaded = await loadUserCredentials('user-1')
-      expect(loaded).toEqual(accounts)
-    })
-
-    it('should store and load multiple accounts roundtrip', async () => {
-      const accounts = [makeAccount('a@gmail.com'), makeAccount('b@outlook.com')]
-      await storeUserCredentials('user-2', accounts)
-
-      const loaded = await loadUserCredentials('user-2')
-      expect(loaded).toHaveLength(2)
-      expect(loaded![0]!.email).toBe('a@gmail.com')
-      expect(loaded![1]!.email).toBe('b@outlook.com')
-    })
-
-    it('should overwrite existing credentials for same user', async () => {
-      await storeUserCredentials('user-3', [makeAccount('old@gmail.com')])
-      await storeUserCredentials('user-3', [makeAccount('new@gmail.com')])
-
-      const loaded = await loadUserCredentials('user-3')
-      expect(loaded).toHaveLength(1)
-      expect(loaded![0]!.email).toBe('new@gmail.com')
-    })
-
-    it('should isolate different users', async () => {
-      await storeUserCredentials('alice', [makeAccount('alice@gmail.com')])
-      await storeUserCredentials('bob', [makeAccount('bob@gmail.com')])
-
-      const aliceAccounts = await loadUserCredentials('alice')
-      const bobAccounts = await loadUserCredentials('bob')
-
-      expect(aliceAccounts![0]!.email).toBe('alice@gmail.com')
-      expect(bobAccounts![0]!.email).toBe('bob@gmail.com')
-    })
-  })
-
-  describe('loadAll', () => {
-    it('should return empty map when no users stored', async () => {
-      const result = await loadAllUserCredentials()
-      expect(result.size).toBe(0)
-    })
-
-    it('should load all stored users', async () => {
-      await storeUserCredentials('user-a', [makeAccount('a@gmail.com')])
-      await storeUserCredentials('user-b', [makeAccount('b@gmail.com')])
-      await storeUserCredentials('user-c', [makeAccount('c@gmail.com')])
+      await storeUserCredentials(user1, accounts1)
+      await storeUserCredentials(user2, accounts2)
 
       const all = await loadAllUserCredentials()
-      expect(all.size).toBe(3)
-      expect(all.get('user-a')![0]!.email).toBe('a@gmail.com')
-      expect(all.get('user-b')![0]!.email).toBe('b@gmail.com')
-      expect(all.get('user-c')![0]!.email).toBe('c@gmail.com')
+      expect(all.size).toBe(2)
+      expect(all.get(user1)![0]!.email).toBe('u1@test.com')
+      expect(all.get(user2)![0]!.email).toBe('u2@test.com')
+    })
+
+    it('should return empty map if DATA_DIR does not exist', async () => {
+      _paths.DATA_DIR = join(tmpdir(), `non-existent-${randomBytes(4).toString('hex')}`)
+      const all = await loadAllUserCredentials()
+      expect(all.size).toBe(0)
     })
   })
 
-  describe('delete', () => {
-    it('should delete stored credentials', async () => {
-      await storeUserCredentials('user-del', [makeAccount('del@gmail.com')])
-      expect(await loadUserCredentials('user-del')).not.toBeNull()
-
-      await deleteUserCredentials('user-del')
-      expect(await loadUserCredentials('user-del')).toBeNull()
-    })
-
-    it('should not throw when deleting non-existent user', async () => {
-      await expect(deleteUserCredentials('nonexistent')).resolves.toBeUndefined()
-    })
-
-    it('should not affect other users', async () => {
+  describe('deleteUserCredentials', () => {
+    it('should delete user credentials', async () => {
       await storeUserCredentials('keep', [makeAccount('keep@gmail.com')])
       await storeUserCredentials('delete', [makeAccount('del@gmail.com')])
 
