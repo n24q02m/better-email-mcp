@@ -14,8 +14,8 @@
  *    "trigger relay setup" path anymore (deleted 2026-05-01 per spec
  *    2026-05-01-stdio-pure-http-multiuser.md §5.2.1).
  *
- * Key constraint: MCP `initialize` must respond within 1 second.
- * `resolveCredentialState()` is synchronous-fast (<10ms) -- it only reads env
+ * Key constraint: MCP initialize must respond within 1 second.
+ * resolveCredentialState() is synchronous-fast (<10ms) -- it only reads env
  * vars and the encrypted config file on disk.
  */
 
@@ -30,8 +30,8 @@ let state: CredentialState = 'awaiting_setup'
 let setupUrl: string | null = null
 
 // Hook supplied by the HTTP transport layer (mcp-core's local OAuth app)
-// that lets background Outlook OAuth polls flip ``GET /setup-status`` to
-// ``complete`` so the credential form stops spinning.
+// that lets background Outlook OAuth polls flip GET /setup-status to
+// complete so the credential form stops spinning.
 let markSetupCompleteFn: ((key?: string) => void) | null = null
 
 export function setMarkSetupComplete(fn: ((key?: string) => void) | null): void {
@@ -103,14 +103,18 @@ export async function resolveCredentialState(): Promise<CredentialState> {
     const tokenFile = join(homedir(), '.better-email-mcp', 'tokens.json')
 
     const data = await readFile(tokenFile, 'utf-8')
-    const store: Record<string, unknown> = JSON.parse(data)
-    const emails = Object.keys(store).filter((key) => key.includes('@'))
-    if (emails.length > 0) {
-      const credentials = emails.map((email) => `${email}:oauth2`).join(',')
-      process.env.EMAIL_CREDENTIALS = credentials
-      console.error(`Found saved OAuth2 tokens for: ${emails.join(', ')}`)
-      state = 'configured'
-      return state
+    const store: unknown = JSON.parse(data)
+
+    const { isValidTokenStore } = await import('./tools/helpers/oauth2.js')
+    if (isValidTokenStore(store)) {
+      const emails = Object.keys(store).filter((key) => key.includes('@'))
+      if (emails.length > 0) {
+        const credentials = emails.map((email) => `${email}:oauth2`).join(',')
+        process.env.EMAIL_CREDENTIALS = credentials
+        console.error(`Found saved OAuth2 tokens for: ${emails.join(', ')}`)
+        state = 'configured'
+        return state
+      }
     }
   } catch (_err) {
     // Token read failed or file doesn't exist, continue
@@ -131,6 +135,7 @@ export function setState(newState: CredentialState): void {
 export async function resetState(): Promise<void> {
   state = 'awaiting_setup'
   setupUrl = null
+  markSetupCompleteFn = null
   try {
     const { deleteConfig } = await import('@n24q02m/mcp-core')
     await deleteConfig(SERVER_NAME)

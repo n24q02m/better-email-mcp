@@ -22,7 +22,8 @@ vi.mock('./tools/helpers/config.js', () => ({
 vi.mock('./tools/helpers/oauth2.js', () => ({
   ensureValidToken: vi.fn(),
   isOutlookDomain: vi.fn().mockReturnValue(false),
-  _getPendingAuths: vi.fn().mockReturnValue(new Set())
+  _getPendingAuths: vi.fn().mockReturnValue(new Set()),
+  isValidTokenStore: vi.fn().mockReturnValue(true)
 }))
 
 vi.mock('node:fs/promises', () => ({
@@ -43,6 +44,7 @@ vi.mock('node:path', () => ({
 
 import { readFile } from 'node:fs/promises'
 import { resolveConfig } from '@n24q02m/mcp-core/storage'
+import { isValidTokenStore } from './tools/helpers/oauth2.js'
 
 describe('credential-state', () => {
   let mod: typeof import('./credential-state.js')
@@ -57,6 +59,7 @@ describe('credential-state', () => {
     delete process.env.MCP_RELAY_URL
     // Re-import to get fresh module state
     mod = await import('./credential-state.js')
+    vi.mocked(isValidTokenStore).mockReturnValue(true)
   })
 
   afterEach(() => {
@@ -151,6 +154,15 @@ describe('credential-state', () => {
       expect(process.env.EMAIL_CREDENTIALS).toBe('user@outlook.com:oauth2')
     })
 
+    it('returns awaiting_setup when token store is invalid', async () => {
+      vi.mocked(resolveConfig).mockResolvedValue({ config: null, source: '' } as any)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify({ 'user@outlook.com': { accessToken: 'tok' } }) as any)
+      vi.mocked(isValidTokenStore).mockReturnValue(false)
+
+      const result = await mod.resolveCredentialState()
+      expect(result).toBe('awaiting_setup')
+    })
+
     it('returns awaiting_setup when nothing found', async () => {
       vi.mocked(resolveConfig).mockResolvedValue({ config: null, source: '' } as any)
       vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'))
@@ -207,9 +219,14 @@ describe('credential-state', () => {
   describe('resetState', () => {
     it('resets to awaiting_setup', async () => {
       mod.setState('configured')
+      mod.setSetupUrl('http://localhost')
+      mod.setMarkSetupComplete(vi.fn())
+
       await mod.resetState()
+
       expect(mod.getState()).toBe('awaiting_setup')
       expect(mod.getSetupUrl()).toBeNull()
+      expect(mod.getMarkSetupComplete()).toBeNull()
     })
 
     it('handles deleteConfig error gracefully', async () => {
