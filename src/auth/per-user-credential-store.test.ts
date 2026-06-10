@@ -446,5 +446,24 @@ describe('per-user-credential-store', () => {
 
       await expect(loadUserCredentials(userId)).rejects.toThrow('Invalid account configuration')
     })
+
+    it('should throw when loading individual user with null JSON', async () => {
+      const userId = 'null-user'
+      const dirHash = hashUserId(userId)
+      const userDir = join(_paths.DATA_DIR, dirHash)
+      mkdirSync(userDir, { recursive: true })
+
+      const secret = await _getSecret()
+      const key = await _deriveKey(secret, dirHash)
+      const iv = crypto.getRandomValues(new Uint8Array(12))
+      const payload = 'null'
+      const plaintext = new TextEncoder().encode(payload)
+      const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext)
+      const combined = Buffer.concat([iv, Buffer.from(encrypted)])
+      const { writeFileSync } = await import('node:fs')
+      writeFileSync(join(userDir, 'credentials.enc'), combined)
+
+      await expect(loadUserCredentials(userId)).rejects.toThrow('Invalid account configuration')
+    })
   })
 })
