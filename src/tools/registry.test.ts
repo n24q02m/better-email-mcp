@@ -47,9 +47,15 @@ describe('TOOLS structure', () => {
       readOnly: false
     },
     {
-      name: 'setup',
+      name: 'config',
       requiredFields: ['action'],
-      actions: ['status', 'start', 'reset', 'complete'],
+      actions: ['status', 'setup_start', 'setup_reset', 'setup_complete', 'set', 'cache_clear'],
+      readOnly: false
+    },
+    {
+      name: 'config__open_relay',
+      requiredFields: [],
+      actions: null,
       readOnly: false
     },
     {
@@ -60,13 +66,13 @@ describe('TOOLS structure', () => {
     }
   ]
 
-  it('has exactly 6 tools', () => {
-    expect(EXPECTED_TOOLS).toHaveLength(6)
+  it('has exactly 7 tools', () => {
+    expect(EXPECTED_TOOLS).toHaveLength(7)
   })
 
   it('has correct tool names', () => {
     const names = EXPECTED_TOOLS.map((t) => t.name)
-    expect(names).toEqual(['messages', 'folders', 'attachments', 'send', 'setup', 'help'])
+    expect(names).toEqual(['messages', 'folders', 'attachments', 'send', 'config', 'config__open_relay', 'help'])
   })
 
   it('messages tool has 9 actions', () => {
@@ -98,9 +104,15 @@ describe('TOOLS structure', () => {
     expect(send.actions).toEqual(['new', 'reply', 'forward'])
   })
 
-  it('setup tool has 4 actions', () => {
-    const setupTool = EXPECTED_TOOLS.find((t) => t.name === 'setup')!
-    expect(setupTool.actions).toEqual(['status', 'start', 'reset', 'complete'])
+  it('config tool has 6 actions', () => {
+    const configTool = EXPECTED_TOOLS.find((t) => t.name === 'config')!
+    expect(configTool.actions).toEqual(['status', 'setup_start', 'setup_reset', 'setup_complete', 'set', 'cache_clear'])
+  })
+
+  it('config__open_relay tool takes no params', () => {
+    const openRelay = EXPECTED_TOOLS.find((t) => t.name === 'config__open_relay')!
+    expect(openRelay.requiredFields).toEqual([])
+    expect(openRelay.actions).toBeNull()
   })
 
   it('help tool requires tool_name', () => {
@@ -115,7 +127,7 @@ describe('TOOLS structure', () => {
 
   it('non-read-only tools are correctly marked', () => {
     const writeTools = EXPECTED_TOOLS.filter((t) => !t.readOnly)
-    expect(writeTools.map((t) => t.name)).toEqual(['messages', 'send', 'setup'])
+    expect(writeTools.map((t) => t.name)).toEqual(['messages', 'send', 'config', 'config__open_relay'])
   })
 })
 
@@ -162,15 +174,15 @@ describe('RESOURCES structure', () => {
 // ============================================================================
 
 describe('help tool enum', () => {
-  const HELP_ENUM = ['messages', 'folders', 'attachments', 'send']
+  const HELP_ENUM = ['messages', 'folders', 'attachments', 'send', 'config', 'help']
 
-  it('help covers all non-help tools', () => {
-    expect(HELP_ENUM).toHaveLength(4)
-    expect(HELP_ENUM).not.toContain('help')
+  it('help enum lists all documented tools', () => {
+    expect(HELP_ENUM).toHaveLength(6)
+    expect(HELP_ENUM).toContain('config')
   })
 
-  it('help does not include itself', () => {
-    expect(HELP_ENUM).not.toContain('help')
+  it('help enum excludes the relay helper', () => {
+    expect(HELP_ENUM).not.toContain('config__open_relay')
   })
 })
 
