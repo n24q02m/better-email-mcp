@@ -71,9 +71,50 @@ describe('registry.ts coverage - error and edge paths', () => {
       })
       expect(readFile).toHaveBeenCalled()
     })
+
+    it('should throw Resource not found for invalid URIs', async () => {
+      const { readResourceHandler } = setupHandler()
+
+      try {
+        await readResourceHandler({ params: { uri: 'email://docs/unknown' } })
+        expect.fail('Should have thrown')
+      } catch (error) {
+        expect(error).toBeInstanceOf(EmailMCPError)
+        expect((error as EmailMCPError).code).toBe('RESOURCE_NOT_FOUND')
+      }
+    })
   })
 
-  describe('handleHelp error path', () => {
+  describe('handleHelp paths', () => {
+    it('should return documentation when tool name is valid', async () => {
+      const { callToolHandler } = setupHandler()
+      vi.mocked(readFile).mockResolvedValue('messages documentation')
+
+      const result = await callToolHandler({
+        params: {
+          name: 'help',
+          arguments: { tool_name: 'messages' }
+        }
+      })
+
+      expect(result.isError).toBeUndefined()
+      expect(result.content[0].text).toContain('messages documentation')
+    })
+
+    it('should throw VALIDATION_ERROR for invalid tool name', async () => {
+      const { callToolHandler } = setupHandler()
+
+      const result = await callToolHandler({
+        params: {
+          name: 'help',
+          arguments: { tool_name: 'invalid-tool' }
+        }
+      })
+
+      expect(result.isError).toBe(true)
+      expect(result.content[0].text).toContain('Error: Invalid tool name: invalid-tool')
+    })
+
     it('should throw DOC_NOT_FOUND when readFile fails in handleHelp', async () => {
       const { callToolHandler } = setupHandler()
       vi.mocked(readFile).mockRejectedValue(new Error('File not found'))
@@ -87,65 +128,208 @@ describe('registry.ts coverage - error and edge paths', () => {
 
       expect(result.isError).toBe(true)
       expect(result.content[0].text).toContain('Error: Documentation not found for: messages')
-      expect(result.content[0].text).toContain('Suggestion: Check tool_name')
     })
   })
 
-  describe('CallToolRequestSchema catch block', () => {
-    it('should handle EmailMCPError in the main catch block', async () => {
-      const { messages } = await import('./composite/messages.js')
-      const customError = new EmailMCPError('Directly thrown EmailMCPError', 'DIRECT_ERROR', 'Fix it')
-      vi.mocked(messages).mockRejectedValue(customError)
-
+  describe('CallToolRequestSchema paths', () => {
+    it('should handle missing arguments', async () => {
       const { callToolHandler } = setupHandler([{ email: 'test@example.com' }])
 
       const result = await callToolHandler({
         params: {
-          name: 'messages',
-          arguments: { action: 'search', query: 'ALL' }
+          name: 'messages'
         }
-      })
+      } as any)
 
       expect(result.isError).toBe(true)
-      expect(result.content[0].text).toContain('Error: Directly thrown EmailMCPError')
-      expect(result.content[0].text).toContain('Suggestion: Fix it')
+      expect(result.content[0].text).toBe('Error: No arguments provided')
     })
 
-    it('should handle primitive string errors in the main catch block', async () => {
-      const { folders } = await import('./composite/folders.js')
-      // Throwing a string to trigger enhanceError via the main catch block
-      vi.mocked(folders).mockRejectedValue('String error')
-
+    it('should handle unknown tool with suggestion', async () => {
       const { callToolHandler } = setupHandler([{ email: 'test@example.com' }])
 
       const result = await callToolHandler({
         params: {
-          name: 'folders',
-          arguments: { action: 'list' }
+          name: 'messagess', // typo
+          arguments: { action: 'search' }
         }
       })
 
       expect(result.isError).toBe(true)
-      // When a string is thrown, enhanceError creates an UNKNOWN_ERROR with details: "String error"
-      expect(result.content[0].text).toContain('Error: Unknown error occurred')
-      expect(result.content[0].text).toContain('Details: "String error"')
+      expect(result.content[0].text).toContain("Unknown tool: messagess. Did you mean 'messages'?")
     })
 
-    it('should handle null/undefined errors in the main catch block', async () => {
-      const { folders } = await import('./composite/folders.js')
-      vi.mocked(folders).mockRejectedValue(null)
-
+    it('should handle unknown tool without suggestion', async () => {
       const { callToolHandler } = setupHandler([{ email: 'test@example.com' }])
 
       const result = await callToolHandler({
         params: {
-          name: 'folders',
-          arguments: { action: 'list' }
+          name: 'xyz',
+          arguments: { action: 'search' }
         }
       })
 
       expect(result.isError).toBe(true)
-      expect(result.content[0].text).toContain('Error: Unknown error occurred')
+      expect(result.content[0].text).toContain('Unknown tool: xyz.')
+      expect(result.content[0].text).not.toContain('Did you mean')
+    })
+
+    it('should call other tool handlers', async () => {
+      const { callToolHandler } = setupHandler([{ email: 'test@example.com' }])
+      const { attachments } = await import('./composite/attachments.js')
+      const { send } = await import('./composite/send.js')
+      const { handleConfig } = await import('./composite/config.js')
+
+      vi.mocked(attachments).mockResolvedValue({ ok: true, action: 'list', attachments: [] } as any)
+      vi.mocked(send).mockResolvedValue({ ok: true, action: 'new', messageId: '1' } as any)
+      vi.mocked(handleConfig).mockResolvedValue({ ok: true, action: 'cache_clear', cleared: 0 } as any)
+
+      await callToolHandler({
+        params: { name: 'attachments', arguments: { action: 'list', account: 'test@example.com', uid: 1 } }
+      })
+      await callToolHandler({
+        params: {
+          name: 'send',
+          arguments: { action: 'new', account: 'test@example.com', to: 'a@b.com', body: 'hi' }
+        }
+      })
+      await callToolHandler({ params: { name: 'config', arguments: { action: 'status' } } })
+
+      expect(attachments).toHaveBeenCalled()
+      expect(send).toHaveBeenCalled()
+      expect(handleConfig).toHaveBeenCalled()
+    })
+
+    describe('Credential guard branches', () => {
+      it('should return setup instructions WITH url when unconfigured', async () => {
+        const { getState, getSetupUrl } = await import('../credential-state.js')
+        vi.mocked(getState).mockReturnValue('awaiting_setup')
+        vi.mocked(getSetupUrl).mockReturnValue('https://setup.example.com')
+
+        const { callToolHandler } = setupHandler([])
+
+        const result = await callToolHandler({
+          params: {
+            name: 'messages',
+            arguments: { action: 'search' }
+          }
+        })
+
+        expect(result.isError).toBe(true)
+        expect(result.content[0].text).toContain('open this URL in your browser:\nhttps://setup.example.com')
+      })
+
+      it('should return setup instructions WITHOUT url when unconfigured', async () => {
+        const { getState, getSetupUrl } = await import('../credential-state.js')
+        vi.mocked(getState).mockReturnValue('awaiting_setup')
+        vi.mocked(getSetupUrl).mockReturnValue(null)
+
+        const { callToolHandler } = setupHandler([])
+
+        const result = await callToolHandler({
+          params: {
+            name: 'messages',
+            arguments: { action: 'search' }
+          }
+        })
+
+        expect(result.isError).toBe(true)
+        expect(result.content[0].text).toContain('In stdio mode: set EMAIL_PROVIDER')
+      })
+    })
+
+    describe('Catch block error types', () => {
+      it('should handle EmailMCPError', async () => {
+        const { messages } = await import('./composite/messages.js')
+        const customError = new EmailMCPError('Directly thrown EmailMCPError', 'DIRECT_ERROR', 'Fix it')
+        vi.mocked(messages).mockRejectedValue(customError)
+
+        const { callToolHandler } = setupHandler([{ email: 'test@example.com' }])
+
+        const result = await callToolHandler({
+          params: {
+            name: 'messages',
+            arguments: { action: 'search', query: 'ALL' }
+          }
+        })
+
+        expect(result.isError).toBe(true)
+        expect(result.content[0].text).toContain('Error: Directly thrown EmailMCPError')
+        expect(result.content[0].text).toContain('Suggestion: Fix it')
+      })
+
+      it('should handle generic Error object', async () => {
+        const { folders } = await import('./composite/folders.js')
+        vi.mocked(folders).mockRejectedValue(new Error('Generic failure'))
+
+        const { callToolHandler } = setupHandler([{ email: 'test@example.com' }])
+
+        const result = await callToolHandler({
+          params: {
+            name: 'folders',
+            arguments: { action: 'list' }
+          }
+        })
+
+        expect(result.isError).toBe(true)
+        expect(result.content[0].text).toContain('Error: Generic failure')
+      })
+
+      it('should handle circular structure serialization failure', async () => {
+        const { folders } = await import('./composite/folders.js')
+        const circular: any = {}
+        circular.self = circular
+        vi.mocked(folders).mockResolvedValue(circular)
+
+        const { callToolHandler } = setupHandler([{ email: 'test@example.com' }])
+
+        const result = await callToolHandler({
+          params: {
+            name: 'folders',
+            arguments: { action: 'list' }
+          }
+        })
+
+        expect(result.isError).toBe(true)
+        expect(result.content[0].text).toContain('Error: Converting circular structure to JSON')
+      })
+
+      it('should handle wrapToolResult failure (undefined return)', async () => {
+        const { messages } = await import('./composite/messages.js')
+        vi.mocked(messages).mockResolvedValue(undefined as any)
+
+        const { callToolHandler } = setupHandler([{ email: 'test@example.com' }])
+
+        const result = await callToolHandler({
+          params: {
+            name: 'messages',
+            arguments: { action: 'search' }
+          }
+        })
+
+        expect(result.isError).toBe(true)
+        expect(result.content[0].text).toContain('Error')
+      })
+
+      it('should handle loadConfig failure during hot-reload', async () => {
+        const { getState } = await import('../credential-state.js')
+        const { loadConfig } = await import('./helpers/config.js')
+
+        vi.mocked(getState).mockReturnValue('configured')
+        vi.mocked(loadConfig).mockRejectedValue(new Error('Hot-reload failed'))
+
+        const { callToolHandler } = setupHandler([])
+
+        const result = await callToolHandler({
+          params: {
+            name: 'messages',
+            arguments: { action: 'search' }
+          }
+        })
+
+        expect(result.isError).toBe(true)
+        expect(result.content[0].text).toContain('Error: Hot-reload failed')
+      })
     })
   })
 
