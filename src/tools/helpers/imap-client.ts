@@ -3,8 +3,20 @@
  * Manages connections to multiple IMAP servers with connection pooling
  */
 
-import { ImapFlow, type SearchObject } from 'imapflow'
-import { type SimpleParserOptions, simpleParser } from 'mailparser'
+import {
+  type FetchMessageObject,
+  ImapFlow,
+  type ListResponse,
+  type MessageAddressObject,
+  type SearchObject
+} from 'imapflow'
+import {
+  type AddressObject,
+  type Attachment,
+  type EmailAddress,
+  type SimpleParserOptions,
+  simpleParser
+} from 'mailparser'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
 import { fastExtractSnippet, htmlToCleanText } from './html-utils.js'
@@ -145,7 +157,7 @@ function buildSearchCriteria(query: string): SearchObject {
   //    Check longer prefixes first to avoid partial matches (UNFLAGGED before FLAGGED, etc.)
   for (const { pattern, key, value } of FLAG_MATCHERS) {
     if (pattern.test(remaining)) {
-      ;(criteria as any)[key] = value
+      Object.assign(criteria, { [key]: value })
       remaining = remaining.replace(pattern, ' ').trim()
     }
   }
@@ -156,7 +168,7 @@ function buildSearchCriteria(query: string): SearchObject {
     const dateMatch = remaining.match(valid)
     if (dateMatch) {
       const criteriaKey = keyword.toLowerCase() as keyof SearchObject
-      ;(criteria as any)[criteriaKey] = new Date(dateMatch[1]!)
+      Object.assign(criteria, { [criteriaKey]: new Date(dateMatch[1]!) })
       remaining = remaining.replace(dateMatch[0], ' ').trim()
     } else if (invalid.test(remaining)) {
       throw new EmailMCPError(
@@ -172,7 +184,7 @@ function buildSearchCriteria(query: string): SearchObject {
     const kvMatch = remaining.match(KV_MATCHERS[keyword])
     if (kvMatch) {
       const criteriaKey = keyword.toLowerCase() as keyof SearchObject
-      ;(criteria as any)[criteriaKey] = kvMatch[1]!.replace(/^["']|["']$/g, '')
+      Object.assign(criteria, { [criteriaKey]: kvMatch[1]!.replace(/^["']|["']$/g, '') })
       remaining = remaining.replace(kvMatch[0], ' ').trim()
     }
   }
@@ -236,12 +248,27 @@ async function extractSnippet(source: string | Buffer, maxLength = 200): Promise
 /**
  * Format email address from parsed address object
  */
-function formatAddress(addr: any): string {
+function formatAddress(addr: AddressObject | AddressObject[] | string | undefined | null): string {
   if (!addr) return ''
   if (typeof addr === 'string') return addr
+
+  if (Array.isArray(addr)) {
+    return addr
+      .map((a) => formatAddress(a))
+      .filter(Boolean)
+      .join(', ')
+  }
+
   if (addr.text) return addr.text
-  if (Array.isArray(addr.value)) {
-    return addr.value.map((a: any) => (a.name ? `${a.name} <${a.address}>` : a.address)).join(', ')
+
+  if (addr.value && Array.isArray(addr.value)) {
+    return addr.value
+      .map((a: EmailAddress) => {
+        if (a.name && a.address) return `${a.name} <${a.address}>`
+        return a.address || a.name || ''
+      })
+      .filter(Boolean)
+      .join(', ')
   }
   return ''
 }
@@ -365,7 +392,7 @@ export async function searchEmails(
       // This ensures the IMAP connection and mailbox lock are released as quickly as possible.
       // We use `mapLimit` with a concurrency of 5 instead of a sequential for...of loop or unbounded Promise.all
       // to improve performance without blocking the event loop or causing memory spikes from CPU-heavy MIME parsing.
-      const summaries = await mapLimit(emails, 5, async (msg: any) => {
+      const summaries = await mapLimit(emails, 5, async (msg: FetchMessageObject) => {
         const snippet = msg.source ? await extractSnippet(msg.source) : ''
 
         return {
@@ -377,9 +404,9 @@ export async function searchEmails(
           from: msg.envelope?.from?.[0]
             ? `${msg.envelope.from[0].name || ''} <${msg.envelope.from[0].address || ''}>`.trim()
             : '',
-          to: msg.envelope?.to?.map((a: any) => a.address).join(', ') || '',
+          to: msg.envelope?.to?.map((a: MessageAddressObject) => a.address).join(', ') || '',
           date: msg.envelope?.date?.toISOString() || '',
-          flags: Array.from((msg.flags as Set<string> | string[]) || []),
+          flags: Array.from(msg.flags || []),
           snippet
         }
       })
@@ -447,7 +474,7 @@ export async function readEmail(account: AccountConfig, uid: number, folder: str
     date: parsed.date?.toISOString() || '',
     flags: Array.from(fetchResult.flags || []),
     body_text: bodyText,
-    attachments: (parsed.attachments || []).map((att: any) => ({
+    attachments: (parsed.attachments || []).map((att: Attachment) => ({
       filename: att.filename || 'unnamed',
       content_type: att.contentType || 'application/octet-stream',
       size: att.size || 0,
@@ -529,7 +556,7 @@ export async function trashEmails(
 export async function listFolders(account: AccountConfig): Promise<FolderInfo[]> {
   return withConnection(account, async (client) => {
     const mailboxes = await client.list()
-    return mailboxes.map((mb: any) => ({
+    return mailboxes.map((mb: ListResponse) => ({
       name: mb.name,
       path: mb.path,
       flags: Array.from(mb.flags || []),
