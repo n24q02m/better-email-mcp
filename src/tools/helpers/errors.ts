@@ -159,8 +159,9 @@ function handleSmtpError(error: unknown): EmailMCPError {
   }
 }
 
-// ⚡ Bolt: Cache bigrams for static valid options to avoid recomputing them on every request.
-const validOptionBigramCache = new Map<string, Set<string>>()
+// ⚡ Bolt: Cache lowercased strings and bigrams for static valid options to avoid recomputing them.
+type CachedOption = { lower: string; bigrams: Set<string> }
+const validOptionCache = new Map<string, CachedOption>()
 
 /**
  * Find the closest matching string from a list of valid options.
@@ -180,17 +181,21 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   for (let i = 0; i < lower.length - 1; i++) inputBigrams.add(lower.slice(i, i + 2))
 
   for (const option of validOptions) {
-    const optionLower = option.toLowerCase()
-    if (optionLower.startsWith(lower) || lower.startsWith(optionLower)) {
-      return option
+    // ⚡ Bolt: Use cached lowercased string and bigrams if available, otherwise compute and cache them.
+    // This avoids redundant toLowerCase() calls and Set allocations.
+    let cached = validOptionCache.get(option)
+    if (!cached) {
+      const lowercased = option.toLowerCase()
+      const bigrams = new Set<string>()
+      for (let i = 0; i < lowercased.length - 1; i++) bigrams.add(lowercased.slice(i, i + 2))
+      cached = { lower: lowercased, bigrams }
+      validOptionCache.set(option, cached)
     }
 
-    // ⚡ Bolt: Use cached bigrams if available, otherwise compute and cache them.
-    let optionBigrams = validOptionBigramCache.get(optionLower)
-    if (!optionBigrams) {
-      optionBigrams = new Set<string>()
-      for (let i = 0; i < optionLower.length - 1; i++) optionBigrams.add(optionLower.slice(i, i + 2))
-      validOptionBigramCache.set(optionLower, optionBigrams)
+    const { lower: optionLower, bigrams: optionBigrams } = cached
+
+    if (optionLower.startsWith(lower) || lower.startsWith(optionLower)) {
+      return option
     }
 
     let overlap = 0
