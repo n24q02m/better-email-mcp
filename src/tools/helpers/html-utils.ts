@@ -31,7 +31,7 @@ const FAST_EXTRACT_STYLE_SCRIPT_TEST_REGEX = /<(?:style|script)/i
 const FAST_EXTRACT_STYLE_SCRIPT_REPLACE_REGEX = /<(style|script)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi
 const FAST_EXTRACT_BLOCK_REGEX = /<\/(p|div|br|tr|li|h[1-6])>/gi
 const FAST_EXTRACT_BR_REGEX = /<br\s*\/?>/gi
-const FAST_EXTRACT_TAG_REGEX = /<[^>]+>/g
+const FAST_EXTRACT_TAG_REGEX = /<[^>]*>?/g
 const FAST_EXTRACT_ENTITY_REGEX = /&(#x?[\da-fA-F]+|[a-zA-Z]+);/g
 const FAST_EXTRACT_WHITESPACE_REGEX = /\s+/g
 

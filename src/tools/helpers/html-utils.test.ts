@@ -232,6 +232,12 @@ describe('fastExtractSnippet', () => {
     expect(result).toContain('B')
     expect(result).toContain('C')
   })
+
+  it('removes unclosed tags at end of string', () => {
+    expect(fastExtractSnippet('Hello [<script](1)')).toBe('Hello [')
+    expect(fastExtractSnippet('Hello <script')).toBe('Hello')
+    expect(fastExtractSnippet('Hello <div class="test"')).toBe('Hello')
+  })
 })
 
 describe('sanitizeHtml', () => {
