@@ -262,9 +262,9 @@ export function renderEmailCredentialForm(
                 <p class="server-description">${description}</p>
             </div>
 
-            <h2 class="form-title">Email Accounts</h2>
+            <h2 id="form-title" class="form-title">Email Accounts</h2>
 
-            <form id="credential-form" novalidate>
+            <form id="credential-form" aria-labelledby="form-title" novalidate>
                 <fieldset id="form-fieldset" style="border: none; padding: 0; margin: 0;">
                     <div id="accounts-container"></div>
 
@@ -667,6 +667,7 @@ export function renderEmailCredentialForm(
 
                 var waiting = document.createElement("span");
                 waiting.id = "outlook-waiting";
+                waiting.setAttribute("aria-live", "polite");
                 waiting.className = "pulse";
                 waiting.style.color = "#9ca3af";
                 waiting.textContent = "Waiting for Microsoft authorization...";
