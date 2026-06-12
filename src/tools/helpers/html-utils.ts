@@ -24,13 +24,15 @@ const HTML_ESCAPE_MAP: Record<string, string> = {
   "'": '&#039;'
 }
 
+const HTML_ESCAPE_RE = /[&<>"']/g
+
 /**
  * Escapes HTML characters in a string to prevent XSS attacks when embedding user input into HTML
  */
 export function escapeHtml(unsafe: string): string {
   // ⚡ Bolt: Replace 5 chained `.replace()` calls with a single regex pass.
   // This reduces string allocation overhead and speeds up escaping by iterating over the string only once.
-  return unsafe.replace(/[&<>"']/g, (match) => HTML_ESCAPE_MAP[match]!)
+  return unsafe.replace(HTML_ESCAPE_RE, (match) => HTML_ESCAPE_MAP[match]!)
 }
 
 // ⚡ Bolt: Extract `html-to-text` options into a module-scoped constant.
@@ -64,6 +66,17 @@ export function htmlToCleanText(html: string): string {
   return compiledHtmlToText(html).trim()
 }
 
+// ⚡ Bolt: Hoist regular expressions to module scope.
+// This prevents the JavaScript engine from recompiling and allocating new RegExp objects
+// on every invocation of hot paths like fastExtractSnippet.
+const STYLE_SCRIPT_CHECK_RE = /<(?:style|script)/i
+const STYLE_SCRIPT_RE = /<(style|script)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi
+const BLOCK_TAG_RE = /<\/(p|div|br|tr|li|h[1-6])>/gi
+const BR_TAG_RE = /<br\s*\/?>/gi
+const ALL_TAGS_RE = /<[^>]+>/g
+const ENTITY_RE = /&(#x?[\da-fA-F]+|[a-zA-Z]+);/g
+const WHITESPACE_RE = /\s+/g
+
 /**
  * Fast regex-based HTML snippet extraction for search results
  * Much faster than full html-to-text for short previews (~30x speedup)
@@ -74,7 +87,7 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   // ⚡ Bolt: Fast path for plain text.
   // Bypasses complex regex operations entirely if the input string contains no HTML tags or entities.
   if (html.indexOf('<') === -1 && html.indexOf('&') === -1) {
-    const cleaned = html.replace(/\s+/g, ' ').trim()
+    const cleaned = html.replace(WHITESPACE_RE, ' ').trim()
     if (cleaned.length <= maxLength) return cleaned
     return `${cleaned.substring(0, maxLength)}...`
   }
@@ -83,26 +96,26 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   // This reduces string parsing overhead compared to running separate passes for style and script tags.
   let text = html
 
-  if (/<(?:style|script)/i.test(text)) {
+  if (STYLE_SCRIPT_CHECK_RE.test(text)) {
     let prev: string
     do {
       prev = text
-      text = text.replace(/<(style|script)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi, '')
+      text = text.replace(STYLE_SCRIPT_RE, '')
     } while (text !== prev)
   }
 
   // Replace block elements with spaces
-  text = text.replace(/<\/(p|div|br|tr|li|h[1-6])>/gi, ' ')
-  text = text.replace(/<br\s*\/?>/gi, ' ')
+  text = text.replace(BLOCK_TAG_RE, ' ')
+  text = text.replace(BR_TAG_RE, ' ')
 
   // Strip all remaining HTML tags
-  text = text.replace(/<[^>]+>/g, '')
+  text = text.replace(ALL_TAGS_RE, '')
 
   // ⚡ Bolt: Decode HTML entities in a single pass.
   // We use the capture group `p1` (which contains the entity name or number without the `&` and `;`)
   // to avoid invoking `entity.match(...)` internally, which creates secondary string allocations.
   if (text.indexOf('&') !== -1) {
-    text = text.replace(/&(#x?[\da-fA-F]+|[a-zA-Z]+);/g, (entity, p1) => {
+    text = text.replace(ENTITY_RE, (entity, p1) => {
       const lower = entity.toLowerCase()
       if (lower in ENTITY_MAP) return ENTITY_MAP[lower]
 
@@ -118,7 +131,7 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   }
 
   // Collapse whitespace
-  text = text.replace(/\s+/g, ' ').trim()
+  text = text.replace(WHITESPACE_RE, ' ').trim()
 
   if (text.length <= maxLength) return text
   return `${text.substring(0, maxLength)}...`
