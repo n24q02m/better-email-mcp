@@ -59,3 +59,9 @@
 
 **Learning:** When dynamic content like new form sections are added or removed, relying entirely on visual layout updates disrupts accessibility. If a removed element had focus, focus is typically dropped to the document `<body>`. For keyboard-only and screen reader users, this necessitates tabbing through the entire page again. Additionally, newly spawned elements aren't automatically focused.
 **Action:** Implement active programmatic focus management for all dynamic content changes. When adding elements, immediately focus their primary input. When removing focused elements, explicitly return focus to the logical preceding element (e.g., the button that triggered the creation, or a 'container' wrapper) to maintain a continuous interaction flow.
+
+## 2025-05-26 - Accessible Form Validation Feedback with \`novalidate\`
+
+**Learning:** When using the \`novalidate\` attribute on a form to disable standard browser validation popups in favor of custom UI, listening to the \`invalid\` event is only half the battle. If \`checkValidity()\` isn't explicitly invoked on the form during submission, the custom \`invalid\` events won't fire for all fields, and the submission might proceed or fail silently, leaving screen reader and keyboard users without guidance.
+
+**Action:** For forms with \`novalidate\`, always manually call \`form.checkValidity()\` in the \`submit\` event listener. If it returns false, explicitly query for the first invalid input (\`input:invalid, select:invalid, textarea:invalid\`) and programmatically call \`.focus()\` on it to ensure the user is immediately directed to the error.
