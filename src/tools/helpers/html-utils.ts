@@ -73,7 +73,7 @@ const STYLE_SCRIPT_CHECK_RE = /<(?:style|script)/i
 const STYLE_SCRIPT_RE = /<(style|script)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi
 const BLOCK_TAG_RE = /<\/(p|div|br|tr|li|h[1-6])>/gi
 const BR_TAG_RE = /<br\s*\/?>/gi
-const ALL_TAGS_RE = /<[^>]+>/g
+const ALL_TAGS_RE = /<\/?[a-zA-Z!][^>]*(?:>|$)/g
 const ENTITY_RE = /&(#x?[\da-fA-F]+|[a-zA-Z]+);/g
 const WHITESPACE_RE = /\s+/g
 
