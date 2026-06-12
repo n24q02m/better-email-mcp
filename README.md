@@ -2,7 +2,7 @@
 
 mcp-name: io.github.n24q02m/better-email-mcp
 
-**IMAP/SMTP email server for AI agents -- 7 composite tools with multi-account and auto-discovery**
+**IMAP/SMTP email for AI agents -- read, send, organize folders, and manage attachments across multiple accounts, with auto-discovery.**
 
 <!-- Badge Row 1: Status -->
 [![CI](https://github.com/n24q02m/better-email-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/n24q02m/better-email-mcp/actions/workflows/ci.yml)
