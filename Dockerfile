@@ -21,7 +21,7 @@ COPY . .
 RUN bun run build
 
 # Base runtime stage (shared)
-FROM node:24.16.0-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14 AS base
+FROM node:24.16.0-alpine@sha256:fb71d01345f11b708a3553c66e7c74074f2d506400ea81973343d915cb64eef0 AS base
 
 LABEL org.opencontainers.image.source="https://github.com/n24q02m/better-email-mcp"
 LABEL io.modelcontextprotocol.server.name="io.github.n24q02m/better-email-mcp"
