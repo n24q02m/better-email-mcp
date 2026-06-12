@@ -67,7 +67,7 @@ mcp-name: io.github.n24q02m/better-email-mcp
 
 - **Multi-account support** -- manage 6+ email accounts (Gmail, Outlook, Yahoo, iCloud, Zoho, ProtonMail, custom IMAP)
 - **App Passwords** -- no OAuth2 setup required for most providers; clone and run in 1 minute
-- **7 composite tools** with 20 actions -- search, read, send, reply, forward, organize, credential setup in single calls
+- **7 composite tools** with 21 actions -- search, read, send, reply, forward, organize, credential setup in single calls
 - **Auto-discovery** -- provider settings detected from email address, custom IMAP host supported
 - **Thread-aware** -- reply/forward maintains In-Reply-To and References headers
 - **Tiered token optimization** -- compressed descriptions + on-demand `help` tool + MCP Resources
