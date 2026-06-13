@@ -321,6 +321,13 @@ describe('http transport', () => {
     })
 
     it('forces fresh device-code flow even when parseCredentials returns cached oauth2 tokens', async () => {
+      // Regression for 2026-04-24 UX bug: ``parseSingleCredential`` calls
+      // ``loadStoredTokens`` and populates ``account.oauth2`` when a previous
+      // session saved tokens. Without the force-refresh, ``initiateOutlookOAuth``
+      // filters these accounts out via ``!a.oauth2`` and silently returns null,
+      // so the form shows "Setup complete" without ever displaying the Microsoft
+      // device-code step. ``onCredentialsSaved`` must clear cached tokens on
+      // every form submit so the user always sees + completes the device-code UI.
       const mockAccounts = [{ email: 'test@outlook.com', imap: {}, authType: 'oauth2', oauth2: { accessToken: 'old' } }]
       vi.mocked(parseCredentials).mockResolvedValue(mockAccounts as any)
       vi.mocked(isOutlookDomain).mockReturnValue(true)
