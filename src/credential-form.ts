@@ -40,26 +40,8 @@ function escapeHtml(value: unknown): string {
  * comma-separated `email1:pass1,email2:pass2:imap_host` format. The
  * server-side onCredentialsSaved callback parses this back into accounts.
  */
-export function renderEmailCredentialForm(
-  _schema: RelayConfigSchema,
-  options: { submitUrl: string; prefill?: Record<string, string> }
-): string {
-  const displayName = escapeHtml(_schema.displayName ?? _schema.server ?? 'Email MCP')
-  const server = escapeHtml(_schema.server ?? 'better-email-mcp')
-  const description = escapeHtml(
-    _schema.description ??
-      'Configure one or more email accounts (Gmail, Yahoo, iCloud, Outlook/Hotmail/Live, or custom IMAP). Outlook accounts use OAuth2 and are handled automatically by the server.'
-  )
-  const submitUrlJson = JSON.stringify(options.submitUrl).replace(/</g, '\\u003c')
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'" />
-    <title>${displayName}</title>
-    <style>
+function renderStyles(): string {
+  return `    <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             background-color: #0f0f0f;
@@ -251,9 +233,11 @@ export function renderEmailCredentialForm(
             vertical-align: text-bottom;
         }
 
-    </style>
-</head>
-<body>
+    </style>`
+}
+
+function renderHeader(displayName: string, server: string, description: string): string {
+  return `<body>
     <main class="container">
         <div class="card">
             <div class="server-header">
@@ -276,9 +260,11 @@ export function renderEmailCredentialForm(
                 <div class="status-box" id="status-box" role="alert"></div>
             </form>
         </div>
-    </main>
+    </main>`
+}
 
-    <script>
+function renderScripts(submitUrlJson: string): string {
+  return `    <script>
         (function () {
             var submitUrl = ${submitUrlJson};
 
@@ -808,7 +794,31 @@ export function renderEmailCredentialForm(
                     });
             });
         })();
-    </script>
+    </script>`
+}
+export function renderEmailCredentialForm(
+  _schema: RelayConfigSchema,
+  options: { submitUrl: string; prefill?: Record<string, string> }
+): string {
+  const displayName = escapeHtml(_schema.displayName ?? _schema.server ?? 'Email MCP')
+  const server = escapeHtml(_schema.server ?? 'better-email-mcp')
+  const description = escapeHtml(
+    _schema.description ??
+      'Configure one or more email accounts (Gmail, Yahoo, iCloud, Outlook/Hotmail/Live, or custom IMAP). Outlook accounts use OAuth2 and are handled automatically by the server.'
+  )
+  const submitUrlJson = JSON.stringify(options.submitUrl).replace(/</g, '\\u003c')
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'" />
+    <title>${displayName}</title>
+${renderStyles()}
+</head>
+${renderHeader(displayName, server, description)}
+${renderScripts(submitUrlJson)}
 </body>
 </html>`
 }
