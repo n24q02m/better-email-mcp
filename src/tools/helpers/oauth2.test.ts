@@ -1246,4 +1246,48 @@ describe('saveOutlookTokens', () => {
       clientId: 'default-cid'
     })
   })
+
+  it('uses tokens.sub if email and process.env.OUTLOOK_EMAIL are missing', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    const tokens = {
+      sub: 'subject-123',
+      access_token: 'at-sub'
+    }
+
+    await saveOutlookTokens(tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['subject-123']).toBeDefined()
+    expect(written['subject-123'].accessToken).toBe('at-sub')
+  })
+
+  it('decodes id_token subject if email, env, and sub are missing', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    // Mock JWT payload: {"sub":"jwt-sub-456"}
+    // Base64URL: eyJzdWIiOiJqd3Qtc3ViLTQ1NiJ9
+    const idToken = 'header.eyJzdWIiOiJqd3Qtc3ViLTQ1NiJ9.signature'
+    const tokens = {
+      id_token: idToken,
+      access_token: 'at-jwt'
+    }
+
+    await saveOutlookTokens(tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['jwt-sub-456']).toBeDefined()
+    expect(written['jwt-sub-456'].accessToken).toBe('at-jwt')
+  })
+
+  it('handles malformed id_token gracefully', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    const tokens = {
+      id_token: 'not-a-jwt',
+      access_token: 'at-malformed'
+    }
+
+    await saveOutlookTokens(tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['outlook-device-code']).toBeDefined()
+  })
 })

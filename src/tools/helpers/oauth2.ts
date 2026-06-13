@@ -126,6 +126,20 @@ export function getClientId(): string {
 }
 
 /**
+ * Decodes the subject (sub) claim from a JWT id_token without full verification.
+ * Used as a fallback identifier for Outlook accounts in delegated flows.
+ */
+function decodeIdTokenSubject(idToken: string): string | undefined {
+  try {
+    const parts = idToken.split('.')
+    if (parts.length !== 3) return undefined
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
+    return typeof payload.sub === 'string' ? payload.sub : undefined
+  } catch {
+    return undefined
+  }
+}
+/**
  * Load stored OAuth2 tokens for an email account.
  * Returns null if no tokens are stored.
  */
@@ -496,7 +510,12 @@ export async function ensureValidToken(account: { email: string; oauth2?: OAuth2
  * claim as a fallback (uncommon in device-code flows).
  */
 export async function saveOutlookTokens(tokens: Record<string, unknown>): Promise<void> {
-  const email = typeof tokens.email === 'string' ? tokens.email : (process.env.OUTLOOK_EMAIL ?? 'outlook-device-code')
+  const email =
+    (typeof tokens.email === 'string' ? tokens.email : undefined) ??
+    process.env.OUTLOOK_EMAIL ??
+    (typeof tokens.sub === 'string' ? tokens.sub : undefined) ??
+    (typeof tokens.id_token === 'string' ? decodeIdTokenSubject(tokens.id_token) : undefined) ??
+    'outlook-device-code'
   const now = Math.floor(Date.now() / MS_PER_SECOND)
   const expiresIn = typeof tokens.expires_in === 'number' ? tokens.expires_in : 3600
   saveTokens(email, {
