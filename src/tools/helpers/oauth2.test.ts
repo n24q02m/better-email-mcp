@@ -561,6 +561,12 @@ describe('ensureValidToken', () => {
 // ============================================================================
 
 describe('deviceCodeAuth', () => {
+  it('throws if email is missing', async () => {
+    await expect(deviceCodeAuth('')).rejects.toThrow('Email is required')
+  })
+  it('throws if email is just whitespace', async () => {
+    await expect(deviceCodeAuth('   ')).rejects.toThrow('Email is required')
+  })
   const mockFetch = vi.fn()
   const originalEnv = process.env.OUTLOOK_CLIENT_ID
 
@@ -1127,6 +1133,34 @@ describe('initiateOutlookDeviceCode', () => {
     expect(mockWriteFileSync).toHaveBeenCalled()
   })
 
+  it('does not throw if onComplete callback fails', async () => {
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        device_code: 'dc-cb-fail',
+        user_code: 'CB-FAIL',
+        verification_uri: 'https://microsoft.com/devicelogin',
+        expires_in: 900,
+        interval: 0.01
+      })
+    })
+    mockFetch.mockResolvedValueOnce({
+      json: async () => ({
+        access_token: 'at-ok',
+        refresh_token: 'rt-ok',
+        expires_in: 3600
+      })
+    })
+
+    const onComplete = vi.fn().mockImplementation(() => {
+      throw new Error('callback failed')
+    })
+    await initiateOutlookDeviceCode('fail-cb@outlook.com', onComplete)
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(onComplete).toHaveBeenCalled()
+  })
+
   it('throws descriptive error when Microsoft rejects the device code request', async () => {
     mockFetch.mockResolvedValueOnce({
       json: async () => ({
@@ -1139,6 +1173,9 @@ describe('initiateOutlookDeviceCode', () => {
   })
   it('throws if email is missing', async () => {
     await expect(initiateOutlookDeviceCode('')).rejects.toThrow('Email is required')
+  })
+  it('throws if email is just whitespace', async () => {
+    await expect(initiateOutlookDeviceCode('   ')).rejects.toThrow('Email is required')
   })
 })
 
