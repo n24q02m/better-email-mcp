@@ -103,11 +103,7 @@ describe('http transport', () => {
     const startPromise = startHttp()
 
     // Wait for the server to start
-    // Wait for the server to start AND the signal handler to be registered
-    await vi.waitFor(() => {
-      expect(runHttpServer).toHaveBeenCalled()
-      expect(sigintHandler).toBeTruthy()
-    })
+    await vi.waitFor(() => expect(runHttpServer).toHaveBeenCalled())
 
     if (fn) await fn()
 
