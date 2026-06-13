@@ -422,6 +422,10 @@ describe('per-user-credential-store', () => {
       writeFileSync(join(invalidDir, 'credentials.enc'), combined)
 
       const all = await loadAllUserCredentials()
+      expect(spy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to load credentials from bad-server:'),
+        expect.any(Error)
+      )
       expect(all.has('bad-server')).toBe(false)
       spy.mockRestore()
     })
@@ -438,6 +442,75 @@ describe('per-user-credential-store', () => {
       const key = await _deriveKey(secret, dirHash)
       const iv = crypto.getRandomValues(new Uint8Array(12))
       const payload = JSON.stringify({ userId, accounts: [{ email: 'missing-fields' }] })
+      const plaintext = new TextEncoder().encode(payload)
+      const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext)
+      const combined = Buffer.concat([iv, Buffer.from(encrypted)])
+      const { writeFileSync } = await import('node:fs')
+      writeFileSync(join(userDir, 'credentials.enc'), combined)
+
+      await expect(loadUserCredentials(userId)).rejects.toThrow('Invalid account configuration')
+    })
+
+    it('should throw when id is an empty string', async () => {
+      const userId = 'empty-id-user'
+      const dirHash = hashUserId(userId)
+      const userDir = join(_paths.DATA_DIR, dirHash)
+      mkdirSync(userDir, { recursive: true })
+
+      const secret = await _getSecret()
+      const key = await _deriveKey(secret, dirHash)
+      const iv = crypto.getRandomValues(new Uint8Array(12))
+      const account = makeAccount('test@example.com')
+      account.id = '' // Empty id
+      const payload = JSON.stringify({ userId, accounts: [account] })
+      const plaintext = new TextEncoder().encode(payload)
+      const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext)
+      const combined = Buffer.concat([iv, Buffer.from(encrypted)])
+      const { writeFileSync } = await import('node:fs')
+      writeFileSync(join(userDir, 'credentials.enc'), combined)
+
+      await expect(loadUserCredentials(userId)).rejects.toThrow('Invalid account configuration')
+    })
+
+    it('should throw when imap port is not a positive integer', async () => {
+      const userId = 'bad-port-user'
+      const dirHash = hashUserId(userId)
+      const userDir = join(_paths.DATA_DIR, dirHash)
+      mkdirSync(userDir, { recursive: true })
+
+      const secret = await _getSecret()
+      const key = await _deriveKey(secret, dirHash)
+      const iv = crypto.getRandomValues(new Uint8Array(12))
+      const account = makeAccount('test@example.com')
+      account.imap.port = 0 // Invalid port
+      const payload = JSON.stringify({ userId, accounts: [account] })
+      const plaintext = new TextEncoder().encode(payload)
+      const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext)
+      const combined = Buffer.concat([iv, Buffer.from(encrypted)])
+      const { writeFileSync } = await import('node:fs')
+      writeFileSync(join(userDir, 'credentials.enc'), combined)
+
+      await expect(loadUserCredentials(userId)).rejects.toThrow('Invalid account configuration')
+    })
+
+    it('should throw when oauth2 token is missing required fields', async () => {
+      const userId = 'bad-oauth-user'
+      const dirHash = hashUserId(userId)
+      const userDir = join(_paths.DATA_DIR, dirHash)
+      mkdirSync(userDir, { recursive: true })
+
+      const secret = await _getSecret()
+      const key = await _deriveKey(secret, dirHash)
+      const iv = crypto.getRandomValues(new Uint8Array(12))
+      const account = makeAccount('test@example.com')
+      account.authType = 'oauth2'
+      account.oauth2 = {
+        accessToken: '', // Empty token
+        refreshToken: 'refresh',
+        expiresAt: 123456789,
+        clientId: 'client'
+      }
+      const payload = JSON.stringify({ userId, accounts: [account] })
       const plaintext = new TextEncoder().encode(payload)
       const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext)
       const combined = Buffer.concat([iv, Buffer.from(encrypted)])

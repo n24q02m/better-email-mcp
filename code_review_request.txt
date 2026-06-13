@@ -1,0 +1,7 @@
+I have strengthened the JSON parsing validation in the credential store to prevent unvalidated data from being used.
+
+Changes:
+- Updated `isValidServerConfig`, `isValidOAuth2Tokens`, and `isValidAccountConfig` in `src/auth/per-user-credential-store.ts` to enforce non-empty strings for critical fields and positive integers for ports.
+- Modified `loadAllUserCredentials` in `src/auth/per-user-credential-store.ts` to throw an error if the decrypted JSON fails schema validation, which is then caught and logged.
+- Added comprehensive unit tests in `src/auth/per-user-credential-store.test.ts` to verify the new validation logic.
+- Updated `.jules/sentinel.md` to document the security fix.

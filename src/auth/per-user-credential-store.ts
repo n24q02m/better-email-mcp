@@ -118,7 +118,14 @@ export function hashUserId(userId: string): string {
 function isValidServerConfig(obj: unknown): obj is import('../tools/helpers/config.js').ServerConfig {
   if (!obj || typeof obj !== 'object') return false
   const s = obj as Record<string, unknown>
-  return typeof s.host === 'string' && typeof s.port === 'number' && typeof s.secure === 'boolean'
+  return (
+    typeof s.host === 'string' &&
+    s.host.length > 0 &&
+    typeof s.port === 'number' &&
+    Number.isInteger(s.port) &&
+    s.port > 0 &&
+    typeof s.secure === 'boolean'
+  )
 }
 
 function isValidOAuth2Tokens(obj: unknown): obj is import('../tools/helpers/oauth2.js').OAuth2Tokens {
@@ -126,16 +133,25 @@ function isValidOAuth2Tokens(obj: unknown): obj is import('../tools/helpers/oaut
   const t = obj as Record<string, unknown>
   return (
     typeof t.accessToken === 'string' &&
+    t.accessToken.length > 0 &&
     typeof t.refreshToken === 'string' &&
+    t.refreshToken.length > 0 &&
     typeof t.expiresAt === 'number' &&
-    typeof t.clientId === 'string'
+    t.expiresAt > 0 &&
+    typeof t.clientId === 'string' &&
+    t.clientId.length > 0
   )
 }
 
 function isValidAccountConfig(obj: unknown): obj is AccountConfig {
   if (!obj || typeof obj !== 'object') return false
   const a = obj as Record<string, unknown>
-  const basic = typeof a.id === 'string' && typeof a.email === 'string' && typeof a.password === 'string'
+  const basic =
+    typeof a.id === 'string' &&
+    a.id.length > 0 &&
+    typeof a.email === 'string' &&
+    a.email.length > 0 &&
+    typeof a.password === 'string'
   if (!basic) return false
 
   if (a.authType !== undefined && a.authType !== 'password' && a.authType !== 'oauth2') return false
@@ -246,13 +262,16 @@ export async function loadAllUserCredentials(): Promise<Map<string, AccountConfi
         parsed &&
         typeof parsed === 'object' &&
         typeof parsed.userId === 'string' &&
+        parsed.userId.length > 0 &&
         isValidAccountConfigs(parsed.accounts)
       ) {
         result.set(parsed.userId, parsed.accounts)
+      } else {
+        throw new Error(`Invalid credential schema in ${entryName}`)
       }
     } catch (err: unknown) {
       // Skip missing or corrupted entries
-      if (err && typeof err === 'object' && 'code' in err && err.code !== 'ENOENT') {
+      if (err && (typeof err !== 'object' || !('code' in err) || err.code !== 'ENOENT')) {
         console.error(`Failed to load credentials from ${entry.name}:`, err)
       }
     }

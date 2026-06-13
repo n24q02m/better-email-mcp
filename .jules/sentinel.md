@@ -29,3 +29,8 @@
  **Vulnerability:** Unchecked `JSON.parse` output when loading the OAuth2 token store or encrypted configurations.
  **Learning:** Accessing properties on unvalidated `JSON.parse` results can cause runtime crashes (TypeErrors) if the file is malformed or contains unexpected primitive values.
  **Prevention:** Use robust type guards (`isValidTokenStore`, `isValidAccountConfigs`) immediately after parsing. Ensure these guards check for `null`, `Array.isArray`, and validate internal field types and constraints (e.g., non-empty strings for tokens, positive numbers for expiration).
+
+## 2026-05-01 - Fix Unvalidated JSON Parsing in Credential Store
+**Vulnerability:** The `per-user-credential-store.ts` module was parsing decrypted JSON payloads from disk without validating the schema before use. This could lead to runtime errors or prototype pollution if the stored files were corrupted or maliciously modified (though they are encrypted).
+**Learning:** Even encrypted data stored on disk should be treated as untrusted upon retrieval. Cryptographic integrity ensures the data hasn't changed since it was written, but it doesn't guarantee the data was valid when written or that the schema hasn't evolved in a breaking way.
+**Prevention:** Always use type guards or schema validation libraries (like Zod) immediately after `JSON.parse()`. Enforce strict checks for required fields, non-empty strings, and proper types (e.g., positive integers for ports).
