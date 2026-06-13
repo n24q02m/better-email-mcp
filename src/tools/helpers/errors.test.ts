@@ -293,3 +293,21 @@ describe('createUnknownActionError', () => {
     expect(error.suggestion).toBe('Supported actions: bar, baz')
   })
 })
+
+describe('findClosestMatch performance optimization (numeric bigrams)', () => {
+  it('correctly handles single-character strings (no bigrams possible)', () => {
+    // With 1 char, inputBigrams.size is 0, score will be 0
+    expect(findClosestMatch('a', ['abc', 'def'])).toBe('abc') // Prefix match still works
+    expect(findClosestMatch('x', ['abc', 'def'])).toBeNull()
+  })
+
+  it('is case-insensitive for both input and options', () => {
+    expect(findClosestMatch('MESSAGES', ['messages', 'folders'])).toBe('messages')
+    expect(findClosestMatch('messages', ['MESSAGES', 'FOLDERS'])).toBe('MESSAGES')
+  })
+
+  it('handles strings with mixed characters and diacritics', () => {
+    // Bigram logic should work same for any char codes
+    expect(findClosestMatch('emáil', ['email', 'inbox'])).toBe('email')
+  })
+})

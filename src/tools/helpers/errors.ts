@@ -160,7 +160,20 @@ function handleSmtpError(error: unknown): EmailMCPError {
 }
 
 // ⚡ Bolt: Cache bigrams for static valid options to avoid recomputing them on every request.
-const validOptionBigramCache = new Map<string, Set<string>>()
+const validOptionBigramCache = new Map<string, Set<number>>()
+
+/**
+ * Helper to compute numeric bigrams for a string.
+ * This avoids string slicing and redundant allocations.
+ */
+function getNumericBigrams(str: string): Set<number> {
+  const bigrams = new Set<number>()
+  for (let i = 0; i < str.length - 1; i++) {
+    // ⚡ Bolt: Represent bigram as a single integer (char1 << 16) | char2
+    bigrams.add((str.charCodeAt(i) << 16) | str.charCodeAt(i + 1))
+  }
+  return bigrams
+}
 
 /**
  * Find the closest matching string from a list of valid options.
@@ -173,11 +186,9 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   let bestMatch: string | null = null
   let bestScore = 0
 
-  // ⚡ Bolt: Pre-compute the input bigrams outside the loop.
-  // This prevents redundant Set allocations and string slicing for the identical
-  // input string on every iteration of validOptions, reducing overhead from O(N*M) to O(N+M).
-  const inputBigrams = new Set<string>()
-  for (let i = 0; i < lower.length - 1; i++) inputBigrams.add(lower.slice(i, i + 2))
+  // ⚡ Bolt: Pre-compute the numeric input bigrams outside the loop.
+  // This prevents redundant Set allocations and string slicing.
+  const inputBigrams = getNumericBigrams(lower)
 
   for (const option of validOptions) {
     const optionLower = option.toLowerCase()
@@ -185,11 +196,10 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
       return option
     }
 
-    // ⚡ Bolt: Use cached bigrams if available, otherwise compute and cache them.
+    // ⚡ Bolt: Use cached numeric bigrams if available, otherwise compute and cache them.
     let optionBigrams = validOptionBigramCache.get(optionLower)
     if (!optionBigrams) {
-      optionBigrams = new Set<string>()
-      for (let i = 0; i < optionLower.length - 1; i++) optionBigrams.add(optionLower.slice(i, i + 2))
+      optionBigrams = getNumericBigrams(optionLower)
       validOptionBigramCache.set(optionLower, optionBigrams)
     }
 
