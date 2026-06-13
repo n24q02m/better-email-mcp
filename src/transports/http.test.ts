@@ -258,8 +258,7 @@ describe('http transport', () => {
       const markComplete = vi.fn()
       vi.mocked(initiateOutlookDeviceCode).mockImplementation(async (_email, callback) => {
         completionCallback = async () => {
-          setState('configured')
-          markComplete('outlook')
+          setState('configured') // Simulated from oauth2.ts background poll
           if (callback) await callback()
         }
         return {
@@ -275,6 +274,7 @@ describe('http transport', () => {
       // tokens and ``saveTokens`` persists them).
       await completionCallback()
 
+      // setState('configured') is called both in oauth2.ts (mocked) and http.ts
       expect(setState).toHaveBeenCalledWith('configured')
       expect(markComplete).toHaveBeenCalledWith('outlook')
     })
@@ -290,7 +290,7 @@ describe('http transport', () => {
       let completionCallback: any
       vi.mocked(initiateOutlookDeviceCode).mockImplementation(async (_email, callback) => {
         completionCallback = async () => {
-          setState('configured')
+          setState('configured') // Simulated from oauth2.ts background poll
           if (callback) await callback()
         }
         return {
@@ -302,7 +302,7 @@ describe('http transport', () => {
 
       await onCredentialsSaved({ EMAIL_CREDENTIALS: 'test@outlook.com:oauth2' })
 
-      expect(() => completionCallback()).not.toThrow()
+      await completionCallback()
       expect(setState).toHaveBeenCalledWith('configured')
     })
 

@@ -30,3 +30,7 @@
 ## 2024-05-18 - Bigram Caching for Static Valid Options
 **Learning:** In string matching algorithms like `findClosestMatch` that compare user input against a static list of valid options, recomputing bigrams for the static options on every invocation is a significant overhead, especially since the number of valid options is small and fixed (e.g., tool names like "messages", "folders").
 **Action:** Always look for opportunities to pre-compute and cache derived data (like bigrams or regular expressions) for static, bounded sets to convert repeated allocations and string operations into fast memory lookups. A simple `Map` reduced the overhead for fuzzy matching by ~2.5x.
+
+## 2026-05-04 - [FIX] Fix form polling JS for Outlook OAuth
+**Learning:** The frontend credential form relies on a specific signaling mechanism (`getMarkSetupComplete()?.('outlook')`) to stop the "Waiting for Microsoft authorization..." spinner. In multi-account or complex transport scenarios, the `onComplete` callback must explicitly invoke this signaling even if the underlying OAuth helper also does it, as the transport layer (HTTP) is the one that wired the `markSetupCompleteFn`.
+**Action:** Always ensure that `onComplete` callbacks for OAuth flows in transport layers (like `src/transports/http.ts`) call `getMarkSetupComplete()?.('outlook')` to satisfy frontend polling status checks.
