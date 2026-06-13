@@ -622,6 +622,16 @@ describe('formatAddress edge cases', () => {
     expect(result.from).toBe('john@test.com')
   })
 
+  it('formats array of AddressObject', async () => {
+    setupReadEmail({
+      to: [{ text: 'To 1 <to1@test.com>' }, { value: [{ name: 'To 2', address: 'to2@test.com' }] }]
+    })
+
+    const result = await readEmail(account, 1, 'INBOX')
+
+    expect(result.to).toBe('To 1 <to1@test.com>, To 2 <to2@test.com>')
+  })
+
   it('formats value array with multiple entries', async () => {
     setupReadEmail({
       to: {
