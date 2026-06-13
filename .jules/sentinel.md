@@ -29,3 +29,8 @@
  **Vulnerability:** Unchecked `JSON.parse` output when loading the OAuth2 token store or encrypted configurations.
  **Learning:** Accessing properties on unvalidated `JSON.parse` results can cause runtime crashes (TypeErrors) if the file is malformed or contains unexpected primitive values.
  **Prevention:** Use robust type guards (`isValidTokenStore`, `isValidAccountConfigs`) immediately after parsing. Ensure these guards check for `null`, `Array.isArray`, and validate internal field types and constraints (e.g., non-empty strings for tokens, positive numbers for expiration).
+
+## 2025-05-15 - Unvalidated JSON Parsing in OAuth Token Store
+**Vulnerability:** Prototype pollution and lack of input validation in the OAuth2 token store. Maliciously crafted `tokens.json` or unvalidated API responses could inject properties into the `TokenStore` or even `Object.prototype`, and invalid token structures could be persisted.
+**Learning:** `JSON.parse()` results should be transferred to a null-prototype object (`Object.create(null)`) and sensitive properties like `__proto__`, `constructor`, and `prototype` should be explicitly deleted or the object should be strictly validated before usage.
+**Prevention:** Always use null-prototype objects for maps/stores and validate all data (especially from external files or APIs) against a strict schema before persisting or caching.

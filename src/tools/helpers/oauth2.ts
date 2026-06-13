@@ -48,7 +48,7 @@ export interface OAuth2Tokens {
 }
 
 interface TokenStore {
-  [email: string]: OAuth2Tokens
+  [email: string]: OAuth2Tokens | undefined
 }
 
 interface DeviceCodeResponse {
@@ -79,9 +79,7 @@ export function isValidTokens(data: unknown): data is OAuth2Tokens {
   const d = data as Record<string, unknown>
   return (
     typeof d.accessToken === 'string' &&
-    d.accessToken.length > 0 &&
     typeof d.refreshToken === 'string' &&
-    d.refreshToken.length > 0 &&
     typeof d.expiresAt === 'number' &&
     !Number.isNaN(d.expiresAt) &&
     d.expiresAt > 0 &&
@@ -145,11 +143,19 @@ export async function loadStoredTokens(email: string): Promise<OAuth2Tokens | nu
 
     const data = await readFile(TOKEN_FILE, 'utf-8')
     const store: unknown = JSON.parse(data)
-    if (!isValidTokenStore(store)) {
-      return null
+    if (store && typeof store === 'object' && !Array.isArray(store)) {
+      // Transfer to clean null-prototype object to prevent prototype pollution
+      const cleanStore: TokenStore = Object.create(null)
+      Object.assign(cleanStore, store)
+      // Ensure no property pollution in cachedTokenStore
+      if ('__proto__' in cleanStore) delete (cleanStore as any).__proto__
+      if ('constructor' in cleanStore) delete (cleanStore as any).constructor
+      if ('prototype' in cleanStore) delete (cleanStore as any).prototype
+      if (!isValidTokenStore(cleanStore)) return null
+      cachedTokenStore = cleanStore
+      return cleanStore[email.toLowerCase()] || null
     }
-    cachedTokenStore = store
-    return store[email.toLowerCase()] || null
+    return null
   } catch (err: unknown) {
     if (err && typeof err === 'object' && 'code' in err && err.code !== 'ENOENT') {
       // Ignore parse errors or other issues, return null
@@ -167,30 +173,36 @@ export function saveTokens(email: string, tokens: OAuth2Tokens): void {
     mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 })
   }
 
-  let store: TokenStore = cachedTokenStore || {}
+  let store: TokenStore = cachedTokenStore || Object.create(null)
   try {
     if (!cachedTokenStore && existsSync(TOKEN_FILE)) {
       const data: unknown = JSON.parse(readFileSync(TOKEN_FILE, 'utf-8'))
-      if (isValidTokenStore(data)) {
-        store = data
+      if (data && typeof data === 'object' && !Array.isArray(data)) {
+        const cleanStore: TokenStore = Object.create(null)
+        Object.assign(cleanStore, data)
+        // Ensure no property pollution
+        if ('__proto__' in cleanStore) delete (cleanStore as any).__proto__
+        if ('constructor' in cleanStore) delete (cleanStore as any).constructor
+        if ('prototype' in cleanStore) delete (cleanStore as any).prototype
+        if (isValidTokenStore(cleanStore)) {
+          store = cleanStore
+        } else {
+          store = Object.create(null)
+        }
       } else {
-        store = {}
+        store = Object.create(null)
       }
     }
   } catch {
-    // Start fresh if file is corrupted
-    store = {}
+    store = Object.create(null)
   }
 
-  store[email.toLowerCase()] = tokens
-  cachedTokenStore = store
-  writeFileSync(TOKEN_FILE, JSON.stringify(store, null, 2), { mode: 0o600 })
+  if (isValidTokens(tokens)) {
+    store[email.toLowerCase()] = tokens
+    cachedTokenStore = store
+    writeFileSync(TOKEN_FILE, JSON.stringify(store, null, 2), { mode: 0o600 })
+  }
 }
-
-/**
- * Refresh an access token using the stored refresh token.
- * Microsoft may rotate the refresh token on each use.
- */
 export async function refreshAccessToken(clientId: string, refreshToken: string): Promise<TokenResponse> {
   const response = await fetch(TOKEN_URL, {
     method: 'POST',
