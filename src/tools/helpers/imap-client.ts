@@ -351,7 +351,6 @@ export async function searchEmails(
               uid: true,
               flags: true,
               envelope: true,
-              bodyStructure: true,
               source: { start: 0, maxLength: 512 }
             },
             { uid: true }
