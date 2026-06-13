@@ -24,12 +24,18 @@ export class EmailMCPError extends Error {
     }
   }
 }
+/**
+ * Type guard for record objects
+ */
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return val !== null && typeof val === 'object'
+}
 
 /**
  * Sanitize error object to remove sensitive information (passwords, tokens)
  */
 function sanitizeErrorDetails(error: unknown): unknown {
-  if (error === null || typeof error !== 'object') {
+  if (!isRecord(error)) {
     return error
   }
 
@@ -37,8 +43,8 @@ function sanitizeErrorDetails(error: unknown): unknown {
   const props = ['message', 'name', 'code', 'status', 'responseCode'] as const
 
   for (const prop of props) {
-    if (prop in error && (error as Record<string, unknown>)[prop] !== undefined) {
-      safe[prop] = (error as Record<string, unknown>)[prop]
+    if (prop in error && error[prop] !== undefined) {
+      safe[prop] = error[prop]
     }
   }
 
@@ -53,7 +59,7 @@ export function enhanceError(error: unknown): EmailMCPError {
     return error
   }
 
-  const errObj = error !== null && typeof error === 'object' ? (error as Record<string, unknown>) : {}
+  const errObj = isRecord(error) ? error : {}
   const message = typeof errObj.message === 'string' ? errObj.message : 'Unknown error occurred'
 
   // IMAP authentication errors
@@ -123,8 +129,8 @@ export function enhanceError(error: unknown): EmailMCPError {
  * Handle SMTP-specific errors
  */
 function handleSmtpError(error: unknown): EmailMCPError {
-  const errObj = error !== null && typeof error === 'object' ? (error as Record<string, unknown>) : {}
-  const code = errObj.responseCode as number
+  const errObj = isRecord(error) ? error : {}
+  const code = typeof errObj.responseCode === 'number' ? errObj.responseCode : 0
 
   switch (code) {
     case 535:
