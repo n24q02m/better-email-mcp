@@ -3,6 +3,21 @@
  * AI-friendly error messages and suggestions for email operations
  */
 
+export interface RawError {
+  message?: string
+  authenticationFailed?: boolean
+  responseCode?: number
+  [key: string]: unknown
+}
+
+export interface EmailMCPErrorJSON {
+  error: string
+  code: string
+  message: string
+  suggestion?: string
+  details?: unknown
+}
+
 export class EmailMCPError extends Error {
   constructor(
     message: string,
@@ -14,7 +29,7 @@ export class EmailMCPError extends Error {
     this.name = 'EmailMCPError'
   }
 
-  toJSON() {
+  toJSON(): EmailMCPErrorJSON {
     return {
       error: this.name,
       code: this.code,
@@ -26,10 +41,17 @@ export class EmailMCPError extends Error {
 }
 
 /**
+ * Check if value is a non-null object
+ */
+function isObject(val: unknown): val is Record<string, unknown> {
+  return val !== null && typeof val === 'object'
+}
+
+/**
  * Sanitize error object to remove sensitive information (passwords, tokens)
  */
 function sanitizeErrorDetails(error: unknown): unknown {
-  if (error === null || typeof error !== 'object') {
+  if (!isObject(error)) {
     return error
   }
 
@@ -37,8 +59,8 @@ function sanitizeErrorDetails(error: unknown): unknown {
   const props = ['message', 'name', 'code', 'status', 'responseCode'] as const
 
   for (const prop of props) {
-    if (prop in error && (error as Record<string, unknown>)[prop] !== undefined) {
-      safe[prop] = (error as Record<string, unknown>)[prop]
+    if (prop in error && error[prop] !== undefined) {
+      safe[prop] = error[prop]
     }
   }
 
@@ -53,7 +75,7 @@ export function enhanceError(error: unknown): EmailMCPError {
     return error
   }
 
-  const errObj = error !== null && typeof error === 'object' ? (error as Record<string, unknown>) : {}
+  const errObj = (isObject(error) ? error : {}) as RawError
   const message = typeof errObj.message === 'string' ? errObj.message : 'Unknown error occurred'
 
   // IMAP authentication errors
@@ -123,7 +145,7 @@ export function enhanceError(error: unknown): EmailMCPError {
  * Handle SMTP-specific errors
  */
 function handleSmtpError(error: unknown): EmailMCPError {
-  const errObj = error !== null && typeof error === 'object' ? (error as Record<string, unknown>) : {}
+  const errObj = (isObject(error) ? error : {}) as RawError
   const code = errObj.responseCode as number
 
   switch (code) {
