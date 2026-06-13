@@ -384,15 +384,16 @@ export function renderEmailCredentialForm(
                     help.id = "help-" + key + "_" + idx;
                     help.className = "help-text";
                     describedBy.push(help.id);
-                    if (helpUrl) {
+
+                    if (!helpUrl) {
+                        help.textContent = helpText;
+                    } else {
                         var a = document.createElement("a");
                         a.setAttribute("href", helpUrl);
                         a.setAttribute("target", "_blank");
                         a.setAttribute("rel", "noopener noreferrer");
                         a.textContent = helpText;
                         help.appendChild(a);
-                    } else {
-                        help.textContent = helpText;
                     }
                     group.appendChild(help);
                 }
@@ -432,10 +433,9 @@ export function renderEmailCredentialForm(
                     var titleEl = cards[i].querySelector(".account-title");
                     if (titleEl) titleEl.textContent = "Account " + (i + 1);
                     var removeBtn = cards[i].querySelector(".remove-btn");
-                    if (removeBtn) {
-                        removeBtn.style.display = i === 0 ? "none" : "";
-                        removeBtn.setAttribute("aria-label", "Remove Account " + (i + 1));
-                    }
+                    if (!removeBtn) continue;
+                    removeBtn.style.display = i === 0 ? "none" : "";
+                    removeBtn.setAttribute("aria-label", "Remove Account " + (i + 1));
                 }
             }
 
@@ -678,26 +678,29 @@ export function renderEmailCredentialForm(
                     fetch(statusUrl)
                         .then(function (r) { return r.json(); })
                         .then(function (s) {
-                            if (s && s.outlook === "complete") {
-                                clearInterval(pollId);
-                                statusBox.className = "status-box success";
-                                while (statusBox.firstChild) statusBox.removeChild(statusBox.firstChild);
-                                var done = document.createElement("strong");
-                                done.textContent = "Setup complete!";
-                                statusBox.appendChild(done);
-                                statusBox.appendChild(document.createElement("br"));
-                                statusBox.appendChild(document.createElement("br"));
-                                submitBtn.textContent = "Connected";
-                                if (typeof pendingRedirectUrl === "string" && pendingRedirectUrl.length > 0) {
-                                    // Follow the OAuth redirect so external clients receive the
-                                    // auth code. Without this the form stalls on "close tab" and
-                                    // the client callback server hangs forever.
-                                    statusBox.appendChild(document.createTextNode("Outlook authorized. Redirecting..."));
-                                    window.location.replace(pendingRedirectUrl);
-                                } else {
-                                    statusBox.appendChild(document.createTextNode("Outlook authorized. You can close this tab."));
-                                }
+                            if (!s || s.outlook !== "complete") return;
+
+                            clearInterval(pollId);
+                            statusBox.className = "status-box success";
+                            while (statusBox.firstChild) statusBox.removeChild(statusBox.firstChild);
+
+                            var done = document.createElement("strong");
+                            done.textContent = "Setup complete!";
+                            statusBox.appendChild(done);
+                            statusBox.appendChild(document.createElement("br"));
+                            statusBox.appendChild(document.createElement("br"));
+                            submitBtn.textContent = "Connected";
+
+                            if (typeof pendingRedirectUrl === "string" && pendingRedirectUrl.length > 0) {
+                                // Follow the OAuth redirect so external clients receive the
+                                // auth code. Without this the form stalls on "close tab" and
+                                // the client callback server hangs forever.
+                                statusBox.appendChild(document.createTextNode("Outlook authorized. Redirecting..."));
+                                window.location.replace(pendingRedirectUrl);
+                                return;
                             }
+
+                            statusBox.appendChild(document.createTextNode("Outlook authorized. You can close this tab."));
                         })
                         .catch(function () {});
                 }, 3000);
@@ -762,43 +765,44 @@ export function renderEmailCredentialForm(
                     body: JSON.stringify(payload)
                 })
                     .then(function (resp) {
-                        return resp.json().then(function (data) {
-                            if (!data.ok) {
-                                showStatus("error", data.error || data.error_description || "Request failed.");
-                                formFieldset.disabled = false;
-                                submitBtn.removeAttribute("aria-busy");
-                                submitBtn.textContent = "Connect";
-                                return;
-                            }
+                        return resp.json();
+                    })
+                    .then(function (data) {
+                        if (!data.ok) {
+                            showStatus("error", data.error || data.error_description || "Request failed.");
+                            formFieldset.disabled = false;
+                            submitBtn.removeAttribute("aria-busy");
+                            submitBtn.textContent = "Connect";
+                            return;
+                        }
 
-                            // Stash the OAuth redirect target so follow-up async steps
-                            // (device code poll, future OTP) can navigate to it when
-                            // they complete instead of orphaning the client callback.
-                            if (typeof data.redirect_url === "string" && data.redirect_url.length > 0) {
-                                pendingRedirectUrl = data.redirect_url;
-                            }
+                        // Stash the OAuth redirect target so follow-up async steps
+                        // (device code poll, future OTP) can navigate to it when
+                        // they complete instead of orphaning the client callback.
+                        if (typeof data.redirect_url === "string" && data.redirect_url.length > 0) {
+                            pendingRedirectUrl = data.redirect_url;
+                        }
 
-                            if (data.next_step && data.next_step.type === "oauth_device_code") {
-                                submitBtn.innerHTML =
-                                    '<span class="spinner" aria-hidden="true"></span> Awaiting Microsoft...';
-                                submitBtn.removeAttribute("aria-busy");
-                                renderOAuthDeviceCode(data.next_step);
-                                return;
-                            }
+                        if (data.next_step && data.next_step.type === "oauth_device_code") {
+                            submitBtn.innerHTML =
+                                '<span class="spinner" aria-hidden="true"></span> Awaiting Microsoft...';
+                            submitBtn.removeAttribute("aria-busy");
+                            renderOAuthDeviceCode(data.next_step);
+                            return;
+                        }
 
-                            if (pendingRedirectUrl) {
-                                // No interactive next step — follow the OAuth redirect now.
-                                showStatus("success", "Credentials saved. Redirecting...");
-                                submitBtn.textContent = "Connected";
-                                submitBtn.removeAttribute("aria-busy");
-                                window.location.replace(pendingRedirectUrl);
-                                return;
-                            }
-
-                            showStatus("success", data.message || "Setup complete! You can close this tab.");
+                        if (pendingRedirectUrl) {
+                            // No interactive next step — follow the OAuth redirect now.
+                            showStatus("success", "Credentials saved. Redirecting...");
                             submitBtn.textContent = "Connected";
                             submitBtn.removeAttribute("aria-busy");
-                        });
+                            window.location.replace(pendingRedirectUrl);
+                            return;
+                        }
+
+                        showStatus("success", data.message || "Setup complete! You can close this tab.");
+                        submitBtn.textContent = "Connected";
+                        submitBtn.removeAttribute("aria-busy");
                     })
                     .catch(function (err) {
                         showStatus("error", "Network error: " + err.message);

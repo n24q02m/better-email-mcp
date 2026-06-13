@@ -59,3 +59,6 @@
 
 **Learning:** When dynamic content like new form sections are added or removed, relying entirely on visual layout updates disrupts accessibility. If a removed element had focus, focus is typically dropped to the document `<body>`. For keyboard-only and screen reader users, this necessitates tabbing through the entire page again. Additionally, newly spawned elements aren't automatically focused.
 **Action:** Implement active programmatic focus management for all dynamic content changes. When adding elements, immediately focus their primary input. When removing focused elements, explicitly return focus to the logical preceding element (e.g., the button that triggered the creation, or a 'container' wrapper) to maintain a continuous interaction flow.
+## 2025-05-15 - Improved code clarity in credential form
+ **Learning:** In embedded frontend scripts, explicit state checks at the start of callbacks (e.g., polling handlers) simplify the main logic flow by eliminating large "if-success" blocks.
+ **Action:** Prioritize early exit conditions for non-target states to keep the primary success path at the top level of the function scope.
