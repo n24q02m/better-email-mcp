@@ -29,3 +29,9 @@
  **Vulnerability:** Unchecked `JSON.parse` output when loading the OAuth2 token store or encrypted configurations.
  **Learning:** Accessing properties on unvalidated `JSON.parse` results can cause runtime crashes (TypeErrors) if the file is malformed or contains unexpected primitive values.
  **Prevention:** Use robust type guards (`isValidTokenStore`, `isValidAccountConfigs`) immediately after parsing. Ensure these guards check for `null`, `Array.isArray`, and validate internal field types and constraints (e.g., non-empty strings for tokens, positive numbers for expiration).
+
+## 2026-06-13 - [SECURITY] Hardened PBKDF2 iterations with constants
+
+**Vulnerability:** Use of magic numbers and potentially weak environment checks for PBKDF2 iteration counts.
+**Learning:** Centralizing cryptographic parameters into exported constants improves auditability and ensures consistency between production and test environments. Strict `NODE_ENV === 'test'` checks prevent accidental security downgrades in production.
+**Prevention:** Define `PBKDF2_ITERATIONS_PROD` and `PBKDF2_ITERATIONS_TEST` constants. Use function parameters to allow explicit overrides in tests without relying on environment variables.

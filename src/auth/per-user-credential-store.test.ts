@@ -67,6 +67,29 @@ describe('per-user-credential-store', () => {
       expect(key2).toBeDefined()
       expect(key3).toBeDefined()
     })
+
+    it('should use provided iterations override', async () => {
+      const secret = 'test-secret'
+      const userId = 'test-user'
+      const accounts = [makeAccount('test@gmail.com')]
+
+      // We can't easily inspect the internal iterations of the CryptoKey,
+      // but we can verify that different iterations produce different results.
+      const key1 = await _deriveKey(secret, userId, 1000)
+      const key2 = await _deriveKey(secret, userId, 1001)
+
+      const iv = crypto.getRandomValues(new Uint8Array(12))
+      const plaintext = new TextEncoder().encode(JSON.stringify(accounts))
+
+      const encrypted1 = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key1, plaintext)
+      const encrypted2 = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key2, plaintext)
+
+      expect(Buffer.from(encrypted1).toString('hex')).not.toBe(Buffer.from(encrypted2).toString('hex'))
+
+      // Also verify we can decrypt with the same iterations
+      const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key1, encrypted1)
+      expect(JSON.parse(new TextDecoder().decode(decrypted))).toEqual(accounts)
+    })
   })
 
   describe('hashUserId', () => {

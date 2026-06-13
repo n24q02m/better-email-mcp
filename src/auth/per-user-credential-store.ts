@@ -39,6 +39,10 @@ const SECRET_PATH = join(homedir(), '.better-email-mcp', '.user-secret')
 
 /** Exposed for testing -- override storage paths */
 export const _paths = { DATA_DIR, SECRET_PATH }
+/** High iteration count for production security */
+export const PBKDF2_ITERATIONS_PROD = 600_000
+/** Lower iteration count for faster test execution */
+export const PBKDF2_ITERATIONS_TEST = 1_000
 
 /** Exposed for testing */
 export async function _getSecret(): Promise<string> {
@@ -101,7 +105,7 @@ async function deriveKey(secret: string, userId = '', iterations?: number): Prom
       name: 'PBKDF2',
       hash: 'SHA-256',
       salt: new TextEncoder().encode(`mcp-email-per-user:${userId || 'default'}`),
-      iterations: iterations ?? (process.env.NODE_ENV === 'test' ? 1000 : 600_000)
+      iterations: iterations ?? (process.env.NODE_ENV === 'test' ? PBKDF2_ITERATIONS_TEST : PBKDF2_ITERATIONS_PROD)
     },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
