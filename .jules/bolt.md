@@ -30,3 +30,6 @@
 ## 2024-05-18 - Bigram Caching for Static Valid Options
 **Learning:** In string matching algorithms like `findClosestMatch` that compare user input against a static list of valid options, recomputing bigrams for the static options on every invocation is a significant overhead, especially since the number of valid options is small and fixed (e.g., tool names like "messages", "folders").
 **Action:** Always look for opportunities to pre-compute and cache derived data (like bigrams or regular expressions) for static, bounded sets to convert repeated allocations and string operations into fast memory lookups. A simple `Map` reduced the overhead for fuzzy matching by ~2.5x.
+## 2026-06-15 - [Avoid requesting bodyStructure unless needed]
+**Learning:** When fetching emails via IMAP (e.g., in `searchEmails`), requesting `bodyStructure: true` forces the server to parse the MIME tree and transmit extra data, causing significant performance and network overhead, even when the response is not utilized by the client code.
+**Action:** Remove `bodyStructure: true` from the `fetchAll` options in `searchEmails` and other places where the full MIME structure is not strictly required.
