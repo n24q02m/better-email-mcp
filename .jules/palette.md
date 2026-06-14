@@ -59,3 +59,9 @@
 
 **Learning:** When dynamic content like new form sections are added or removed, relying entirely on visual layout updates disrupts accessibility. If a removed element had focus, focus is typically dropped to the document `<body>`. For keyboard-only and screen reader users, this necessitates tabbing through the entire page again. Additionally, newly spawned elements aren't automatically focused.
 **Action:** Implement active programmatic focus management for all dynamic content changes. When adding elements, immediately focus their primary input. When removing focused elements, explicitly return focus to the logical preceding element (e.g., the button that triggered the creation, or a 'container' wrapper) to maintain a continuous interaction flow.
+
+## 2025-05-26 - Novalidate Form Submission Handling
+
+**Learning:** When using the `novalidate` attribute on a form to disable default browser popups (for custom inline error handling), intercepting the `submit` event with `preventDefault()` completely bypasses all validation events (like `invalid`). This means inputs won't show errors and keyboard users won't be directed to fix their mistakes.
+
+**Action:** In `submit` event handlers for `novalidate` forms, explicitly call `form.checkValidity()`. If false, query the first invalid element (`form.querySelector('input:invalid...')`) and call `.focus()` to programmatically trigger standard validation events and correctly route the user to the problem area.
