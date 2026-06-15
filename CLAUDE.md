@@ -42,12 +42,12 @@ mise run fix       # bun run check:fix
 ```
 src/
   init-server.ts                 # Entry point, env validation
-  relay-setup.ts                 # Zero-config relay: create session, poll for config
+  relay-setup.ts                 # formatCredentials() helper (relay form fields -> EMAIL_CREDENTIALS string)
   relay-schema.ts                # Relay form schema (email credential fields)
   credential-state.ts            # Single-user / stdio credential resolution from env
   auth/                          # Per-user credential store + Outlook OAuth (HTTP mode)
-    per-user-credential-store.ts # AES-256-GCM encrypted per-user credential storage
-    in-memory-cred-store.ts      # Ephemeral in-memory credential store
+    per-user-credential-store.ts # AES-256-GCM disk per-user store (DEPRECATED, no live caller)
+    in-memory-cred-store.ts      # LIVE per-user store: ephemeral in-memory, keyed by JWT sub
     outlook-device-code.ts       # Microsoft device-code OAuth flow
     subject-context.ts           # Per-request JWT-sub scope (AsyncLocalStorage)
   transports/
@@ -66,7 +66,7 @@ src/
   - Custom IMAP host: `user@custom.com:password:imap.custom.com`
   - Custom IMAP host + port: `user@custom.com:password:imap.custom.com:1993`
   - Local IMAP proxy: `user@custom.com:password:localhost:1993` (`localhost` accepted as host; per-account port)
-- **http mode** (opt-in via `--http`, `MCP_TRANSPORT=http`, or `TRANSPORT_MODE=http`): `PUBLIC_URL` (for relay/OAuth redirect URLs). `CREDENTIAL_SECRET` optional (per-user store encryption; auto-generated to a 0600 secret file if unset). `MCP_AUTH_DISABLE=1` skips Bearer JWT verification (for deploys behind an external auth gateway).
+- **http mode** (opt-in via `--http`, `MCP_TRANSPORT=http`, or `TRANSPORT_MODE=http`): `PUBLIC_URL` (for relay/OAuth redirect URLs). Per-user credentials are held in an in-memory store (`auth/in-memory-cred-store.ts`, keyed by JWT `sub`, cleared on restart). `CREDENTIAL_SECRET` is read only by the deprecated disk-backed `auth/per-user-credential-store.ts`, which has no live caller; the in-memory store does not use it. `MCP_AUTH_DISABLE=1` skips Bearer JWT verification (for deploys behind an external auth gateway).
 - `PORT` (default `0` = OS-assigned random port), `HOST` (optional bind address)
 - `OUTLOOK_CLIENT_ID` -- tu chon, cho self-hosted OAuth2 client
 
@@ -103,19 +103,13 @@ Two transports, selected in `init-server.ts:52-53`. There is no `MCP_MODE` env v
 
 ## Known bugs (phat hien 2026-04-18 E2E)
 
-1. **Outlook Device Code flow (local-relay mode cũ): mo 2 tab auth giong het nhau**:
-   - Chỉ affect path local-relay với Outlook đã deprecated. Remote-relay (default) dùng mcp-core delegated device_code — không duplicate.
-   - Nếu tái hiện trong remote-relay, debug: check if `tryOpenBrowser` bị call 2 lần hoặc browser auto-open + explicit link conflict.
+1. **(Obsolete)** Outlook Device Code "2 tab" duplicate auth — chỉ affect `local-relay` mode, đã bị gỡ cùng với `MCP_MODE` (xem mục Modes). HTTP mode hiện dùng mcp-core delegated device_code, không duplicate.
 
-2. **Browser UI stuck "Waiting for server..." (local-relay mode only)**:
-   - Chỉ affect `MCP_MODE=local-relay` (paste form flow)
-   - Same upstream bug nhu better-notion-mcp: `packages/core-ts/src/relay/client.ts:sendMessage('complete')` khong reach browser
-   - See `C:\Users\n24q02m-wlap\projects\mcp-core\CLAUDE.md` Known bugs #2
-   - Remote-relay không ảnh hưởng.
+2. **(Obsolete)** Browser UI stuck "Waiting for server..." — chỉ affect `MCP_MODE=local-relay` (ECDH `relay/client.ts:sendMessage('complete')` paste-form flow), đã bị gỡ. Không còn relay-client path nào live trong HTTP mode.
 
-3. **Config storage path**: TS server dung `$APPDATA\mcp\Config\config.enc` (khac Python servers `$LOCALAPPDATA\mcp\config.enc`). Khi debug/test, clean ca 2 paths + `~/.better-email-mcp/tokens.json` de reset state.
+3. **Config storage path**: stdio/single-user config ghi qua mcp-core `config-file.js` -> `config.enc` tại platformdirs `mcp` config dir (`$APPDATA\mcp\Config\config.enc` trên Windows; khac Python servers `$LOCALAPPDATA\mcp\config.enc`). Khi debug/test, clean ca 2 paths + `~/.better-email-mcp/tokens.json` de reset state.
 
-4. **Outlook token email key in remote-relay**: `saveOutlookTokens` fallback to `OUTLOOK_EMAIL` env hoac `'outlook-device-code'` khi Microsoft token response khong include email field (device code mặc định không trả email). Workaround: set `OUTLOOK_EMAIL` env var khi self-host. Long-term fix: request `openid email profile` scopes + decode id_token trong onTokenReceived.
+4. **Outlook token email key**: `saveOutlookTokens` fallback to `OUTLOOK_EMAIL` env hoac `'outlook-device-code'` khi Microsoft token response khong include email field (device code mặc định không trả email). Workaround: set `OUTLOOK_EMAIL` env var khi self-host. Long-term fix: request `openid email profile` scopes + decode id_token trong onTokenReceived.
 
 ## E2E
 
@@ -135,6 +129,6 @@ Tier policy:
 - **T2 non-interaction** (`make e2e-config CONFIG=<id>` locally) - driver pre-fills relay form from skret AWS SSM `/better-email-mcp/prod` (`ap-southeast-1`). No user gate.
 - **T2 interaction** - driver fills relay form, then prints upstream user-gate URL; user signs in / types OTP at provider. Driver enforces per-flow timeouts (device-code 900s, oauth-redirect 300s, browser-form 600s) and emits `[poll] elapsed=Xs remaining=Ys status=<body>` every 30s. On timeout, container logs + last `setup-status` are saved to `<tmp>/e2e-diag/` BEFORE teardown for post-mortem.
 
-Multi-user remote mode (deployment property; not a separate config) uses `CREDENTIAL_SECRET` to encrypt the per-user credential store (`auth/per-user-credential-store.ts:78`). It is optional — if unset, a 32-byte secret is generated and persisted to a 0600 secret file. Provide it via the skret namespace to keep per-user stores decryptable across container restarts.
+Multi-user remote mode (deployment property; not a separate config) keys per-user credentials by JWT `sub` in an in-memory store (`auth/in-memory-cred-store.ts`, TC-NearZK), cleared on restart — users re-submit after a restart. The disk-backed `auth/per-user-credential-store.ts` (AES-256-GCM + PBKDF2 from `CREDENTIAL_SECRET`) is deprecated and has no live caller.
 
 References: `mcp-core/scripts/e2e/matrix.yaml`, `~/.claude/skills/mcp-dev/references/e2e-full-matrix.md` (harness-readiness gate), `~/.claude/skills/mcp-dev/references/secrets-skret.md` (per-server credential layout), `~/.claude/skills/mcp-dev/references/multi-user-pattern.md` (per-JWT-sub isolation).
