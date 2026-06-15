@@ -97,7 +97,7 @@ mcp-name: io.github.n24q02m/better-email-mcp
 Full docs at **[mcp.n24q02m.com/servers/better-email-mcp/setup/](https://mcp.n24q02m.com/servers/better-email-mcp/setup/)**:
 
 - [Setup](https://mcp.n24q02m.com/servers/better-email-mcp/setup/) -- install methods for Claude Code, Codex, Gemini CLI, Cursor, Windsurf, mcp.json
-- [Modes overview](https://mcp.n24q02m.com/get-started/modes-overview/) -- stdio / local-relay / remote-relay / remote-oauth
+- [Modes overview](https://mcp.n24q02m.com/get-started/modes-overview/) -- stdio (default) and HTTP (opt-in, multi-user with OAuth 2.1)
 - [Multi-user setup](https://mcp.n24q02m.com/get-started/multi-user/) -- per-JWT-sub credential model
 
 **Install with AI agent** -- paste this to your AI coding agent:
@@ -165,11 +165,10 @@ Single multi-user mode (relay form for App-Password providers + bundled Outlook 
 docker run -p 8080:8080 \
   -e PORT=8080 \
   -e PUBLIC_URL=https://your-domain.com \
-  -e CREDENTIAL_SECRET=$(openssl rand -hex 32) \
   n24q02m/better-email-mcp:latest
 ```
 
-Users provide their own email credentials through the OAuth flow / paste form. No server-side `EMAIL_CREDENTIALS` needed. Outlook OAuth uses the bundled public Azure client (`d56f8c71-9f7c-43f4-9934-be29cb6e77b0`, Thunderbird-pattern) -- no user-side Azure app registration needed.
+Users provide their own email credentials through the OAuth flow / paste form. No server-side `EMAIL_CREDENTIALS` needed. Per-user credentials are held in an in-memory store (cleared on restart); users re-submit after a restart. Outlook OAuth uses the bundled public Azure client (`d56f8c71-9f7c-43f4-9934-be29cb6e77b0`, Thunderbird-pattern) -- no user-side Azure app registration needed.
 
 ## Outlook OAuth Device Code (HTTP mode)
 
@@ -192,7 +191,7 @@ In **stdio mode**, Outlook accounts use an **App Password** instead (Outlook Acc
 | `EMAIL_USER` | Alternative (stdio, single-account) | - | Email address. Used with `EMAIL_APP_PASSWORD` as a per-field alternative to `EMAIL_CREDENTIALS`; merged into `EMAIL_CREDENTIALS` at boot |
 | `EMAIL_APP_PASSWORD` | Alternative (stdio, single-account) | - | App password (Gmail/Yahoo/iCloud) or Outlook App Password; used with `EMAIL_USER` |
 | `PUBLIC_URL` | No (http) | - | Server's public URL for relay / OAuth redirect links |
-| `CREDENTIAL_SECRET` | No (http) | auto-generated | Secret used to encrypt the per-user credential store; if unset, a random 32-byte secret is generated and persisted to a 0600 file |
+| `CREDENTIAL_SECRET` | No (http) | - | Reserved for the deprecated disk-backed per-user store. The live HTTP multi-user store is in-memory (`InMemoryCredStore`, cleared on restart) and does not read this variable |
 | `PORT` | No | `0` (OS-assigned) | Server port (http mode); set explicitly (e.g. `8080`) to bind a fixed port |
 | `HOST` | No | - | Bind address (http mode) |
 | `MCP_AUTH_DISABLE` | No (http) | - | Set to `1` to skip Bearer JWT verification when behind an external auth gateway |
@@ -267,9 +266,9 @@ This plugin implements **TC-NearZK** (in-memory, ephemeral). See the [mcp-core t
 
 | Mode | Storage | Encryption | Who can read your data? |
 |---|---|---|---|
-| HTTP n24q02m-hosted (default) | In-memory `Map<sub, OAuthToken>` | In-process only | Server process (cleared on restart) |
+| HTTP remote (hosted) | In-memory `Map<sub, OAuthToken>` | In-process only | Server process (cleared on restart) |
 | HTTP self-host | Same as hosted | Same | Only you (admin = user) |
-| stdio proxy | `~/.better-email-mcp/config.json` | AES-GCM, machine-bound key | Only your OS user (file perm 0600) |
+| stdio | platformdirs `mcp` config dir (`config.enc`; e.g. `%APPDATA%\mcp\Config\config.enc` on Windows) | AES-GCM, machine-bound key | Only your OS user (file perm 0600) |
 
 ## License
 

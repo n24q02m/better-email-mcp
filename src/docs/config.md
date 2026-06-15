@@ -3,7 +3,7 @@
 Manage email credential setup and runtime configuration.
 
 ### Description
-This tool allows you to check the status of your email credentials, manually trigger the interactive relay setup process, reset your configuration, signal completion of external setup, and manage runtime caches.
+This tool allows you to check the status of your email credentials, return the setup URL, reset your configuration, signal completion of external setup, and manage runtime caches. In HTTP mode the credential form is already served at `/authorize` (use `config__open_relay` to open it); in stdio mode credentials come from env vars and there is no setup URL.
 
 ### Actions
 
@@ -16,14 +16,14 @@ Check current credential state.
 ```
 
 #### 2. setup_start
-Trigger the relay setup session and return the setup URL.
+Return the current setup URL (the credential form on `/authorize` in HTTP mode). Does not spawn a separate relay session; in stdio mode the URL is `null` (credentials come from env vars).
 ```json
 {
   "action": "setup_start",
   "force": true
 }
 ```
-*   `force`: (Optional) boolean. Set to `true` to force restarting the relay setup even if one is already in progress.
+*   `force`: (Optional) boolean. Accepted for compatibility; the current implementation does not restart a relay session.
 
 #### 3. setup_reset
 Clear all saved credentials and reset to awaiting_setup state.
