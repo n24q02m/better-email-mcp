@@ -192,7 +192,6 @@ In **stdio mode**, Outlook accounts use an **App Password** instead (Outlook Acc
 | `EMAIL_USER` | Alternative (stdio, single-account) | - | Email address. Used with `EMAIL_APP_PASSWORD` as a per-field alternative to `EMAIL_CREDENTIALS`; merged into `EMAIL_CREDENTIALS` at boot |
 | `EMAIL_APP_PASSWORD` | Alternative (stdio, single-account) | - | App password (Gmail/Yahoo/iCloud) or Outlook App Password; used with `EMAIL_USER` |
 | `PUBLIC_URL` | No (http) | - | Server's public URL for relay / OAuth redirect links |
-| `CREDENTIAL_SECRET` | No (http) | - | Reserved for the deprecated disk-backed per-user store. The live HTTP multi-user store is in-memory (`InMemoryCredStore`, cleared on restart) and does not read this variable |
 | `PORT` | No | `0` (OS-assigned) | Server port (http mode); set explicitly (e.g. `8080`) to bind a fixed port |
 | `HOST` | No | - | Bind address (http mode) |
 | `MCP_AUTH_DISABLE` | No (http) | - | Set to `1` to skip Bearer JWT verification when behind an external auth gateway |

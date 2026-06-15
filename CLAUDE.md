@@ -46,7 +46,6 @@ src/
   relay-schema.ts                # Relay form schema (email credential fields)
   credential-state.ts            # Single-user / stdio credential resolution from env
   auth/                          # Per-user credential store + Outlook OAuth (HTTP mode)
-    per-user-credential-store.ts # AES-256-GCM disk per-user store (DEPRECATED, no live caller)
     in-memory-cred-store.ts      # LIVE per-user store: ephemeral in-memory, keyed by JWT sub
     outlook-device-code.ts       # Microsoft device-code OAuth flow
     subject-context.ts           # Per-request JWT-sub scope (AsyncLocalStorage)
@@ -66,7 +65,7 @@ src/
   - Custom IMAP host: `user@custom.com:password:imap.custom.com`
   - Custom IMAP host + port: `user@custom.com:password:imap.custom.com:1993`
   - Local IMAP proxy: `user@custom.com:password:localhost:1993` (`localhost` accepted as host; per-account port)
-- **http mode** (opt-in via `--http`, `MCP_TRANSPORT=http`, or `TRANSPORT_MODE=http`): `PUBLIC_URL` (for relay/OAuth redirect URLs). Per-user credentials are held in an in-memory store (`auth/in-memory-cred-store.ts`, keyed by JWT `sub`, cleared on restart). `CREDENTIAL_SECRET` is read only by the deprecated disk-backed `auth/per-user-credential-store.ts`, which has no live caller; the in-memory store does not use it. `MCP_AUTH_DISABLE=1` skips Bearer JWT verification (for deploys behind an external auth gateway).
+- **http mode** (opt-in via `--http`, `MCP_TRANSPORT=http`, or `TRANSPORT_MODE=http`): `PUBLIC_URL` (for relay/OAuth redirect URLs). Per-user credentials are held in an in-memory store (`auth/in-memory-cred-store.ts`, keyed by JWT `sub`, cleared on restart). `MCP_AUTH_DISABLE=1` skips Bearer JWT verification (for deploys behind an external auth gateway).
 - `PORT` (default `0` = OS-assigned random port), `HOST` (optional bind address)
 - `OUTLOOK_CLIENT_ID` -- tu chon, cho self-hosted OAuth2 client
 
@@ -129,6 +128,6 @@ Tier policy:
 - **T2 non-interaction** (`make e2e-config CONFIG=<id>` locally) - driver pre-fills relay form from skret AWS SSM `/better-email-mcp/prod` (`ap-southeast-1`). No user gate.
 - **T2 interaction** - driver fills relay form, then prints upstream user-gate URL; user signs in / types OTP at provider. Driver enforces per-flow timeouts (device-code 900s, oauth-redirect 300s, browser-form 600s) and emits `[poll] elapsed=Xs remaining=Ys status=<body>` every 30s. On timeout, container logs + last `setup-status` are saved to `<tmp>/e2e-diag/` BEFORE teardown for post-mortem.
 
-Multi-user remote mode (deployment property; not a separate config) keys per-user credentials by JWT `sub` in an in-memory store (`auth/in-memory-cred-store.ts`, TC-NearZK), cleared on restart — users re-submit after a restart. The disk-backed `auth/per-user-credential-store.ts` (AES-256-GCM + PBKDF2 from `CREDENTIAL_SECRET`) is deprecated and has no live caller.
+Multi-user remote mode (deployment property; not a separate config) keys per-user credentials by JWT `sub` in an in-memory store (`auth/in-memory-cred-store.ts`, TC-NearZK), cleared on restart — users re-submit after a restart.
 
 References: `mcp-core/scripts/e2e/matrix.yaml`, `~/.claude/skills/mcp-dev/references/e2e-full-matrix.md` (harness-readiness gate), `~/.claude/skills/mcp-dev/references/secrets-skret.md` (per-server credential layout), `~/.claude/skills/mcp-dev/references/multi-user-pattern.md` (per-JWT-sub isolation).
