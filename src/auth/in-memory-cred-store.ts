@@ -1,10 +1,9 @@
 /**
  * Per-user credential store with in-memory storage only (TC-NearZK).
  *
- * Replaces deprecated per-user-credential-store.ts (disk-encrypted
- * AES-GCM + PBKDF2) for HTTP multi-user mode. v1.0+ aligns with Notion's
- * in-memory pattern: server has access during request lifetime; restart
- * clears all credentials, users re-OAuth.
+ * The sole per-user credential store for HTTP multi-user mode. v1.0+ aligns
+ * with Notion's in-memory pattern: server has access during request lifetime;
+ * restart clears all credentials, users re-OAuth.
  *
  * Trust model: server admin (n24q02m operator) can dump live memory via
  * debugger but no persistent file = no FS-dump compromise + no admin
