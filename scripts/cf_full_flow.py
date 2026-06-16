@@ -262,6 +262,31 @@ async def run_auth_only(endpoint: str) -> None:
     print("AUTH-ONLY PASS: state survived recreate (KV creds resolved, no re-save).")
 
 
+async def run_tools(endpoint: str) -> None:
+    """Exercise the read-only tool surface end-to-end on the live deployment
+    (beyond folders/config): save creds, then drive messages(search), help, and
+    config(status) through the real per-sub IMAP path. send/attachments(download)
+    are skipped here -- send is an OUTWARD action and attachments(download) needs a
+    real uid; the IMAP read path they share is already exercised by search."""
+    token = get_token(endpoint, {"EMAIL_CREDENTIALS": _email_credentials()})
+    print("TOKEN OK len=", len(token), "sub=", _sub_of(token))
+    transport, ClientSession = await _session(endpoint, token)
+    async with transport as (r, w, _), ClientSession(r, w) as s:
+        await s.initialize()
+        print("TOOLS:", [t.name for t in (await s.list_tools()).tools])
+        status = await _call(s, "CONFIG_STATUS", "config", {"action": "status"})
+        _assert_account_resolved(await _call(s, "FOLDERS_LIST", "folders", {"action": "list"}))
+        # messages(search): exercises an IMAP SELECT + SEARCH + header FETCH over
+        # the KV-resolved account -- the real read path the agent uses most.
+        search = await _call(s, "MESSAGES_SEARCH", "messages", {"action": "search", "query": "ALL", "limit": 2})
+        assert search is not None and "error" not in search.lower(), f"messages(search) failed: {search}"
+        # help: docs-resource path, no credentials required.
+        helptxt = await _call(s, "HELP", "help", {"tool_name": "messages"})
+        assert helptxt is not None and "messages" in helptxt.lower(), f"help failed: {helptxt}"
+        assert status is not None and "configured" in status.lower(), f"config(status) not configured: {status}"
+    print("TOOLS PASS: config + folders + messages(search) + help all resolved over the per-sub KV path.")
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         description="CF better-email-mcp live OAuth full-flow self-test harness.",
@@ -271,6 +296,7 @@ def build_parser() -> argparse.ArgumentParser:
     mode = p.add_mutually_exclusive_group()
     mode.add_argument("--save-only", action="store_true", help="save creds for one sub + dump token (recreate-gate setup).")
     mode.add_argument("--auth-only", action="store_true", help="replay dumped token, no re-save (recreate-gate verify).")
+    mode.add_argument("--tools", action="store_true", help="exercise read-only tool surface (messages/help) on the live deploy.")
     return p
 
 
@@ -280,6 +306,8 @@ def main(argv: list[str] | None = None) -> int:
         asyncio.run(run_save_only(args.endpoint))
     elif args.auth_only:
         asyncio.run(run_auth_only(args.endpoint))
+    elif args.tools:
+        asyncio.run(run_tools(args.endpoint))
     else:
         asyncio.run(run_full(args.endpoint))
     return 0
