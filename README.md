@@ -169,7 +169,26 @@ docker run -p 8080:8080 \
   n24q02m/better-email-mcp:latest
 ```
 
-Users provide their own email credentials through the OAuth flow / paste form. No server-side `EMAIL_CREDENTIALS` needed. Per-user credentials are held in an in-memory store (cleared on restart); users re-submit after a restart. Outlook OAuth uses the bundled public Azure client (`d56f8c71-9f7c-43f4-9934-be29cb6e77b0`, Thunderbird-pattern) -- no user-side Azure app registration needed.
+Users provide their own email credentials through the OAuth flow / paste form. No server-side `EMAIL_CREDENTIALS` needed. With the default Docker self-host, per-user credentials are held in an in-memory store (cleared on restart); users re-submit after a restart. Outlook OAuth uses the bundled public Azure client (`d56f8c71-9f7c-43f4-9934-be29cb6e77b0`, Thunderbird-pattern) -- no user-side Azure app registration needed.
+
+### Cloudflare serverless mode (KV-only)
+
+Deploy a per-user serverless instance at `https://email.n24q02m.com`: each JWT `sub`
+gets its own Container Durable Object, and all credentials AND Outlook OAuth tokens are
+AES-256-GCM encrypted into Workers KV (one `subs/<sub>/config` blob per user) so they
+**survive scale-to-zero / container recreate with no re-auth**. The JWT signing key is
+derived deterministically from `CREDENTIAL_SECRET` (EdDSA), so the user's identity is
+stable across recreate. Required secrets: `CREDENTIAL_SECRET` (per-sub vault + EdDSA),
+`MCP_RELAY_PASSWORD` (form gate), `MCP_DCR_SERVER_SECRET` (intentional multi-user
+deploy). See `wrangler.jsonc`.
+
+> Keying Outlook tokens by JWT `sub` (in the per-sub KV blob) resolves the former
+> email-keyed `tokens.json` ambiguity (CLAUDE.md Known Bug #4): two users' Outlook
+> accounts can no longer collide.
+
+> Caveat: `localhost` IMAP accounts (`email:pass:localhost:1993`) are valid for
+> local / VM deployments but CANNOT work on Cloudflare — there is no co-located IMAP
+> proxy inside the container. Use a publicly-reachable IMAP host on CF.
 
 ## Outlook OAuth Device Code (HTTP mode)
 
@@ -178,7 +197,7 @@ In HTTP mode, Outlook/Hotmail/Live accounts use OAuth2 device-code automatically
 1. The server prints a device code and a Microsoft login URL
 2. Open the URL in a browser and enter the code
 3. Sign in and authorize the app
-4. Tokens are persisted per JWT sub (`tokens/<sub>.json`)
+4. Tokens are persisted per JWT sub — in the encrypted Cloudflare KV credential blob (`subs/<sub>/config`) on the serverless deploy, or in `~/.better-email-mcp/tokens.json` for single-user / stdio
 
 OAuth uses the bundled public Azure client (`d56f8c71-9f7c-43f4-9934-be29cb6e77b0`, Thunderbird-pattern) -- no user-side Azure registration needed.
 
