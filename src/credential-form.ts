@@ -123,6 +123,18 @@ export function renderEmailCredentialForm(
         }
         .remove-btn:hover { background-color: rgba(248, 113, 113, 0.08); }
         .remove-btn:focus-visible { outline: 2px solid #f87171; outline-offset: 2px; }
+        .copy-btn {
+            background: transparent;
+            color: #6c9bd2;
+            border: 1px solid rgba(108, 155, 210, 0.5);
+            border-radius: 4px;
+            padding: 0.15rem 0.4rem;
+            margin-left: 0.5rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+        .copy-btn:hover { background-color: rgba(108, 155, 210, 0.1); }
+        .copy-btn:focus-visible { outline: 2px solid #6c9bd2; outline-offset: 2px; }
         .field-group { margin-bottom: 0.875rem; }
         .field-label {
             display: flex;
@@ -649,6 +661,7 @@ export function renderEmailCredentialForm(
                 link.setAttribute("href", nextStep.verification_url);
                 link.setAttribute("target", "_blank");
                 link.setAttribute("rel", "noopener noreferrer");
+                link.setAttribute("aria-label", "Opens Microsoft sign-in page in a new tab");
                 link.style.color = "#6c9bd2";
                 link.style.fontWeight = "bold";
                 link.textContent = nextStep.verification_url;
@@ -662,6 +675,23 @@ export function renderEmailCredentialForm(
                 codeEl.style.letterSpacing = "0.1em";
                 codeEl.textContent = nextStep.user_code;
                 statusBox.appendChild(codeEl);
+
+                if (navigator.clipboard) {
+                    var copyBtn = document.createElement("button");
+                    copyBtn.type = "button";
+                    copyBtn.textContent = "Copy";
+                    copyBtn.className = "copy-btn";
+                    copyBtn.setAttribute("aria-label", "Copy code to clipboard");
+                    copyBtn.addEventListener("click", function () {
+                        navigator.clipboard.writeText(nextStep.user_code).then(function () {
+                            copyBtn.textContent = "Copied!";
+                            copyBtn.setAttribute("aria-live", "polite");
+                            setTimeout(function () { copyBtn.textContent = "Copy"; }, 2000);
+                        });
+                    });
+                    statusBox.appendChild(copyBtn);
+                }
+
                 statusBox.appendChild(document.createElement("br"));
                 statusBox.appendChild(document.createElement("br"));
 

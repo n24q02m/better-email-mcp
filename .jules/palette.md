@@ -59,3 +59,6 @@
 
 **Learning:** When dynamic content like new form sections are added or removed, relying entirely on visual layout updates disrupts accessibility. If a removed element had focus, focus is typically dropped to the document `<body>`. For keyboard-only and screen reader users, this necessitates tabbing through the entire page again. Additionally, newly spawned elements aren't automatically focused.
 **Action:** Implement active programmatic focus management for all dynamic content changes. When adding elements, immediately focus their primary input. When removing focused elements, explicitly return focus to the logical preceding element (e.g., the button that triggered the creation, or a 'container' wrapper) to maintain a continuous interaction flow.
+## 2024-05-18 - Improve accessibility of code copying
+**Learning:** Adding a copy button for codes displayed in UI improves accessibility and usability.
+**Action:** Always provide a copy mechanism when user needs to copy code displayed on the screen.
