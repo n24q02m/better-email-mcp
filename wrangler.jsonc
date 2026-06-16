@@ -40,7 +40,11 @@
     "MCP_TRANSPORT": "http",
     // PORT=8080 so the listener binds 8080 to match EmailContainer.defaultPort.
     // The server reads PORT first, then MCP_PORT (Task 8 fallback), else 0.
-    "PORT": "8080"
+    "PORT": "8080",
+    // TS-on-CF footgun: mcp-core core-ts binds 127.0.0.1 by default. The
+    // @cloudflare/containers proxy reaches the container on 0.0.0.0:8080, so
+    // HOST MUST be 0.0.0.0 or the container is unreachable (worker returns 500).
+    "HOST": "0.0.0.0"
   },
   "routes": [{ "pattern": "email.n24q02m.com", "custom_domain": true }],
   "observability": { "enabled": true }

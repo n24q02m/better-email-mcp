@@ -36,6 +36,10 @@ export interface Env {
   MCP_KV_BASE_URL: string
   MCP_TRANSPORT: string
   PORT: string
+  // TS-on-CF footgun: mcp-core core-ts binds 127.0.0.1 by default; the
+  // @cloudflare/containers proxy reaches the container on 0.0.0.0:8080, so HOST
+  // MUST be "0.0.0.0" or the container is unreachable (worker -> 500).
+  HOST: string
   CREDENTIAL_SECRET: string
   MCP_RELAY_PASSWORD: string
   MCP_DCR_SERVER_SECRET: string
@@ -52,6 +56,7 @@ const CONTAINER_ENV_KEYS = [
   'MCP_KV_BASE_URL',
   'MCP_TRANSPORT',
   'PORT',
+  'HOST',
   'CREDENTIAL_SECRET',
   'MCP_RELAY_PASSWORD',
   'MCP_DCR_SERVER_SECRET',
