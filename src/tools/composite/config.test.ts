@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { subjectContext } from '../../auth/subject-context.js'
 import type { AccountConfig } from '../helpers/config.js'
 
 // --- Mocks ---
@@ -89,6 +90,45 @@ describe('config - status', () => {
     mockGetSetupUrl.mockReturnValue(null)
 
     const result = await handleConfig([], { action: 'status' })
+
+    expect(result).toEqual({
+      action: 'status',
+      state: 'awaiting_setup',
+      setup_url: null,
+      accounts: []
+    })
+  })
+
+  it('derives configured state from per-sub accounts in multi-user mode', async () => {
+    // CF multi-user: a read-only per-sub container never runs the single-user
+    // save that flips the global state to 'configured', but the caller's accounts
+    // resolved from KV. config(status) must report 'configured' for this subject,
+    // NOT the misleading process-global 'awaiting_setup'.
+    mockGetState.mockReturnValue('awaiting_setup')
+    mockGetSetupUrl.mockReturnValue(null)
+
+    const result = await subjectContext.run({ sub: 'sub-123', accounts }, () =>
+      handleConfig(accounts, { action: 'status' })
+    )
+
+    expect(result).toEqual({
+      action: 'status',
+      state: 'configured',
+      setup_url: null,
+      accounts: ['user1@gmail.com', 'user2@outlook.com']
+    })
+  })
+
+  it('does not leak the global configured state into a sub with no accounts', async () => {
+    // Cross-subject isolation for the status signal: even when the process-global
+    // state is 'configured' (some OTHER subject set it), a subject whose own
+    // accounts did not resolve must see 'awaiting_setup'.
+    mockGetState.mockReturnValue('configured')
+    mockGetSetupUrl.mockReturnValue(null)
+
+    const result = await subjectContext.run({ sub: 'sub-empty', accounts: [] }, () =>
+      handleConfig([], { action: 'status' })
+    )
 
     expect(result).toEqual({
       action: 'status',
