@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import type { EmailSubjectScope } from './subject-context.js'
-import { subjectContext } from './subject-context.js'
+import { currentSub, subjectContext } from './subject-context.js'
 
 describe('subjectContext', () => {
   test('should be undefined by default', () => {
@@ -118,5 +118,27 @@ describe('subjectContext', () => {
     ).rejects.toThrow('async error')
 
     expect(subjectContext.getStore()).toBeUndefined()
+  })
+})
+
+describe('currentSub', () => {
+  test('returns the sub inside a subjectContext scope', async () => {
+    await subjectContext.run({ sub: 'sub-x', accounts: [] }, async () => {
+      expect(currentSub()).toBe('sub-x')
+    })
+  })
+
+  test('returns null outside any scope (detached background poll)', () => {
+    expect(currentSub()).toBeNull()
+  })
+
+  test('reflects the innermost nested scope', () => {
+    subjectContext.run({ sub: 'outer', accounts: [] }, () => {
+      expect(currentSub()).toBe('outer')
+      subjectContext.run({ sub: 'inner', accounts: [] }, () => {
+        expect(currentSub()).toBe('inner')
+      })
+      expect(currentSub()).toBe('outer')
+    })
   })
 })
