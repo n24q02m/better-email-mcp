@@ -37,7 +37,8 @@ vi.mock('../tools/helpers/config.js', () => ({
 vi.mock('../tools/helpers/oauth2.js', () => ({
   initiateOutlookDeviceCode: vi.fn(),
   isOutlookDomain: vi.fn(),
-  saveOutlookTokens: vi.fn()
+  saveOutlookTokens: vi.fn(),
+  setOutlookTokenStore: vi.fn()
 }))
 
 vi.mock('../tools/registry.js', () => ({
@@ -268,7 +269,7 @@ describe('http transport', () => {
 
       const result = await onCredentialsSaved({ EMAIL_CREDENTIALS: 'test@outlook.com:oauth2' })
 
-      expect(initiateOutlookDeviceCode).toHaveBeenCalledWith('test@outlook.com', expect.any(Function))
+      expect(initiateOutlookDeviceCode).toHaveBeenCalledWith('test@outlook.com', expect.any(Function), undefined)
       expect(setState).toHaveBeenCalledWith('setup_in_progress')
       expect(result).toEqual({
         type: 'oauth_device_code',
@@ -372,7 +373,7 @@ describe('http transport', () => {
       await onCredentialsSaved({ EMAIL_CREDENTIALS: 'test@outlook.com:oauth2' })
 
       expect(mockAccounts[0]!.oauth2).toBeUndefined()
-      expect(initiateOutlookDeviceCode).toHaveBeenCalledWith('test@outlook.com', expect.any(Function))
+      expect(initiateOutlookDeviceCode).toHaveBeenCalledWith('test@outlook.com', expect.any(Function), undefined)
     })
 
     it('logs error if writeConfig fails but continues', async () => {

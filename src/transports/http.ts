@@ -29,7 +29,7 @@ import { renderEmailCredentialForm } from '../credential-form.js'
 import { resolveCredentialState, setMarkSetupComplete, setSetupUrl, setState } from '../credential-state.js'
 import { RELAY_SCHEMA } from '../relay-schema.js'
 import { type AccountConfig, loadConfig, parseCredentials } from '../tools/helpers/config.js'
-import { initiateOutlookDeviceCode, isOutlookDomain } from '../tools/helpers/oauth2.js'
+import { initiateOutlookDeviceCode, isOutlookDomain, setOutlookTokenStore } from '../tools/helpers/oauth2.js'
 import { registerTools } from '../tools/registry.js'
 
 const SERVER_NAME = 'better-email-mcp'
@@ -109,16 +109,25 @@ async function validateImapAccounts(imapAccounts: AccountConfig[]): Promise<Next
   }
 }
 
-/** Initiate Microsoft Device Code flow for the first Outlook account pending auth. */
-async function initiateOutlookOAuth(outlookAccounts: AccountConfig[]): Promise<NextStep | null> {
+/**
+ * Initiate Microsoft Device Code flow for the first Outlook account pending auth.
+ * ``sub`` (from the request's JWT) is threaded into the device-code flow so the
+ * detached background token poll embeds the refresh token in the right per-sub
+ * blob; ``null``/``undefined`` => single-user file path.
+ */
+async function initiateOutlookOAuth(outlookAccounts: AccountConfig[], sub?: string | null): Promise<NextStep | null> {
   const outlookPending = outlookAccounts.filter((a) => !a.oauth2)
   if (outlookPending.length === 0) return null
 
   const first = outlookPending[0] as AccountConfig
   try {
-    const device = await initiateOutlookDeviceCode(first.email, () => {
-      console.error(`[${SERVER_NAME}] Outlook OAuth2 completed for ${first.email}`)
-    })
+    const device = await initiateOutlookDeviceCode(
+      first.email,
+      () => {
+        console.error(`[${SERVER_NAME}] Outlook OAuth2 completed for ${first.email}`)
+      },
+      sub
+    )
     setState('setup_in_progress')
     return {
       type: 'oauth_device_code',
@@ -223,7 +232,7 @@ function buildOptions(args: {
       console.error(`[${SERVER_NAME}] ${accounts.length} email account(s) configured via /authorize`)
     }
 
-    const outlookResult = await initiateOutlookOAuth(outlookAccounts)
+    const outlookResult = await initiateOutlookOAuth(outlookAccounts, sub)
     if (outlookResult) return outlookResult
 
     setState('configured')
@@ -244,6 +253,12 @@ function buildOptions(args: {
 }
 
 export async function startHttp(): Promise<void> {
+  // Share the per-sub credential store with the Outlook token layer so OAuth
+  // refresh tokens embed in the SAME per-sub config blob as the account list
+  // (one cache, coherent; survives container recreate on Cloudflare). stdio
+  // never calls startHttp, so its token layer keeps the legacy file path.
+  setOutlookTokenStore(credStore)
+
   await resolveCredentialState()
 
   let currentAccounts: AccountConfig[] = await loadConfig()
