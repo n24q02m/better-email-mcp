@@ -98,4 +98,22 @@ describe('renderEmailCredentialForm', () => {
     expect(html).toContain('imapSpec')
     expect(html).toContain('a.imapPort')
   })
+
+  it('ties the form to its heading via aria-labelledby (WCAG name, role, value)', () => {
+    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
+    expect(html).toMatch(/<h2[^>]*id="form-heading"/)
+    expect(html).toMatch(/<form[^>]*aria-labelledby="form-heading"/)
+  })
+
+  it('validates on submit and focuses the first invalid field (WCAG 3.3.1 / 2.4.3)', () => {
+    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
+    expect(html).toContain('form.checkValidity()')
+    expect(html).toContain('querySelector(":invalid")')
+    expect(html).toContain('instanceof HTMLElement')
+  })
+
+  it('announces the Outlook device-code waiting region politely (aria-live)', () => {
+    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
+    expect(html).toContain('waiting.setAttribute("aria-live", "polite")')
+  })
 })

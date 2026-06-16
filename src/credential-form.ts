@@ -262,9 +262,9 @@ export function renderEmailCredentialForm(
                 <p class="server-description">${description}</p>
             </div>
 
-            <h2 class="form-title">Email Accounts</h2>
+            <h2 class="form-title" id="form-heading">Email Accounts</h2>
 
-            <form id="credential-form" novalidate>
+            <form id="credential-form" aria-labelledby="form-heading" novalidate>
                 <fieldset id="form-fieldset" style="border: none; padding: 0; margin: 0;">
                     <div id="accounts-container"></div>
 
@@ -668,6 +668,9 @@ export function renderEmailCredentialForm(
                 var waiting = document.createElement("span");
                 waiting.id = "outlook-waiting";
                 waiting.className = "pulse";
+                // a11y: announce the long-running "waiting for sign-in" status to
+                // screen readers without interrupting (polite, not assertive).
+                waiting.setAttribute("aria-live", "polite");
                 waiting.style.color = "#9ca3af";
                 waiting.textContent = "Waiting for Microsoft authorization...";
                 statusBox.appendChild(waiting);
@@ -721,6 +724,17 @@ export function renderEmailCredentialForm(
             form.addEventListener("submit", function (evt) {
                 evt.preventDefault();
                 statusBox.style.display = "none";
+
+                // a11y (WCAG 3.3.1 / 2.4.3): run native field validation on submit
+                // and move focus to the first invalid field so keyboard /
+                // screen-reader users land on the problem. The per-field "invalid"
+                // handlers above paint the inline error + aria-invalid. The form
+                // carries the novalidate attribute so this is the only validation gate.
+                if (!form.checkValidity()) {
+                    var firstInvalid = form.querySelector(":invalid");
+                    if (firstInvalid instanceof HTMLElement) firstInvalid.focus();
+                    return;
+                }
 
                 var collected = collectAccounts();
 
