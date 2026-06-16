@@ -477,7 +477,7 @@ export async function initiateOutlookDeviceCode(
   onComplete?: () => void,
   sub?: string | null
 ): Promise<{ verificationUri: string; userCode: string; expiresIn: number; interval: number }> {
-  if (!email) throw new Error('Email is required')
+  if (!email?.trim()) throw new Error('Email is required')
   const scope = resolveScope(sub)
   const emailKey = email.toLowerCase()
   const existing = pendingAuths.get(emailKey)
@@ -639,6 +639,7 @@ export async function saveOutlookTokens(tokens: Record<string, unknown>): Promis
  * Used by `npx @n24q02m/better-email-mcp auth <email>`.
  */
 export async function deviceCodeAuth(email: string, clientId?: string): Promise<OAuth2Tokens> {
+  if (!email?.trim()) throw new Error('Email is required')
   const resolvedClientId = clientId || getClientId()
   const codeData = await requestDeviceCode(resolvedClientId)
 
