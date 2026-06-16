@@ -1,0 +1,47 @@
+// wrangler.jsonc - better-email-mcp Cloudflare Worker + Container + KV (KV-only).
+// Resource IDs are placeholders created out-of-band (wrangler kv namespace create)
+// and filled at deploy time, not committed as live IDs.
+{
+  "name": "better-email-mcp-worker",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-06-14",
+  "containers": [
+    {
+      "name": "better-email-mcp-worker",
+      "class_name": "EmailContainer",
+      // CF Containers pull only from the Cloudflare managed registry (an external
+      // ghcr.io ref fails with IMAGE_REGISTRY_NOT_CONFIGURED). Push the pre-built
+      // http image first: `docker build --target http -t better-email-mcp:beta .`,
+      // `wrangler containers push better-email-mcp:beta`, then fill <YOUR_ACCOUNT_ID>.
+      // Re-pushing the SAME tag does NOT roll a running instance -> delete+recreate
+      // the app to deploy a new image.
+      "image": "registry.cloudflare.com/<YOUR_ACCOUNT_ID>/better-email-mcp:beta",
+      "instance_type": "standard-1",
+      "max_instances": 100
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "EMAIL", "class_name": "EmailContainer" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["EmailContainer"] }],
+  "kv_namespaces": [{ "binding": "KV", "id": "<better-email-kv-namespace-id>" }],
+  // Non-secret container config (forwarded into the container by EmailContainer.envVars).
+  // Secrets via `wrangler secret put`:
+  //   CREDENTIAL_SECRET     - REQUIRED: per-sub vault key + flips JWT to deterministic
+  //                           EdDSA (no disk keypair -> no re-auth storm on recreate).
+  //   MCP_RELAY_PASSWORD    - gate for the /authorize form.
+  //   MCP_DCR_SERVER_SECRET - proof of intentional multi-user deploy.
+  //   OUTLOOK_CLIENT_ID     - optional: override the bundled Azure AD public client.
+  //   OUTLOOK_EMAIL         - optional: fallback email key for device-code tokens.
+  "vars": {
+    "PUBLIC_URL": "https://email.n24q02m.com",
+    "MCP_STORAGE_BACKEND": "cf-kv",
+    "MCP_KV_BASE_URL": "http://kv.internal",
+    "MCP_TRANSPORT": "http",
+    // PORT=8080 so the listener binds 8080 to match EmailContainer.defaultPort.
+    // The server reads PORT first, then MCP_PORT (Task 8 fallback), else 0.
+    "PORT": "8080"
+  },
+  "routes": [{ "pattern": "email.n24q02m.com", "custom_domain": true }],
+  "observability": { "enabled": true }
+}
