@@ -102,7 +102,7 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   // We use the capture group `p1` (which contains the entity name or number without the `&` and `;`)
   // to avoid invoking `entity.match(...)` internally, which creates secondary string allocations.
   if (text.indexOf('&') !== -1) {
-    text = text.replace(/&(#x?[\da-fA-F]+|[a-zA-Z]+);/g, (entity, p1) => {
+    text = text.replace(/&(#(?:x|X)?[\da-fA-F]+|[a-zA-Z]+);/g, (entity, p1) => {
       const lower = entity.toLowerCase()
       if (lower in ENTITY_MAP) return ENTITY_MAP[lower]
 

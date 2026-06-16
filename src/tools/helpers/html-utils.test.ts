@@ -207,9 +207,8 @@ describe('fastExtractSnippet', () => {
     expect(fastExtractSnippet('&#x41;&#x42;&#x43;')).toBe('ABC')
   })
 
-  it('preserves invalid uppercase hex entity (regex only matches lowercase x)', () => {
-    // The regex uses #x? (lowercase x only), so &#X41; is not matched as a hex entity
-    expect(fastExtractSnippet('&#X41;')).toBe('&#X41;')
+  it('decodes uppercase hex entity', () => {
+    expect(fastExtractSnippet('&#X41;')).toBe('A')
   })
 
   it('preserves unknown named entities', () => {
@@ -253,5 +252,41 @@ describe('sanitizeHtml', () => {
 
     expect(clean).toContain('aaaaaaaa')
     expect(duration).toBeLessThan(5000) // Ensure it finishes within 5 seconds
+  })
+
+  it('handles empty string', () => {
+    expect(sanitizeHtml('')).toBe('')
+  })
+
+  it('handles null-like input', () => {
+    expect(sanitizeHtml(null as any)).toBe('')
+    expect(sanitizeHtml(undefined as any)).toBe('')
+  })
+
+  it('respects custom options', () => {
+    const dirty = '<b>Bold</b> <i>Italic</i>'
+    const clean = sanitizeHtml(dirty, { allowedTags: ['b'] })
+    expect(clean).toContain('<b>Bold</b>')
+    expect(clean).not.toContain('<i>')
+    expect(clean).toContain('Italic')
+  })
+
+  it('handles complex nested structures in large strings', () => {
+    // Generate 500 nested divs
+    let complex = 'text'
+    for (let i = 0; i < 500; i++) {
+      complex = `<div>${complex}</div>`
+    }
+    const clean = sanitizeHtml(complex)
+    expect(clean).toContain('text')
+    expect((clean.match(/<div>/g) || []).length).toBe(500)
+  })
+
+  it('handles extremely long attribute values by stripping them or preserving if allowed', () => {
+    const longAttr = 'a'.repeat(100000)
+    // img.src is allowed by default
+    const dirty = `<img src="${longAttr}">`
+    const clean = sanitizeHtml(dirty)
+    expect(typeof clean).toBe('string')
   })
 })
