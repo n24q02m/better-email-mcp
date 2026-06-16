@@ -16,21 +16,18 @@ const ENTITY_MAP: Record<string, string> = {
   '&#x27;': "'"
 }
 
-const HTML_ESCAPE_MAP: Record<string, string> = {
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#039;'
-}
-
 /**
  * Escapes HTML characters in a string to prevent XSS attacks when embedding user input into HTML
  */
-export function escapeHtml(unsafe: string): string {
-  // ⚡ Bolt: Replace 5 chained `.replace()` calls with a single regex pass.
-  // This reduces string allocation overhead and speeds up escaping by iterating over the string only once.
-  return unsafe.replace(/[&<>"']/g, (match) => HTML_ESCAPE_MAP[match]!)
+export function escapeHtml(unsafe: unknown): string {
+  // ⚡ Bolt: Chained `.replace()` calls with string literal replacements are significantly faster in V8
+  // than a single regex pass with a callback function, as they avoid leaving C++ to execute JS for every match.
+  return String(unsafe ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
 }
 
 // ⚡ Bolt: Extract `html-to-text` options into a module-scoped constant.
