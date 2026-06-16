@@ -44,6 +44,7 @@ vi.mock('node:path', () => ({
 
 import { readFile } from 'node:fs/promises'
 import { resolveConfig } from '@n24q02m/mcp-core/storage'
+import { isValidTokenStore } from './tools/helpers/oauth2.js'
 
 describe('credential-state', () => {
   let mod: typeof import('./credential-state.js')
@@ -111,6 +112,15 @@ describe('credential-state', () => {
     it('handles malformed URL', () => {
       mod.setSetupUrl('not-a-url')
       expect(mod.getSetupUrl()).toBe('not-a-url')
+    })
+
+    it('updates correctly when called multiple times', () => {
+      mod.setSetupUrl('http://first.com')
+      expect(mod.getSetupUrl()).toBe('http://first.com')
+      mod.setSetupUrl(null)
+      expect(mod.getSetupUrl()).toBeNull()
+      mod.setSetupUrl('http://second.com')
+      expect(mod.getSetupUrl()).toBe('http://second.com')
     })
   })
 
@@ -181,6 +191,15 @@ describe('credential-state', () => {
     it('skips token entries without @ sign', async () => {
       vi.mocked(resolveConfig).mockResolvedValue({ config: null, source: '' } as any)
       vi.mocked(readFile).mockResolvedValue(JSON.stringify({ metadata: { version: 1 } }) as any)
+
+      const result = await mod.resolveCredentialState()
+      expect(result).toBe('awaiting_setup')
+    })
+
+    it('returns awaiting_setup when token store is invalid', async () => {
+      vi.mocked(isValidTokenStore).mockReturnValue(false)
+      vi.mocked(resolveConfig).mockResolvedValue({ config: null, source: '' } as any)
+      vi.mocked(readFile).mockResolvedValue(JSON.stringify({ some: 'garbage' }) as any)
 
       const result = await mod.resolveCredentialState()
       expect(result).toBe('awaiting_setup')
