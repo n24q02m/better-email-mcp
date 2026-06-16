@@ -13,7 +13,21 @@ export interface CredentialPayload {
   [key: string]: unknown
 }
 
-export class InMemoryCredStore {
+/**
+ * Common interface satisfied by both the in-memory store (stdio / local
+ * single-process) and the KV write-through `PerSubCredStore` (Cloudflare
+ * deploy), so the HTTP transport can select either without branching on the
+ * concrete type. `ready` is optional (KV-only startup probe).
+ */
+export interface CredStoreLike {
+  save(sub: string, creds: CredentialPayload): Promise<void>
+  load(sub: string): Promise<CredentialPayload | null>
+  clear(sub: string): Promise<void>
+  listSubs(): Promise<string[]>
+  ready?(): Promise<void>
+}
+
+export class InMemoryCredStore implements CredStoreLike {
   private store = new Map<string, CredentialPayload>()
 
   async save(sub: string, creds: CredentialPayload): Promise<void> {

@@ -22,20 +22,35 @@ import type { NextStep, RelayConfigSchema, RunHttpServerOptions, SubjectContext 
 import { runHttpServer, writeConfig } from '@n24q02m/mcp-core'
 import { ImapFlow } from 'imapflow'
 
-import { InMemoryCredStore } from '../auth/in-memory-cred-store.js'
+import { PerSubCredStore } from '../auth/cred-store.js'
+import { type CredStoreLike, InMemoryCredStore } from '../auth/in-memory-cred-store.js'
 import { subjectContext } from '../auth/subject-context.js'
 import { renderEmailCredentialForm } from '../credential-form.js'
 import { resolveCredentialState, setMarkSetupComplete, setSetupUrl, setState } from '../credential-state.js'
 import { RELAY_SCHEMA } from '../relay-schema.js'
 import { type AccountConfig, loadConfig, parseCredentials } from '../tools/helpers/config.js'
-import { initiateOutlookDeviceCode, isOutlookDomain } from '../tools/helpers/oauth2.js'
+import { initiateOutlookDeviceCode, isOutlookDomain, setOutlookTokenStore } from '../tools/helpers/oauth2.js'
 import { registerTools } from '../tools/registry.js'
 
 const SERVER_NAME = 'better-email-mcp'
 const IMAP_CONNECT_TIMEOUT_MS = 15_000
 
-/** Module-singleton in-memory credential store for multi-user mode. */
-const credStore = new InMemoryCredStore()
+/**
+ * Select the per-sub credential store. cf-kv backend -> KV write-through
+ * PerSubCredStore (durable across container recreate; the Cloudflare deploy
+ * store). Any other backend (stdio / local single-process) -> ephemeral
+ * in-memory store. Read once at module load; on CF, MCP_STORAGE_BACKEND=cf-kv is
+ * set by wrangler vars, so the durable KV store is selected there.
+ */
+function selectCredStore(): CredStoreLike {
+  if ((process.env.MCP_STORAGE_BACKEND ?? '').toLowerCase() === 'cf-kv') {
+    return new PerSubCredStore()
+  }
+  return new InMemoryCredStore()
+}
+
+/** Module-singleton per-user credential store (KV on CF, in-memory otherwise). */
+const credStore = selectCredStore()
 
 /**
  * Test an IMAP account by connecting + logging out.
@@ -94,16 +109,25 @@ async function validateImapAccounts(imapAccounts: AccountConfig[]): Promise<Next
   }
 }
 
-/** Initiate Microsoft Device Code flow for the first Outlook account pending auth. */
-async function initiateOutlookOAuth(outlookAccounts: AccountConfig[]): Promise<NextStep | null> {
+/**
+ * Initiate Microsoft Device Code flow for the first Outlook account pending auth.
+ * ``sub`` (from the request's JWT) is threaded into the device-code flow so the
+ * detached background token poll embeds the refresh token in the right per-sub
+ * blob; ``null``/``undefined`` => single-user file path.
+ */
+async function initiateOutlookOAuth(outlookAccounts: AccountConfig[], sub?: string | null): Promise<NextStep | null> {
   const outlookPending = outlookAccounts.filter((a) => !a.oauth2)
   if (outlookPending.length === 0) return null
 
   const first = outlookPending[0] as AccountConfig
   try {
-    const device = await initiateOutlookDeviceCode(first.email, () => {
-      console.error(`[${SERVER_NAME}] Outlook OAuth2 completed for ${first.email}`)
-    })
+    const device = await initiateOutlookDeviceCode(
+      first.email,
+      () => {
+        console.error(`[${SERVER_NAME}] Outlook OAuth2 completed for ${first.email}`)
+      },
+      sub
+    )
     setState('setup_in_progress')
     return {
       type: 'oauth_device_code',
@@ -178,11 +202,16 @@ function buildOptions(args: {
     const imapResult = await validateImapAccounts(imapAccounts)
     if (imapResult) return imapResult
 
-    // Persistence: per-user (multi-user JWT-sub) + shared config.enc fallback.
-    // Per-user store guarantees isolation in multi-user deployments. Shared
-    // config.enc lets single-user self-host installs survive process restarts
-    // and lets tool calls outside an HTTP request scope (e.g. internal calls)
-    // still see the saved credentials.
+    // Persistence is mode-dependent to avoid cross-user credential bleed.
+    //
+    // Multi-user (JWT `sub` present): write ONLY to the per-user store, keyed by
+    // `sub`. We must NOT touch the shared `config.enc`, `process.env`, or the
+    // single-user `currentAccounts` closure — those are process-global and would
+    // leak one subject's mailboxes into every other subject's tool calls.
+    //
+    // Single-user (no `sub`: stdio self-host / auth-disabled gateway): exactly
+    // one caller, so persist to the shared `config.enc` + env + closure so
+    // credentials survive restarts and are visible to non-HTTP-scoped calls.
     const sub = context?.sub
     if (sub) {
       try {
@@ -192,18 +221,18 @@ function buildOptions(args: {
         return { type: 'error', text: 'Failed to save credentials. Please retry.' }
       }
       console.error(`[${SERVER_NAME}] ${accounts.length} email account(s) configured for sub=${sub} (per-user scope)`)
+    } else {
+      try {
+        await writeConfig(SERVER_NAME, { EMAIL_CREDENTIALS: raw })
+      } catch (err) {
+        console.error(`[${SERVER_NAME}] Failed to persist credentials: ${(err as Error).message}`)
+      }
+      process.env.EMAIL_CREDENTIALS = raw
+      onAccountsLoaded(accounts)
+      console.error(`[${SERVER_NAME}] ${accounts.length} email account(s) configured via /authorize`)
     }
 
-    try {
-      await writeConfig(SERVER_NAME, { EMAIL_CREDENTIALS: raw })
-    } catch (err) {
-      console.error(`[${SERVER_NAME}] Failed to persist credentials: ${(err as Error).message}`)
-    }
-    process.env.EMAIL_CREDENTIALS = raw
-    onAccountsLoaded(accounts)
-    console.error(`[${SERVER_NAME}] ${accounts.length} email account(s) configured via /authorize`)
-
-    const outlookResult = await initiateOutlookOAuth(outlookAccounts)
+    const outlookResult = await initiateOutlookOAuth(outlookAccounts, sub)
     if (outlookResult) return outlookResult
 
     setState('configured')
@@ -224,6 +253,12 @@ function buildOptions(args: {
 }
 
 export async function startHttp(): Promise<void> {
+  // Share the per-sub credential store with the Outlook token layer so OAuth
+  // refresh tokens embed in the SAME per-sub config blob as the account list
+  // (one cache, coherent; survives container recreate on Cloudflare). stdio
+  // never calls startHttp, so its token layer keeps the legacy file path.
+  setOutlookTokenStore(credStore)
+
   await resolveCredentialState()
 
   let currentAccounts: AccountConfig[] = await loadConfig()
@@ -244,7 +279,15 @@ export async function startHttp(): Promise<void> {
     return server as unknown as McpServer
   }
 
-  const port = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 0
+  // Port resolution order: PORT (explicit) -> MCP_PORT (Cloudflare container
+  // convention / mcp-core deploys) -> 0 (OS-assigned random). The CF container
+  // image sets MCP_PORT; honoring it here keeps the Worker fetch target aligned
+  // with the listening port without forcing a PORT override.
+  const port = process.env.PORT
+    ? Number.parseInt(process.env.PORT, 10)
+    : process.env.MCP_PORT
+      ? Number.parseInt(process.env.MCP_PORT, 10)
+      : 0
   const host = process.env.HOST
 
   const baseOptions = buildOptions({
@@ -282,6 +325,22 @@ export async function startHttp(): Promise<void> {
       const payload = await credStore.load(sub)
       const accounts = (payload?.accounts as AccountConfig[] | undefined) ?? []
       await subjectContext.run({ sub, accounts }, next)
+    }
+  }
+
+  // Startup KV readiness probe (cf-kv / PerSubCredStore only). Confirms the
+  // container -> Worker `kv.internal` outbound path is wired BEFORE the first
+  // credential write, so a broken binding fails loudly at boot instead of
+  // silently dropping the first user's credentials. InMemoryCredStore has no
+  // `ready`, so this is a no-op for stdio / local single-process deploys.
+  if (credStore.ready) {
+    try {
+      await credStore.ready()
+      console.error(`[${SERVER_NAME}] KV store reachable (kv.internal outbound OK)`)
+    } catch (err) {
+      console.error(
+        `[${SERVER_NAME}] KV store UNREACHABLE — per-user credentials will NOT persist: ${(err as Error).message}`
+      )
     }
   }
 

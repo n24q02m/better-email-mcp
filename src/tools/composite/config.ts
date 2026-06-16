@@ -10,6 +10,7 @@
  *   set, cache_clear
  */
 
+import { currentSub } from '../../auth/subject-context.js'
 import type { CredentialState } from '../../credential-state.js'
 import { getSetupUrl, getState, resetState, resolveCredentialState } from '../../credential-state.js'
 import type { AccountConfig } from '../helpers/config.js'
@@ -105,9 +106,20 @@ export async function handleConfig(accounts: AccountConfig[], input: ConfigInput
 }
 
 function handleStatus(accounts: AccountConfig[]): ConfigStatusResult {
+  // Per-subject status (multi-user / Cloudflare). When the request carries a JWT
+  // `sub` scope, the process-wide single-user `getState()` lifecycle is
+  // meaningless: a per-sub container may only ever READ blobs from KV and never
+  // run the single-user save that flips getState() to 'configured', so it would
+  // forever report 'awaiting_setup' even though the caller's accounts resolved
+  // (the `folders`/`messages` tools work). Derive the state from whether THIS
+  // subject's accounts resolved instead. Single-user (no sub: stdio /
+  // auth-disabled gateway) keeps the global credential-state machine, which also
+  // distinguishes 'setup_in_progress' (Outlook device-code pending).
+  const sub = currentSub()
+  const state: CredentialState = sub ? (accounts.length > 0 ? 'configured' : 'awaiting_setup') : getState()
   return {
     action: 'status',
-    state: getState(),
+    state,
     setup_url: getSetupUrl(),
     accounts: accounts.map((a) => a.email)
   }

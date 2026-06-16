@@ -23,6 +23,7 @@ vi.mock('./tools/helpers/oauth2.js', () => ({
   ensureValidToken: vi.fn(),
   isOutlookDomain: vi.fn().mockReturnValue(false),
   isValidTokenStore: vi.fn().mockReturnValue(true),
+  loadOutlookEmails: vi.fn().mockResolvedValue([]),
   _getPendingAuths: vi.fn().mockReturnValue(new Set())
 }))
 
@@ -42,9 +43,8 @@ vi.mock('node:path', () => ({
   join: vi.fn((...args: string[]) => args.join('/'))
 }))
 
-import { readFile } from 'node:fs/promises'
 import { resolveConfig } from '@n24q02m/mcp-core/storage'
-import { isValidTokenStore } from './tools/helpers/oauth2.js'
+import { loadOutlookEmails } from './tools/helpers/oauth2.js'
 
 describe('credential-state', () => {
   let mod: typeof import('./credential-state.js')
@@ -153,18 +153,27 @@ describe('credential-state', () => {
       expect(process.env.EMAIL_CREDENTIALS).toBe('user@test.com:pass')
     })
 
-    it('returns configured when saved OAuth tokens exist', async () => {
+    it('returns configured when saved OAuth tokens exist (via the token facade)', async () => {
       vi.mocked(resolveConfig).mockResolvedValue({ config: null, source: '' } as any)
-      vi.mocked(readFile).mockResolvedValue(JSON.stringify({ 'user@outlook.com': { accessToken: 'tok' } }) as any)
+      vi.mocked(loadOutlookEmails).mockResolvedValue(['user@outlook.com'])
 
       const result = await mod.resolveCredentialState()
       expect(result).toBe('configured')
       expect(process.env.EMAIL_CREDENTIALS).toBe('user@outlook.com:oauth2')
     })
 
-    it('returns awaiting_setup when nothing found', async () => {
+    it('joins multiple saved OAuth token emails into the credential string', async () => {
       vi.mocked(resolveConfig).mockResolvedValue({ config: null, source: '' } as any)
-      vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'))
+      vi.mocked(loadOutlookEmails).mockResolvedValue(['a@outlook.com', 'b@hotmail.com'])
+
+      const result = await mod.resolveCredentialState()
+      expect(result).toBe('configured')
+      expect(process.env.EMAIL_CREDENTIALS).toBe('a@outlook.com:oauth2,b@hotmail.com:oauth2')
+    })
+
+    it('returns awaiting_setup when nothing found (facade returns no emails)', async () => {
+      vi.mocked(resolveConfig).mockResolvedValue({ config: null, source: '' } as any)
+      vi.mocked(loadOutlookEmails).mockResolvedValue([])
 
       const result = await mod.resolveCredentialState()
       expect(result).toBe('awaiting_setup')
@@ -172,34 +181,15 @@ describe('credential-state', () => {
 
     it('handles config read error gracefully', async () => {
       vi.mocked(resolveConfig).mockRejectedValue(new Error('decrypt fail'))
-      vi.mocked(readFile).mockRejectedValue(new Error('ENOENT'))
+      vi.mocked(loadOutlookEmails).mockResolvedValue([])
 
       const result = await mod.resolveCredentialState()
       expect(result).toBe('awaiting_setup')
     })
 
-    it('handles token read error gracefully', async () => {
+    it('handles a token facade error gracefully', async () => {
       vi.mocked(resolveConfig).mockResolvedValue({ config: null, source: '' } as any)
-      vi.mocked(readFile).mockImplementation(() => {
-        throw new Error('READ_ERROR')
-      })
-
-      const result = await mod.resolveCredentialState()
-      expect(result).toBe('awaiting_setup')
-    })
-
-    it('skips token entries without @ sign', async () => {
-      vi.mocked(resolveConfig).mockResolvedValue({ config: null, source: '' } as any)
-      vi.mocked(readFile).mockResolvedValue(JSON.stringify({ metadata: { version: 1 } }) as any)
-
-      const result = await mod.resolveCredentialState()
-      expect(result).toBe('awaiting_setup')
-    })
-
-    it('returns awaiting_setup when token store is invalid', async () => {
-      vi.mocked(isValidTokenStore).mockReturnValue(false)
-      vi.mocked(resolveConfig).mockResolvedValue({ config: null, source: '' } as any)
-      vi.mocked(readFile).mockResolvedValue(JSON.stringify({ some: 'garbage' }) as any)
+      vi.mocked(loadOutlookEmails).mockRejectedValue(new Error('READ_ERROR'))
 
       const result = await mod.resolveCredentialState()
       expect(result).toBe('awaiting_setup')

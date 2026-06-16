@@ -37,7 +37,8 @@ vi.mock('../tools/helpers/config.js', () => ({
 vi.mock('../tools/helpers/oauth2.js', () => ({
   initiateOutlookDeviceCode: vi.fn(),
   isOutlookDomain: vi.fn(),
-  saveOutlookTokens: vi.fn()
+  saveOutlookTokens: vi.fn(),
+  setOutlookTokenStore: vi.fn()
 }))
 
 vi.mock('../tools/registry.js', () => ({
@@ -137,6 +138,20 @@ describe('http transport', () => {
       })
       delete process.env.PORT
     })
+
+    it('falls back to MCP_PORT when PORT is unset (Cloudflare container convention)', async () => {
+      delete process.env.PORT
+      process.env.MCP_PORT = '5000'
+      await runStartHttpAndTriggerShutdown(async () => {
+        expect(runHttpServer).toHaveBeenCalledWith(
+          expect.any(Function),
+          expect.objectContaining({
+            port: 5000
+          })
+        )
+      })
+      delete process.env.MCP_PORT
+    })
   })
 
   describe('onCredentialsSaved', () => {
@@ -201,6 +216,28 @@ describe('http transport', () => {
       expect(result).toBeNull()
     })
 
+    it('isolates per-user credentials when a JWT sub is present (no shared config/env bleed)', async () => {
+      // Regression guard for the cross-user bleed: in multi-user HTTP mode the
+      // request carries a JWT ``sub``; credentials must go ONLY to the per-user
+      // store. The process-global ``config.enc`` (writeConfig) and
+      // ``process.env.EMAIL_CREDENTIALS`` must stay untouched, else one
+      // tenant's mailboxes leak into every other tenant's tool calls.
+      const mockAccounts = [{ email: 'tenant@gmail.com', imap: {}, authType: 'password' }]
+      vi.mocked(parseCredentials).mockResolvedValue(mockAccounts as any)
+      vi.mocked(isOutlookDomain).mockReturnValue(false)
+      delete process.env.EMAIL_CREDENTIALS
+
+      const result = await onCredentialsSaved({ EMAIL_CREDENTIALS: 'tenant@gmail.com:pass' }, { sub: 'user-123' })
+
+      // Per-user path: shared global state is NOT mutated.
+      expect(writeConfig).not.toHaveBeenCalled()
+      expect(process.env.EMAIL_CREDENTIALS).toBeUndefined()
+      // But the credential is still validated, saved per-user, and completed.
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('per-user scope'))
+      expect(setState).toHaveBeenCalledWith('configured')
+      expect(result).toBeNull()
+    })
+
     it('returns error if IMAP connection fails', async () => {
       const mockAccounts = [{ email: 'test@gmail.com', imap: {}, authType: 'password' }]
       vi.mocked(parseCredentials).mockResolvedValue(mockAccounts as any)
@@ -232,7 +269,7 @@ describe('http transport', () => {
 
       const result = await onCredentialsSaved({ EMAIL_CREDENTIALS: 'test@outlook.com:oauth2' })
 
-      expect(initiateOutlookDeviceCode).toHaveBeenCalledWith('test@outlook.com', expect.any(Function))
+      expect(initiateOutlookDeviceCode).toHaveBeenCalledWith('test@outlook.com', expect.any(Function), undefined)
       expect(setState).toHaveBeenCalledWith('setup_in_progress')
       expect(result).toEqual({
         type: 'oauth_device_code',
@@ -336,7 +373,7 @@ describe('http transport', () => {
       await onCredentialsSaved({ EMAIL_CREDENTIALS: 'test@outlook.com:oauth2' })
 
       expect(mockAccounts[0]!.oauth2).toBeUndefined()
-      expect(initiateOutlookDeviceCode).toHaveBeenCalledWith('test@outlook.com', expect.any(Function))
+      expect(initiateOutlookDeviceCode).toHaveBeenCalledWith('test@outlook.com', expect.any(Function), undefined)
     })
 
     it('logs error if writeConfig fails but continues', async () => {

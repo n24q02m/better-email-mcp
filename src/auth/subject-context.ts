@@ -26,3 +26,14 @@ export interface EmailSubjectScope {
 }
 
 export const subjectContext = new AsyncLocalStorage<EmailSubjectScope>()
+
+/**
+ * Best-effort read of the current request's JWT ``sub``, or ``null`` when
+ * detached (e.g. a background Outlook device-code poll that outlives the HTTP
+ * request scope, or any single-user / stdio call with no scope). The Outlook
+ * token layer captures this at flow-initiation time so the detached poll can
+ * write tokens to the right per-sub credential blob.
+ */
+export function currentSub(): string | null {
+  return subjectContext.getStore()?.sub ?? null
+}

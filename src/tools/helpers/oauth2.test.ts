@@ -40,6 +40,8 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
+import { InMemoryCredStore } from '../../auth/in-memory-cred-store.js'
+import { subjectContext } from '../../auth/subject-context.js'
 import type { OAuth2Tokens } from './oauth2.js'
 import {
   _getPendingAuths,
@@ -52,10 +54,12 @@ import {
   isOutlookDomain,
   isValidTokenStore,
   isValidTokens,
+  loadOutlookEmails,
   loadStoredTokens,
   refreshAccessToken,
   saveOutlookTokens,
-  saveTokens
+  saveTokens,
+  setOutlookTokenStore
 } from './oauth2.js'
 
 // ============================================================================
@@ -1282,5 +1286,95 @@ describe('saveOutlookTokens', () => {
       expiresAt: 1000000 + 3600, // default 1 hour
       clientId: 'default-cid'
     })
+  })
+})
+
+// ============================================================================
+// Outlook token embed in the per-sub config blob (Cloudflare multi-user)
+// ============================================================================
+
+const TOK = (n: string): OAuth2Tokens => ({
+  accessToken: `at-${n}`,
+  refreshToken: `rt-${n}`,
+  expiresAt: 9_999_999_999,
+  clientId: 'cid'
+})
+
+describe('Outlook token embed (per-sub config blob)', () => {
+  afterEach(() => {
+    setOutlookTokenStore(null)
+    _resetTokenCache()
+  })
+
+  it('embeds tokens in the injected per-sub store, keyed by explicit sub (no file write)', async () => {
+    const store = new InMemoryCredStore()
+    setOutlookTokenStore(store)
+
+    await saveTokens('a@outlook.com', TOK('a'), 'sub-1')
+
+    const blob = await store.load('sub-1')
+    expect((blob?.outlookTokens as Record<string, OAuth2Tokens>)['a@outlook.com']).toEqual(TOK('a'))
+    expect(await loadStoredTokens('a@outlook.com', 'sub-1')).toEqual(TOK('a'))
+    // Embed path must NOT touch the legacy tokens.json file.
+    expect(mockWriteFileSync).not.toHaveBeenCalled()
+  })
+
+  it('isolates tokens per sub (sub-2 cannot read sub-1 tokens)', async () => {
+    const store = new InMemoryCredStore()
+    setOutlookTokenStore(store)
+
+    await saveTokens('a@outlook.com', TOK('a'), 'sub-1')
+
+    expect(await loadStoredTokens('a@outlook.com', 'sub-2')).toBeNull()
+  })
+
+  it('preserves other blob fields on save (load-fresh-merge, no clobber of accounts)', async () => {
+    const store = new InMemoryCredStore()
+    await store.save('sub-1', { accounts: [{ id: 'a', email: 'a@outlook.com' }] })
+    setOutlookTokenStore(store)
+
+    await saveTokens('a@outlook.com', TOK('a'), 'sub-1')
+
+    const blob = await store.load('sub-1')
+    expect((blob?.accounts as unknown[]).length).toBe(1)
+    expect((blob?.outlookTokens as Record<string, OAuth2Tokens>)['a@outlook.com']).toEqual(TOK('a'))
+  })
+
+  it('uses currentSub() when the sub arg is omitted (request scope)', async () => {
+    const store = new InMemoryCredStore()
+    setOutlookTokenStore(store)
+
+    await subjectContext.run({ sub: 'scoped', accounts: [] }, async () => {
+      await saveTokens('a@outlook.com', TOK('a'))
+      expect(await loadStoredTokens('a@outlook.com')).toEqual(TOK('a'))
+    })
+    expect((await store.load('scoped'))?.outlookTokens).toBeDefined()
+  })
+
+  it('normalizes the email key on the embed path', async () => {
+    const store = new InMemoryCredStore()
+    setOutlookTokenStore(store)
+
+    await saveTokens('User@OUTLOOK.com', TOK('a'), 'sub-1')
+
+    expect(await loadStoredTokens('user@outlook.com', 'sub-1')).toEqual(TOK('a'))
+  })
+
+  it('falls back to the file path when no store is injected', async () => {
+    mockExistsSync.mockReturnValue(false)
+
+    await saveTokens('a@outlook.com', TOK('a')) // no store, no scope
+
+    expect(mockWriteFileSync).toHaveBeenCalled()
+  })
+
+  it('loadOutlookEmails returns the embedded token emails for a sub', async () => {
+    const store = new InMemoryCredStore()
+    setOutlookTokenStore(store)
+
+    await saveTokens('a@outlook.com', TOK('a'), 'sub-1')
+    await saveTokens('b@hotmail.com', TOK('b'), 'sub-1')
+
+    expect((await loadOutlookEmails('sub-1')).sort()).toEqual(['a@outlook.com', 'b@hotmail.com'])
   })
 })

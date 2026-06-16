@@ -95,20 +95,15 @@ export async function resolveCredentialState(): Promise<CredentialState> {
     // Config read failed, continue
   }
 
-  // 3. Check saved OAuth2 tokens (from relay-setup's checkSavedOAuthTokens logic)
+  // 3. Check saved OAuth2 tokens via the encrypted token facade (no raw FS read).
+  //    At startup ``sub=null`` => the facade reads the legacy single-user
+  //    ``tokens.json``; on Cloudflare (multi-user) per-user tokens resolve
+  //    per-request in ``authScope``, so this startup check is a harmless no-op
+  //    there (the ephemeral file is empty). Centralizing the read here keeps the
+  //    token storage format owned by ``oauth2.ts`` alone.
   try {
-    const { readFile } = await import('node:fs/promises')
-    const { homedir } = await import('node:os')
-    const { join } = await import('node:path')
-    const tokenFile = join(homedir(), '.better-email-mcp', 'tokens.json')
-
-    const data = await readFile(tokenFile, 'utf-8')
-    const { isValidTokenStore } = await import('./tools/helpers/oauth2.js')
-    const store: unknown = JSON.parse(data)
-    if (!isValidTokenStore(store)) {
-      throw new Error('Invalid token store')
-    }
-    const emails = Object.keys(store).filter((key) => key.includes('@'))
+    const { loadOutlookEmails } = await import('./tools/helpers/oauth2.js')
+    const emails = await loadOutlookEmails(null)
     if (emails.length > 0) {
       const credentials = emails.map((email) => `${email}:oauth2`).join(',')
       process.env.EMAIL_CREDENTIALS = credentials
@@ -117,7 +112,7 @@ export async function resolveCredentialState(): Promise<CredentialState> {
       return state
     }
   } catch (_err) {
-    // Token read failed or file doesn't exist, continue
+    // Token read failed or facade error, continue
   }
 
   // 4. Nothing found
