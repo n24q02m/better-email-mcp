@@ -40,3 +40,5 @@ htmlcov/
 
 # CF full-flow self-test dumped Bearer token (scripts/cf_full_flow.py --save-only)
 scripts/.email_cf_token
+
+wrangler.deploy.jsonc
