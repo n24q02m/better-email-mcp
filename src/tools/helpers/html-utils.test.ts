@@ -21,6 +21,14 @@ describe('escapeHtml', () => {
   it('does not modify strings without special characters', () => {
     expect(escapeHtml('Just a normal string')).toBe('Just a normal string')
   })
+
+  it('handles non-string values safely (unknown type coercion)', () => {
+    expect(escapeHtml(null)).toBe('')
+    expect(escapeHtml(undefined)).toBe('')
+    expect(escapeHtml(123)).toBe('123')
+    expect(escapeHtml(0)).toBe('0')
+    expect(escapeHtml(false)).toBe('false')
+  })
 })
 
 describe('htmlToCleanText', () => {

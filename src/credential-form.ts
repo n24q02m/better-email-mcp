@@ -22,15 +22,7 @@
  */
 
 import type { RelayConfigSchema } from '@n24q02m/mcp-core'
-
-function escapeHtml(value: unknown): string {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
+import { escapeHtml } from './tools/helpers/html-utils.js'
 
 /**
  * Render the custom email credential form: multi-account cards with
