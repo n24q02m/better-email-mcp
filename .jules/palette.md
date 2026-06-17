@@ -62,3 +62,8 @@
 ## 2024-05-18 - Improve accessibility of code copying
 **Learning:** Adding a copy button for codes displayed in UI improves accessibility and usability.
 **Action:** Always provide a copy mechanism when user needs to copy code displayed on the screen.
+
+## 2025-02-18 - Password Field Masking
+
+**Learning:** Masked password fields (e.g., `type="password"`) help prevent shoulder-surfing, but they can be inaccessible for users with cognitive or motor disabilities who may struggle with typing accuracy and cannot verify their input.
+**Action:** Always provide a "Show/Hide" toggle button for password input fields. Ensure the button has an accessible name (e.g., `aria-label="Show password as plain text"`) that updates dynamically when the state changes.

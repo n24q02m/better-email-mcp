@@ -180,6 +180,15 @@ export function renderEmailCredentialForm(
             box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.2);
         }
         .field-input::placeholder { color: #9ca3af; }
+        .input-wrapper { position: relative; display: flex; align-items: center; }
+        .toggle-password-btn {
+            position: absolute; right: 0.4rem; background: transparent; border: none;
+            color: #9ca3af; font-size: 0.75rem; cursor: pointer; padding: 0.25rem 0.5rem;
+            border-radius: 4px; font-weight: 600; text-transform: uppercase;
+        }
+        .toggle-password-btn:hover { color: #e8e8e8; background-color: rgba(255,255,255,0.1); }
+        .toggle-password-btn:focus-visible { outline: 2px solid #6c9bd2; outline-offset: 2px; }
+        .field-input.has-toggle { padding-right: 4rem; }
         .help-text { font-size: 0.8125rem; color: #9ca3af; margin-top: 0.375rem; }
         .field-error {
             display: none;
@@ -381,7 +390,29 @@ export function renderEmailCredentialForm(
                 input.dataset.role = key;
                 if (placeholder) input.setAttribute("placeholder", placeholder);
                 if (required) input.setAttribute("required", "required");
-                group.appendChild(input);
+
+                if (type === "password") {
+                    var wrapper = document.createElement("div");
+                    wrapper.className = "input-wrapper";
+                    input.className += " has-toggle";
+                    wrapper.appendChild(input);
+
+                    var toggleBtn = document.createElement("button");
+                    toggleBtn.type = "button";
+                    toggleBtn.className = "toggle-password-btn";
+                    toggleBtn.textContent = "Show";
+                    toggleBtn.setAttribute("aria-label", "Show password as plain text");
+                    toggleBtn.addEventListener("click", function () {
+                        var isPass = input.getAttribute("type") === "password";
+                        input.setAttribute("type", isPass ? "text" : "password");
+                        toggleBtn.textContent = isPass ? "Hide" : "Show";
+                        toggleBtn.setAttribute("aria-label", isPass ? "Hide password" : "Show password as plain text");
+                    });
+                    wrapper.appendChild(toggleBtn);
+                    group.appendChild(wrapper);
+                } else {
+                    group.appendChild(input);
+                }
 
                 var errorEl = document.createElement("div");
                 errorEl.id = "error-" + key + "_" + idx;
