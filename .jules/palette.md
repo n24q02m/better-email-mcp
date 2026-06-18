@@ -67,3 +67,8 @@
 
 **Learning:** Masked password fields (e.g., `type="password"`) help prevent shoulder-surfing, but they can be inaccessible for users with cognitive or motor disabilities who may struggle with typing accuracy and cannot verify their input.
 **Action:** Always provide a "Show/Hide" toggle button for password input fields. Ensure the button has an accessible name (e.g., `aria-label="Show password as plain text"`) that updates dynamically when the state changes.
+
+## 2025-02-19 - Respecting OS Preferences & Stateful ARIA Labels
+
+**Learning:** When adding continuous or looped CSS animations (like loaders or spinners), users with motion sensitivities can experience discomfort or distraction if they are unable to disable them. Additionally, interactive feedback on buttons (like a "Copy" button changing text to "Copied!") may be missed by screen readers if only visual text changes and an `aria-live` attribute is not fully descriptive or if the button's accessible name doesn't update to match its new state.
+**Action:** Always wrap continuous CSS animations in a `@media (prefers-reduced-motion: reduce)` query to set `animation: none;` and provide a static fallback (e.g., solid borders instead of spinning partial borders). Furthermore, dynamically update the `aria-label` of interactive elements upon state changes (e.g., from "Copy code to clipboard" to "Code copied") to ensure screen readers announce the exact current state.

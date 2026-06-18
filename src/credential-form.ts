@@ -271,6 +271,10 @@ export function renderEmailCredentialForm(
             margin-right: 0.5rem;
             vertical-align: text-bottom;
         }
+        @media (prefers-reduced-motion: reduce) {
+            .pulse { animation: none; opacity: 1; }
+            .spinner { animation: none; border-right-color: transparent; }
+        }
 
     </style>
 </head>
@@ -717,7 +721,11 @@ export function renderEmailCredentialForm(
                         navigator.clipboard.writeText(nextStep.user_code).then(function () {
                             copyBtn.textContent = "Copied!";
                             copyBtn.setAttribute("aria-live", "polite");
-                            setTimeout(function () { copyBtn.textContent = "Copy"; }, 2000);
+                            copyBtn.setAttribute("aria-label", "Code copied");
+                            setTimeout(function () {
+                                copyBtn.textContent = "Copy";
+                                copyBtn.setAttribute("aria-label", "Copy code to clipboard");
+                            }, 2000);
                         });
                     });
                     statusBox.appendChild(copyBtn);
