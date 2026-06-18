@@ -63,7 +63,7 @@
     "imapflow": "^1.4.1",
     "mailparser": "^3.9.10",
     "marked": "^17.0.6",
-    "nodemailer": "^9.0.0",
+    "nodemailer": "^9.0.1",
     "sanitize-html": "^2.17.5"
   },
   "trustedDependencies": [
@@ -83,7 +83,7 @@
     "tsx": "^4.22.4",
     "typescript": "^5.9.3",
     "vitest": "^4.1.9",
-    "wrangler": "^4.100.0"
+    "wrangler": "^4.101.0"
   },
   "description": "Better MCP server for Email (IMAP/SMTP) with composite tools optimized for AI agents",
   "main": "build/src/init-server.js",
