@@ -2,6 +2,147 @@
 
 <!-- version list -->
 
+## v1.33.0-beta.1 (2026-06-18)
+
+### Bug Fixes
+
+- Add post-deploy canary gate with auto-rollback to deploy_cf.py
+  ([`818cd1d`](https://github.com/n24q02m/better-email-mcp/commit/818cd1de11419b38be40bfb61dfb59a3d54a70eb))
+
+- Correct action count to 21 in Features bullet
+  ([#829](https://github.com/n24q02m/better-email-mcp/pull/829),
+  [`c472cbb`](https://github.com/n24q02m/better-email-mcp/commit/c472cbb86bce27c029e4ef9b7cc41941c35616c1))
+
+- Correct architecture docs to match runtime behavior
+  ([`2ffacda`](https://github.com/n24q02m/better-email-mcp/commit/2ffacda227fe255efaf7b705de8e18aad6911001))
+
+- Forward HOST=0.0.0.0 into the email container (TS-on-CF binding footgun)
+  ([#866](https://github.com/n24q02m/better-email-mcp/pull/866),
+  [`0dd5eaf`](https://github.com/n24q02m/better-email-mcp/commit/0dd5eaf23e3ce7854a99eb5bb7bfa459600f99a7))
+
+- Prefix unused account var to satisfy RUF059
+  ([`818cd1d`](https://github.com/n24q02m/better-email-mcp/commit/818cd1de11419b38be40bfb61dfb59a3d54a70eb))
+
+- Refresh lockfile (renovate maintenance)
+  ([`76689c2`](https://github.com/n24q02m/better-email-mcp/commit/76689c2d4d2d0936f4b39b6157431a7b45a8bfcd))
+
+- Remove dead disk-backed per-user credential store
+  ([`a562a74`](https://github.com/n24q02m/better-email-mcp/commit/a562a7451cb75a138c26eb970bd7f792f317499a))
+
+- Remove orphaned Qodo pr-agent config
+  ([#826](https://github.com/n24q02m/better-email-mcp/pull/826),
+  [`48e68df`](https://github.com/n24q02m/better-email-mcp/commit/48e68df78990b382a54cf76ca87f65f0f2354f79))
+
+- Remove stray temp_http_test.ts scratch file from repo root
+  ([#866](https://github.com/n24q02m/better-email-mcp/pull/866),
+  [`0dd5eaf`](https://github.com/n24q02m/better-email-mcp/commit/0dd5eaf23e3ce7854a99eb5bb7bfa459600f99a7))
+
+- Remove stray temp_http_test.ts scratch file from repo root
+  ([#865](https://github.com/n24q02m/better-email-mcp/pull/865),
+  [`933fdea`](https://github.com/n24q02m/better-email-mcp/commit/933fdea2ea4b18791e4c85ec514539337a23b506))
+
+- Report per-sub configured state from config(status) in multi-user mode
+  ([#866](https://github.com/n24q02m/better-email-mcp/pull/866),
+  [`0dd5eaf`](https://github.com/n24q02m/better-email-mcp/commit/0dd5eaf23e3ce7854a99eb5bb7bfa459600f99a7))
+
+- Sync README tagline to current capability description
+  ([#831](https://github.com/n24q02m/better-email-mcp/pull/831),
+  [`55c49a4`](https://github.com/n24q02m/better-email-mcp/commit/55c49a4c6bb3d4b094c3fedda34dc1c8e6e80279))
+
+- Update node.js base image
+  ([`0ee0c10`](https://github.com/n24q02m/better-email-mcp/commit/0ee0c10bd5a29950d766fb8b919b3bae3fab10b0))
+
+- Update nodemailer to v9
+  ([`31dedf5`](https://github.com/n24q02m/better-email-mcp/commit/31dedf5244d20b4d97606a0eef5effbce5598e1b))
+
+- Update non-major dependencies
+  ([`c748a48`](https://github.com/n24q02m/better-email-mcp/commit/c748a48768f2710146cf88c06d08cdefbe8fb36c))
+
+- **deps**: Update non-major dependencies
+  ([#823](https://github.com/n24q02m/better-email-mcp/pull/823),
+  [`3d89848`](https://github.com/n24q02m/better-email-mcp/commit/3d898482401a4506aa392019d8ccb02f8115b139))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#824](https://github.com/n24q02m/better-email-mcp/pull/824),
+  [`ed1c319`](https://github.com/n24q02m/better-email-mcp/commit/ed1c31992fee2f84f073fe4f11448d03cd17b756))
+
+- **deps**: Update node.js to fb71d01 ([#833](https://github.com/n24q02m/better-email-mcp/pull/833),
+  [`3a0f6e7`](https://github.com/n24q02m/better-email-mcp/commit/3a0f6e7ed972bfabaf0e5cc2a1be099bc56c735c))
+
+### Features
+
+- A11y for the email credential form (carryover from closed PRs)
+  ([#866](https://github.com/n24q02m/better-email-mcp/pull/866),
+  [`0dd5eaf`](https://github.com/n24q02m/better-email-mcp/commit/0dd5eaf23e3ce7854a99eb5bb7bfa459600f99a7))
+
+- Add --tools mode to CF self-test harness for read-only tool coverage
+  ([#866](https://github.com/n24q02m/better-email-mcp/pull/866),
+  [`0dd5eaf`](https://github.com/n24q02m/better-email-mcp/commit/0dd5eaf23e3ce7854a99eb5bb7bfa459600f99a7))
+
+- Add CF full-flow self-test harness + document Cloudflare KV deploy
+  ([#866](https://github.com/n24q02m/better-email-mcp/pull/866),
+  [`0dd5eaf`](https://github.com/n24q02m/better-email-mcp/commit/0dd5eaf23e3ce7854a99eb5bb7bfa459600f99a7))
+
+- Add CF-migration test harness + bump mcp-core to 1.18.0-beta.7 storage backends
+  ([#866](https://github.com/n24q02m/better-email-mcp/pull/866),
+  [`0dd5eaf`](https://github.com/n24q02m/better-email-mcp/commit/0dd5eaf23e3ce7854a99eb5bb7bfa459600f99a7))
+
+- Add Cloudflare Worker (KV-only) + wrangler config + EdDSA contract guard
+  ([#866](https://github.com/n24q02m/better-email-mcp/pull/866),
+  [`0dd5eaf`](https://github.com/n24q02m/better-email-mcp/commit/0dd5eaf23e3ce7854a99eb5bb7bfa459600f99a7))
+
+- Add copy button + a11y labels to OAuth device-code form
+  ([`598dcb6`](https://github.com/n24q02m/better-email-mcp/commit/598dcb6bd95608eeef2c696d47a125405d84eb80))
+
+- Add PerSubCredStore KV write-through credential store (embed + schema-validate)
+  ([#866](https://github.com/n24q02m/better-email-mcp/pull/866),
+  [`0dd5eaf`](https://github.com/n24q02m/better-email-mcp/commit/0dd5eaf23e3ce7854a99eb5bb7bfa459600f99a7))
+
+- Add post-deploy canary gate with auto-rollback to deploy_cf.py
+  ([`818cd1d`](https://github.com/n24q02m/better-email-mcp/commit/818cd1de11419b38be40bfb61dfb59a3d54a70eb))
+
+- Add Python CF full-flow OAuth self-test harness
+  ([#866](https://github.com/n24q02m/better-email-mcp/pull/866),
+  [`0dd5eaf`](https://github.com/n24q02m/better-email-mcp/commit/0dd5eaf23e3ce7854a99eb5bb7bfa459600f99a7))
+
+- Add show/hide password toggle to credential form
+  ([`b462baa`](https://github.com/n24q02m/better-email-mcp/commit/b462baaefa59d2e26930b5bef5043de398fc05f5))
+
+- Embed Outlook OAuth tokens in the per-sub credential blob
+  ([#866](https://github.com/n24q02m/better-email-mcp/pull/866),
+  [`0dd5eaf`](https://github.com/n24q02m/better-email-mcp/commit/0dd5eaf23e3ce7854a99eb5bb7bfa459600f99a7))
+
+- Expose currentSub() for detached Outlook token writes
+  ([#866](https://github.com/n24q02m/better-email-mcp/pull/866),
+  [`0dd5eaf`](https://github.com/n24q02m/better-email-mcp/commit/0dd5eaf23e3ce7854a99eb5bb7bfa459600f99a7))
+
+- Migrate better-email-mcp to Cloudflare (per-sub KV, multi-user)
+  ([#866](https://github.com/n24q02m/better-email-mcp/pull/866),
+  [`0dd5eaf`](https://github.com/n24q02m/better-email-mcp/commit/0dd5eaf23e3ce7854a99eb5bb7bfa459600f99a7))
+
+- Sync cross-promo section ([#832](https://github.com/n24q02m/better-email-mcp/pull/832),
+  [`4686a9e`](https://github.com/n24q02m/better-email-mcp/commit/4686a9e3a7f002e9ceebfea3df29c14c923eb2b2))
+
+- Wire PerSubCredStore into http transport + fix cross-user bleed
+  ([#866](https://github.com/n24q02m/better-email-mcp/pull/866),
+  [`0dd5eaf`](https://github.com/n24q02m/better-email-mcp/commit/0dd5eaf23e3ce7854a99eb5bb7bfa459600f99a7))
+
+### Testing
+
+- **auth**: Enhance test coverage for subject-context.ts
+  ([#807](https://github.com/n24q02m/better-email-mcp/pull/807),
+  [`460949f`](https://github.com/n24q02m/better-email-mcp/commit/460949fcb84d2192937d8353f93beb4389efdd28))
+
+- **http**: Improve synchronization in runStartHttpAndTriggerShutdown
+  ([#839](https://github.com/n24q02m/better-email-mcp/pull/839),
+  [`e448ef1`](https://github.com/n24q02m/better-email-mcp/commit/e448ef1205dfd0058aa6bdb45299b5194b025621))
+
+- **tools**: Add missing error path tests in registry.ts
+  ([#840](https://github.com/n24q02m/better-email-mcp/pull/840),
+  [`e432047`](https://github.com/n24q02m/better-email-mcp/commit/e4320476031ab7461e67c93ea139f479f1e9cc47))
+
+
 ## v1.32.3-beta.2 (2026-06-10)
 
 ### Bug Fixes
