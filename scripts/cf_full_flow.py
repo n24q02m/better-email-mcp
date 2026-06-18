@@ -51,7 +51,10 @@ import time
 import urllib.parse
 from pathlib import Path
 
-DEFAULT_ENDPOINT = "https://email.n24q02m.com"
+# No hardcoded host: set CF_ENDPOINT or pass --endpoint https://<your-worker-domain>.
+# This self-tests YOUR deployed CF server; creds come from env (MCP_RELAY_PASSWORD +
+# provider keys) -- the maintainer injects them via skret, but any export works.
+DEFAULT_ENDPOINT = os.environ.get("CF_ENDPOINT", "")
 
 
 def _password() -> str:
@@ -95,14 +98,20 @@ def get_token(endpoint: str, creds: dict[str, str], *, save_retries: int = 8) ->
             return _get_token_once(httpx, endpoint, creds)
         except _SaveRetry as e:
             last = e
-            print(f"get_token: save 500 (interception race), retry {attempt + 1}/{save_retries}")
+            print(
+                f"get_token: save 500 (interception race), retry {attempt + 1}/{save_retries}"
+            )
             time.sleep(3)
     raise RuntimeError(f"get_token failed after {save_retries} retries: {last}")
 
 
 def _get_token_once(httpx, endpoint: str, creds: dict[str, str]) -> str:
     verifier = base64.urlsafe_b64encode(secrets.token_bytes(32)).rstrip(b"=").decode()
-    challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
+    challenge = (
+        base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest())
+        .rstrip(b"=")
+        .decode()
+    )
     ru = "http://localhost:9999/cb"
     pw = _password()
     with httpx.Client(timeout=120, follow_redirects=False) as c:
@@ -129,7 +138,9 @@ def _get_token_once(httpx, endpoint: str, creds: dict[str, str]) -> str:
                 "scope": "offline_access",
             },
         )
-        nxt = urllib.parse.parse_qs(urllib.parse.urlparse(az.headers["location"]).query)["next"][0]
+        nxt = urllib.parse.parse_qs(
+            urllib.parse.urlparse(az.headers["location"]).query
+        )["next"][0]
         lg = c.post(f"{endpoint}/login", data={"next": nxt, "password": pw})
         url = lg.headers["location"]
         url = url if url.startswith("http") else endpoint + url
@@ -137,13 +148,17 @@ def _get_token_once(httpx, endpoint: str, creds: dict[str, str]) -> str:
         m = re.search(r"/authorize\?nonce=([A-Za-z0-9_\-]+)", form_html)
         assert m, "nonce not found in form"
         nonce = m.group(1)
-        sub = c.post(f"{endpoint}/authorize", params={"nonce": nonce}, json=creds, timeout=120)
+        sub = c.post(
+            f"{endpoint}/authorize", params={"nonce": nonce}, json=creds, timeout=120
+        )
         if sub.status_code == 500 and "save credentials" in sub.text:
             raise _SaveRetry(sub.text[:120])
         assert sub.status_code == 200, (sub.status_code, sub.text[:400])
         data = sub.json()
         assert data.get("ok"), data
-        code = urllib.parse.parse_qs(urllib.parse.urlparse(data["redirect_url"]).query)["code"][0]
+        code = urllib.parse.parse_qs(urllib.parse.urlparse(data["redirect_url"]).query)[
+            "code"
+        ][0]
         tok = c.post(
             f"{endpoint}/token",
             data={
@@ -207,12 +222,18 @@ async def _call(s, label, tool, args, *, retries=20, delay=8):
 
 
 def _assert_account_resolved(txt: str | None) -> None:
-    assert txt is not None, "folders(list) returned no payload (gave up while still not ready)"
-    assert not _not_ready(txt), f"account NOT resolved (creds never propagated): {txt[:300]}"
+    assert txt is not None, (
+        "folders(list) returned no payload (gave up while still not ready)"
+    )
+    assert not _not_ready(txt), (
+        f"account NOT resolved (creds never propagated): {txt[:300]}"
+    )
     # Positive proof the IMAP account actually resolved: Gmail always exposes an
     # INBOX folder, so a real folders(list) response contains it. Its absence
     # means the call returned something other than a folder listing.
-    assert "inbox" in txt.lower(), f"folders(list) did not return an INBOX folder: {txt[:300]}"
+    assert "inbox" in txt.lower(), (
+        f"folders(list) did not return an INBOX folder: {txt[:300]}"
+    )
     print("ASSERT OK: account resolved, INBOX folder listed.")
 
 
@@ -220,7 +241,9 @@ async def _session(endpoint: str, token: str):
     from mcp import ClientSession  # lazy
     from mcp.client.streamable_http import streamablehttp_client
 
-    return streamablehttp_client(f"{endpoint}/mcp", headers={"Authorization": f"Bearer {token}"}), ClientSession
+    return streamablehttp_client(
+        f"{endpoint}/mcp", headers={"Authorization": f"Bearer {token}"}
+    ), ClientSession
 
 
 def _token_file() -> Path:
@@ -244,7 +267,13 @@ async def run_full(endpoint: str) -> None:
 async def run_save_only(endpoint: str) -> None:
     token = get_token(endpoint, {"EMAIL_CREDENTIALS": _email_credentials()})
     _token_file().write_text(token)
-    print("SAVE-ONLY OK: creds saved for sub=", _sub_of(token), "len(token)=", len(token), "(token dumped)")
+    print(
+        "SAVE-ONLY OK: creds saved for sub=",
+        _sub_of(token),
+        "len(token)=",
+        len(token),
+        "(token dumped)",
+    )
 
 
 async def run_auth_only(endpoint: str) -> None:
@@ -275,16 +304,31 @@ async def run_tools(endpoint: str) -> None:
         await s.initialize()
         print("TOOLS:", [t.name for t in (await s.list_tools()).tools])
         status = await _call(s, "CONFIG_STATUS", "config", {"action": "status"})
-        _assert_account_resolved(await _call(s, "FOLDERS_LIST", "folders", {"action": "list"}))
+        _assert_account_resolved(
+            await _call(s, "FOLDERS_LIST", "folders", {"action": "list"})
+        )
         # messages(search): exercises an IMAP SELECT + SEARCH + header FETCH over
         # the KV-resolved account -- the real read path the agent uses most.
-        search = await _call(s, "MESSAGES_SEARCH", "messages", {"action": "search", "query": "ALL", "limit": 2})
-        assert search is not None and "error" not in search.lower(), f"messages(search) failed: {search}"
+        search = await _call(
+            s,
+            "MESSAGES_SEARCH",
+            "messages",
+            {"action": "search", "query": "ALL", "limit": 2},
+        )
+        assert search is not None and "error" not in search.lower(), (
+            f"messages(search) failed: {search}"
+        )
         # help: docs-resource path, no credentials required.
         helptxt = await _call(s, "HELP", "help", {"tool_name": "messages"})
-        assert helptxt is not None and "messages" in helptxt.lower(), f"help failed: {helptxt}"
-        assert status is not None and "configured" in status.lower(), f"config(status) not configured: {status}"
-    print("TOOLS PASS: config + folders + messages(search) + help all resolved over the per-sub KV path.")
+        assert helptxt is not None and "messages" in helptxt.lower(), (
+            f"help failed: {helptxt}"
+        )
+        assert status is not None and "configured" in status.lower(), (
+            f"config(status) not configured: {status}"
+        )
+    print(
+        "TOOLS PASS: config + folders + messages(search) + help all resolved over the per-sub KV path."
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -292,11 +336,27 @@ def build_parser() -> argparse.ArgumentParser:
         description="CF better-email-mcp live OAuth full-flow self-test harness.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p.add_argument("--endpoint", default=DEFAULT_ENDPOINT, help=f"Deployed endpoint (default: {DEFAULT_ENDPOINT})")
+    p.add_argument(
+        "--endpoint",
+        default=DEFAULT_ENDPOINT,
+        help=f"Deployed endpoint (default: {DEFAULT_ENDPOINT})",
+    )
     mode = p.add_mutually_exclusive_group()
-    mode.add_argument("--save-only", action="store_true", help="save creds for one sub + dump token (recreate-gate setup).")
-    mode.add_argument("--auth-only", action="store_true", help="replay dumped token, no re-save (recreate-gate verify).")
-    mode.add_argument("--tools", action="store_true", help="exercise read-only tool surface (messages/help) on the live deploy.")
+    mode.add_argument(
+        "--save-only",
+        action="store_true",
+        help="save creds for one sub + dump token (recreate-gate setup).",
+    )
+    mode.add_argument(
+        "--auth-only",
+        action="store_true",
+        help="replay dumped token, no re-save (recreate-gate verify).",
+    )
+    mode.add_argument(
+        "--tools",
+        action="store_true",
+        help="exercise read-only tool surface (messages/help) on the live deploy.",
+    )
     return p
 
 
