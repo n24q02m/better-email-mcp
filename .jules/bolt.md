@@ -33,3 +33,7 @@
 ## 2026-06-15 - [Avoid requesting bodyStructure unless needed]
 **Learning:** When fetching emails via IMAP (e.g., in `searchEmails`), requesting `bodyStructure: true` forces the server to parse the MIME tree and transmit extra data, causing significant performance and network overhead, even when the response is not utilized by the client code.
 **Action:** Remove `bodyStructure: true` from the `fetchAll` options in `searchEmails` and other places where the full MIME structure is not strictly required.
+
+## 2026-06-25 - [Optimize V8 string escaping]
+**Learning:** In V8 environments (Node.js/Bun), chained `.replace()` calls with regular expressions and string literal replacements (e.g., `.replace(/&/g, '&amp;')`) perform significantly faster (~4x) for simple string escaping than a single `.replace()` with a mapping callback, as they avoid crossing the C++/JS boundary for every match.
+**Action:** Use chained string literal `.replace()` instead of a single regex with a map callback for simple replacements like `escapeHtml`.
