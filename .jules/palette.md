@@ -67,3 +67,8 @@
 
 **Learning:** Masked password fields (e.g., `type="password"`) help prevent shoulder-surfing, but they can be inaccessible for users with cognitive or motor disabilities who may struggle with typing accuracy and cannot verify their input.
 **Action:** Always provide a "Show/Hide" toggle button for password input fields. Ensure the button has an accessible name (e.g., `aria-label="Show password as plain text"`) that updates dynamically when the state changes.
+
+## 2025-02-19 - Respecting prefers-reduced-motion in loading animations
+
+**Learning:** Indefinite CSS animations like `.pulse` and rotating spinners can trigger motion sickness or distract users with vestibular disorders. While animations communicate background processing effectively for sighted users, they violate WCAG 2.1 Success Criterion 2.2.2 (Pause, Stop, Hide) if they cannot be disabled by the user's system preferences.
+**Action:** Always wrap continuous or flashing CSS animations in a `@media (prefers-reduced-motion: reduce)` query block and apply `animation: none;` to ensure accessibility compliance for users who have opted into reduced motion via their OS or browser settings.

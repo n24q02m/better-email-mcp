@@ -271,6 +271,11 @@ export function renderEmailCredentialForm(
             margin-right: 0.5rem;
             vertical-align: text-bottom;
         }
+        @media (prefers-reduced-motion: reduce) {
+            .pulse, .spinner {
+                animation: none;
+            }
+        }
 
     </style>
 </head>
