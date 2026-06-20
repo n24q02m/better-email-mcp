@@ -67,3 +67,6 @@
 
 **Learning:** Masked password fields (e.g., `type="password"`) help prevent shoulder-surfing, but they can be inaccessible for users with cognitive or motor disabilities who may struggle with typing accuracy and cannot verify their input.
 **Action:** Always provide a "Show/Hide" toggle button for password input fields. Ensure the button has an accessible name (e.g., `aria-label="Show password as plain text"`) that updates dynamically when the state changes.
+## 2025-03-09 - [Accessibility Enhancements to credential-form.ts]
+**Learning:** When using Playwright in a headless Chromium environment to test clipboard interactions (like `navigator.clipboard.writeText`), the clipboard promise may silently fail or hang unless explicit permissions (`clipboard-read`, `clipboard-write`) are granted to the browser context, or the API is directly mocked in the page context.
+**Action:** When writing Playwright tests involving clipboard copies, either mock the clipboard API via `page.evaluate("navigator.clipboard.writeText = function() { return Promise.resolve(); };")` or initialize the context with the required permissions.
