@@ -42,7 +42,9 @@
     "prepublishOnly": "bun run build",
     "docker:build": "docker build -t n24q02m/better-email-mcp:latest .",
     "docker:push": "docker push n24q02m/better-email-mcp:latest",
-    "docker:run": "docker run --rm -i -e EMAIL_CREDENTIALS n24q02m/better-email-mcp:latest"
+    "docker:run": "docker run --rm -i -e EMAIL_CREDENTIALS n24q02m/better-email-mcp:latest",
+    "cf:dryrun": "node scripts/cf-deploy.js -- --dry-run",
+    "cf:deploy": "node scripts/cf-deploy.js"
   },
   "bin": {
     "better-email-mcp": "bin/cli.mjs"
