@@ -46,7 +46,7 @@ mcp-name: io.github.n24q02m/better-email-mcp
 ## Table of contents
 
 - [Features](#features)
-- [Status](#status)
+- [Install](#install)
 - [Documentation](#documentation)
 - [Tools](#tools)
 - [Comparison](#comparison)
@@ -68,30 +68,32 @@ mcp-name: io.github.n24q02m/better-email-mcp
 
 - **Multi-account support** -- manage 6+ email accounts (Gmail, Outlook, Yahoo, iCloud, Zoho, ProtonMail, custom IMAP)
 - **App Passwords** -- no OAuth2 setup required for most providers; clone and run in 1 minute
-- **7 composite tools** with 21 actions -- search, read, send, reply, forward, organize, credential setup in single calls
+- **5 composite tools** with 21 actions (plus `help` + `config__open_relay`) -- search, read, send, reply, forward, organize, and credential setup in single calls
 - **Auto-discovery** -- provider settings detected from email address, custom IMAP host supported
 - **Thread-aware** -- reply/forward maintains In-Reply-To and References headers
 - **Tiered token optimization** -- compressed descriptions + on-demand `help` tool + MCP Resources
 
-## Status
+## Install
 
-> **2026-05-02 -- Architecture stabilization update**
->
-> Past months saw significant churn around credential handling and the daemon-bridge auto-spawn pattern. This caused multi-process races, browser tab spam, and inconsistent setup UX across plugins. **As of v&lt;auto&gt;, the architecture is stable**: 2 clean modes (stdio + HTTP), no daemon-bridge layer, no auto-spawn from stdio.
->
-> Apologies for the instability period. If you encountered issues with prior versions, please update to v&lt;auto&gt;+ and follow the current [Setup guide](https://mcp.n24q02m.com/servers/better-email-mcp/setup/) -- most prior workarounds are no longer needed.
->
-> **Related plugins from the same author**:
-> - [wet-mcp](https://github.com/n24q02m/wet-mcp) -- Web search + content extraction
-> - [mnemo-mcp](https://github.com/n24q02m/mnemo-mcp) -- Persistent AI memory
-> - [imagine-mcp](https://github.com/n24q02m/imagine-mcp) -- Image/video understanding + generation
-> - [better-notion-mcp](https://github.com/n24q02m/better-notion-mcp) -- Notion API
-> - [better-email-mcp](https://github.com/n24q02m/better-email-mcp) -- Email management
-> - [better-telegram-mcp](https://github.com/n24q02m/better-telegram-mcp) -- Telegram
-> - [better-godot-mcp](https://github.com/n24q02m/better-godot-mcp) -- Godot Engine
-> - [better-code-review-graph](https://github.com/n24q02m/better-code-review-graph) -- Code review knowledge graph
->
-> All plugins share the same architecture -- install once, learn pattern transfers.
+The server runs in two modes: **stdio** (default, single-user, credentials from env vars) and **HTTP** (opt-in, multi-user with OAuth 2.1). For stdio, add it to your MCP client config:
+
+```jsonc
+{
+  "mcpServers": {
+    "better-email": {
+      "command": "npx",
+      "args": ["--yes", "@n24q02m/better-email-mcp@latest"],
+      "env": {
+        "EMAIL_CREDENTIALS": "user@gmail.com:app-password"
+      }
+    }
+  }
+}
+```
+
+Multiple accounts are comma-separated: `user1@gmail.com:pass1,user2@outlook.com:pass2`. See [Configuration](#configuration) for all env vars, and [Remote (HTTP Mode)](#remote-http-mode) to run a hosted multi-user server.
+
+Most providers use an **App Password** (no OAuth setup); Outlook/Hotmail/Live use a bundled OAuth device-code flow in HTTP mode. Settings (IMAP/SMTP host, port) are auto-discovered from the email domain.
 
 ## Documentation
 
