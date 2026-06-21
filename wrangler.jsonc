@@ -16,8 +16,8 @@
       // Re-pushing the SAME tag does NOT roll a running instance -> delete+recreate
       // the app to deploy a new image.
       "image": "registry.cloudflare.com/<YOUR_ACCOUNT_ID>/better-email-mcp:beta",
-      "instance_type": "standard-1",
-      "max_instances": 100
+      "instance_type": "basic",
+      "max_instances": 10
     }
   ],
   "durable_objects": {
