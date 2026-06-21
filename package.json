@@ -48,7 +48,7 @@
     "better-email-mcp": "bin/cli.mjs"
   },
   "engines": {
-    "node": ">=24.16.0"
+    "node": ">=24.17.0"
   },
   "files": [
     "build/",
@@ -60,8 +60,8 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@n24q02m/mcp-core": ">=1.18.0-beta.7,<2",
     "html-to-text": "^10.0.0",
-    "imapflow": "^1.4.1",
-    "mailparser": "^3.9.10",
+    "imapflow": "^1.4.2",
+    "mailparser": "^3.9.11",
     "marked": "^17.0.6",
     "nodemailer": "^9.0.1",
     "sanitize-html": "^2.17.5"
@@ -83,7 +83,7 @@
     "tsx": "^4.22.4",
     "typescript": "^5.9.3",
     "vitest": "^4.1.9",
-    "wrangler": "^4.101.0"
+    "wrangler": "^4.103.0"
   },
   "description": "Better MCP server for Email (IMAP/SMTP) with composite tools optimized for AI agents",
   "main": "build/src/init-server.js",
