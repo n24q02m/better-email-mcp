@@ -61,7 +61,7 @@ for (const { placeholder, value, required } of substitutions) {
     continue
   }
   resolved = resolved.split(placeholder).join(value)
-  console.log(`cf:deploy: ${placeholder} -> ${value}`)
+  console.log(`cf:deploy: substituted ${placeholder}`)
 }
 
 // Write the temp config INSIDE projectRoot: wrangler resolves `main` and other
