@@ -70,3 +70,6 @@
 ## 2025-03-09 - [Accessibility Enhancements to credential-form.ts]
 **Learning:** When using Playwright in a headless Chromium environment to test clipboard interactions (like `navigator.clipboard.writeText`), the clipboard promise may silently fail or hang unless explicit permissions (`clipboard-read`, `clipboard-write`) are granted to the browser context, or the API is directly mocked in the page context.
 **Action:** When writing Playwright tests involving clipboard copies, either mock the clipboard API via `page.evaluate("navigator.clipboard.writeText = function() { return Promise.resolve(); };")` or initialize the context with the required permissions.
+## 2024-05-19 - [Dynamic Form Focus Management]
+**Learning:** When removing an interactive element (like an account card) from a dynamic list in the DOM, abruptly dropping keyboard focus to a fallback action button at the bottom of the page creates a jarring navigation experience. Screen reader and keyboard users lose their context within the form list.
+**Action:** Always attempt to return focus to a logical sibling (e.g. the previous or next card's first input field) before falling back to global action buttons like "Add New". This maintains the sequential flow of form completion.

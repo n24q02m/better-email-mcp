@@ -582,11 +582,25 @@ export function renderEmailCredentialForm(
                     if (hasData && !window.confirm("This account has unsaved data. Are you sure you want to remove it?")) {
                         return;
                     }
+
+                    var prev = card.previousElementSibling;
+                    var next = card.nextElementSibling;
+                    var focusTarget = (prev && prev.classList && prev.classList.contains("account-card")) ? prev :
+                                      (next && next.classList && next.classList.contains("account-card")) ? next : null;
+
                     card.remove();
                     updateAccountNumbers();
 
-                    // Return focus to the "Add Another Account" button after a card is removed
-                    // to prevent keyboard focus from being dropped back to the document body.
+                    // UX/a11y: Return focus to the previous or next card's first input if it exists,
+                    // otherwise try the Add button. Creates a much smoother experience for keyboard users.
+                    if (focusTarget) {
+                        var firstInput = focusTarget.querySelector("input");
+                        if (firstInput && firstInput instanceof HTMLElement) {
+                            firstInput.focus();
+                            return;
+                        }
+                    }
+
                     if (addBtn) addBtn.focus();
                 });
                 header.appendChild(removeBtn);
