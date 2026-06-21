@@ -264,6 +264,11 @@ export function renderEmailCredentialForm(
             vertical-align: text-bottom;
         }
 
+        @media (prefers-reduced-motion: reduce) {
+            .pulse, .spinner { animation: none; }
+            .field-input, .add-btn { transition: none; }
+        }
+
     </style>
 </head>
 <body>
@@ -708,8 +713,12 @@ export function renderEmailCredentialForm(
                     copyBtn.addEventListener("click", function () {
                         navigator.clipboard.writeText(nextStep.user_code).then(function () {
                             copyBtn.textContent = "Copied!";
+                            copyBtn.setAttribute("aria-label", "Code copied to clipboard");
                             copyBtn.setAttribute("aria-live", "polite");
-                            setTimeout(function () { copyBtn.textContent = "Copy"; }, 2000);
+                            setTimeout(function () {
+                                copyBtn.textContent = "Copy";
+                                copyBtn.setAttribute("aria-label", "Copy code to clipboard");
+                            }, 2000);
                         });
                     });
                     statusBox.appendChild(copyBtn);
