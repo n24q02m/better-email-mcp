@@ -2,6 +2,52 @@
 
 <!-- version list -->
 
+## v1.33.0-beta.2 (2026-06-21)
+
+### Bug Fixes
+
+- Add cf:deploy script for live wrangler deploy
+  ([#888](https://github.com/n24q02m/better-email-mcp/pull/888),
+  [`dfd7790`](https://github.com/n24q02m/better-email-mcp/commit/dfd779046a40fe49d9853d2cbea207957c2eea34))
+
+- Drop env-derived value from cf_deploy log (CodeQL js/clear-text-logging)
+  ([#888](https://github.com/n24q02m/better-email-mcp/pull/888),
+  [`dfd7790`](https://github.com/n24q02m/better-email-mcp/commit/dfd779046a40fe49d9853d2cbea207957c2eea34))
+
+- Make canary gate utf-8-safe (decode+encode) and Cloudflare-UA-aware
+  ([`d270c4c`](https://github.com/n24q02m/better-email-mcp/commit/d270c4ce8ecc613b60eb93008a05ac108a1a79bb))
+
+- Make canary gate utf-8-safe and Cloudflare-UA-aware
+  ([`d270c4c`](https://github.com/n24q02m/better-email-mcp/commit/d270c4ce8ecc613b60eb93008a05ac108a1a79bb))
+
+- Neutral default endpoint + env-first secrets in CF self-host scripts
+  ([`4503744`](https://github.com/n24q02m/better-email-mcp/commit/4503744c624b2476c01ea0a09993d6c4b2f9e379))
+
+- Right-size CF container memory to cut GiB-second cost
+  ([#887](https://github.com/n24q02m/better-email-mcp/pull/887),
+  [`0853495`](https://github.com/n24q02m/better-email-mcp/commit/0853495b3db5679d1420205279f90565bd744ca7))
+
+- Use contextlib.suppress for stdout reconfigure (SIM105)
+  ([`d270c4c`](https://github.com/n24q02m/better-email-mcp/commit/d270c4ce8ecc613b60eb93008a05ac108a1a79bb))
+
+- **deps**: Update non-major dependencies
+  ([#878](https://github.com/n24q02m/better-email-mcp/pull/878),
+  [`0387606`](https://github.com/n24q02m/better-email-mcp/commit/03876069993c07d568edab6a13424c10337dd273))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#880](https://github.com/n24q02m/better-email-mcp/pull/880),
+  [`2d08022`](https://github.com/n24q02m/better-email-mcp/commit/2d080227a15762cc0be959be389a0c59afa7c6e6))
+
+- **deps**: Update actions/checkout action to v7
+  ([#879](https://github.com/n24q02m/better-email-mcp/pull/879),
+  [`c6689de`](https://github.com/n24q02m/better-email-mcp/commit/c6689de1bd36a2e80ef9abe0d320033515d77248))
+
+- **deps**: Update dependency @types/node to v26
+  ([#883](https://github.com/n24q02m/better-email-mcp/pull/883),
+  [`e052255`](https://github.com/n24q02m/better-email-mcp/commit/e052255bc7124bfcf966d64bd3acbc0fa905355e))
+
+
 ## v1.33.0-beta.1 (2026-06-18)
 
 ### Bug Fixes
