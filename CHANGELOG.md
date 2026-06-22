@@ -2,6 +2,23 @@
 
 <!-- version list -->
 
+## v1.33.0-beta.3 (2026-06-22)
+
+### Bug Fixes
+
+- Pin CF container max_instances to 3 ([#892](https://github.com/n24q02m/better-email-mcp/pull/892),
+  [`3601b7d`](https://github.com/n24q02m/better-email-mcp/commit/3601b7d5ccca060fff7c3ea027e9eef8dafe8e79))
+
+- Remove stale README status block and add real install section
+  ([#889](https://github.com/n24q02m/better-email-mcp/pull/889),
+  [`3d66f02`](https://github.com/n24q02m/better-email-mcp/commit/3d66f02c5ba8b1375fbab0f787e8e1cd42c06211))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#890](https://github.com/n24q02m/better-email-mcp/pull/890),
+  [`05b6ca9`](https://github.com/n24q02m/better-email-mcp/commit/05b6ca92e2da9d777a656a1ef29deaa171282bca))
+
+
 ## v1.33.0-beta.2 (2026-06-21)
 
 ### Bug Fixes
