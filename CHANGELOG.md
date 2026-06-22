@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v1.33.0-beta.4 (2026-06-22)
+
+### Bug Fixes
+
+- Bump mcp-core to 1.18.0b19 (relay model-search catalog + OAuth refresh-TTL)
+  ([#893](https://github.com/n24q02m/better-email-mcp/pull/893),
+  [`e6ca8a7`](https://github.com/n24q02m/better-email-mcp/commit/e6ca8a7e84cecf760841fc6eef031e958a2e7268))
+
+
 ## v1.33.0-beta.3 (2026-06-22)
 
 ### Bug Fixes
