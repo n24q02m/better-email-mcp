@@ -85,6 +85,7 @@ function _toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  clearSentFolderCache()
   mockClient.connect.mockResolvedValue(undefined)
   mockClient.logout.mockResolvedValue(undefined)
   mockClient.getMailboxLock.mockResolvedValue({ release: mockRelease })
@@ -642,6 +643,15 @@ describe('formatAddress edge cases', () => {
     expect(result.cc).toBe('')
     expect(result.bcc).toBe('')
   })
+  it('formats an array of AddressObjects', async () => {
+    setupReadEmail({
+      to: [{ text: 'Alice <alice@test.com>' }, { value: [{ name: 'Bob', address: 'bob@test.com' }] }]
+    })
+
+    const result = await readEmail(account, 1, 'INBOX')
+
+    expect(result.to).toBe('Alice <alice@test.com>, Bob <bob@test.com>')
+  })
 
   it('returns empty string for object with no text or value', async () => {
     setupReadEmail({ cc: {} })
@@ -909,6 +919,28 @@ describe('resolveSentFolder', () => {
     const result = await resolveSentFolder(customAccount)
 
     expect(result).toBe('Sent')
+  })
+  it('clears cache if the resolve promise rejects', async () => {
+    // We need to bypass the internal try-catch in resolvePromise (lines 294-300)
+    // The only thing outside that try-catch that could fail is resolvePromise itself if it was constructed differently,
+    // or if we mock a provider-specific check to throw.
+    // Actually, the provider-specific checks (lines 287-291) just check host strings.
+    // Wait, if listFolders throws, it IS caught by the internal try-catch (line 294-300).
+    // So to trigger 310, resolvePromise must throw.
+    // This can happen if we mock something that resolvePromise uses but is NOT inside its try-catch.
+    // But everything is inside it except the initial assignments.
+    // Let's look at the resolvePromise definition again.
+    // const resolvePromise = (async () => { ... })()
+    // If we can make the account.imap.host.includes throw (e.g. if host is null), it might work.
+
+    const invalidAccount = {
+      ...account,
+      id: 'invalid-host-account',
+      imap: { host: null as any, port: 993, secure: true }
+    }
+
+    await expect(resolveSentFolder(invalidAccount)).rejects.toThrow()
+    expect(clearSentFolderCache()).toBe(0)
   })
 })
 
