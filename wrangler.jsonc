@@ -17,7 +17,7 @@
       // the app to deploy a new image.
       "image": "registry.cloudflare.com/<YOUR_ACCOUNT_ID>/better-email-mcp:beta",
       "instance_type": "standard-1",
-      "max_instances": 100
+      "max_instances": 1
     }
   ],
   "durable_objects": {
