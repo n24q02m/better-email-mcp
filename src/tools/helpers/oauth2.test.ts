@@ -571,6 +571,10 @@ describe('deviceCodeAuth', () => {
   it('throws if email is just whitespace', async () => {
     await expect(deviceCodeAuth('   ')).rejects.toThrow('Email is required')
   })
+  it('throws if email is null or undefined', async () => {
+    await expect(deviceCodeAuth(null as any)).rejects.toThrow('Email is required')
+    await expect(deviceCodeAuth(undefined as any)).rejects.toThrow('Email is required')
+  })
   const mockFetch = vi.fn()
   const originalEnv = process.env.OUTLOOK_CLIENT_ID
 
@@ -1180,6 +1184,10 @@ describe('initiateOutlookDeviceCode', () => {
   })
   it('throws if email is just whitespace', async () => {
     await expect(initiateOutlookDeviceCode('   ')).rejects.toThrow('Email is required')
+  })
+  it('throws if email is null or undefined', async () => {
+    await expect(initiateOutlookDeviceCode(null as any)).rejects.toThrow('Email is required')
+    await expect(initiateOutlookDeviceCode(undefined as any)).rejects.toThrow('Email is required')
   })
 })
 
