@@ -101,6 +101,27 @@ export function isValidTokenStore(data: unknown): data is TokenStore {
   return Object.values(d).every(isValidTokens)
 }
 
+/**
+ * Parse a token store string safely, ensuring it is a valid TokenStore
+ * and hardening it against prototype pollution.
+ */
+function parseTokenStore(data: string): TokenStore | null {
+  try {
+    const parsed: unknown = JSON.parse(data)
+    if (!isValidTokenStore(parsed)) {
+      return null
+    }
+    const store = Object.assign(Object.create(null), parsed)
+    // biome-ignore lint/suspicious/noProto: Hardening against prototype pollution
+    delete (store as any).__proto__
+    delete store.constructor
+    delete store.prototype
+    return store
+  } catch {
+    return null
+  }
+}
+
 /** Outlook/Hotmail/Live domains that require OAuth2 */
 const OUTLOOK_DOMAINS = new Set(['outlook.com', 'hotmail.com', 'live.com'])
 
@@ -192,8 +213,8 @@ export async function loadStoredTokens(email: string, sub?: string | null): Prom
       return cachedTokenStore[key] || null
     }
     const data = await readFile(TOKEN_FILE, 'utf-8')
-    const store: unknown = JSON.parse(data)
-    if (!isValidTokenStore(store)) {
+    const store = parseTokenStore(data)
+    if (!store) {
       return null
     }
     cachedTokenStore = store
@@ -223,8 +244,8 @@ export async function loadOutlookEmails(sub: string | null): Promise<string[]> {
   }
   try {
     const data = await readFile(TOKEN_FILE, 'utf-8')
-    const store: unknown = JSON.parse(data)
-    return isValidTokenStore(store) ? Object.keys(store).filter((k) => k.includes('@')) : []
+    const store = parseTokenStore(data)
+    return store ? Object.keys(store).filter((k) => k.includes('@')) : []
   } catch {
     return []
   }
@@ -263,19 +284,20 @@ function saveTokensToFile(emailKey: string, tokens: OAuth2Tokens): void {
     mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 })
   }
 
-  let store: TokenStore = cachedTokenStore || {}
+  let store: TokenStore = cachedTokenStore || Object.create(null)
   try {
     if (!cachedTokenStore && existsSync(TOKEN_FILE)) {
-      const data: unknown = JSON.parse(readFileSync(TOKEN_FILE, 'utf-8'))
-      if (isValidTokenStore(data)) {
-        store = data
+      const data = readFileSync(TOKEN_FILE, 'utf-8')
+      const parsed = parseTokenStore(data)
+      if (parsed) {
+        store = parsed
       } else {
-        store = {}
+        store = Object.create(null)
       }
     }
   } catch {
     // Start fresh if file is corrupted
-    store = {}
+    store = Object.create(null)
   }
 
   store[emailKey] = tokens
