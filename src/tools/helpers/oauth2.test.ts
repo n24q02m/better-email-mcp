@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { tryOpenBrowser } from '@n24q02m/mcp-core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -7,7 +7,9 @@ vi.mock('@n24q02m/mcp-core', () => ({
 }))
 
 vi.mock('node:fs/promises', () => ({
-  readFile: vi.fn()
+  readFile: vi.fn(),
+  mkdir: vi.fn(),
+  writeFile: vi.fn()
 }))
 
 vi.mock('node:fs', () => ({
@@ -27,14 +29,13 @@ vi.mock('../../credential-state.js', () => ({
   getMarkSetupComplete: vi.fn()
 }))
 
-import { readFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { getMarkSetupComplete, setState } from '../../credential-state.js'
 
 const mockReadFile = vi.mocked(readFile)
+const mockMkdir = vi.mocked(mkdir)
+const mockWriteFile = vi.mocked(writeFile)
 const mockExistsSync = vi.mocked(existsSync)
-const mockReadFileSync = vi.mocked(readFileSync)
-const mockWriteFileSync = vi.mocked(writeFileSync)
-const mockMkdirSync = vi.mocked(mkdirSync)
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -72,35 +73,35 @@ afterEach(() => {
 })
 
 describe('isOutlookDomain', () => {
-  it('detects outlook.com', () => {
+  it('detects outlook.com', async () => {
     expect(isOutlookDomain('user@outlook.com')).toBe(true)
   })
 
-  it('detects hotmail.com', () => {
+  it('detects hotmail.com', async () => {
     expect(isOutlookDomain('user@hotmail.com')).toBe(true)
   })
 
-  it('detects live.com', () => {
+  it('detects live.com', async () => {
     expect(isOutlookDomain('user@live.com')).toBe(true)
   })
 
-  it('rejects gmail.com', () => {
+  it('rejects gmail.com', async () => {
     expect(isOutlookDomain('user@gmail.com')).toBe(false)
   })
 
-  it('rejects yahoo.com', () => {
+  it('rejects yahoo.com', async () => {
     expect(isOutlookDomain('user@yahoo.com')).toBe(false)
   })
 
-  it('handles empty string', () => {
+  it('handles empty string', async () => {
     expect(isOutlookDomain('')).toBe(false)
   })
 
-  it('handles email without domain', () => {
+  it('handles email without domain', async () => {
     expect(isOutlookDomain('nodomain')).toBe(false)
   })
 
-  it('is case-insensitive via domain extraction', () => {
+  it('is case-insensitive via domain extraction', async () => {
     expect(isOutlookDomain('user@OUTLOOK.COM')).toBe(true)
   })
 })
@@ -120,12 +121,12 @@ describe('getClientId', () => {
     }
   })
 
-  it('returns OUTLOOK_CLIENT_ID from env', () => {
+  it('returns OUTLOOK_CLIENT_ID from env', async () => {
     process.env.OUTLOOK_CLIENT_ID = 'test-client-id-123'
     expect(getClientId()).toBe('test-client-id-123')
   })
 
-  it('returns bundled default when OUTLOOK_CLIENT_ID is not set', () => {
+  it('returns bundled default when OUTLOOK_CLIENT_ID is not set', async () => {
     delete process.env.OUTLOOK_CLIENT_ID
     expect(getClientId()).toBe('d56f8c71-9f7c-43f4-9934-be29cb6e77b0')
   })
@@ -201,33 +202,33 @@ describe('saveTokens', () => {
     clientId: 'cid'
   }
 
-  it('creates config directory if not exists', () => {
+  it('creates config directory if not exists', async () => {
     mockExistsSync.mockImplementation((path) => {
       if (String(path).endsWith('tokens.json')) return false
       return false // config dir doesn't exist
     })
 
-    saveTokens('user@outlook.com', tokens)
+    await saveTokens('user@outlook.com', tokens)
 
-    expect(mockMkdirSync).toHaveBeenCalledWith(expect.stringContaining('.better-email-mcp'), {
+    expect(mockMkdir).toHaveBeenCalledWith(expect.stringContaining('.better-email-mcp'), {
       recursive: true,
       mode: 0o700
     })
   })
 
-  it('writes tokens with 0600 permissions', () => {
+  it('writes tokens with 0600 permissions', async () => {
     mockExistsSync.mockReturnValue(false)
 
-    saveTokens('user@outlook.com', tokens)
+    await saveTokens('user@outlook.com', tokens)
 
-    expect(mockWriteFileSync).toHaveBeenCalledWith(
+    expect(mockWriteFile).toHaveBeenCalledWith(
       expect.stringContaining('tokens.json'),
       expect.stringContaining('"user@outlook.com"'),
       { mode: 0o600 }
     )
   })
 
-  it('merges with existing tokens', () => {
+  it('merges with existing tokens', async () => {
     const existing = {
       'other@hotmail.com': { accessToken: 'old', refreshToken: 'old', expiresAt: 1, clientId: 'c-valid' }
     }
@@ -236,21 +237,21 @@ describe('saveTokens', () => {
       if (String(path).endsWith('tokens.json')) return true
       return true
     })
-    mockReadFileSync.mockReturnValue(JSON.stringify(existing))
+    mockReadFile.mockResolvedValue(JSON.stringify(existing))
 
-    saveTokens('user@outlook.com', tokens)
+    await saveTokens('user@outlook.com', tokens)
 
-    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    const written = JSON.parse(mockWriteFile.mock.calls[0]![1] as string)
     expect(written['other@hotmail.com']).toBeDefined()
     expect(written['user@outlook.com']).toEqual(tokens)
   })
 
-  it('normalizes email to lowercase', () => {
+  it('normalizes email to lowercase', async () => {
     mockExistsSync.mockReturnValue(false)
 
-    saveTokens('User@OUTLOOK.com', tokens)
+    await saveTokens('User@OUTLOOK.com', tokens)
 
-    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    const written = JSON.parse(mockWriteFile.mock.calls[0]![1] as string)
     expect(written['user@outlook.com']).toEqual(tokens)
   })
 })
@@ -412,7 +413,7 @@ describe('ensureValidToken', () => {
 
     await ensureValidToken(account)
 
-    expect(mockWriteFileSync).toHaveBeenCalled()
+    expect(mockWriteFile).toHaveBeenCalled()
   })
 
   it('loads tokens from disk when not in memory', async () => {
@@ -433,7 +434,7 @@ describe('ensureValidToken', () => {
 
   it('initiates Device Code flow when no tokens exist', async () => {
     // No tokens on disk
-    mockReadFileSync.mockReturnValue('{}')
+    mockReadFile.mockResolvedValue('{}')
 
     // Mock device code request
     mockFetch.mockResolvedValueOnce({
@@ -456,7 +457,7 @@ describe('ensureValidToken', () => {
   })
 
   it('opens browser when initiating Device Code flow', async () => {
-    mockReadFileSync.mockReturnValue('{}')
+    mockReadFile.mockResolvedValue('{}')
 
     mockFetch.mockResolvedValueOnce({
       json: async () => ({
@@ -480,7 +481,7 @@ describe('ensureValidToken', () => {
   })
 
   it('does not open browser on retry (reuses pending auth)', async () => {
-    mockReadFileSync.mockReturnValue('{}')
+    mockReadFile.mockResolvedValue('{}')
 
     mockFetch.mockResolvedValueOnce({
       json: async () => ({
@@ -508,7 +509,7 @@ describe('ensureValidToken', () => {
   })
 
   it('reuses pending auth code on retry', async () => {
-    mockReadFileSync.mockReturnValue('{}')
+    mockReadFile.mockResolvedValue('{}')
 
     // First call: device code request
     mockFetch.mockResolvedValueOnce({
@@ -619,7 +620,7 @@ describe('deviceCodeAuth', () => {
     expect(tokens.accessToken).toBe('at-success')
     expect(tokens.refreshToken).toBe('rt-success')
     expect(tokens.clientId).toBe('test-client-id')
-    expect(mockWriteFileSync).toHaveBeenCalled() // Tokens saved
+    expect(mockWriteFile).toHaveBeenCalled() // Tokens saved
   })
 
   it('polls until authorization is granted', async () => {
@@ -804,12 +805,12 @@ describe('saveTokens edge cases', () => {
     vi.clearAllMocks()
   })
 
-  it('starts fresh store if existing token file is corrupted JSON', () => {
+  it('starts fresh store if existing token file is corrupted JSON', async () => {
     mockExistsSync.mockImplementation((path) => {
       if (String(path).endsWith('tokens.json')) return true
       return true // config dir exists
     })
-    mockReadFileSync.mockImplementation(() => {
+    mockReadFile.mockImplementation(() => {
       throw new SyntaxError('Unexpected token')
     })
 
@@ -820,15 +821,15 @@ describe('saveTokens edge cases', () => {
       clientId: 'cid'
     }
 
-    saveTokens('user@outlook.com', tokens)
+    await saveTokens('user@outlook.com', tokens)
 
-    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    const written = JSON.parse(mockWriteFile.mock.calls[0]![1] as string)
     expect(written['user@outlook.com']).toEqual(tokens)
     // Should only have the new token, not corrupted data
     expect(Object.keys(written)).toEqual(['user@outlook.com'])
   })
 
-  it('uses cached token store on subsequent saves', () => {
+  it('uses cached token store on subsequent saves', async () => {
     mockExistsSync.mockReturnValue(false)
 
     const tokens1: OAuth2Tokens = {
@@ -845,12 +846,12 @@ describe('saveTokens edge cases', () => {
     }
 
     // First save populates cache
-    saveTokens('first@outlook.com', tokens1)
+    await saveTokens('first@outlook.com', tokens1)
     // Second save should use cache, not read from disk
-    saveTokens('second@outlook.com', tokens2)
+    await saveTokens('second@outlook.com', tokens2)
 
     // readFileSync should NOT be called for second save (cache is used)
-    const written = JSON.parse(mockWriteFileSync.mock.calls[1]![1] as string)
+    const written = JSON.parse(mockWriteFile.mock.calls[1]![1] as string)
     expect(written['first@outlook.com']).toEqual(tokens1)
     expect(written['second@outlook.com']).toEqual(tokens2)
   })
@@ -887,7 +888,7 @@ describe('loadStoredTokens validation', () => {
     expect(retry).not.toBeNull()
   })
 
-  it('isValidTokens validates structure correctly', () => {
+  it('isValidTokens validates structure correctly', async () => {
     expect(isValidTokens({ accessToken: 'a', refreshToken: 'r', expiresAt: 1, clientId: 'c-valid' })).toBe(true)
     expect(isValidTokens({ accessToken: 'a', refreshToken: 'r', expiresAt: '1', clientId: 'c-valid' })).toBe(false)
     expect(isValidTokens({ accessToken: 'a', refreshToken: 'r', clientId: 'c-valid' })).toBe(false)
@@ -895,7 +896,7 @@ describe('loadStoredTokens validation', () => {
     expect(isValidTokens('not-an-object')).toBe(false)
   })
 
-  it('isValidTokenStore validates store correctly', () => {
+  it('isValidTokenStore validates store correctly', async () => {
     const valid = { 'a@b.com': { accessToken: 'a', refreshToken: 'r', expiresAt: 1, clientId: 'c-valid' } }
     expect(isValidTokenStore(valid)).toBe(true)
     expect(isValidTokenStore({ ...valid, 'x@y.com': { bad: true } })).toBe(false)
@@ -972,7 +973,7 @@ describe('openBrowser delegates to mcp-core', () => {
   })
 
   it('forwards malicious URLs with shell metacharacters to mcp-core', async () => {
-    mockReadFileSync.mockReturnValue('{}')
+    mockReadFile.mockResolvedValue('{}')
 
     const maliciousUri = 'https://microsoft.com/devicelogin?code=ABCD;echo"vulnerable"'
     mockFetch.mockResolvedValueOnce({
@@ -998,7 +999,7 @@ describe('openBrowser delegates to mcp-core', () => {
   })
 
   it('intercepts non-http/https protocols before delegating to mcp-core', async () => {
-    mockReadFileSync.mockReturnValue('{}')
+    mockReadFile.mockResolvedValue('{}')
 
     mockFetch.mockResolvedValueOnce({
       json: async () => ({
@@ -1022,7 +1023,7 @@ describe('openBrowser delegates to mcp-core', () => {
   })
 
   it('forwards URLs with leading hyphens to mcp-core', async () => {
-    mockReadFileSync.mockReturnValue('{}')
+    mockReadFile.mockResolvedValue('{}')
 
     const hyphenUri = 'https://-example.com'
     mockFetch.mockResolvedValueOnce({
@@ -1134,7 +1135,7 @@ describe('initiateOutlookDeviceCode', () => {
 
     expect(onComplete).toHaveBeenCalled()
     // Tokens persisted to disk.
-    expect(mockWriteFileSync).toHaveBeenCalled()
+    expect(mockWriteFile).toHaveBeenCalled()
   })
 
   it('does not throw if onComplete callback fails', async () => {
@@ -1235,8 +1236,8 @@ describe('saveOutlookTokens', () => {
 
     await saveOutlookTokens(tokens)
 
-    expect(mockWriteFileSync).toHaveBeenCalled()
-    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(mockWriteFile).toHaveBeenCalled()
+    const written = JSON.parse(mockWriteFile.mock.calls[0]![1] as string)
     expect(written['user@outlook.com']).toEqual({
       accessToken: 'at-123',
       refreshToken: 'rt-123',
@@ -1254,7 +1255,7 @@ describe('saveOutlookTokens', () => {
 
     await saveOutlookTokens(tokens)
 
-    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    const written = JSON.parse(mockWriteFile.mock.calls[0]![1] as string)
     expect(written['env@outlook.com']).toBeDefined()
     expect(written['env@outlook.com'].accessToken).toBe('at-env')
   })
@@ -1267,7 +1268,7 @@ describe('saveOutlookTokens', () => {
 
     await saveOutlookTokens(tokens)
 
-    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    const written = JSON.parse(mockWriteFile.mock.calls[0]![1] as string)
     expect(written['outlook-device-code']).toBeDefined()
   })
 
@@ -1279,7 +1280,7 @@ describe('saveOutlookTokens', () => {
 
     await saveOutlookTokens(tokens)
 
-    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    const written = JSON.parse(mockWriteFile.mock.calls[0]![1] as string)
     expect(written['defaults@outlook.com']).toEqual({
       accessToken: '',
       refreshToken: '',
@@ -1316,7 +1317,7 @@ describe('Outlook token embed (per-sub config blob)', () => {
     expect((blob?.outlookTokens as Record<string, OAuth2Tokens>)['a@outlook.com']).toEqual(TOK('a'))
     expect(await loadStoredTokens('a@outlook.com', 'sub-1')).toEqual(TOK('a'))
     // Embed path must NOT touch the legacy tokens.json file.
-    expect(mockWriteFileSync).not.toHaveBeenCalled()
+    expect(mockWriteFile).not.toHaveBeenCalled()
   })
 
   it('isolates tokens per sub (sub-2 cannot read sub-1 tokens)', async () => {
@@ -1365,7 +1366,7 @@ describe('Outlook token embed (per-sub config blob)', () => {
 
     await saveTokens('a@outlook.com', TOK('a')) // no store, no scope
 
-    expect(mockWriteFileSync).toHaveBeenCalled()
+    expect(mockWriteFile).toHaveBeenCalled()
   })
 
   it('loadOutlookEmails returns the embedded token emails for a sub', async () => {

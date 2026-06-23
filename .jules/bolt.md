@@ -41,3 +41,9 @@
 ## 2025-05-18 - [V8 RegExp replacement overhead]
 **Learning:** In V8 environments (Node.js/Bun), using chained `.replace()` calls with string literal replacements is measurably faster than using a single global `.replace()` with a mapping callback for simple escaping tasks (e.g. HTML escaping). The overhead comes from V8 needing to cross the C++/JS boundary and invoke the JS callback for every regex match.
 **Action:** Always prefer chained `.replace()` with string literal replacements for simple, fixed-mapping string replacements instead of a single mapping callback, especially in hot-path or frequently called utilities.
+## 2026-06-23 - [PERF] Use asynchronous file reading in saveTokens
+**Learning:** Using synchronous file operations (, ) in hot paths or frequently called functions (like token persistence) blocks the event loop, which can degrade performance in high-concurrency environments like an MCP server. Converting these to asynchronous  variants ensures the event loop remains responsive.
+**Action:** Refactored `saveTokensToFile` to be asynchronous using `mkdir`, `readFile`, and `writeFile` from `node:fs/promises`. Updated `saveTokens` and all its call sites in tests to be asynchronous.
+## 2025-06-23 - [PERF] Use asynchronous file reading in saveTokens
+**Learning:** Using synchronous file operations (`readFileSync`, `writeFileSync`) in hot paths or frequently called functions (like token persistence) blocks the event loop, which can degrade performance in high-concurrency environments like an MCP server. Converting these to asynchronous `node:fs/promises` variants ensures the event loop remains responsive.
+**Action:** Refactored `saveTokensToFile` to be asynchronous using `mkdir`, `readFile`, and `writeFile` from `node:fs/promises`. Updated `saveTokens` and all its call sites in tests to be asynchronous.
