@@ -122,6 +122,18 @@ describe('credential-state', () => {
       mod.setSetupUrl('http://second.com')
       expect(mod.getSetupUrl()).toBe('http://second.com')
     })
+
+    it('handles very long strings', () => {
+      const longUrl = 'a'.repeat(10000)
+      mod.setSetupUrl(longUrl)
+      expect(mod.getSetupUrl()).toBe(longUrl)
+    })
+
+    it('handles special characters and emoji', () => {
+      const specialUrl = 'https://example.com/🚀?q=✨'
+      mod.setSetupUrl(specialUrl)
+      expect(mod.getSetupUrl()).toBe(specialUrl)
+    })
   })
 
   describe('resolveCredentialState', () => {
