@@ -293,3 +293,28 @@ describe('createUnknownActionError', () => {
     expect(error.suggestion).toBe('Supported actions: bar, baz')
   })
 })
+
+describe('isRecord (internal)', () => {
+  it('identifies objects as records', () => {
+    // We can test this indirectly through enhanceError or by exporting it,
+    // but enhanceError is easier.
+    const result = enhanceError({ message: 'test', custom: 123 })
+    expect(result.details).toBeDefined()
+  })
+
+  it('does not identify arrays as records', () => {
+    // If it's an array, sanitizeErrorDetails should return it as is
+    // (because !isRecord(error) will be true)
+    // enhanceError uses sanitizeErrorDetails for UNKNOWN_ERROR
+    const arrayInput = ['not', 'a', 'record']
+    const result = enhanceError({ message: 'generic error', details: arrayInput })
+    // In enhanceError:
+    // return new EmailMCPError(message, 'UNKNOWN_ERROR', ..., sanitizeErrorDetails(error))
+    // Wait, enhanceError(error) calls sanitizeErrorDetails(error).
+
+    const result2 = enhanceError(arrayInput)
+    // arrayInput is not a record, so message becomes 'Unknown error occurred'
+    // sanitizeErrorDetails(arrayInput) returns arrayInput
+    expect(result2.details).toBe(arrayInput)
+  })
+})
