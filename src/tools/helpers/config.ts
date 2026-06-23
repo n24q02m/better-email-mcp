@@ -137,44 +137,88 @@ function isSmtpSecurity(segment: string): segment is SmtpSecurity {
 /**
  * Extract SMTP segments from the tail of the credential string
  */
+/**
+ * Try to pop an SMTP security keyword from the tail
+ */
+function popSmtpSecurity(tail: string[]): SmtpSecurity | undefined {
+  if (tail.length >= 4 && isSmtpSecurity(tail.at(-1)!)) {
+    return tail.pop()!.toLowerCase() as SmtpSecurity
+  }
+  return undefined
+}
+
+/**
+ * Try to pop an SMTP host and port from the tail
+ */
+function popSmtpHostPort(tail: string[]): { host: string; port?: number } | undefined {
+  const canHaveSmtpHostPort =
+    tail.length >= 5 && isPortSegment(tail.at(-1)!) && looksLikeHost(tail.at(-2)!) && looksLikeHost(tail.at(-4) ?? '')
+  if (canHaveSmtpHostPort) {
+    const port = parsePort(tail.pop()!)
+    const host = tail.pop()!
+    return { host, port }
+  }
+  return undefined
+}
+
+/**
+ * Try to pop an SMTP host from the tail (used when security was present)
+ */
+function popSmtpHost(tail: string[]): string | undefined {
+  if (tail.length >= 3 && looksLikeHost(tail.at(-1)!)) {
+    return tail.pop()
+  }
+  return undefined
+}
+
+/**
+ * Extract SMTP segments from the tail of the credential string
+ */
 function extractSmtpSegments(tail: string[]): {
   smtpHost?: string
   smtpPort?: number
   smtpSecurity?: SmtpSecurity
 } {
-  let smtpSecurity: SmtpSecurity | undefined
-  let smtpHost: string | undefined
-  let smtpPort: number | undefined
+  const smtpSecurity = popSmtpSecurity(tail)
+  const hostPort = popSmtpHostPort(tail)
 
-  // 1. Optional SMTP security keyword at end
-  let poppedSecurity = false
-  if (tail.length >= 4 && isSmtpSecurity(tail.at(-1)!)) {
-    smtpSecurity = tail.at(-1)!.toLowerCase() as SmtpSecurity
-    tail.pop()
-    poppedSecurity = true
-  }
+  let smtpHost = hostPort?.host
+  const smtpPort = hostPort?.port
 
-  // 2. SMTP host + port
-  const canHaveSmtpHostPort =
-    tail.length >= 5 && isPortSegment(tail.at(-1)!) && looksLikeHost(tail.at(-2)!) && looksLikeHost(tail.at(-4) ?? '')
-  if (canHaveSmtpHostPort) {
-    smtpPort = parsePort(tail.at(-1)!)
-    tail.pop()
-    smtpHost = tail.pop()
-  }
-
-  // 3. SMTP host without explicit port
-  if (!smtpHost && poppedSecurity && tail.length >= 3 && looksLikeHost(tail.at(-1)!)) {
-    smtpHost = tail.pop()
+  // 3. SMTP host without explicit port (only if security was specified)
+  if (!smtpHost && smtpSecurity) {
+    smtpHost = popSmtpHost(tail)
   }
 
   // If security keyword was tentatively popped but no SMTP host was found, restore it
-  if (poppedSecurity && !smtpHost) {
-    tail.push(smtpSecurity!)
-    smtpSecurity = undefined
+  if (smtpSecurity && !smtpHost) {
+    tail.push(smtpSecurity)
+    return {}
   }
 
   return { smtpHost, smtpPort, smtpSecurity }
+}
+
+/**
+ * Try to pop an IMAP host and port from the tail
+ */
+function popImapHostPort(tail: string[]): { host: string; port?: number } | undefined {
+  if (tail.length >= 3 && isPortSegment(tail.at(-1)!) && looksLikeHost(tail.at(-2)!)) {
+    const port = parsePort(tail.pop()!)
+    const host = tail.pop()!
+    return { host, port }
+  }
+  return undefined
+}
+
+/**
+ * Try to pop an IMAP host from the tail
+ */
+function popImapHost(tail: string[]): string | undefined {
+  if (looksLikeHost(tail.at(-1)!)) {
+    return tail.pop()
+  }
+  return undefined
 }
 
 /**
@@ -184,18 +228,11 @@ function extractImapSegments(tail: string[]): {
   imapHost?: string
   imapPort?: number
 } {
-  let imapHost: string | undefined
-  let imapPort: number | undefined
+  const hostPort = popImapHostPort(tail)
+  if (hostPort) return { imapHost: hostPort.host, imapPort: hostPort.port }
 
-  if (tail.length >= 3 && isPortSegment(tail.at(-1)!) && looksLikeHost(tail.at(-2)!)) {
-    imapPort = parsePort(tail.at(-1)!)
-    tail.pop()
-    imapHost = tail.pop()
-  } else if (looksLikeHost(tail.at(-1)!)) {
-    imapHost = tail.pop()
-  }
-
-  return { imapHost, imapPort }
+  const imapHost = popImapHost(tail)
+  return { imapHost }
 }
 
 /**
@@ -309,29 +346,36 @@ function buildSmtpConfig(host: string, port?: number, security?: SmtpSecurity): 
  * behaviour). When neither IMAP nor SMTP is custom, auto-discover from
  * provider table. Closes #634 for asymmetric SMTP/IMAP topologies.
  */
-function resolveServerConfig(
-  email: string,
-  customImapHost?: string,
+/**
+ * Resolve server config when custom IMAP host is provided
+ */
+function resolveCustomImapServers(
+  customImapHost: string,
   customImapPort?: number,
   customSmtpHost?: string,
   customSmtpPort?: number,
   customSmtpSecurity?: SmtpSecurity
-): { imap: ServerConfig; smtp: ServerConfig } | null {
-  if (customImapHost) {
-    // Default to standard implicit-TLS IMAPS (993). A non-993 port is
-    // treated as plaintext/STARTTLS -- the common shape for a local proxy.
-    const port = customImapPort ?? 993
-    const imap = { host: customImapHost, port, secure: port === 993 }
-    const smtp = customSmtpHost
-      ? buildSmtpConfig(customSmtpHost, customSmtpPort, customSmtpSecurity)
-      : // Guess SMTP from IMAP host (legacy)
-        { host: customImapHost.replace('imap.', 'smtp.'), port: 587, secure: false }
-    return { imap, smtp }
-  }
+): { imap: ServerConfig; smtp: ServerConfig } {
+  // Default to standard implicit-TLS IMAPS (993). A non-993 port is
+  // treated as plaintext/STARTTLS -- the common shape for a local proxy.
+  const port = customImapPort ?? 993
+  const imap = { host: customImapHost, port, secure: port === 993 }
+  const smtp = customSmtpHost
+    ? buildSmtpConfig(customSmtpHost, customSmtpPort, customSmtpSecurity)
+    : // Guess SMTP from IMAP host (legacy)
+      { host: customImapHost.replace('imap.', 'smtp.'), port: 587, secure: false }
+  return { imap, smtp }
+}
 
-  // No custom IMAP — env-var SMTP override is still honoured for accounts
-  // whose provider IS auto-discoverable but whose SMTP MUST route elsewhere
-  // (rare; primary use is corporate IMAP+SMTP both custom).
+/**
+ * Resolve server config using auto-discovery
+ */
+function resolveAutoDiscoveredServers(
+  email: string,
+  customSmtpHost?: string,
+  customSmtpPort?: number,
+  customSmtpSecurity?: SmtpSecurity
+): { imap: ServerConfig; smtp: ServerConfig } | null {
   const discovered = discoverSettings(email)
   if (!discovered) {
     if (customSmtpHost) {
@@ -343,8 +387,30 @@ function resolveServerConfig(
     }
     return null
   }
+
   const smtp = customSmtpHost ? buildSmtpConfig(customSmtpHost, customSmtpPort, customSmtpSecurity) : discovered.smtp
   return { imap: discovered.imap, smtp }
+}
+
+/**
+ * Resolve IMAP/SMTP server configuration. SMTP override (host[:port[:sec]])
+ * takes precedence; otherwise SMTP is guessed from the IMAP host (existing
+ * behaviour). When neither IMAP nor SMTP is custom, auto-discover from
+ * provider table. Closes #634 for asymmetric SMTP/IMAP topologies.
+ */
+function resolveServerConfig(
+  email: string,
+  customImapHost?: string,
+  customImapPort?: number,
+  customSmtpHost?: string,
+  customSmtpPort?: number,
+  customSmtpSecurity?: SmtpSecurity
+): { imap: ServerConfig; smtp: ServerConfig } | null {
+  if (customImapHost) {
+    return resolveCustomImapServers(customImapHost, customImapPort, customSmtpHost, customSmtpPort, customSmtpSecurity)
+  }
+
+  return resolveAutoDiscoveredServers(email, customSmtpHost, customSmtpPort, customSmtpSecurity)
 }
 
 /**
@@ -397,7 +463,7 @@ async function handlePasswordEntry(email: string, parts: string[]): Promise<Acco
 /**
  * Parse a single credential entry
  */
-async function parseSingleCredential(entry: string): Promise<AccountConfig | null> {
+export async function parseSingleCredential(entry: string): Promise<AccountConfig | null> {
   const trimmed = entry.trim()
   if (!trimmed) return null
 
