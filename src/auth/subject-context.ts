@@ -35,5 +35,9 @@ export const subjectContext = new AsyncLocalStorage<EmailSubjectScope>()
  * write tokens to the right per-sub credential blob.
  */
 export function currentSub(): string | null {
-  return subjectContext.getStore()?.sub ?? null
+  const store = subjectContext.getStore()
+  if (store && typeof store === 'object') {
+    return (store as EmailSubjectScope).sub ?? null
+  }
+  return null
 }

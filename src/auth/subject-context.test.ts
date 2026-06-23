@@ -119,6 +119,17 @@ describe('subjectContext', () => {
 
     expect(subjectContext.getStore()).toBeUndefined()
   })
+
+  test('should clear scope with exit()', () => {
+    const scope: EmailSubjectScope = { sub: 'exit-test', accounts: [] }
+    subjectContext.run(scope, () => {
+      expect(subjectContext.getStore()).toBe(scope)
+      subjectContext.exit(() => {
+        expect(subjectContext.getStore()).toBeUndefined()
+      })
+      expect(subjectContext.getStore()).toBe(scope)
+    })
+  })
 })
 
 describe('currentSub', () => {
@@ -139,6 +150,27 @@ describe('currentSub', () => {
         expect(currentSub()).toBe('inner')
       })
       expect(currentSub()).toBe('outer')
+    })
+  })
+
+  test('handles non-object store (defensive)', () => {
+    // @ts-expect-error - testing runtime safety for unexpected store content
+    subjectContext.run('not-an-object', () => {
+      expect(currentSub()).toBeNull()
+    })
+  })
+
+  test('handles null store (defensive)', () => {
+    // @ts-expect-error - testing runtime safety
+    subjectContext.run(null, () => {
+      expect(currentSub()).toBeNull()
+    })
+  })
+
+  test('handles object store without sub (defensive)', () => {
+    // @ts-expect-error - testing runtime safety
+    subjectContext.run({ notSub: 'xxx' }, () => {
+      expect(currentSub()).toBeNull()
     })
   })
 })
