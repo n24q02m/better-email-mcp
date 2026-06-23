@@ -14,6 +14,11 @@ describe('escapeHtml', () => {
     expect(escapeHtml('&&&')).toBe('&amp;&amp;&amp;')
   })
 
+  it('handles null and undefined', () => {
+    expect(escapeHtml(null)).toBe('')
+    expect(escapeHtml(undefined)).toBe('')
+  })
+
   it('returns an empty string if input is empty', () => {
     expect(escapeHtml('')).toBe('')
   })
@@ -211,6 +216,10 @@ describe('fastExtractSnippet', () => {
     expect(fastExtractSnippet('&#X41;')).toBe('A')
   })
 
+  it('handles invalid numeric entities', () => {
+    expect(fastExtractSnippet('&#ABC;')).toBe('&#ABC;')
+  })
+
   it('preserves unknown named entities', () => {
     expect(fastExtractSnippet('&unknownentity;')).toBe('&unknownentity;')
   })
@@ -288,5 +297,27 @@ describe('sanitizeHtml', () => {
     const dirty = `<img src="${longAttr}">`
     const clean = sanitizeHtml(dirty)
     expect(typeof clean).toBe('string')
+  })
+})
+
+describe('sanitizeHtml extra edge cases', () => {
+  it('handles very large strings with many tags (1MB performance test)', () => {
+    // ~1MB of HTML with many tags
+    const largeString = `<div>${'<p>text</p>'.repeat(80000)}</div>`
+    const start = Date.now()
+    const clean = sanitizeHtml(largeString)
+    const duration = Date.now() - start
+
+    expect(clean).toContain('text')
+    expect(duration).toBeLessThan(5000)
+  })
+
+  it('handles extremely deep nesting (1000 levels)', () => {
+    let deep = 'bottom'
+    for (let i = 0; i < 1000; i++) {
+      deep = `<div>${deep}</div>`
+    }
+    const clean = sanitizeHtml(deep)
+    expect(clean).toContain('bottom')
   })
 })
