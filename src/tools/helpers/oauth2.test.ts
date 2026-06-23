@@ -47,6 +47,7 @@ import {
   _getPendingAuths,
   _resetBrowserOpenDedupe,
   _resetTokenCache,
+  decodeIdTokenSubject,
   deviceCodeAuth,
   ensureValidToken,
   getClientId,
@@ -1259,6 +1260,36 @@ describe('saveOutlookTokens', () => {
     expect(written['env@outlook.com'].accessToken).toBe('at-env')
   })
 
+  it('uses tokens.sub if email and env var are missing', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    const tokens = {
+      sub: 'sub-789',
+      access_token: 'at-sub'
+    }
+
+    await saveOutlookTokens(tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['sub-789']).toBeDefined()
+    expect(written['sub-789'].accessToken).toBe('at-sub')
+  })
+
+  it('uses id_token subject if email, env var, and sub are missing', async () => {
+    delete process.env.OUTLOOK_EMAIL
+    const payload = Buffer.from(JSON.stringify({ sub: 'id-sub-456' })).toString('base64url')
+    const idToken = `header.${payload}.signature`
+    const tokens = {
+      id_token: idToken,
+      access_token: 'at-id'
+    }
+
+    await saveOutlookTokens(tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['id-sub-456']).toBeDefined()
+    expect(written['id-sub-456'].accessToken).toBe('at-id')
+  })
+
   it('falls back to outlook-device-code if both email sources are missing', async () => {
     delete process.env.OUTLOOK_EMAIL
     const tokens = {
@@ -1376,5 +1407,31 @@ describe('Outlook token embed (per-sub config blob)', () => {
     await saveTokens('b@hotmail.com', TOK('b'), 'sub-1')
 
     expect((await loadOutlookEmails('sub-1')).sort()).toEqual(['a@outlook.com', 'b@hotmail.com'])
+  })
+})
+
+describe('decodeIdTokenSubject', () => {
+  it('returns sub if valid idToken', () => {
+    const payload = Buffer.from(JSON.stringify({ sub: 'user-123' })).toString('base64url')
+    const idToken = `header.${payload}.signature`
+    expect(decodeIdTokenSubject(idToken)).toBe('user-123')
+  })
+
+  it('returns null if not a string', () => {
+    expect(decodeIdTokenSubject(123)).toBeNull()
+  })
+
+  it('returns null if malformed JWT (not 3 parts)', () => {
+    expect(decodeIdTokenSubject('part1.part2')).toBeNull()
+  })
+
+  it('returns null if payload is not valid JSON', () => {
+    expect(decodeIdTokenSubject('header.notjson.signature')).toBeNull()
+  })
+
+  it('returns null if sub is missing in payload', () => {
+    const payload = Buffer.from(JSON.stringify({ other: 'claim' })).toString('base64url')
+    const idToken = `header.${payload}.signature`
+    expect(decodeIdTokenSubject(idToken)).toBeNull()
   })
 })
