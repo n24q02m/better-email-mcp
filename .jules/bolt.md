@@ -41,3 +41,7 @@
 ## 2025-05-18 - [V8 RegExp replacement overhead]
 **Learning:** In V8 environments (Node.js/Bun), using chained `.replace()` calls with string literal replacements is measurably faster than using a single global `.replace()` with a mapping callback for simple escaping tasks (e.g. HTML escaping). The overhead comes from V8 needing to cross the C++/JS boundary and invoke the JS callback for every regex match.
 **Action:** Always prefer chained `.replace()` with string literal replacements for simple, fixed-mapping string replacements instead of a single mapping callback, especially in hot-path or frequently called utilities.
+
+## 2026-06-23 - [Cache bigrams for valid options]
+ **Learning:** In string matching algorithms like `findClosestMatch` that compare user input against a static list of valid options, recomputing bigrams for the static options on every invocation is a significant overhead. Representing bigrams as 32-bit integers (`(char1 << 16) | char2`) instead of strings eliminates slicing and allocation overhead, further improving performance.
+ **Action:** Refactored `findClosestMatch` in `src/tools/helpers/errors.ts` to use a numeric bigram cache and pre-computed lowercased strings.
