@@ -143,7 +143,13 @@ export function getClientId(): string {
  */
 let outlookTokenStore: CredStoreLike | null = null
 
-/** Inject the per-sub credential store used for embedding Outlook tokens. */
+/** Inject the per-sub credential store used for embedding Outlook tokens.
+ *
+ * When the store is set (HTTP multi-user mode), device-code sessions are
+ * persisted to KV so the background poll survives container sleep/recreate.
+ * On container wake, the KV entry is checked in ``ensureValidToken()`` before
+ * starting a fresh device-code flow, and the poll is resumed automatically.
+ */
 export function setOutlookTokenStore(store: CredStoreLike | null): void {
   outlookTokenStore = store
 }
@@ -246,7 +252,14 @@ export async function saveTokens(email: string, tokens: OAuth2Tokens, sub?: stri
     const blob: Record<string, unknown> = (await outlookTokenStore.load(scope)) ?? {}
     const map: TokenStore = { ...(blob.outlookTokens as TokenStore | undefined) }
     map[key] = tokens
-    await outlookTokenStore.save(scope, { ...blob, outlookTokens: map })
+    // If there is a pending device-code session that just completed for this
+    // email, clear it from KV so stale entries don't survive restart.
+    const pending = blob.pendingDeviceCode as PendingDeviceCodeEntry | undefined
+    const updated: Record<string, unknown> = { ...blob, outlookTokens: map }
+    if (pending && pending.email === key) {
+      delete updated.pendingDeviceCode
+    }
+    await outlookTokenStore.save(scope, updated)
     return
   }
 
@@ -322,6 +335,60 @@ const pendingAuths = new Map<string, PendingAuth>()
 /** Exposed for testing */
 export function _getPendingAuths(): Map<string, PendingAuth> {
   return pendingAuths
+}
+
+// --- Device-code KV persistence (survives container sleep/recreate on CF) ---
+
+/**
+ * Device-code session persisted to KV so the poll can resume after container
+ * sleep/recreate (the poll's target DO instance survives via the KV copy).
+ *
+ * The ``expiresAt`` field uses the same millisecond base as ``Date.now()``,
+ * consistent with the RAM ``PendingAuth`` map.
+ */
+interface PendingDeviceCodeEntry {
+  verificationUri: string
+  userCode: string
+  expiresAt: number
+  deviceCode: string
+  interval: number
+  email: string
+}
+
+/** Persist the device-code session to KV under the sub's config blob. */
+async function persistPendingDeviceCode(sub: string, entry: PendingDeviceCodeEntry): Promise<void> {
+  if (!outlookTokenStore) return
+  const blob: Record<string, unknown> = (await outlookTokenStore.load(sub)) ?? { accounts: [] }
+  await outlookTokenStore.save(sub, { ...blob, pendingDeviceCode: entry })
+}
+
+/** Load a pending device-code session from KV, returning null if absent or expired. */
+async function loadPendingDeviceCode(sub: string): Promise<PendingDeviceCodeEntry | null> {
+  if (!outlookTokenStore) return null
+  try {
+    const blob = await outlookTokenStore.load(sub)
+    if (!blob) return null
+    const entry = blob.pendingDeviceCode as PendingDeviceCodeEntry | undefined
+    if (!entry) return null
+    // Guard against stale entries (past expiry) so we don't resume a dead poll.
+    if (entry.expiresAt <= Date.now()) return null
+    return entry
+  } catch {
+    return null
+  }
+}
+
+/** Clear the pending device-code session from the KV blob (best-effort). */
+async function clearPendingDeviceCode(sub: string): Promise<void> {
+  if (!outlookTokenStore) return
+  try {
+    const blob: Record<string, unknown> = (await outlookTokenStore.load(sub)) ?? {}
+    if (blob.pendingDeviceCode === undefined) return
+    const { pendingDeviceCode: _, ...rest } = blob
+    await outlookTokenStore.save(sub, rest)
+  } catch {
+    // Best-effort — the poll retry / expiry logic already handles the stale case.
+  }
 }
 
 /**
@@ -423,6 +490,13 @@ function startBackgroundPoll(
           sub
         )
         pendingAuths.delete(emailKey)
+        // Also clear the device-code session from KV so it doesn't resume
+        // stale after a future container recreate.
+        if (outlookTokenStore && sub) {
+          clearPendingDeviceCode(sub).catch(() => {
+            /* best-effort */
+          })
+        }
 
         setState('configured')
         try {
@@ -499,6 +573,22 @@ export async function initiateOutlookDeviceCode(
     expiresAt: Date.now() + codeData.expires_in * MS_PER_SECOND
   })
 
+  // Persist the device-code session to KV so it survives container
+  // sleep/recreate on Cloudflare (sleepAfter can be <15m because the
+  // poll resumes from KV on container wake).
+  if (outlookTokenStore && scope) {
+    persistPendingDeviceCode(scope, {
+      verificationUri: codeData.verification_uri,
+      userCode: codeData.user_code,
+      expiresAt: Date.now() + codeData.expires_in * MS_PER_SECOND,
+      deviceCode: codeData.device_code,
+      interval: codeData.interval || DEFAULT_POLLING_INTERVAL_SECONDS,
+      email: emailKey
+    }).catch(() => {
+      // Best-effort — the RAM map is the primary cache; KV is for survival.
+    })
+  }
+
   startBackgroundPoll(clientId, codeData.device_code, codeData.interval, codeData.expires_in, email, onComplete, scope)
 
   // Auto-open browser for desktop environments (best-effort; no-op in CI/E2E)
@@ -533,6 +623,38 @@ export async function ensureValidToken(account: { email: string; oauth2?: OAuth2
 
   if (!account.oauth2) {
     const emailKey = account.email.toLowerCase()
+
+    // First, check KV for a pending device-code session that survived a
+    // container sleep/recreate — resume the background poll if found.
+    const sub = currentSub()
+    if (sub && outlookTokenStore) {
+      const kvPending = await loadPendingDeviceCode(sub)
+      if (kvPending && kvPending.email === emailKey) {
+        // Populate RAM cache so retries within the same container instance
+        // see the pending auth without another KV round-trip.
+        pendingAuths.set(emailKey, {
+          verificationUri: kvPending.verificationUri,
+          userCode: kvPending.userCode,
+          expiresAt: kvPending.expiresAt
+        })
+        startBackgroundPoll(
+          getClientId(),
+          kvPending.deviceCode,
+          kvPending.interval,
+          Math.max(1, Math.ceil((kvPending.expiresAt - Date.now()) / MS_PER_SECOND)),
+          kvPending.email,
+          undefined,
+          sub
+        )
+        throw new Error(
+          `Outlook sign-in in progress for ${account.email}.\n` +
+            `Visit: ${kvPending.verificationUri}\n` +
+            `Enter code: ${kvPending.userCode}\n\n` +
+            `After signing in, retry your request.`
+        )
+      }
+    }
+
     const pending = pendingAuths.get(emailKey)
 
     if (pending && pending.expiresAt > Date.now()) {
@@ -555,6 +677,20 @@ export async function ensureValidToken(account: { email: string; oauth2?: OAuth2
       expiresAt: Date.now() + codeData.expires_in * MS_PER_SECOND
     })
 
+    // Also persist the device-code session to KV so it survives container sleep.
+    if (outlookTokenStore && sub) {
+      persistPendingDeviceCode(sub, {
+        verificationUri: codeData.verification_uri,
+        userCode: codeData.user_code,
+        expiresAt: Date.now() + codeData.expires_in * MS_PER_SECOND,
+        deviceCode: codeData.device_code,
+        interval: codeData.interval || DEFAULT_POLLING_INTERVAL_SECONDS,
+        email: emailKey
+      }).catch(() => {
+        // Best-effort — the RAM map is the primary cache.
+      })
+    }
+
     // Capture the sub now (tool-call request scope) so the detached poll writes
     // the token to the right per-sub blob even after this request returns.
     startBackgroundPoll(
@@ -564,7 +700,7 @@ export async function ensureValidToken(account: { email: string; oauth2?: OAuth2
       codeData.expires_in,
       account.email,
       undefined,
-      currentSub()
+      sub
     )
 
     // Auto-open browser for desktop environments

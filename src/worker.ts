@@ -159,12 +159,12 @@ function extractUserId(request: Request): string {
 // target also sets MCP_PORT=8080 + EXPOSE 8080).
 export class EmailContainer extends Container<Env> {
   defaultPort = 8080
-  // FOOTGUN / RISK R1: sleepAfter MUST be >= the Outlook device-code window
-  // (~15m). The device-code background poll writes the refresh token to KV up to
-  // ~15 minutes after the form submit; if the DO sleeps first, the write-target
-  // instance is gone and Outlook auth silently never completes. 20m = window +
-  // slack (Microsoft device codes default expires_in ~= 900s).
-  sleepAfter = '20m'
+  // sleepAfter was reduced from 20m → 5m (2026-06-23): the device-code
+  // background poll no longer needs a long sleep window because the session is
+  // now persisted to KV (``pendingDeviceCode`` field in the per-sub config blob).
+  // When the container wakes, ``ensureValidToken()`` checks KV and auto-resumes
+  // the poll. See oauth2.ts:loadPendingDeviceCode / persistPendingDeviceCode.
+  sleepAfter = '5m'
   // IMAP/SMTP + Microsoft OAuth reach the public internet; kv.internal stays
   // intercepted (see outboundByHost).
   enableInternet = true

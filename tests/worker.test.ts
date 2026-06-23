@@ -111,12 +111,11 @@ describe('worker (KV-only)', () => {
     expect(resp.status).toBe(404)
   })
 
-  test('defaultPort 8080 + sleepAfter >= 15m (R1: Outlook device-code window)', () => {
+  test('defaultPort 8080 + sleepAfter is 5m (device-code session KV-persisted, no longer needs >=15m)', () => {
     const c = new EmailContainer(undefined as never, {} as never)
     expect(c.defaultPort).toBe(8080)
     expect(c.enableInternet).toBe(true)
-    const minutes = Number(String(c.sleepAfter).replace('m', ''))
-    expect(minutes).toBeGreaterThanOrEqual(15)
+    expect(c.sleepAfter).toBe('5m')
   })
 
   test('envVars forwards only set string keys, dropping empty/undefined', () => {
