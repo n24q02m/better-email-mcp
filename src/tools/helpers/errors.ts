@@ -2,6 +2,20 @@
  * Error Handling Utilities
  * AI-friendly error messages and suggestions for email operations
  */
+export interface EmailMCPErrorJSON {
+  error: string
+  code: string
+  message: string
+  suggestion?: string
+  details?: unknown
+}
+
+export interface RawError {
+  message?: string
+  authenticationFailed?: boolean
+  responseCode?: number
+  [key: string]: unknown
+}
 
 export class EmailMCPError extends Error {
   constructor(
@@ -14,7 +28,7 @@ export class EmailMCPError extends Error {
     this.name = 'EmailMCPError'
   }
 
-  toJSON() {
+  toJSON(): EmailMCPErrorJSON {
     return {
       error: this.name,
       code: this.code,
@@ -24,6 +38,7 @@ export class EmailMCPError extends Error {
     }
   }
 }
+
 /**
  * Type guard for record objects
  */
@@ -32,10 +47,17 @@ function isRecord(val: unknown): val is Record<string, unknown> {
 }
 
 /**
+ * Type guard for RawError
+ */
+function isRawError(val: unknown): val is RawError {
+  return isRecord(val)
+}
+
+/**
  * Sanitize error object to remove sensitive information (passwords, tokens)
  */
 function sanitizeErrorDetails(error: unknown): unknown {
-  if (!isRecord(error)) {
+  if (!isRawError(error)) {
     return error
   }
 
@@ -59,7 +81,7 @@ export function enhanceError(error: unknown): EmailMCPError {
     return error
   }
 
-  const errObj = isRecord(error) ? error : {}
+  const errObj = isRawError(error) ? error : {}
   const message = typeof errObj.message === 'string' ? errObj.message : 'Unknown error occurred'
 
   // IMAP authentication errors
@@ -129,7 +151,7 @@ export function enhanceError(error: unknown): EmailMCPError {
  * Handle SMTP-specific errors
  */
 function handleSmtpError(error: unknown): EmailMCPError {
-  const errObj = isRecord(error) ? error : {}
+  const errObj = isRawError(error) ? error : {}
   const code = typeof errObj.responseCode === 'number' ? errObj.responseCode : 0
 
   switch (code) {
