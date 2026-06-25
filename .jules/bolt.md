@@ -41,3 +41,12 @@
 ## 2025-05-18 - [V8 RegExp replacement overhead]
 **Learning:** In V8 environments (Node.js/Bun), using chained `.replace()` calls with string literal replacements is measurably faster than using a single global `.replace()` with a mapping callback for simple escaping tasks (e.g. HTML escaping). The overhead comes from V8 needing to cross the C++/JS boundary and invoke the JS callback for every regex match.
 **Action:** Always prefer chained `.replace()` with string literal replacements for simple, fixed-mapping string replacements instead of a single mapping callback, especially in hot-path or frequently called utilities.
+## 2026-06-25 - [Avoid regex replacement overhead on large payloads]
+**Learning:** In V8 environments (Node.js/Bun), running a global RegExp replace on multi-megabyte strings (like large JSON payloads) when the target pattern is rare or often missing causes massive event loop blocking. V8 has to scan the entire string to determine if there's a match, and the overhead is significant.
+**Action:** When applying a `.replace()` to large strings where the match is expected to be rare, always prefix the operation with a fast RegExp `.test()` check. This skips the overhead of the replace machinery entirely when the pattern is not found, as demonstrated by optimizing the XPIA sanitation in `wrapToolResult`.
+## 2026-06-25 - [Avoid string slice allocation in bigrams]
+**Learning:** In string matching algorithms that calculate similarity (like ), taking string slices inside a hot loop (e.g., ) generates a significant amount of garbage collection pressure through object allocations.
+**Action:** When working with English or basic character sets, optimize adjacent character pairs (bigrams) by packing two 16-bit  values into a single 32-bit integer via bitwise math: `(charCodeAt(i) << 16) | charCodeAt(i + 1)`. This eliminates substring allocations and speeds up similarity Set calculations by replacing string hashing with much faster primitive integer hashing.
+## 2024-05-18 - [Avoid string slice allocation in bigrams]
+**Learning:** In string matching algorithms that calculate similarity, taking string slices inside a hot loop generates a significant amount of garbage collection pressure through object allocations.
+**Action:** Optimize adjacent character pairs (bigrams) by packing two 16-bit `charCodeAt` values into a single 32-bit integer via bitwise math. This eliminates substring allocations and speeds up similarity Set calculations by replacing string hashing with much faster primitive integer hashing.

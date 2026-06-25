@@ -388,6 +388,10 @@ export function registerTools(server: Server, initialAccounts: AccountConfig[]) 
 
       const result = await handler(accounts, args)
 
+      if (result === undefined) {
+        throw new Error('Tool handler returned undefined')
+      }
+
       const jsonText = JSON.stringify(result, null, 2)
       return {
         content: [

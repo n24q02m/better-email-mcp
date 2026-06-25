@@ -40,9 +40,16 @@ export function wrapToolResult(toolName: string, jsonText: string): string {
     return jsonText
   }
 
+  // Handle undefined safely since JSON.stringify(undefined) returns undefined
+  const textToWrap = jsonText ?? ''
+
   // Prevent XPIA breakout: sanitize the closing tag to prevent attackers from
   // escaping the untrusted block and injecting system commands.
-  const safeText = jsonText.replace(/untrusted_email_content/gi, 'u_n_t_r_u_s_t_e_d_email_content')
+  // ⚡ Bolt: Fast-path for large payloads. RegExp replacement on multi-megabyte strings
+  // causes event loop blocking. Check if the pattern exists before replacing.
+  const safeText = /untrusted_email_content/i.test(textToWrap)
+    ? textToWrap.replace(/untrusted_email_content/gi, 'u_n_t_r_u_s_t_e_d_email_content')
+    : textToWrap
 
   return `<untrusted_email_content>\n${safeText}\n</untrusted_email_content>\n\n${SAFETY_WARNING}`
 }
