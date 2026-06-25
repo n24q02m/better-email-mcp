@@ -73,3 +73,6 @@
 ## 2024-05-19 - [Dynamic Form Focus Management]
 **Learning:** When removing an interactive element (like an account card) from a dynamic list in the DOM, abruptly dropping keyboard focus to a fallback action button at the bottom of the page creates a jarring navigation experience. Screen reader and keyboard users lose their context within the form list.
 **Action:** Always attempt to return focus to a logical sibling (e.g. the previous or next card's first input field) before falling back to global action buttons like "Add New". This maintains the sequential flow of form completion.
+## 2024-06-25 - [ARIA Pressed for Toggles]
+**Learning:** "Show/Hide" password toggle buttons can confuse screen readers if they only change labels or text content. The `aria-pressed` attribute provides native toggle state feedback.
+**Action:** Ensure custom toggle buttons explicitly set and update `aria-pressed="true|false"` alongside any `aria-label` changes.
