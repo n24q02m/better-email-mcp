@@ -137,6 +137,12 @@ const KV_MATCHERS = {
   TO: /\bTO\s+("[^"]+"|'[^']+'|\S+)/i
 } as const
 
+// ⚡ Bolt: Pre-compile search regexes into module constants.
+// This eliminates redundant RegExp object allocation when `buildSearchCriteria`
+// is called repeatedly during high-volume query operations.
+const SUBJECT_MATCHER = /\bSUBJECT\s+(.+)/i
+const QUOTE_TRIM_MATCHER = /^["']|["']$/g
+
 function buildSearchCriteria(query: string): SearchObject {
   const trimmed = query.trim()
   if (!trimmed) return {}
@@ -178,15 +184,15 @@ function buildSearchCriteria(query: string): SearchObject {
     const kvMatch = remaining.match(KV_MATCHERS[keyword])
     if (kvMatch) {
       const criteriaKey = keyword.toLowerCase() as keyof SearchObject
-      Object.assign(criteria, { [criteriaKey]: kvMatch[1]!.replace(/^["']|["']$/g, '') })
+      Object.assign(criteria, { [criteriaKey]: kvMatch[1]!.replace(QUOTE_TRIM_MATCHER, '') })
       remaining = remaining.replace(kvMatch[0], ' ').trim()
     }
   }
 
   // 4. Extract explicit SUBJECT (captures until end -- all other keywords already consumed)
-  const subjectMatch = remaining.match(/\bSUBJECT\s+(.+)/i)
+  const subjectMatch = remaining.match(SUBJECT_MATCHER)
   if (subjectMatch) {
-    criteria.subject = subjectMatch[1]!.trim().replace(/^["']|["']$/g, '')
+    criteria.subject = subjectMatch[1]!.trim().replace(QUOTE_TRIM_MATCHER, '')
     remaining = remaining.replace(subjectMatch[0], ' ').trim()
   }
 
