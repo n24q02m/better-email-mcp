@@ -73,3 +73,7 @@
 ## 2024-05-19 - [Dynamic Form Focus Management]
 **Learning:** When removing an interactive element (like an account card) from a dynamic list in the DOM, abruptly dropping keyboard focus to a fallback action button at the bottom of the page creates a jarring navigation experience. Screen reader and keyboard users lose their context within the form list.
 **Action:** Always attempt to return focus to a logical sibling (e.g. the previous or next card's first input field) before falling back to global action buttons like "Add New". This maintains the sequential flow of form completion.
+
+## 2026-06-27 - Dynamic ARIA States for Toggle Buttons
+**Learning:** Relying solely on changing `aria-label` or text content on a toggle button is often insufficient for screen readers to properly announce state changes robustly.
+**Action:** Always complement text/label changes with the `aria-pressed` attribute (toggling between "true" and "false") on toggle buttons to explicitly announce the active state.
