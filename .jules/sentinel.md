@@ -29,3 +29,8 @@
  **Vulnerability:** Unchecked `JSON.parse` output when loading the OAuth2 token store or encrypted configurations.
  **Learning:** Accessing properties on unvalidated `JSON.parse` results can cause runtime crashes (TypeErrors) if the file is malformed or contains unexpected primitive values.
  **Prevention:** Use robust type guards (`isValidTokenStore`, `isValidAccountConfigs`) immediately after parsing. Ensure these guards check for `null`, `Array.isArray`, and validate internal field types and constraints (e.g., non-empty strings for tokens, positive numbers for expiration).
+
+## 2026-05-28 - Unvalidated JSON Parsing in OAuth Token Store
+**Vulnerability:** The OAuth token store in `src/tools/helpers/oauth2.ts` (`loadStoredTokens`, `loadOutlookEmails`, `saveTokensToFile`) parsed JSON from disk and cast it directly without structural validation or protection against prototype pollution. If the file was maliciously modified to include `__proto__` properties, consumers could experience prototype pollution leading to privilege escalation or unexpected behavior.
+**Learning:** Always use a defensive parsing wrapper (`Object.create(null)` and explicit key deletion) when parsing locally cached JSON objects that will be merged or treated as configurations, even if the file is supposedly managed by the application.
+**Prevention:** Implement a `parseTokenStore` utility that uses `JSON.parse`, validates the result, and sanitizes the object by mapping properties onto a null-prototype object and deleting potentially dangerous keys (`__proto__`, `constructor`, `prototype`).
