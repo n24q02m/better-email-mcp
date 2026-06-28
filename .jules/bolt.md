@@ -41,3 +41,8 @@
 ## 2025-05-18 - [V8 RegExp replacement overhead]
 **Learning:** In V8 environments (Node.js/Bun), using chained `.replace()` calls with string literal replacements is measurably faster than using a single global `.replace()` with a mapping callback for simple escaping tasks (e.g. HTML escaping). The overhead comes from V8 needing to cross the C++/JS boundary and invoke the JS callback for every regex match.
 **Action:** Always prefer chained `.replace()` with string literal replacements for simple, fixed-mapping string replacements instead of a single mapping callback, especially in hot-path or frequently called utilities.
+## 2023-06-28 - Extract Inline RegExp Literals and Remove Redundant .test()
+
+**Learning:** V8 recompiles inline literal regular expressions if they appear inside high-frequency loops or hot paths like `map` functions and query parsing (`buildSearchCriteria`). Additionally, calling `.test()` before a global replace operation (`.replace(/.../g, '')`) is an anti-pattern. If the pattern is missing, both `.test()` and `.replace()` perform an `O(N)` scan, but the `.replace()` fast-path returns the original string with zero reallocation.
+
+**Action:** Always pre-compile regular expressions by extracting them to module-scoped constants (`const RE_... = /.../g`), avoiding instantiation on every function invocation. Remove redundant `if (pattern.test(text))` checks before `.replace()` logic, especially in loops, to minimize string scanning overhead.
