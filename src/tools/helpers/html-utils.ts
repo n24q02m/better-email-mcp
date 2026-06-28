@@ -104,7 +104,12 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   text = text.replace(RE_BR_TAGS, ' ')
 
   // Strip all remaining HTML tags
-  text = text.replace(RE_ANY_TAG, '')
+  // ⚡ Bolt: Iteratively strip tags to prevent incomplete sanitization (e.g., `<<script>script>`)
+  // and resolve CodeQL "IncompleteHtmlAttributeSanitization" warnings.
+  do {
+    prev = text
+    text = text.replace(RE_ANY_TAG, '')
+  } while (text !== prev)
 
   // ⚡ Bolt: Decode HTML entities in a single pass.
   // We use the capture group `p1` (which contains the entity name or number without the `&` and `;`)
