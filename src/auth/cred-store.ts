@@ -17,6 +17,7 @@
  * never thrown to the caller).
  */
 import { backendFromEnv, CfKvBackend, PerPluginStore } from '@n24q02m/mcp-core/storage'
+import { isValidTokenStore, isValidTokens } from '../tools/helpers/oauth2.js'
 import type { CredentialPayload, CredStoreLike } from './in-memory-cred-store.js'
 
 const PLUGIN_NAME = 'better-email'
@@ -55,11 +56,7 @@ function isValidServer(s: unknown): boolean {
 }
 
 function isValidOAuth2(o: unknown): boolean {
-  if (typeof o !== 'object' || o === null) return false
-  const t = o as Record<string, unknown>
-  // accessToken/refreshToken are strings when present; an in-progress device-code
-  // account may carry empty strings, so do not require non-empty here.
-  return typeof t.accessToken === 'string' && typeof t.refreshToken === 'string'
+  return isValidTokens(o)
 }
 
 function isValidAccount(a: unknown): boolean {
@@ -67,7 +64,13 @@ function isValidAccount(a: unknown): boolean {
   const acc = a as Record<string, unknown>
   // id/email must be non-empty; password is a string but may be empty for OAuth2
   // accounts (no password). imap/smtp must be well-formed server configs.
-  if (!isNonEmptyString(acc.id) || !isNonEmptyString(acc.email) || typeof acc.password !== 'string') return false
+  if (
+    !isNonEmptyString(acc.id) ||
+    !isNonEmptyString(acc.email) ||
+    typeof acc.password !== 'string' ||
+    (acc.authType !== undefined && acc.authType !== 'password' && acc.authType !== 'oauth2')
+  )
+    return false
   if (!isValidServer(acc.imap) || !isValidServer(acc.smtp)) return false
   if (acc.oauth2 !== undefined && !isValidOAuth2(acc.oauth2)) return false
   return true
@@ -80,9 +83,11 @@ function isValidAccount(a: unknown): boolean {
  */
 export function isValidCredentialPayload(data: unknown): data is CredentialPayload {
   if (typeof data !== 'object' || data === null) return false
-  const accounts = (data as { accounts?: unknown }).accounts
-  if (!Array.isArray(accounts)) return false
-  return accounts.every(isValidAccount)
+  const d = data as Record<string, unknown>
+  if (!Array.isArray(d.accounts)) return false
+  if (!d.accounts.every(isValidAccount)) return false
+  if (d.outlookTokens !== undefined && !isValidTokenStore(d.outlookTokens)) return false
+  return true
 }
 
 export class PerSubCredStore implements CredStoreLike {
@@ -115,8 +120,14 @@ export class PerSubCredStore implements CredStoreLike {
     try {
       const data = (await this.storeFor(sub).load()) as CredentialPayload | null
       if (data !== null && isValidCredentialPayload(data)) {
-        this.cache.set(sub, data)
-        return data
+        const safe = Object.create(null)
+        Object.assign(safe, data)
+        // biome-ignore lint/suspicious/noProto: Hardening against prototype pollution by removing the raw __proto__ key if passed in JSON.
+        delete safe.__proto__
+        delete safe.constructor
+        delete safe.prototype
+        this.cache.set(sub, safe)
+        return safe
       }
     } catch {
       // corrupt/absent blob -> treat as no credentials (re-auth), never throw.

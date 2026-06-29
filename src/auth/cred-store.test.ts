@@ -36,7 +36,9 @@ describe('PerSubCredStore', () => {
     const http = new FakeKvHttp()
     await new PerSubCredStore({ http }).save('bob', {
       accounts: [acct('b@outlook.com')],
-      outlookTokens: { 'b@outlook.com': { accessToken: 't', refreshToken: 'r', expiresAt: 1 } }
+      outlookTokens: {
+        'b@outlook.com': { accessToken: 't', refreshToken: 'r', expiresAt: Date.now() + 3600000, clientId: 'c' }
+      }
     })
     const cold = new PerSubCredStore({ http })
     const loaded = await cold.load('bob')
@@ -88,5 +90,38 @@ describe('PerSubCredStore', () => {
       }
     })
     await expect(broken.ready()).rejects.toThrow(/kv\.internal/)
+  })
+
+  it('rejects an account with an invalid authType', async () => {
+    const http = new FakeKvHttp()
+    const a = acct('invalid@example.com') as any
+    a.authType = 'invalid-type'
+    await new PerSubCredStore({ http }).save('sub', { accounts: [a] })
+    const cold = new PerSubCredStore({ http })
+    expect(await cold.load('sub')).toBeNull()
+  })
+
+  it('rejects a payload with malformed outlookTokens', async () => {
+    const http = new FakeKvHttp()
+    await new PerSubCredStore({ http }).save('sub', {
+      accounts: [acct('a@example.com')],
+      outlookTokens: { 'a@example.com': { accessToken: '', refreshToken: 'r', expiresAt: 1, clientId: 'c' } } // empty accessToken
+    })
+    const cold = new PerSubCredStore({ http })
+    expect(await cold.load('sub')).toBeNull()
+  })
+
+  it('hardens against prototype pollution on load', async () => {
+    const http = new FakeKvHttp()
+    const payload = JSON.parse('{"accounts": [], "__proto__": {"polluted": true}}')
+    await new PerSubCredStore({ http }).save('sub', payload)
+
+    const cold = new PerSubCredStore({ http })
+    const loaded = (await cold.load('sub')) as any
+    expect(loaded).not.toBeNull()
+    expect(loaded.polluted).toBeUndefined()
+    expect(Object.getPrototypeOf(loaded)).toBeNull()
+    // biome-ignore lint/suspicious/noProto: Verification of hardening
+    expect(loaded.__proto__).toBeUndefined()
   })
 })

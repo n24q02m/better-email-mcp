@@ -34,3 +34,9 @@
 **Vulnerability:** The OAuth token store in `src/tools/helpers/oauth2.ts` (`loadStoredTokens`, `loadOutlookEmails`, `saveTokensToFile`) parsed JSON from disk and cast it directly without structural validation or protection against prototype pollution. If the file was maliciously modified to include `__proto__` properties, consumers could experience prototype pollution leading to privilege escalation or unexpected behavior.
 **Learning:** Always use a defensive parsing wrapper (`Object.create(null)` and explicit key deletion) when parsing locally cached JSON objects that will be merged or treated as configurations, even if the file is supposedly managed by the application.
 **Prevention:** Implement a `parseTokenStore` utility that uses `JSON.parse`, validates the result, and sanitizes the object by mapping properties onto a null-prototype object and deleting potentially dangerous keys (`__proto__`, `constructor`, `prototype`).
+
+## 2026-06-29 - Unvalidated JSON Parsing and Prototype Pollution in Credential Store
+
+**Vulnerability:** Decrypted credential blobs in `src/auth/cred-store.ts` were parsed and used without sufficient schema validation or protection against prototype pollution. Maliciously crafted or corrupted storage could lead to runtime crashes or prototype pollution attacks.
+**Learning:** Decrypting data verifies integrity and confidentiality but not structure. Always apply strict schema validation (type guards) and defensive object copying (null-prototype) to all persisted JSON data, even after successful decryption.
+**Prevention:** Implement comprehensive type guards (e.g., validating `authType` and nesting structures like `outlookTokens`) and use `Object.create(null)` to sanitize objects parsed from storage.
