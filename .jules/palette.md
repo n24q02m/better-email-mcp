@@ -76,3 +76,6 @@
 ## 2025-02-19 - ARIA Pressed State for Password Toggles
 **Learning:** Screen reader users need clear context when toggling the visibility of password fields. While changing the button text or `aria-label` provides information, using `aria-pressed` robustly announces the toggled state to screen readers, improving the cognitive context of the action.
 **Action:** Always include the `aria-pressed` attribute (toggling between `true` and `false`) on "Show/Hide" password buttons to announce their active state reliably to screen readers.
+## 2026-06-29 - [Dynamic Account Card Titles and ARIA Labels]
+**Learning:** For forms involving multiple dynamic instances of the same component grouping (e.g. "Account 1", "Account 2"), hardcoded titles and generic ARIA labels like "Remove Account 2" lack context for screen reader users and can be confusing. Dynamically binding the user's entered email address to the section title and the removal button's ARIA label significantly improves context and usability.
+**Action:** When creating repeatable form structures, identify the primary input (like a name or email address) and bind it to the container's title and the ARIA labels of related action buttons (like Remove or Edit). Ensure long text is truncated gracefully using CSS (`text-overflow: ellipsis`) so layout doesn't break.

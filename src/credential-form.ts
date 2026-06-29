@@ -103,7 +103,16 @@ export function renderEmailCredentialForm(
             align-items: center;
             margin-bottom: 0.75rem;
         }
-        .account-title { font-size: 0.95rem; font-weight: 600; color: #ddd; }
+        .account-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #ddd;
+            max-width: 300px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
         .remove-btn {
             background: transparent;
             color: #f87171;
@@ -472,11 +481,17 @@ export function renderEmailCredentialForm(
                 var cards = container.querySelectorAll(".account-card");
                 for (var i = 0; i < cards.length; i++) {
                     var titleEl = cards[i].querySelector(".account-title");
-                    if (titleEl) titleEl.textContent = "Account " + (i + 1);
+                    var emailInput = cards[i].querySelector('input[data-role="email"]');
+                    var emailVal = emailInput && (emailInput instanceof HTMLInputElement) && emailInput.value ? emailInput.value.trim() : "";
+                    var titleStr = emailVal ? emailVal : "Account " + (i + 1);
+                    if (titleEl && titleEl instanceof HTMLElement) {
+                        titleEl.textContent = titleStr;
+                        titleEl.title = titleStr;
+                    }
                     var removeBtn = cards[i].querySelector(".remove-btn");
-                    if (removeBtn) {
-                        removeBtn.style.display = i === 0 ? "none" : "";
-                        removeBtn.setAttribute("aria-label", "Remove Account " + (i + 1));
+                    if (removeBtn && removeBtn instanceof HTMLElement) {
+                        removeBtn.style.display = cards.length > 1 ? "" : "none";
+                        removeBtn.setAttribute("aria-label", "Remove " + titleStr);
                     }
                 }
             }
@@ -639,6 +654,7 @@ export function renderEmailCredentialForm(
                     var at = val.indexOf("@");
                     var domain = at >= 0 ? val.slice(at + 1).trim().toLowerCase() : "";
                     renderDomainSpecificFields(extra, idx, domain, state);
+                    updateAccountNumbers();
                 });
 
                 return card;
