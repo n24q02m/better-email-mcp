@@ -141,4 +141,35 @@ describe('currentSub', () => {
       expect(currentSub()).toBe('outer')
     })
   })
+
+  test('defensive check: returns null if the store is incorrectly a primitive string', () => {
+    // @ts-expect-error - simulating a case where the store is incorrectly populated with a string
+    subjectContext.run('not-an-object', () => {
+      const result = currentSub()
+      // If result is String.prototype.sub, it will be a function
+      expect(typeof result).not.toBe('function')
+      expect(result).toBeNull()
+    })
+  })
+
+  test('defensive check: returns null if the store is missing the sub property', () => {
+    // @ts-expect-error
+    subjectContext.run({ accounts: [] }, () => {
+      expect(currentSub()).toBeNull()
+    })
+  })
+
+  test('defensive check: returns null if the sub property is not a string', () => {
+    // @ts-expect-error
+    subjectContext.run({ sub: 123, accounts: [] }, () => {
+      expect(currentSub()).toBeNull()
+    })
+  })
+
+  test('defensive check: returns null if the store is null', () => {
+    // @ts-expect-error
+    subjectContext.run(null, () => {
+      expect(currentSub()).toBeNull()
+    })
+  })
 })
