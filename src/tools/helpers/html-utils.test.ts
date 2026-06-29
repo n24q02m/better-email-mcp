@@ -321,3 +321,28 @@ describe('sanitizeHtml extra edge cases', () => {
     expect(clean).toContain('bottom')
   })
 })
+
+describe('sanitizeHtml additional performance and edge cases', () => {
+  it('handles 2MB HTML string with many tags and attributes', () => {
+    // Generate ~2MB of HTML
+    const largeString = `<div>${'<p class="foo" data-bar="baz">some text and <span style="color: red;">more text</span></p>'.repeat(25000)}</div>`
+    const start = Date.now()
+    const clean = sanitizeHtml(largeString)
+    const duration = Date.now() - start
+
+    expect(clean).toContain('some text')
+    expect(duration).toBeLessThan(10000) // 10 seconds for 2MB is reasonable
+  })
+
+  it('handles large strings with many non-allowed tags', () => {
+    // script and style are not allowed by default
+    const largeString = `<div>${'<script>alert(1)</script><style>body{color:red}</style>'.repeat(10000)}</div>`
+    const start = Date.now()
+    const clean = sanitizeHtml(largeString)
+    const duration = Date.now() - start
+
+    expect(clean).not.toContain('<script>')
+    expect(clean).not.toContain('<style>')
+    expect(duration).toBeLessThan(5000)
+  })
+})
