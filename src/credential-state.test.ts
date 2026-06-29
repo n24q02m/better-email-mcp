@@ -104,6 +104,11 @@ describe('credential-state', () => {
       expect(mod.getSetupUrl()).toBeNull()
     })
 
+    it('handles undefined (type casting)', () => {
+      mod.setSetupUrl(undefined as unknown as string)
+      expect(mod.getSetupUrl()).toBeUndefined()
+    })
+
     it('handles empty string', () => {
       mod.setSetupUrl('')
       expect(mod.getSetupUrl()).toBe('')
@@ -150,6 +155,18 @@ describe('credential-state', () => {
       const result = await mod.resolveCredentialState()
       expect(result).toBe('configured')
       expect(process.env.EMAIL_CREDENTIALS).toBe('user@gmail.com:app-pass-123')
+    })
+
+    it('returns awaiting_setup when only EMAIL_USER is set', async () => {
+      process.env.EMAIL_USER = 'user@gmail.com'
+      const result = await mod.resolveCredentialState()
+      expect(result).toBe('awaiting_setup')
+    })
+
+    it('returns awaiting_setup when only EMAIL_APP_PASSWORD is set', async () => {
+      process.env.EMAIL_APP_PASSWORD = 'app-pass-123'
+      const result = await mod.resolveCredentialState()
+      expect(result).toBe('awaiting_setup')
     })
 
     it('returns configured when config file has credentials', async () => {
@@ -227,9 +244,12 @@ describe('credential-state', () => {
   })
 
   describe('resetState', () => {
-    it('resets to awaiting_setup', async () => {
+    it('resets to awaiting_setup and clears setupUrl', async () => {
       mod.setState('configured')
+      mod.setSetupUrl('http://localhost:3000/setup')
+
       await mod.resetState()
+
       expect(mod.getState()).toBe('awaiting_setup')
       expect(mod.getSetupUrl()).toBeNull()
     })
