@@ -2,6 +2,68 @@
 
 <!-- version list -->
 
+## v1.33.0-beta.5 (2026-06-29)
+
+### Bug Fixes
+
+- Add aria-pressed to password toggle
+  ([`9643cd7`](https://github.com/n24q02m/better-email-mcp/commit/9643cd750f21e6df943980d6e3d543aae195eb80))
+
+- Cap max_instances=1 for CF container cost (solo dev default)
+  ([`54d6632`](https://github.com/n24q02m/better-email-mcp/commit/54d6632b5bca272aa82de63381d04572a8b7cf20))
+
+- Cover clearSentFolderCache
+  ([`bd13d94`](https://github.com/n24q02m/better-email-mcp/commit/bd13d9451d0839574abe598bffb213959894e2f6))
+
+- Cover html-utils edge cases
+  ([`628a0a3`](https://github.com/n24q02m/better-email-mcp/commit/628a0a3629620e0bcad2b3b575bbd42866facdef))
+
+- Cover null/undefined email throw
+  ([`e8d97d9`](https://github.com/n24q02m/better-email-mcp/commit/e8d97d9fef4f7e2125d72187e4019c832234f1c7))
+
+- Cover registry error path
+  ([`4262e93`](https://github.com/n24q02m/better-email-mcp/commit/4262e932de491eaecd40f5d0caa1b93376208d3c))
+
+- Cover setSetupUrl
+  ([`83ee339`](https://github.com/n24q02m/better-email-mcp/commit/83ee339889b485d251a76fab186d09409fe95ec9))
+
+- Harden OAuth token-store JSON.parse against prototype pollution
+  ([`e7f1c5f`](https://github.com/n24q02m/better-email-mcp/commit/e7f1c5f8bbe79104fa87872a1044a8add5d752cf))
+
+- Iterative tag-strip closes IncompleteHtmlAttributeSanitization
+  ([`05a9943`](https://github.com/n24q02m/better-email-mcp/commit/05a9943a04a313fb08f7afd5205dd43748aa978a))
+
+- Mark setup complete after outlook oauth device-code
+  ([#903](https://github.com/n24q02m/better-email-mcp/pull/903),
+  [`adafd4f`](https://github.com/n24q02m/better-email-mcp/commit/adafd4f22b4758f514666b8a1809a532622b09f7))
+
+- Persist device-code session to KV, reduce sleepAfter 20m→5m
+  ([`64de6f8`](https://github.com/n24q02m/better-email-mcp/commit/64de6f87677d07c5eaac7f1caf4ae06d4934f030))
+
+- Resolve outlook token key via id_token subject fallback
+  ([#912](https://github.com/n24q02m/better-email-mcp/pull/912),
+  [`4d0d710`](https://github.com/n24q02m/better-email-mcp/commit/4d0d7103a90c95f1153cff400106438ba3128554))
+
+- Simplify createFieldGroup via destructuring
+  ([`d0c20c9`](https://github.com/n24q02m/better-email-mcp/commit/d0c20c98950395de1fe9892d9e9bd42e03e6aa8b))
+
+- Use 32-bit integer bigrams in findClosestMatch
+  ([`91688f7`](https://github.com/n24q02m/better-email-mcp/commit/91688f7202867cfc0eecbdd97f86f35ec4828a57))
+
+- **deps**: Update non-major dependencies
+  ([#914](https://github.com/n24q02m/better-email-mcp/pull/914),
+  [`55018fb`](https://github.com/n24q02m/better-email-mcp/commit/55018fb50ec19e4c5dc4af0d556cf238951c005a))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#894](https://github.com/n24q02m/better-email-mcp/pull/894),
+  [`6b3f2fb`](https://github.com/n24q02m/better-email-mcp/commit/6b3f2fb59f0966806ff9c4275aafebd7a72e3aea))
+
+- **deps**: Update dawidd6/action-send-mail action to v18
+  ([#919](https://github.com/n24q02m/better-email-mcp/pull/919),
+  [`56ae47a`](https://github.com/n24q02m/better-email-mcp/commit/56ae47a8b5c50ab83e6e4c3eafe9ebe879ebc916))
+
+
 ## v1.33.0-beta.4 (2026-06-22)
 
 ### Bug Fixes
