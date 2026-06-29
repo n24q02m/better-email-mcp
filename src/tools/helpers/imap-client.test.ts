@@ -42,8 +42,8 @@ vi.mock('./oauth2.js', () => ({
   ensureValidToken: vi.fn().mockResolvedValue('mock-access-token')
 }))
 
-import { ImapFlow } from 'imapflow'
-import { simpleParser } from 'mailparser'
+import { type FetchMessageObject, ImapFlow } from 'imapflow'
+import { type ParsedMail, simpleParser } from 'mailparser'
 import {
   appendToFolder,
   clearSentFolderCache,
@@ -76,7 +76,7 @@ function _toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
       return {
         async next() {
           if (i < items.length) return { value: items[i++]!, done: false }
-          return { value: undefined as any, done: true }
+          return { value: undefined as unknown as FetchMessageObject, done: true }
         }
       }
     }
@@ -102,7 +102,7 @@ beforeEach(() => {
 
 describe('searchEmails', () => {
   it('searches with default UNSEEN criteria', async () => {
-    mockSimpleParser.mockResolvedValue({ text: 'Preview text here' } as any)
+    mockSimpleParser.mockResolvedValue({ text: 'Preview text here' } as unknown as ParsedMail)
     const msgs = [
       {
         uid: 1,
@@ -131,7 +131,7 @@ describe('searchEmails', () => {
   })
 
   it('respects the limit parameter', async () => {
-    mockSimpleParser.mockResolvedValue({ text: 'text' } as any)
+    mockSimpleParser.mockResolvedValue({ text: 'text' } as unknown as ParsedMail)
     const msgs = Array.from({ length: 5 }, (_, i) => ({
       uid: i + 1,
       flags: new Set(),
@@ -153,7 +153,7 @@ describe('searchEmails', () => {
   })
 
   it('searches across multiple accounts', async () => {
-    mockSimpleParser.mockResolvedValue({ text: 'text' } as any)
+    mockSimpleParser.mockResolvedValue({ text: 'text' } as unknown as ParsedMail)
     const account2: AccountConfig = {
       ...account,
       id: 'user2_gmail_com',
@@ -201,7 +201,7 @@ describe('searchEmails', () => {
   })
 
   it('uses source for snippet extraction', async () => {
-    mockSimpleParser.mockResolvedValue({ text: 'Body content here' } as any)
+    mockSimpleParser.mockResolvedValue({ text: 'Body content here' } as unknown as ParsedMail)
     mockClient.search.mockResolvedValue([1])
     mockClient.fetchAll.mockResolvedValue([
       {
@@ -219,7 +219,7 @@ describe('searchEmails', () => {
   })
 
   it('handles missing envelope fields gracefully', async () => {
-    mockSimpleParser.mockResolvedValue({ text: '' } as any)
+    mockSimpleParser.mockResolvedValue({ text: '' } as unknown as ParsedMail)
     mockClient.search.mockResolvedValue([1])
     mockClient.fetchAll.mockResolvedValue([
       {
@@ -263,7 +263,7 @@ describe('readEmail', () => {
       text: 'Plain text body',
       html: null,
       attachments: [{ filename: 'doc.pdf', contentType: 'application/pdf', size: 1024 }]
-    } as any)
+    } as unknown as ParsedMail)
 
     const result = await readEmail(account, 42, 'INBOX')
 
@@ -290,7 +290,7 @@ describe('readEmail', () => {
       text: null,
       html: '<p>Hello World</p>',
       attachments: []
-    } as any)
+    } as unknown as ParsedMail)
 
     const result = await readEmail(account, 1, 'INBOX')
 
@@ -311,7 +311,7 @@ describe('readEmail', () => {
       text: null,
       html: null,
       attachments: []
-    } as any)
+    } as unknown as ParsedMail)
 
     const result = await readEmail(account, 1, 'INBOX')
 
@@ -430,7 +430,7 @@ describe('getAttachment', () => {
           contentId: 'cid123'
         }
       ]
-    } as any)
+    } as unknown as ParsedMail)
 
     const result = await getAttachment(account, 10, 'INBOX', 'report.pdf')
 
@@ -444,7 +444,7 @@ describe('getAttachment', () => {
     mockClient.fetchOne.mockResolvedValue({ uid: 1, source: Buffer.from('raw') })
     mockSimpleParser.mockResolvedValue({
       attachments: [{ filename: 'Report.PDF', contentType: 'application/pdf', size: 100, content: Buffer.from('x') }]
-    } as any)
+    } as unknown as ParsedMail)
 
     const result = await getAttachment(account, 1, 'INBOX', 'report.pdf')
 
@@ -461,7 +461,7 @@ describe('getAttachment', () => {
     mockClient.fetchOne.mockResolvedValue({ uid: 1, source: Buffer.from('raw') })
     mockSimpleParser.mockResolvedValue({
       attachments: [{ filename: 'other.txt', contentType: 'text/plain', size: 10, content: Buffer.from('x') }]
-    } as any)
+    } as unknown as ParsedMail)
 
     await expect(getAttachment(account, 1, 'INBOX', 'missing.pdf')).rejects.toThrow('not found')
   })
@@ -490,7 +490,7 @@ describe('connection lifecycle', () => {
       date: new Date(),
       text: 'body',
       attachments: []
-    } as any)
+    } as unknown as ParsedMail)
 
     // Should not throw despite logout error
     const result = await readEmail(account, 1, 'INBOX')
@@ -523,7 +523,7 @@ describe('extractSnippet edge cases', () => {
     mockSimpleParser.mockResolvedValue({
       text: null,
       html: '<p>HTML content</p>'
-    } as any)
+    } as unknown as ParsedMail)
     mockClient.search.mockResolvedValue([1])
     mockClient.fetchAll.mockResolvedValue([makeSearchMsg()])
 
@@ -534,7 +534,7 @@ describe('extractSnippet edge cases', () => {
 
   it('truncates snippet with ... when text exceeds 200 chars', async () => {
     const longText = 'A'.repeat(250)
-    mockSimpleParser.mockResolvedValue({ text: longText } as any)
+    mockSimpleParser.mockResolvedValue({ text: longText } as unknown as ParsedMail)
     mockClient.search.mockResolvedValue([1])
     mockClient.fetchAll.mockResolvedValue([makeSearchMsg()])
 
@@ -555,7 +555,7 @@ describe('extractSnippet edge cases', () => {
   })
 
   it('returns empty string when text is empty after parsing', async () => {
-    mockSimpleParser.mockResolvedValue({ text: null, html: null } as any)
+    mockSimpleParser.mockResolvedValue({ text: null, html: null } as unknown as ParsedMail)
     mockClient.search.mockResolvedValue([1])
     mockClient.fetchAll.mockResolvedValue([makeSearchMsg()])
 
@@ -570,7 +570,7 @@ describe('extractSnippet edge cases', () => {
 // ============================================================================
 
 describe('formatAddress edge cases', () => {
-  function setupReadEmail(parsedOverrides: Record<string, any>) {
+  function setupReadEmail(parsedOverrides: any) {
     mockClient.fetchOne.mockResolvedValue({
       uid: 1,
       flags: new Set(),
@@ -584,7 +584,7 @@ describe('formatAddress edge cases', () => {
       text: 'body',
       attachments: [],
       ...parsedOverrides
-    } as any)
+    } as unknown as ParsedMail)
   }
 
   it('returns the string directly when addr is a string', async () => {
@@ -668,7 +668,7 @@ describe('formatAddress edge cases', () => {
 
 describe('buildSearchCriteria', () => {
   function setupSearch() {
-    mockSimpleParser.mockResolvedValue({ text: 'text' } as any)
+    mockSimpleParser.mockResolvedValue({ text: 'text' } as unknown as ParsedMail)
     mockClient.search.mockResolvedValue([1])
     mockClient.fetchAll.mockResolvedValue([
       {
@@ -936,7 +936,7 @@ describe('resolveSentFolder', () => {
     const invalidAccount = {
       ...account,
       id: 'invalid-host-account',
-      imap: { host: null as any, port: 993, secure: true }
+      imap: { host: null as unknown as string, port: 993, secure: true }
     }
 
     await expect(resolveSentFolder(invalidAccount)).rejects.toThrow()

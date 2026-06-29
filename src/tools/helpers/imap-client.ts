@@ -4,13 +4,7 @@
  */
 
 import { type FetchMessageObject, ImapFlow, type ListResponse, type SearchObject } from 'imapflow'
-import {
-  type AddressObject,
-  type Attachment,
-  type EmailAddress,
-  type SimpleParserOptions,
-  simpleParser
-} from 'mailparser'
+import { type AddressObject, type Attachment, type SimpleParserOptions, simpleParser } from 'mailparser'
 import type { AccountConfig } from './config.js'
 import { EmailMCPError } from './errors.js'
 import { fastExtractSnippet, htmlToCleanText } from './html-utils.js'
@@ -259,7 +253,16 @@ function formatAddress(addr: AddressObject | AddressObject[] | string | undefine
   }
   if (addr.text) return addr.text
   if (Array.isArray(addr.value)) {
-    return addr.value.map((a: EmailAddress) => (a.name ? `${a.name} <${a.address}>` : a.address)).join(', ')
+    return addr.value
+      .map((a) => {
+        if (a.group && Array.isArray(a.group)) {
+          return `${a.name}: ${formatAddress({ value: a.group, text: '', html: '' })}`
+        }
+        if (a.name && a.address) return `${a.name} <${a.address}>`
+        return a.address || a.name || ''
+      })
+      .filter(Boolean)
+      .join(', ')
   }
   return ''
 }
@@ -351,7 +354,7 @@ export async function searchEmails(
 
   const accountPromises = accounts.map(async (account) => {
     try {
-      const emails = await withConnection(account, async (client) => {
+      const emails = await withConnection<FetchMessageObject[]>(account, async (client) => {
         const lock = await client.getMailboxLock(folder)
         try {
           // Step 1: search to get UIDs (fast — server-side filtering)
@@ -383,7 +386,7 @@ export async function searchEmails(
       // This ensures the IMAP connection and mailbox lock are released as quickly as possible.
       // We use `mapLimit` with a concurrency of 5 instead of a sequential for...of loop or unbounded Promise.all
       // to improve performance without blocking the event loop or causing memory spikes from CPU-heavy MIME parsing.
-      const summaries = await mapLimit(emails as FetchMessageObject[], 5, async (msg: FetchMessageObject) => {
+      const summaries = await mapLimit(emails, 5, async (msg) => {
         const snippet = msg.source ? await extractSnippet(msg.source) : ''
 
         return {
