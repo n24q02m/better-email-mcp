@@ -343,19 +343,7 @@ export function renderEmailCredentialForm(
                 while (el.firstChild) el.removeChild(el.firstChild);
             }
 
-            function createFieldGroup({
-                idx,
-                key,
-                label,
-                type,
-                placeholder,
-                required,
-                helpText,
-                helpUrl
-            }) {
-                const group = document.createElement("div");
-                group.className = "field-group";
-
+            function createFieldLabel(idx, key, label, required) {
                 const labelEl = document.createElement("label");
                 labelEl.className = "field-label";
                 labelEl.setAttribute("for", "field-" + key + "_" + idx);
@@ -373,75 +361,77 @@ export function renderEmailCredentialForm(
                     reqInd.textContent = "*";
                     labelEl.appendChild(reqInd);
                 }
-                group.appendChild(labelEl);
+                return labelEl;
+            }
 
+            function createFieldInput(idx, key, options) {
                 const input = document.createElement("input");
                 input.id = "field-" + key + "_" + idx;
                 input.className = "field-input";
-                input.setAttribute("type", type);
+                input.setAttribute("type", options.type);
                 input.setAttribute("name", key + "_" + idx);
-                input.setAttribute("autocomplete", type === "email" ? "email" : (type === "password" ? "current-password" : "off"));
+                input.setAttribute("autocomplete", options.type === "email" ? "email" : (options.type === "password" ? "current-password" : "off"));
                 input.setAttribute("autocorrect", "off");
                 input.setAttribute("autocapitalize", "off");
                 input.setAttribute("spellcheck", "false");
                 input.dataset.role = key;
-                if (placeholder) input.setAttribute("placeholder", placeholder);
-                if (required) input.setAttribute("required", "required");
+                if (options.placeholder) input.setAttribute("placeholder", options.placeholder);
+                if (options.required) input.setAttribute("required", "required");
+                if (options.value) input.value = options.value;
+                if (options.inputmode) input.setAttribute("inputmode", options.inputmode);
+                return input;
+            }
 
-                if (type === "password") {
-                    const wrapper = document.createElement("div");
-                    wrapper.className = "input-wrapper";
-                    input.className += " has-toggle";
-                    wrapper.appendChild(input);
+            function createPasswordWrapper(input) {
+                const wrapper = document.createElement("div");
+                wrapper.className = "input-wrapper";
+                input.className += " has-toggle";
+                wrapper.appendChild(input);
 
-                    const toggleBtn = document.createElement("button");
-                    toggleBtn.type = "button";
-                    toggleBtn.className = "toggle-password-btn";
-                    toggleBtn.textContent = "Show";
-                    toggleBtn.setAttribute("aria-label", "Show password as plain text");
-                    toggleBtn.setAttribute("aria-pressed", "false");
-                    toggleBtn.addEventListener("click", function () {
-                        const isPass = input.getAttribute("type") === "password";
-                        input.setAttribute("type", isPass ? "text" : "password");
-                        toggleBtn.textContent = isPass ? "Hide" : "Show";
-                        toggleBtn.setAttribute("aria-label", isPass ? "Hide password" : "Show password as plain text");
-                        toggleBtn.setAttribute("aria-pressed", isPass ? "true" : "false");
-                    });
-                    wrapper.appendChild(toggleBtn);
-                    group.appendChild(wrapper);
+                const toggleBtn = document.createElement("button");
+                toggleBtn.type = "button";
+                toggleBtn.className = "toggle-password-btn";
+                toggleBtn.textContent = "Show";
+                toggleBtn.setAttribute("aria-label", "Show password as plain text");
+                toggleBtn.setAttribute("aria-pressed", "false");
+                toggleBtn.addEventListener("click", function () {
+                    const isPass = input.getAttribute("type") === "password";
+                    input.setAttribute("type", isPass ? "text" : "password");
+                    toggleBtn.textContent = isPass ? "Hide" : "Show";
+                    toggleBtn.setAttribute("aria-label", isPass ? "Hide password" : "Show password as plain text");
+                    toggleBtn.setAttribute("aria-pressed", isPass ? "true" : "false");
+                });
+                wrapper.appendChild(toggleBtn);
+                return wrapper;
+            }
+
+            function createFieldHelp(idx, key, text, url) {
+                const help = document.createElement("p");
+                help.id = "help-" + key + "_" + idx;
+                help.className = "help-text";
+                if (url) {
+                    const a = document.createElement("a");
+                    a.setAttribute("href", url);
+                    a.setAttribute("target", "_blank");
+                    a.setAttribute("rel", "noopener noreferrer");
+                    a.textContent = text;
+                    help.appendChild(a);
                 } else {
-                    group.appendChild(input);
+                    help.textContent = text;
                 }
+                return help;
+            }
 
+            function createFieldError(idx, key) {
                 const errorEl = document.createElement("div");
                 errorEl.id = "error-" + key + "_" + idx;
                 errorEl.className = "field-error";
                 errorEl.setAttribute("role", "alert");
                 errorEl.setAttribute("aria-live", "polite");
+                return errorEl;
+            }
 
-                const describedBy = [errorEl.id];
-
-                if (helpText) {
-                    const help = document.createElement("p");
-                    help.id = "help-" + key + "_" + idx;
-                    help.className = "help-text";
-                    describedBy.push(help.id);
-                    if (helpUrl) {
-                        const a = document.createElement("a");
-                        a.setAttribute("href", helpUrl);
-                        a.setAttribute("target", "_blank");
-                        a.setAttribute("rel", "noopener noreferrer");
-                        a.textContent = helpText;
-                        help.appendChild(a);
-                    } else {
-                        help.textContent = helpText;
-                    }
-                    group.appendChild(help);
-                }
-
-                input.setAttribute("aria-describedby", describedBy.join(" "));
-                group.appendChild(errorEl);
-
+            function setupFieldValidation(input, errorEl) {
                 input.addEventListener("invalid", function (event) {
                     event.preventDefault();
                     const inputEl = event.target;
@@ -464,6 +454,47 @@ export function renderEmailCredentialForm(
                         errorEl.classList.remove("active");
                     }
                 });
+            }
+
+            function createFieldGroup(opts) {
+                const defaults = {
+                    type: "text",
+                    placeholder: "",
+                    required: false,
+                    helpText: "",
+                    helpUrl: "",
+                    value: "",
+                    inputmode: ""
+                };
+                const o = Object.assign({}, defaults, opts);
+                const idx = o.idx;
+                const key = o.key;
+
+                const group = document.createElement("div");
+                group.className = "field-group";
+
+                group.appendChild(createFieldLabel(idx, key, o.label, o.required));
+
+                const input = createFieldInput(idx, key, o);
+                if (o.type === "password") {
+                    group.appendChild(createPasswordWrapper(input));
+                } else {
+                    group.appendChild(input);
+                }
+
+                const errorEl = createFieldError(idx, key);
+                const describedBy = [errorEl.id];
+
+                if (o.helpText) {
+                    const help = createFieldHelp(idx, key, o.helpText, o.helpUrl);
+                    describedBy.push(help.id);
+                    group.appendChild(help);
+                }
+
+                input.setAttribute("aria-describedby", describedBy.join(" "));
+                group.appendChild(errorEl);
+
+                setupFieldValidation(input, errorEl);
 
                 return { group: group, input: input };
             }
@@ -500,58 +531,48 @@ export function renderEmailCredentialForm(
                 if (Object.prototype.hasOwnProperty.call(APP_PASSWORD_DOMAINS, domain)) {
                     var info = APP_PASSWORD_DOMAINS[domain];
                     const pw = createFieldGroup({
-                        idx: idx,
+                        idx,
                         key: "password",
                         label: info.label,
                         type: "password",
-                        placeholder: "",
                         required: true,
                         helpText: info.helpText,
-                        helpUrl: info.helpUrl
+                        helpUrl: info.helpUrl,
+                        value: state?.password
                     });
-                    if (state && state.password) pw.input.value = state.password;
                     extraContainer.appendChild(pw.group);
                     return;
                 }
 
                 const pwCustom = createFieldGroup({
-                    idx: idx,
+                    idx,
                     key: "password",
                     label: "Password",
                     type: "password",
-                    placeholder: "",
                     required: true,
-                    helpText: "",
-                    helpUrl: ""
+                    value: state?.password
                 });
-                if (state && state.password) pwCustom.input.value = state.password;
                 extraContainer.appendChild(pwCustom.group);
 
                 const imap = createFieldGroup({
-                    idx: idx,
+                    idx,
                     key: "imap",
                     label: "IMAP Host",
-                    type: "text",
                     placeholder: "imap.example.com",
-                    required: false,
                     helpText: "Optional. Leave empty for auto-detection. Accepts localhost or a proxy host.",
-                    helpUrl: ""
+                    value: state?.imap
                 });
-                if (state && state.imap) imap.input.value = state.imap;
                 extraContainer.appendChild(imap.group);
 
                 const imapPort = createFieldGroup({
-                    idx: idx,
+                    idx,
                     key: "imapport",
                     label: "IMAP Port",
-                    type: "text",
                     placeholder: "993",
-                    required: false,
                     helpText: "Optional. Default 993. Set a custom port for a local IMAP proxy.",
-                    helpUrl: ""
+                    value: state?.imapPort,
+                    inputmode: "numeric"
                 });
-                imapPort.input.setAttribute("inputmode", "numeric");
-                if (state && state.imapPort) imapPort.input.value = state.imapPort;
                 extraContainer.appendChild(imapPort.group);
             }
 
@@ -609,24 +630,20 @@ export function renderEmailCredentialForm(
                 card.appendChild(header);
 
                 const emailField = createFieldGroup({
-                    idx: idx,
+                    idx,
                     key: "email",
                     label: "Email Address",
                     type: "email",
                     placeholder: "you@example.com",
-                    required: true,
-                    helpText: "",
-                    helpUrl: ""
+                    required: true
                 });
                 card.appendChild(emailField.group);
-
                 var extra = document.createElement("div");
                 extra.className = "extra-container";
                 extra.dataset.role = "extra";
                 card.appendChild(extra);
 
                 var state = { password: "", imap: "", imapPort: "" };
-
                 emailField.input.addEventListener("input", function () {
                     var pwNode = extra.querySelector('input[data-role="password"]');
                     if (pwNode) state.password = pwNode.value;
