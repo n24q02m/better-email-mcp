@@ -28,13 +28,13 @@ export class EmailMCPError extends Error {
  * Type guard for record objects
  */
 function isRecord(val: unknown): val is Record<string, unknown> {
-  return val !== null && typeof val === 'object'
+  return val !== null && typeof val === 'object' && !Array.isArray(val)
 }
 
 /**
  * Sanitize error object to remove sensitive information (passwords, tokens)
  */
-function sanitizeErrorDetails(error: unknown): unknown {
+export function sanitizeErrorDetails(error: unknown): Record<string, unknown> | unknown {
   if (!isRecord(error)) {
     return error
   }
