@@ -6,8 +6,8 @@
  * persistent token storage, and automatic token refresh.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { tryOpenBrowser } from '@n24q02m/mcp-core'
@@ -290,7 +290,7 @@ export async function saveTokens(email: string, tokens: OAuth2Tokens, sub?: stri
     return
   }
 
-  saveTokensToFile(key, tokens)
+  await saveTokensToFile(key, tokens)
 }
 
 /**
@@ -298,15 +298,15 @@ export async function saveTokens(email: string, tokens: OAuth2Tokens, sub?: stri
  * the file side-effect runs before ``saveTokens`` yields — preserving the
  * historical fire-and-forget contract. Creates the config dir if needed; 0600.
  */
-function saveTokensToFile(emailKey: string, tokens: OAuth2Tokens): void {
+async function saveTokensToFile(emailKey: string, tokens: OAuth2Tokens): Promise<void> {
   if (!existsSync(CONFIG_DIR)) {
-    mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 })
+    await mkdir(CONFIG_DIR, { recursive: true, mode: 0o700 })
   }
 
   let store: TokenStore = cachedTokenStore || {}
   try {
     if (!cachedTokenStore && existsSync(TOKEN_FILE)) {
-      const data = readFileSync(TOKEN_FILE, 'utf-8')
+      const data = await readFile(TOKEN_FILE, 'utf-8')
       const parsedStore = parseTokenStore(data)
       if (parsedStore) {
         store = parsedStore
@@ -321,7 +321,7 @@ function saveTokensToFile(emailKey: string, tokens: OAuth2Tokens): void {
 
   store[emailKey] = tokens
   cachedTokenStore = store
-  writeFileSync(TOKEN_FILE, JSON.stringify(store, null, 2), { mode: 0o600 })
+  await writeFile(TOKEN_FILE, JSON.stringify(store, null, 2), { mode: 0o600 })
 }
 
 /**
