@@ -203,6 +203,7 @@ function resolveScope(sub: string | null | undefined): string | null {
  * ``sub``; absent => the current request scope). Returns null if none stored.
  */
 export async function loadStoredTokens(email: string, sub?: string | null): Promise<OAuth2Tokens | null> {
+  if (!email?.trim()) throw new Error('Email is required')
   const scope = resolveScope(sub)
   const key = email.toLowerCase()
 
@@ -272,6 +273,7 @@ export async function loadOutlookEmails(sub: string | null): Promise<string[]> {
  * the legacy 0600 ``tokens.json`` write.
  */
 export async function saveTokens(email: string, tokens: OAuth2Tokens, sub?: string | null): Promise<void> {
+  if (!email?.trim()) throw new Error('Email is required')
   const scope = resolveScope(sub)
   const key = email.toLowerCase()
 

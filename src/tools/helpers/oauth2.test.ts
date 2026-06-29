@@ -183,6 +183,12 @@ describe('loadStoredTokens', () => {
 
     expect(await loadStoredTokens('user@outlook.com')).toBeNull()
   })
+  it('throws if email is missing', async () => {
+    await expect(loadStoredTokens(null as any)).rejects.toThrow('Email is required')
+    await expect(loadStoredTokens(undefined as any)).rejects.toThrow('Email is required')
+    await expect(loadStoredTokens('')).rejects.toThrow('Email is required')
+    await expect(loadStoredTokens('   ')).rejects.toThrow('Email is required')
+  })
 })
 
 // ============================================================================
@@ -192,6 +198,13 @@ describe('loadStoredTokens', () => {
 describe('saveTokens', () => {
   beforeEach(() => {
     _resetTokenCache()
+  })
+  it('throws if email is missing', async () => {
+    const tok = { accessToken: 'at', refreshToken: 'rt', expiresAt: 1, clientId: 'cid' }
+    await expect(saveTokens(null as any, tok)).rejects.toThrow('Email is required')
+    await expect(saveTokens(undefined as any, tok)).rejects.toThrow('Email is required')
+    await expect(saveTokens('', tok)).rejects.toThrow('Email is required')
+    await expect(saveTokens('   ', tok)).rejects.toThrow('Email is required')
   })
 
   const tokens: OAuth2Tokens = {
