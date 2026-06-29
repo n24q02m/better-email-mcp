@@ -4,7 +4,7 @@ import { ImapFlow } from 'imapflow'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { getMarkSetupComplete, resolveCredentialState, setState } from '../credential-state.js'
 import { loadConfig, parseCredentials } from '../tools/helpers/config.js'
-import { initiateOutlookDeviceCode, isOutlookDomain } from '../tools/helpers/oauth2.js'
+import { _resetTokenCache, initiateOutlookDeviceCode, isOutlookDomain } from '../tools/helpers/oauth2.js'
 import { registerTools } from '../tools/registry.js'
 
 // Mock dependencies
@@ -35,6 +35,7 @@ vi.mock('../tools/helpers/config.js', () => ({
 }))
 
 vi.mock('../tools/helpers/oauth2.js', () => ({
+  _resetTokenCache: vi.fn(),
   initiateOutlookDeviceCode: vi.fn(),
   isOutlookDomain: vi.fn(),
   saveOutlookTokens: vi.fn(),
@@ -372,6 +373,7 @@ describe('http transport', () => {
 
       await onCredentialsSaved({ EMAIL_CREDENTIALS: 'test@outlook.com:oauth2' })
 
+      expect(_resetTokenCache).toHaveBeenCalled()
       expect(mockAccounts[0]!.oauth2).toBeUndefined()
       expect(initiateOutlookDeviceCode).toHaveBeenCalledWith('test@outlook.com', expect.any(Function), undefined)
     })

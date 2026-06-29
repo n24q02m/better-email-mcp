@@ -29,7 +29,12 @@ import { renderEmailCredentialForm } from '../credential-form.js'
 import { resolveCredentialState, setMarkSetupComplete, setSetupUrl, setState } from '../credential-state.js'
 import { RELAY_SCHEMA } from '../relay-schema.js'
 import { type AccountConfig, loadConfig, parseCredentials } from '../tools/helpers/config.js'
-import { initiateOutlookDeviceCode, isOutlookDomain, setOutlookTokenStore } from '../tools/helpers/oauth2.js'
+import {
+  _resetTokenCache,
+  initiateOutlookDeviceCode,
+  isOutlookDomain,
+  setOutlookTokenStore
+} from '../tools/helpers/oauth2.js'
 import { registerTools } from '../tools/registry.js'
 
 const SERVER_NAME = 'better-email-mcp'
@@ -160,6 +165,11 @@ function buildOptions(args: {
     creds: Record<string, string>,
     context: SubjectContext
   ): Promise<NextStep | null> => {
+    // Force a fresh device-code flow by clearing the global token store cache
+    // so we don't accidentally reuse tokens from a previous user/session
+    // in the same container.
+    _resetTokenCache()
+
     const raw = creds?.EMAIL_CREDENTIALS?.trim()
     if (!raw) {
       return { type: 'error', text: 'Email credentials are required. Format: email:app-password' }
