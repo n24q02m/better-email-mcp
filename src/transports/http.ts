@@ -26,7 +26,13 @@ import { PerSubCredStore } from '../auth/cred-store.js'
 import { type CredStoreLike, InMemoryCredStore } from '../auth/in-memory-cred-store.js'
 import { subjectContext } from '../auth/subject-context.js'
 import { renderEmailCredentialForm } from '../credential-form.js'
-import { resolveCredentialState, setMarkSetupComplete, setSetupUrl, setState } from '../credential-state.js'
+import {
+  getMarkSetupComplete,
+  resolveCredentialState,
+  setMarkSetupComplete,
+  setSetupUrl,
+  setState
+} from '../credential-state.js'
 import { RELAY_SCHEMA } from '../relay-schema.js'
 import { type AccountConfig, loadConfig, parseCredentials } from '../tools/helpers/config.js'
 import { initiateOutlookDeviceCode, isOutlookDomain, setOutlookTokenStore } from '../tools/helpers/oauth2.js'
@@ -125,6 +131,7 @@ async function initiateOutlookOAuth(outlookAccounts: AccountConfig[], sub?: stri
       first.email,
       () => {
         console.error(`[${SERVER_NAME}] Outlook OAuth2 completed for ${first.email}`)
+        getMarkSetupComplete()?.('outlook')
       },
       sub
     )
