@@ -101,6 +101,33 @@ export function isValidTokenStore(data: unknown): data is TokenStore {
   return Object.values(d).every(isValidTokens)
 }
 
+/**
+ * Safely parse a JSON string into a TokenStore, hardening against prototype pollution.
+ * Returns null if the JSON is malformed or validation fails.
+ */
+function parseTokenStore(jsonString: string): TokenStore | null {
+  try {
+    const parsed = JSON.parse(jsonString)
+    if (!isValidTokenStore(parsed)) {
+      return null
+    }
+
+    // Transfer to a null-prototype object
+    const safe = Object.create(null)
+    Object.assign(safe, parsed)
+
+    // Explicitly delete prototype-polluting keys just in case
+    // biome-ignore lint/suspicious/noProto: Hardening against prototype pollution by removing the raw __proto__ key if passed in JSON.
+    delete safe.__proto__
+    delete safe.constructor
+    delete safe.prototype
+
+    return safe as TokenStore
+  } catch {
+    return null
+  }
+}
+
 /** Outlook/Hotmail/Live domains that require OAuth2 */
 const OUTLOOK_DOMAINS = new Set(['outlook.com', 'hotmail.com', 'live.com'])
 
@@ -198,8 +225,8 @@ export async function loadStoredTokens(email: string, sub?: string | null): Prom
       return cachedTokenStore[key] || null
     }
     const data = await readFile(TOKEN_FILE, 'utf-8')
-    const store: unknown = JSON.parse(data)
-    if (!isValidTokenStore(store)) {
+    const store = parseTokenStore(data)
+    if (!store) {
       return null
     }
     cachedTokenStore = store
@@ -229,8 +256,8 @@ export async function loadOutlookEmails(sub: string | null): Promise<string[]> {
   }
   try {
     const data = await readFile(TOKEN_FILE, 'utf-8')
-    const store: unknown = JSON.parse(data)
-    return isValidTokenStore(store) ? Object.keys(store).filter((k) => k.includes('@')) : []
+    const store = parseTokenStore(data)
+    return store ? Object.keys(store).filter((k) => k.includes('@')) : []
   } catch {
     return []
   }
@@ -279,9 +306,10 @@ function saveTokensToFile(emailKey: string, tokens: OAuth2Tokens): void {
   let store: TokenStore = cachedTokenStore || {}
   try {
     if (!cachedTokenStore && existsSync(TOKEN_FILE)) {
-      const data: unknown = JSON.parse(readFileSync(TOKEN_FILE, 'utf-8'))
-      if (isValidTokenStore(data)) {
-        store = data
+      const data = readFileSync(TOKEN_FILE, 'utf-8')
+      const parsedStore = parseTokenStore(data)
+      if (parsedStore) {
+        store = parsedStore
       } else {
         store = {}
       }
