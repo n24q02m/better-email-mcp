@@ -137,65 +137,78 @@ function isSmtpSecurity(segment: string): segment is SmtpSecurity {
 /**
  * Extract SMTP segments from the tail of the credential string
  */
+/**
+ * Extract SMTP segments from the tail of the credential string.
+ * This function identifies SMTP configuration at the end of the segments
+ * and removes them if found.
+ */
 function extractSmtpSegments(tail: string[]): {
   smtpHost?: string
   smtpPort?: number
   smtpSecurity?: SmtpSecurity
 } {
-  let smtpSecurity: SmtpSecurity | undefined
-  let smtpHost: string | undefined
-  let smtpPort: number | undefined
+  const len = tail.length
+  if (len < 4) return {}
 
-  // 1. Optional SMTP security keyword at end
-  let poppedSecurity = false
-  if (tail.length >= 4 && isSmtpSecurity(tail.at(-1)!)) {
-    smtpSecurity = tail.at(-1)!.toLowerCase() as SmtpSecurity
-    tail.pop()
-    poppedSecurity = true
+  const s1 = tail.at(-1)!
+  const s2 = tail.at(-2)!
+  const s3 = tail.at(-3)!
+  const s4 = tail.at(-4) ?? ''
+
+  // Format 1: host:port:security
+  if (isSmtpSecurity(s1) && isPortSegment(s2) && looksLikeHost(s3) && looksLikeHost(s4) && len >= 5) {
+    const smtpSecurity = tail.pop()!.toLowerCase() as SmtpSecurity
+    const smtpPort = parsePort(tail.pop()!)
+    const smtpHost = tail.pop()
+    return { smtpHost, smtpPort, smtpSecurity }
   }
 
-  // 2. SMTP host + port
-  const canHaveSmtpHostPort =
-    tail.length >= 5 && isPortSegment(tail.at(-1)!) && looksLikeHost(tail.at(-2)!) && looksLikeHost(tail.at(-4) ?? '')
-  if (canHaveSmtpHostPort) {
-    smtpPort = parsePort(tail.at(-1)!)
-    tail.pop()
-    smtpHost = tail.pop()
+  // Format 2: host:port (no security)
+  if (isPortSegment(s1) && looksLikeHost(s2) && looksLikeHost(s4) && len >= 5) {
+    const smtpPort = parsePort(tail.pop()!)
+    const smtpHost = tail.pop()
+    return { smtpHost, smtpPort }
   }
 
-  // 3. SMTP host without explicit port
-  if (!smtpHost && poppedSecurity && tail.length >= 3 && looksLikeHost(tail.at(-1)!)) {
-    smtpHost = tail.pop()
+  // Format 3: host:security (no port)
+  if (isSmtpSecurity(s1) && looksLikeHost(s2) && len >= 4) {
+    const smtpSecurity = tail.pop()!.toLowerCase() as SmtpSecurity
+    const smtpHost = tail.pop()
+    return { smtpHost, smtpSecurity }
   }
 
-  // If security keyword was tentatively popped but no SMTP host was found, restore it
-  if (poppedSecurity && !smtpHost) {
-    tail.push(smtpSecurity!)
-    smtpSecurity = undefined
-  }
-
-  return { smtpHost, smtpPort, smtpSecurity }
+  return {}
 }
 
 /**
- * Extract IMAP segments from the tail of the credential string
+ * Extract IMAP segments from the tail of the credential string.
+ * This function identifies IMAP configuration at the end of the segments
+ * and removes them if found.
  */
 function extractImapSegments(tail: string[]): {
   imapHost?: string
   imapPort?: number
 } {
-  let imapHost: string | undefined
-  let imapPort: number | undefined
+  const len = tail.length
+  if (len < 2) return {}
 
-  if (tail.length >= 3 && isPortSegment(tail.at(-1)!) && looksLikeHost(tail.at(-2)!)) {
-    imapPort = parsePort(tail.at(-1)!)
-    tail.pop()
-    imapHost = tail.pop()
-  } else if (looksLikeHost(tail.at(-1)!)) {
-    imapHost = tail.pop()
+  const s1 = tail.at(-1)!
+  const s2 = tail.at(-2)!
+
+  // Format 1: host:port
+  if (len >= 3 && isPortSegment(s1) && looksLikeHost(s2)) {
+    const imapPort = parsePort(tail.pop()!)
+    const imapHost = tail.pop()
+    return { imapHost, imapPort }
   }
 
-  return { imapHost, imapPort }
+  // Format 2: host only
+  if (looksLikeHost(s1)) {
+    const imapHost = tail.pop()
+    return { imapHost }
+  }
+
+  return {}
 }
 
 /**
