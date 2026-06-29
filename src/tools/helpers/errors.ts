@@ -24,6 +24,19 @@ export class EmailMCPError extends Error {
     }
   }
 }
+
+/**
+ * Interface for raw error objects before enhancement
+ */
+interface RawError {
+  message?: string
+  authenticationFailed?: boolean
+  responseCode?: number
+  name?: string
+  code?: string | number
+  status?: number
+}
+
 /**
  * Type guard for record objects
  */
@@ -59,7 +72,7 @@ export function enhanceError(error: unknown): EmailMCPError {
     return error
   }
 
-  const errObj = isRecord(error) ? error : {}
+  const errObj: RawError = isRecord(error) ? error : {}
   const message = typeof errObj.message === 'string' ? errObj.message : 'Unknown error occurred'
 
   // IMAP authentication errors
@@ -129,7 +142,7 @@ export function enhanceError(error: unknown): EmailMCPError {
  * Handle SMTP-specific errors
  */
 function handleSmtpError(error: unknown): EmailMCPError {
-  const errObj = isRecord(error) ? error : {}
+  const errObj: RawError = isRecord(error) ? error : {}
   const code = typeof errObj.responseCode === 'number' ? errObj.responseCode : 0
 
   switch (code) {
