@@ -12,7 +12,7 @@ vi.mock('@n24q02m/mcp-core', () => ({
 }))
 
 vi.mock('./relay-setup.js', () => ({
-  formatCredentials: vi.fn().mockReturnValue('u@d.c:p1')
+  formatCredentials: vi.fn().mockReturnValue('A:B')
 }))
 
 vi.mock('./tools/helpers/config.js', () => ({
@@ -143,61 +143,61 @@ describe('credential-state', () => {
 
   describe('resolveCredentialState', () => {
     it('returns configured when EMAIL_CREDENTIALS env is set', async () => {
-      process.env.EMAIL_CREDENTIALS = 'u@d.c:p1'
+      process.env.EMAIL_CREDENTIALS = 'A:B'
       const result = await mod.resolveCredentialState()
       expect(result).toBe('configured')
       expect(mod.getState()).toBe('configured')
     })
 
     it('returns configured when EMAIL_USER + EMAIL_APP_PASSWORD env vars are set (stdio per-field)', async () => {
-      process.env.EMAIL_USER = 'u@d.c'
-      process.env.EMAIL_APP_PASSWORD = 'p1'
+      process.env.EMAIL_USER = 'U'
+      process.env.EMAIL_APP_PASSWORD = 'P'
       const result = await mod.resolveCredentialState()
       expect(result).toBe('configured')
-      expect(process.env.EMAIL_CREDENTIALS).toBe('u@d.c:p1')
+      expect(process.env.EMAIL_CREDENTIALS).toBe('U:P')
     })
 
     it('returns awaiting_setup when only EMAIL_USER is set', async () => {
-      process.env.EMAIL_USER = 'u@d.c'
+      process.env.EMAIL_USER = 'U'
       const result = await mod.resolveCredentialState()
       expect(result).toBe('awaiting_setup')
     })
 
     it('returns awaiting_setup when only EMAIL_APP_PASSWORD is set', async () => {
-      process.env.EMAIL_APP_PASSWORD = 'p1'
+      process.env.EMAIL_APP_PASSWORD = 'P'
       const result = await mod.resolveCredentialState()
       expect(result).toBe('awaiting_setup')
     })
 
     it('returns configured when config file has credentials', async () => {
       vi.mocked(resolveConfig).mockResolvedValue({
-        config: { EMAIL_CREDENTIALS: 'u@d.c:p1' },
+        config: { EMAIL_CREDENTIALS: 'A:B' },
         source: 'file'
       } as any)
       const { formatCredentials } = await import('./relay-setup.js')
-      vi.mocked(formatCredentials).mockReturnValue('u@d.c:p1')
+      vi.mocked(formatCredentials).mockReturnValue('A:B')
 
       const result = await mod.resolveCredentialState()
       expect(result).toBe('configured')
-      expect(process.env.EMAIL_CREDENTIALS).toBe('u@d.c:p1')
+      expect(process.env.EMAIL_CREDENTIALS).toBe('A:B')
     })
 
     it('returns configured when saved OAuth tokens exist (via the token facade)', async () => {
       vi.mocked(resolveConfig).mockResolvedValue({ config: null, source: '' } as any)
-      vi.mocked(loadOutlookEmails).mockResolvedValue(['o1@d.c'])
+      vi.mocked(loadOutlookEmails).mockResolvedValue(['E1'])
 
       const result = await mod.resolveCredentialState()
       expect(result).toBe('configured')
-      expect(process.env.EMAIL_CREDENTIALS).toBe('o1@d.c:oauth2')
+      expect(process.env.EMAIL_CREDENTIALS).toBe('E1:oauth2')
     })
 
     it('joins multiple saved OAuth token emails into the credential string', async () => {
       vi.mocked(resolveConfig).mockResolvedValue({ config: null, source: '' } as any)
-      vi.mocked(loadOutlookEmails).mockResolvedValue(['o1@d.c', 'o2@d.c'])
+      vi.mocked(loadOutlookEmails).mockResolvedValue(['E1', 'E2'])
 
       const result = await mod.resolveCredentialState()
       expect(result).toBe('configured')
-      expect(process.env.EMAIL_CREDENTIALS).toBe('o1@d.c:oauth2,o2@d.c:oauth2')
+      expect(process.env.EMAIL_CREDENTIALS).toBe('E1:oauth2,E2:oauth2')
     })
 
     it('returns awaiting_setup when nothing found (facade returns no emails)', async () => {
