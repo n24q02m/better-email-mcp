@@ -28,23 +28,25 @@ export class EmailMCPError extends Error {
  * Type guard for record objects
  */
 function isRecord(val: unknown): val is Record<string, unknown> {
-  return val !== null && typeof val === 'object'
+  return val !== null && typeof val === 'object' && !Array.isArray(val)
 }
+
+const SAFE_ERROR_PROPS = ['message', 'name', 'code', 'status', 'responseCode'] as const
 
 /**
  * Sanitize error object to remove sensitive information (passwords, tokens)
  */
-function sanitizeErrorDetails(error: unknown): unknown {
+function sanitizeErrorDetails(error: unknown): Record<string, unknown> | unknown {
   if (!isRecord(error)) {
     return error
   }
 
   const safe: Record<string, unknown> = {}
-  const props = ['message', 'name', 'code', 'status', 'responseCode'] as const
 
-  for (const prop of props) {
-    if (prop in error && error[prop] !== undefined) {
-      safe[prop] = error[prop]
+  for (const prop of SAFE_ERROR_PROPS) {
+    const val = error[prop]
+    if (val !== undefined) {
+      safe[prop] = val
     }
   }
 
@@ -177,18 +179,9 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   if (!input || validOptions.length === 0) return null
 
   const lower = input.toLowerCase()
-  let bestMatch: string | null = null
-  let bestScore = 0
 
-  // ⚡ Bolt: Pre-compute the input bigrams outside the loop.
-  // Use 32-bit integer representation ((char1 << 16) | char2) to avoid string slicing and allocation overhead.
-  const inputBigrams = new Set<number>()
-  for (let i = 0; i < lower.length - 1; i++) {
-    inputBigrams.add((lower.charCodeAt(i) << 16) | lower.charCodeAt(i + 1))
-  }
-
+  // First pass: look for exact prefix matches to avoid bigram computation
   for (const option of validOptions) {
-    // ⚡ Bolt: Use original option as key to bypass redundant toLowerCase() calls
     let cached = validOptionBigramCache.get(option)
     if (!cached) {
       const optionLower = option.toLowerCase()
@@ -200,14 +193,33 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
       validOptionBigramCache.set(option, cached)
     }
 
-    if (cached.lower.startsWith(lower) || lower.startsWith(cached.lower)) {
+    if (cached.lower === lower || cached.lower.startsWith(lower) || lower.startsWith(cached.lower)) {
       return option
     }
+  }
+
+  // Second pass: bigram similarity for fuzzy matching
+  // ⚡ Bolt: Pre-compute the input bigrams outside the loop.
+  // Use 32-bit integer representation ((char1 << 16) | char2) to avoid string slicing and allocation overhead.
+  const inputBigrams = new Set<number>()
+  for (let i = 0; i < lower.length - 1; i++) {
+    inputBigrams.add((lower.charCodeAt(i) << 16) | lower.charCodeAt(i + 1))
+  }
+
+  if (inputBigrams.size === 0) return null
+
+  let bestMatch: string | null = null
+  let bestScore = 0
+
+  for (const option of validOptions) {
+    const cached = validOptionBigramCache.get(option)
+    if (!cached || cached.bigrams.size === 0) continue
 
     let overlap = 0
     for (const b of inputBigrams) {
       if (cached.bigrams.has(b)) overlap++
     }
+
     const score = (2 * overlap) / (inputBigrams.size + cached.bigrams.size)
     if (score > bestScore && score > 0.4) {
       bestScore = score

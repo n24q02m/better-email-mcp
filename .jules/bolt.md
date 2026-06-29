@@ -46,3 +46,7 @@
 **Learning:** V8 recompiles inline literal regular expressions if they appear inside high-frequency loops or hot paths like `map` functions and query parsing (`buildSearchCriteria`). Additionally, calling `.test()` before a global replace operation (`.replace(/.../g, '')`) is an anti-pattern. If the pattern is missing, both `.test()` and `.replace()` perform an `O(N)` scan, but the `.replace()` fast-path returns the original string with zero reallocation.
 
 **Action:** Always pre-compile regular expressions by extracting them to module-scoped constants (`const RE_... = /.../g`), avoiding instantiation on every function invocation. Remove redundant `if (pattern.test(text))` checks before `.replace()` logic, especially in loops, to minimize string scanning overhead.
+
+## 2024-05-18 - [Bigram Caching for Static Valid Options]
+**Learning:** In string matching algorithms like `findClosestMatch` that compare user input against a static list of valid options, recomputing bigrams for the static options on every invocation is a significant overhead. Moving prefix matching to a first pass avoids expensive bigram sets altogether for most cases.
+**Action:** Implement a two-pass approach for fuzzy matching: first check for exact/prefix matches using cached lowercase strings, then perform bigram similarity matching only if no prefix match is found. Ensure bigrams are stored as numeric constants to eliminate string slicing.
