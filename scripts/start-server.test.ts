@@ -43,7 +43,7 @@ describe('start-server', () => {
     // Dynamically import to execute main() again
     await import('./start-server.js')
     // Await macro task queue to ensure main finishes
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await vi.waitFor(() => expect(runAuth).toHaveBeenCalled())
 
     expect(runAuth).toHaveBeenCalled()
     expect(initServer).not.toHaveBeenCalled()
@@ -53,7 +53,7 @@ describe('start-server', () => {
     vi.mocked(initServer).mockResolvedValue(undefined as any)
 
     await import('./start-server.js')
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await vi.waitFor(() => expect(initServer).toHaveBeenCalled())
 
     expect(runAuth).not.toHaveBeenCalled()
     expect(initServer).toHaveBeenCalled()
@@ -73,7 +73,7 @@ describe('start-server', () => {
     })
 
     await import('./start-server.js')
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await vi.waitFor(() => expect(initServer).toHaveBeenCalled())
 
     expect(sigintHandler).toBeDefined()
 
@@ -89,7 +89,7 @@ describe('start-server', () => {
     vi.mocked(initServer).mockRejectedValue(error)
 
     await import('./start-server.js')
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await vi.waitFor(() => expect(initServer).toHaveBeenCalled())
 
     expect(initServer).toHaveBeenCalled()
     expect(console.error).toHaveBeenCalledWith('Failed to start server:', error)

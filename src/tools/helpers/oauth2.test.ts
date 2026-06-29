@@ -1134,7 +1134,7 @@ describe('initiateOutlookDeviceCode', () => {
     await initiateOutlookDeviceCode('cb@outlook.com', onComplete)
 
     // Allow background poll to run and fire the callback.
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    await vi.waitFor(() => expect(onComplete).toHaveBeenCalled())
 
     expect(onComplete).toHaveBeenCalled()
     // Tokens persisted to disk.
@@ -1164,7 +1164,7 @@ describe('initiateOutlookDeviceCode', () => {
     })
     await initiateOutlookDeviceCode('fail-cb@outlook.com', onComplete)
 
-    await new Promise((resolve) => setTimeout(resolve, 50))
+    await vi.waitFor(() => expect(onComplete).toHaveBeenCalled())
 
     expect(onComplete).toHaveBeenCalled()
   })
