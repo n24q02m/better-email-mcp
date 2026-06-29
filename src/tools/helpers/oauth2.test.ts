@@ -1295,6 +1295,34 @@ describe('saveOutlookTokens', () => {
       clientId: 'default-cid'
     })
   })
+
+  it('does not throw if completion hook throws', async () => {
+    vi.mocked(getMarkSetupComplete).mockReturnValue(() => {
+      throw new Error('completion failed')
+    })
+    const tokens = { email: 'user@outlook.com' }
+
+    await expect(saveOutlookTokens(tokens)).resolves.not.toThrow()
+    expect(setState).toHaveBeenCalledWith('configured')
+  })
+
+  it('handles malformed input types by falling back to defaults', async () => {
+    const tokens = {
+      email: 'user@outlook.com',
+      access_token: 123 as any,
+      refresh_token: null as any,
+      expires_in: 'not-a-number' as any,
+      client_id: { complex: 'object' } as any
+    }
+
+    await saveOutlookTokens(tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written['user@outlook.com'].accessToken).toBe('')
+    expect(written['user@outlook.com'].refreshToken).toBe('')
+    expect(written['user@outlook.com'].expiresAt).toBe(1000000 + 3600)
+    expect(written['user@outlook.com'].clientId).toBe('default-cid')
+  })
 })
 
 // ============================================================================
