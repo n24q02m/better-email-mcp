@@ -399,11 +399,13 @@ export function renderEmailCredentialForm(
                     toggleBtn.className = "toggle-password-btn";
                     toggleBtn.textContent = "Show";
                     toggleBtn.setAttribute("aria-label", "Show password as plain text");
+                    toggleBtn.setAttribute("aria-pressed", "false");
                     toggleBtn.addEventListener("click", function () {
                         var isPass = input.getAttribute("type") === "password";
                         input.setAttribute("type", isPass ? "text" : "password");
                         toggleBtn.textContent = isPass ? "Hide" : "Show";
                         toggleBtn.setAttribute("aria-label", isPass ? "Hide password" : "Show password as plain text");
+                        toggleBtn.setAttribute("aria-pressed", isPass ? "true" : "false");
                     });
                     wrapper.appendChild(toggleBtn);
                     group.appendChild(wrapper);
