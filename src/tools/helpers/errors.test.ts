@@ -5,6 +5,7 @@ import {
   EmailMCPError,
   enhanceError,
   findClosestMatch,
+  sanitizeErrorDetails,
   suggestFixes,
   withErrorHandling
 } from './errors.js'
@@ -291,5 +292,33 @@ describe('createUnknownActionError', () => {
     expect(error.message).toBe('Unknown action: foo')
     expect(error.code).toBe('VALIDATION_ERROR')
     expect(error.suggestion).toBe('Supported actions: bar, baz')
+  })
+})
+
+describe('sanitizeErrorDetails', () => {
+  it('returns non-objects as-is', () => {
+    expect(sanitizeErrorDetails('string')).toBe('string')
+    expect(sanitizeErrorDetails(123)).toBe(123)
+    expect(sanitizeErrorDetails(null)).toBe(null)
+    expect(sanitizeErrorDetails(undefined)).toBe(undefined)
+  })
+
+  it('returns arrays as-is', () => {
+    const arr = [1, 2, 3]
+    expect(sanitizeErrorDetails(arr)).toBe(arr)
+  })
+
+  it('sanitizes record objects by whitelisting properties', () => {
+    const error = {
+      message: 'fail',
+      password: 'secret',
+      code: 'ERR',
+      other: 'data'
+    }
+    const sanitized = sanitizeErrorDetails(error) as Record<string, unknown>
+    expect(sanitized.message).toBe('fail')
+    expect(sanitized.code).toBe('ERR')
+    expect(sanitized.password).toBeUndefined()
+    expect(sanitized.other).toBeUndefined()
   })
 })
