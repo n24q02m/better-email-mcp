@@ -2,6 +2,56 @@
 
 <!-- version list -->
 
+## v1.33.0-beta.6 (2026-06-30)
+
+### Bug Fixes
+
+- Add credential-state setSetupUrl edge-case tests
+  ([`12b2368`](https://github.com/n24q02m/better-email-mcp/commit/12b2368ad148f5896c606f8131368459b762a442))
+
+- Add imap-client clearSentFolderCache tests
+  ([`3cfed48`](https://github.com/n24q02m/better-email-mcp/commit/3cfed485a1a7f983ee6e4b3f44b5a5a89083a81c))
+
+- Add tests for potential flaky test using setTimeout in http.test.ts
+  ([`e25715f`](https://github.com/n24q02m/better-email-mcp/commit/e25715fd5f134fb4d7043bc146f6848ad19a9566))
+
+- Add tests for untested public function saveOutlookTokens
+  ([`f285abb`](https://github.com/n24q02m/better-email-mcp/commit/f285abbef72af741a00aca359cfc3319165d9790))
+
+- Assert single-DO routing in worker test (default, not per-sub)
+  ([#954](https://github.com/n24q02m/better-email-mcp/pull/954),
+  [`e611db5`](https://github.com/n24q02m/better-email-mcp/commit/e611db5c86160e17ce89fe7665b63bcf2b6f8fea))
+
+- Canary Gate-A/B settle-retry to avoid false-fail on slow container startup
+  ([#949](https://github.com/n24q02m/better-email-mcp/pull/949),
+  [`50fbc7d`](https://github.com/n24q02m/better-email-mcp/commit/50fbc7d15b12822988b6850cc03599fb57c3726c))
+
+- Collapse OAuth + per-sub routing to one DO (resolve max_instances=1 deadlock)
+  ([#953](https://github.com/n24q02m/better-email-mcp/pull/953),
+  [`1fcd641`](https://github.com/n24q02m/better-email-mcp/commit/1fcd641be442240db10d49c09489f21462b7f8f5))
+
+- Exclude arrays from isRecord so sanitizeErrorDetails handles them
+  ([`dc9791d`](https://github.com/n24q02m/better-email-mcp/commit/dc9791db9497c3c97b051ea190e6e5ff7d7d0d33))
+
+- Lock file maintenance
+  ([`c9fb869`](https://github.com/n24q02m/better-email-mcp/commit/c9fb869fd3442b80ab7e4d69ee8f759e8070ae6d))
+
+- Missing edge case test in oauth2.ts
+  ([`124ec45`](https://github.com/n24q02m/better-email-mcp/commit/124ec4528b47723b23feb6e235e86b862b54d4f6))
+
+- Route OAuth /token refresh to the sub's DO to avoid max_instances=1 deadlock
+  ([#950](https://github.com/n24q02m/better-email-mcp/pull/950),
+  [`e722c7f`](https://github.com/n24q02m/better-email-mcp/commit/e722c7fa3f14e3dee1c45426d381450cca004152))
+
+- Use of 'any' Type: enhanceError
+  ([`e0d587e`](https://github.com/n24q02m/better-email-mcp/commit/e0d587e0e7dd98059bc80a08943741ad9692f4bf))
+
+### Features
+
+- Dynamically update account card titles and ARIA labels
+  ([`69db920`](https://github.com/n24q02m/better-email-mcp/commit/69db92085373af1f5ba7b67837f5ee8aa5cb1176))
+
+
 ## v1.33.0-beta.5 (2026-06-29)
 
 ### Bug Fixes
