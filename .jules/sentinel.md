@@ -34,3 +34,7 @@
 **Vulnerability:** The OAuth token store in `src/tools/helpers/oauth2.ts` (`loadStoredTokens`, `loadOutlookEmails`, `saveTokensToFile`) parsed JSON from disk and cast it directly without structural validation or protection against prototype pollution. If the file was maliciously modified to include `__proto__` properties, consumers could experience prototype pollution leading to privilege escalation or unexpected behavior.
 **Learning:** Always use a defensive parsing wrapper (`Object.create(null)` and explicit key deletion) when parsing locally cached JSON objects that will be merged or treated as configurations, even if the file is supposedly managed by the application.
 **Prevention:** Implement a `parseTokenStore` utility that uses `JSON.parse`, validates the result, and sanitizes the object by mapping properties onto a null-prototype object and deleting potentially dangerous keys (`__proto__`, `constructor`, `prototype`).
+## 2025-05-22 - [TEST] Test Coverage for imap-client.ts
+ **Vulnerability:** Untested public function clearSentFolderCache.
+ **Learning:** Testing internal caches requires explicit invalidation and verification that the system correctly falls back to re-fetching data. Mocking complex structures like email addresses and attachments requires precision to cover all logical branches (fallbacks for missing fields).
+ **Prevention:** Use coverage tools (vitest --coverage) early to identify gaps in helper functions and edge case handlers.

@@ -417,7 +417,7 @@ describe('readEmail', () => {
     mockClient.fetchOne.mockResolvedValue({ uid: 1, source: Buffer.from('x') })
     mockSimpleParser.mockResolvedValueOnce({
       attachments: [{}], // missing everything
-      date: null, // missing date
+      date: null,        // missing date
       text: 't'
     } as any)
     const res = await readEmail(account, 1, 'INBOX')
@@ -611,7 +611,7 @@ describe('getAttachment', () => {
     mockSimpleParser.mockResolvedValueOnce({
       attachments: [{ filename: 'f', content: Buffer.from('c') }] // missing contentType and size
     } as any)
-    const res = await getAttachment(account, 1, 'INBOX', 'f')
+    let res = await getAttachment(account, 1, 'INBOX', 'f')
     expect(res.content_type).toBe('application/octet-stream')
     expect(res.size).toBe(0)
 
@@ -1102,7 +1102,9 @@ describe('resolveSentFolder', () => {
   it('covers remaining branches in resolveSentFolder', async () => {
     const neutralAccount = { ...account, imap: { host: 'imap.test.com', port: 993, secure: true } }
     // Matching path but no flag
-    mockClient.list.mockResolvedValueOnce([{ name: 'Sent', path: 'Sent', flags: new Set(['\\Inbox']), delimiter: '/' }])
+    mockClient.list.mockResolvedValueOnce([
+      { name: 'Sent', path: 'Sent', flags: new Set(['\\Inbox']), delimiter: '/' }
+    ])
     let res = await resolveSentFolder(neutralAccount)
     expect(res).toBe('Sent')
 
