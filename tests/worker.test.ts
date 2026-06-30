@@ -83,17 +83,17 @@ describe('worker (KV-only)', () => {
     expect(miss?.status).toBe(404)
   })
 
-  test('fetch routes to the per-sub EmailContainer DO via idFromName(sub)', async () => {
+  test('fetch routes every sub to the single "default" DO (single-DO collapse)', async () => {
     const stub = { fetch: vi.fn().mockResolvedValue(new Response('ok')) }
     const idFromName = vi.fn().mockReturnValue('id-token')
     const env = { EMAIL: { idFromName, get: vi.fn().mockReturnValue(stub) } }
-    // Bearer with base64url payload {"sub":"alice"}
+    // Bearer with base64url payload {"sub":"alice"} — single-DO collapse routes it to "default"
     const payload = Buffer.from(JSON.stringify({ sub: 'alice' })).toString('base64url')
     const req = new Request('https://email.n24q02m.com/mcp', {
       headers: { authorization: `Bearer h.${payload}.s` }
     })
     await worker.fetch(req, env as never)
-    expect(idFromName).toHaveBeenCalledWith('alice')
+    expect(idFromName).toHaveBeenCalledWith('default')
     expect(stub.fetch).toHaveBeenCalled()
   })
 
