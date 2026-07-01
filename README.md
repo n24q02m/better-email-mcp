@@ -154,7 +154,7 @@ Run as a multi-user HTTP server with OAuth 2.1 authentication:
   "mcpServers": {
     "better-email": {
       "type": "http",
-      "url": "https://better-email-mcp.n24q02m.com/mcp"
+      "url": "https://email.n24q02m.com/mcp"
     }
   }
 }
