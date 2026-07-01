@@ -2,6 +2,28 @@
 
 <!-- version list -->
 
+## v1.33.0-beta.7 (2026-07-01)
+
+### Bug Fixes
+
+- Correct HTTP host to email.n24q02m.com and tool count in docs
+  ([#958](https://github.com/n24q02m/better-email-mcp/pull/958),
+  [`0899d6d`](https://github.com/n24q02m/better-email-mcp/commit/0899d6de5e57a696aee23e509de01d327b8391d9))
+
+- **deps**: Update non-major dependencies
+  ([#955](https://github.com/n24q02m/better-email-mcp/pull/955),
+  [`599e3de`](https://github.com/n24q02m/better-email-mcp/commit/599e3de996258582257ad33e3454b072e4321a3b))
+
+- **ui**: Prevent unnecessary DOM rebuilds on email input
+  ([#957](https://github.com/n24q02m/better-email-mcp/pull/957),
+  [`117dcaf`](https://github.com/n24q02m/better-email-mcp/commit/117dcaf80b26487569f8d9c510fc7d55b830b14f))
+
+### Chores
+
+- **deps**: Lock file maintenance ([#956](https://github.com/n24q02m/better-email-mcp/pull/956),
+  [`b9386ec`](https://github.com/n24q02m/better-email-mcp/commit/b9386ec56c3f549f239eb8d908caa4db5165a5ff))
+
+
 ## v1.33.0-beta.6 (2026-06-30)
 
 ### Bug Fixes
