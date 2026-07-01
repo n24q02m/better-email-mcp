@@ -79,3 +79,10 @@
 ## 2026-06-29 - [Dynamic Account Card Titles and ARIA Labels]
 **Learning:** For forms involving multiple dynamic instances of the same component grouping (e.g. "Account 1", "Account 2"), hardcoded titles and generic ARIA labels like "Remove Account 2" lack context for screen reader users and can be confusing. Dynamically binding the user's entered email address to the section title and the removal button's ARIA label significantly improves context and usability.
 **Action:** When creating repeatable form structures, identify the primary input (like a name or email address) and bind it to the container's title and the ARIA labels of related action buttons (like Remove or Edit). Ensure long text is truncated gracefully using CSS (`text-overflow: ellipsis`) so layout doesn't break.
+## 2026-06-30 - Preventing unnecessary DOM rebuilds
+**Learning:** When dynamic forms are updated on every keystroke, aggressively destroying and rebuilding DOM nodes based on a substring (like an email domain) causes unnecessary churn. This resets transient user interface states—such as the visibility toggle of a password field—when the user is simply correcting a typo in the prefix.
+**Action:** Implement category-based change detection (e.g., categorizing the input into 'oauth', 'app-password', or 'custom' domains). Only rebuild the related DOM nodes when the abstract category changes, preserving transient state for minor edits within the same category.
+
+## 2026-06-30 - Review Feedback: Avoid adding unused dependencies
+**Learning:** During UI testing in CI or agent environments, avoid adding heavy dependencies like `playwright` to the project's permanent `package.json` unless explicitly requested. Adding them can bloat the project and violate boundaries.
+**Action:** Always install temporary testing dependencies without saving them to `package.json` (e.g., using `--no-save` or rolling back changes with `git checkout -- package.json bun.lock`), or use standalone scripts that don't pollute the project's dependency tree.

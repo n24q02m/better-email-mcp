@@ -497,6 +497,9 @@ export function renderEmailCredentialForm(
             }
 
             function renderDomainSpecificFields(extraContainer, idx, domain, state) {
+                // If the user's email input isn't a valid domain yet, or if it matches an exact known provider
+                // (like gmail.com), the 'domain' string here is fine. If it's a custom domain, we technically
+                // don't use 'domain' within this function anyway (it just spawns the custom password+IMAP fields).
                 clearChildren(extraContainer);
                 if (!domain) return;
 
@@ -641,6 +644,7 @@ export function renderEmailCredentialForm(
                 card.appendChild(extra);
 
                 var state = { password: "", imap: "", imapPort: "" };
+                var lastCategory = null;
 
                 emailField.input.addEventListener("input", function () {
                     var pwNode = extra.querySelector('input[data-role="password"]');
@@ -653,7 +657,24 @@ export function renderEmailCredentialForm(
                     var val = emailField.input.value;
                     var at = val.indexOf("@");
                     var domain = at >= 0 ? val.slice(at + 1).trim().toLowerCase() : "";
-                    renderDomainSpecificFields(extra, idx, domain, state);
+
+                    var category = "none";
+                    if (domain) {
+                        if (OAUTH_DOMAINS.indexOf(domain) !== -1) {
+                            category = "oauth";
+                        } else if (Object.prototype.hasOwnProperty.call(APP_PASSWORD_DOMAINS, domain)) {
+                            category = "app_pw_" + domain;
+                        } else {
+                            category = "custom";
+                        }
+                    }
+
+                    // Only rebuild the DOM if the category (oauth vs app_password vs custom) has actually changed,
+                    // preserving transient UI state like password visibility when fixing typos in the prefix.
+                    if (category !== lastCategory) {
+                        lastCategory = category;
+                        renderDomainSpecificFields(extra, idx, domain, state);
+                    }
                     updateAccountNumbers();
                 });
 
