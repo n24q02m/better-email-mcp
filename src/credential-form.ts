@@ -883,7 +883,12 @@ export function renderEmailCredentialForm(
 
                 formFieldset.disabled = true;
                 submitBtn.setAttribute("aria-busy", "true");
-                submitBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Connecting...';
+                submitBtn.textContent = "";
+                var spinner = document.createElement("span");
+                spinner.className = "spinner";
+                spinner.setAttribute("aria-hidden", "true");
+                submitBtn.appendChild(spinner);
+                submitBtn.appendChild(document.createTextNode(" Connecting..."));
 
                 fetch(submitUrl, {
                     method: "POST",
@@ -908,8 +913,12 @@ export function renderEmailCredentialForm(
                             }
 
                             if (data.next_step && data.next_step.type === "oauth_device_code") {
-                                submitBtn.innerHTML =
-                                    '<span class="spinner" aria-hidden="true"></span> Awaiting Microsoft...';
+                                submitBtn.textContent = "";
+                                var spinner = document.createElement("span");
+                                spinner.className = "spinner";
+                                spinner.setAttribute("aria-hidden", "true");
+                                submitBtn.appendChild(spinner);
+                                submitBtn.appendChild(document.createTextNode(" Awaiting Microsoft..."));
                                 submitBtn.removeAttribute("aria-busy");
                                 renderOAuthDeviceCode(data.next_step);
                                 return;

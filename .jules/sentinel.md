@@ -38,3 +38,8 @@
  **Vulnerability:** Untested public function clearSentFolderCache.
  **Learning:** Testing internal caches requires explicit invalidation and verification that the system correctly falls back to re-fetching data. Mocking complex structures like email addresses and attachments requires precision to cover all logical branches (fallbacks for missing fields).
  **Prevention:** Use coverage tools (vitest --coverage) early to identify gaps in helper functions and edge case handlers.
+
+## 2025-05-22 - XSS via innerHTML in form submission
+**Vulnerability:** The credential form directly assigned dynamic UI string containing nested HTML markup using `.innerHTML` on a submit button.
+**Learning:** Any use of `.innerHTML` even with static-appearing data sets up a brittle pattern where future additions could inadvertently expose the application to Cross-Site Scripting (XSS).
+**Prevention:** Always use safe DOM traversal manipulation utilizing `document.createElement`, `setAttribute`, and `textContent` or `document.createTextNode` instead of string interpolation and `innerHTML`.
