@@ -190,16 +190,9 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
   if (!input || validOptions.length === 0) return null
 
   const lower = input.toLowerCase()
-  let bestMatch: string | null = null
-  let bestScore = 0
-
-  // ⚡ Bolt: Pre-compute the input bigrams outside the loop.
-  // Use 32-bit integer representation ((char1 << 16) | char2) to avoid string slicing and allocation overhead.
-  const inputBigrams = new Set<number>()
-  for (let i = 0; i < lower.length - 1; i++) {
-    inputBigrams.add((lower.charCodeAt(i) << 16) | lower.charCodeAt(i + 1))
-  }
-
+  // ⚡ Bolt: Fast-path exact/prefix matching loop.
+  // This defers the allocation of `inputBigrams` and completely avoids fuzzy logic
+  // when a direct or prefix match is found (which is the majority of cases).
   for (const option of validOptions) {
     // ⚡ Bolt: Use original option as key to bypass redundant toLowerCase() calls
     let cached = validOptionBigramCache.get(option)
@@ -216,7 +209,21 @@ export function findClosestMatch(input: string, validOptions: string[]): string 
     if (cached.lower.startsWith(lower) || lower.startsWith(cached.lower)) {
       return option
     }
+  }
 
+  // ⚡ Bolt: Fallback to fuzzy matching only if fast-path fails.
+  let bestMatch: string | null = null
+  let bestScore = 0
+
+  // Pre-compute the input bigrams outside the loop.
+  // Use 32-bit integer representation ((char1 << 16) | char2) to avoid string slicing and allocation overhead.
+  const inputBigrams = new Set<number>()
+  for (let i = 0; i < lower.length - 1; i++) {
+    inputBigrams.add((lower.charCodeAt(i) << 16) | lower.charCodeAt(i + 1))
+  }
+
+  for (const option of validOptions) {
+    const cached = validOptionBigramCache.get(option)!
     let overlap = 0
     for (const b of inputBigrams) {
       if (cached.bigrams.has(b)) overlap++
