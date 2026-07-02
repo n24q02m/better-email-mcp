@@ -55,6 +55,7 @@ mcp-name: io.github.n24q02m/better-email-mcp
 - [Configuration](#configuration)
 - [Security](#security)
 - [Build from Source](#build-from-source)
+- [Deploy to Cloudflare](#deploy-to-cloudflare)
 - [Trust Model](#trust-model)
 - [License](#license)
 
@@ -280,6 +281,50 @@ cd better-email-mcp
 bun install
 bun run dev
 ```
+
+## Deploy to Cloudflare
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/n24q02m/better-email-mcp)
+
+Run your own multi-user better-email instance serverless on Cloudflare (Containers + KV).
+Each JWT `sub` gets its own Container Durable Object, and every user's email credentials and
+Outlook OAuth tokens are AES-256-GCM encrypted into a single Workers KV blob per user, so they
+survive scale-to-zero / container recreate with no re-auth.
+
+**Prerequisites:** a Cloudflare account on the Workers Paid plan and the `wrangler` CLI.
+
+1. `git clone https://github.com/n24q02m/better-email-mcp && cd better-email-mcp`
+2. `wrangler login`
+3. Create the KV namespace (better-email is KV-only -- no D1 / Vectorize):
+   ```
+   wrangler kv namespace create better-email-kv
+   ```
+   Paste the returned id into `<better-email-kv-namespace-id>` in `wrangler.jsonc`.
+4. Push the container image to your Cloudflare managed registry (CF Containers cannot pull
+   from external registries directly), then set `<YOUR_ACCOUNT_ID>` in `wrangler.jsonc`:
+   ```
+   docker pull ghcr.io/n24q02m/better-email-mcp:beta
+   docker tag ghcr.io/n24q02m/better-email-mcp:beta better-email-mcp:beta
+   wrangler containers push better-email-mcp:beta   # prints registry.cloudflare.com/<ACCOUNT_ID>/better-email-mcp:beta
+   ```
+5. Point `wrangler.jsonc` at your own domain: set `<YOUR_PUBLIC_URL>` (e.g.
+   `https://email.example.com`) and `<YOUR_WORKER_DOMAIN>` (e.g. `email.example.com`).
+6. Set the deploy secrets:
+   ```
+   wrangler secret put CREDENTIAL_SECRET      # per-sub vault key + deterministic EdDSA signing (required)
+   wrangler secret put MCP_RELAY_PASSWORD     # gate for the /authorize setup form
+   wrangler secret put MCP_DCR_SERVER_SECRET  # proof of an intentional multi-user deploy
+   ```
+   Optional Outlook overrides -- only to replace the bundled public Azure device-code client
+   (default needs no user-side Azure app): `wrangler secret put OUTLOOK_CLIENT_ID` and
+   `wrangler secret put OUTLOOK_EMAIL`.
+7. `wrangler deploy`, then open `<YOUR_PUBLIC_URL>/authorize` and complete the browser relay form.
+
+End-users supply their own email credentials -- an App Password via the paste form, or the
+bundled Outlook device-code sign-in -- through that relay form; there is no server-side
+`EMAIL_CREDENTIALS`. Storage maps to Cloudflare via `MCP_STORAGE_BACKEND=cf-kv` (already set in
+`wrangler.jsonc`); see [Cloudflare serverless mode (KV-only)](#cloudflare-serverless-mode-kv-only)
+for the encryption and trust details.
 
 ## Trust Model
 
