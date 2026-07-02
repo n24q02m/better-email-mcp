@@ -291,7 +291,7 @@ Each JWT `sub` gets its own Container Durable Object, and every user's email cre
 Outlook OAuth tokens are AES-256-GCM encrypted into a single Workers KV blob per user, so they
 survive scale-to-zero / container recreate with no re-auth.
 
-**Prerequisites:** a Cloudflare account on the Workers Paid plan and the `wrangler` CLI.
+**Prerequisites:** a Cloudflare account on the **Workers Paid plan** — required for Containers (the Cloudflare free tier does not include Containers) — and the `wrangler` CLI.
 
 1. `git clone https://github.com/n24q02m/better-email-mcp && cd better-email-mcp`
 2. `wrangler login`
