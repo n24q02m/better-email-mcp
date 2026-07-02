@@ -793,6 +793,14 @@ export function renderEmailCredentialForm(
                     statusBox.appendChild(copyBtn);
                 }
 
+                // UX/a11y: immediately focus the copy button (or link fallback) so screen readers
+                // read the context and keyboard users can seamlessly proceed.
+                if (typeof copyBtn !== "undefined" && copyBtn) {
+                    copyBtn.focus();
+                } else {
+                    link.focus();
+                }
+
                 statusBox.appendChild(document.createElement("br"));
                 statusBox.appendChild(document.createElement("br"));
 
@@ -915,6 +923,7 @@ export function renderEmailCredentialForm(
                                 formFieldset.disabled = false;
                                 submitBtn.removeAttribute("aria-busy");
                                 submitBtn.textContent = "Connect";
+                                submitBtn.focus();
                                 return;
                             }
 
@@ -954,6 +963,7 @@ export function renderEmailCredentialForm(
                         formFieldset.disabled = false;
                         submitBtn.removeAttribute("aria-busy");
                         submitBtn.textContent = "Connect";
+                        submitBtn.focus();
                     });
             });
         })();
