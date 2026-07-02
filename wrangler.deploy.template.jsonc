@@ -1,0 +1,36 @@
+// wrangler.deploy.template.jsonc - COMMITTED placeholder template for CI CF deploy.
+// scripts/deploy_cf.py --from-template renders this into the gitignored
+// wrangler.deploy.jsonc by substituting the placeholder tokens below from the
+// environment (CI provides them from GitHub Actions secrets synced from skret).
+// Real account/KV IDs never live in git; they are placeholders here.
+// NO routes block (email.n24q02m.com already attached; the deploy token can't
+// reconcile routes). workers_dev:false keeps the worker off *.workers.dev.
+{
+  "name": "better-email-mcp-worker",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-06-14",
+  "workers_dev": false,
+  "containers": [
+    {
+      "name": "better-email-mcp-worker",
+      "class_name": "EmailContainer",
+      "image": "registry.cloudflare.com/${CLOUDFLARE_ACCOUNT_ID}/better-email-mcp:${IMAGE_TAG}",
+      "instance_type": "basic",
+      "max_instances": 1
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "EMAIL", "class_name": "EmailContainer" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["EmailContainer"] }],
+  "kv_namespaces": [{ "binding": "KV", "id": "${CF_KV_ID}" }],
+  "vars": {
+    "PUBLIC_URL": "${PUBLIC_URL}",
+    "MCP_STORAGE_BACKEND": "cf-kv",
+    "MCP_KV_BASE_URL": "http://kv.internal",
+    "MCP_TRANSPORT": "http",
+    "PORT": "8080",
+    "HOST": "0.0.0.0"
+  },
+  "observability": { "enabled": true }
+}
