@@ -34,7 +34,7 @@
   //   OUTLOOK_CLIENT_ID     - optional: override the bundled Azure AD public client.
   //   OUTLOOK_EMAIL         - optional: fallback email key for device-code tokens.
   "vars": {
-    "PUBLIC_URL": "https://email.n24q02m.com",
+    "PUBLIC_URL": "<YOUR_PUBLIC_URL>",
     "MCP_STORAGE_BACKEND": "cf-kv",
     "MCP_KV_BASE_URL": "http://kv.internal",
     "MCP_TRANSPORT": "http",
@@ -46,6 +46,6 @@
     // HOST MUST be 0.0.0.0 or the container is unreachable (worker returns 500).
     "HOST": "0.0.0.0"
   },
-  "routes": [{ "pattern": "email.n24q02m.com", "custom_domain": true }],
+  "routes": [{ "pattern": "<YOUR_WORKER_DOMAIN>", "custom_domain": true }],
   "observability": { "enabled": true }
 }
