@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v1.34.0-beta.1 (2026-07-02)
+
+### Features
+
+- Deploy CF Worker+Container on release from cd.yml
+  ([#965](https://github.com/n24q02m/better-email-mcp/pull/965),
+  [`c83bb0e`](https://github.com/n24q02m/better-email-mcp/commit/c83bb0e10c07d66b5496628e11d23976624788d3))
+
+
 ## v1.33.0 (2026-07-01)
 
 
