@@ -2,6 +2,18 @@
 
 <!-- version list -->
 
+## v1.34.0 (2026-07-02)
+
+### Bug Fixes
+
+- Align mcp-core pin guard test with 1.18.1 stable
+  ([#967](https://github.com/n24q02m/better-email-mcp/pull/967),
+  [`e3c3902`](https://github.com/n24q02m/better-email-mcp/commit/e3c39024adec92a29af3b4aff2bee4ec7cffb70d))
+
+- Bump mcp-core to 1.18.1 ([#967](https://github.com/n24q02m/better-email-mcp/pull/967),
+  [`e3c3902`](https://github.com/n24q02m/better-email-mcp/commit/e3c39024adec92a29af3b4aff2bee4ec7cffb70d))
+
+
 ## v1.34.0-beta.1 (2026-07-02)
 
 ### Features
