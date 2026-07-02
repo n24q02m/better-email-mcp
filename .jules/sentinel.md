@@ -38,3 +38,7 @@
  **Vulnerability:** Untested public function clearSentFolderCache.
  **Learning:** Testing internal caches requires explicit invalidation and verification that the system correctly falls back to re-fetching data. Mocking complex structures like email addresses and attachments requires precision to cover all logical branches (fallbacks for missing fields).
  **Prevention:** Use coverage tools (vitest --coverage) early to identify gaps in helper functions and edge case handlers.
+## 2025-02-28 - Sanitize window.location.replace in Credential Form
+**Vulnerability:** A `window.location.replace(pendingRedirectUrl)` call in `src/credential-form.ts` was used to redirect users without validating that the `pendingRedirectUrl` starts with `http:` or `https:`. Since this URL is populated from a server response, a malicious backend or spoofed response could provide a URL starting with `javascript:`, leading to a Cross-Site Scripting (XSS) attack.
+**Learning:** Even when reading URLs from a trusted backend, client-side code should treat the values as untrusted inputs and validate protocols before using them for redirects.
+**Prevention:** Always use a safe protocol parsing mechanism like `new URL()` to check `.protocol === "http:" || .protocol === "https:"` before feeding dynamic URLs to `window.location.assign`, `window.location.replace`, or assigning them to `location.href`.

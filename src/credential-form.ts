@@ -723,6 +723,15 @@ export function renderEmailCredentialForm(
             // parked on a "close tab" message.
             var pendingRedirectUrl = null;
 
+            function isSafeRedirectUrl(url) {
+                try {
+                    var parsed = new URL(url, window.location.origin);
+                    return parsed.protocol === "http:" || parsed.protocol === "https:";
+                } catch (e) {
+                    return false;
+                }
+            }
+
             function renderOAuthDeviceCode(nextStep) {
                 statusBox.className = "status-box";
                 statusBox.style.display = "block";
@@ -811,7 +820,11 @@ export function renderEmailCredentialForm(
                                     // auth code. Without this the form stalls on "close tab" and
                                     // the client callback server hangs forever.
                                     statusBox.appendChild(document.createTextNode("Outlook authorized. Redirecting..."));
+                                    if (isSafeRedirectUrl(pendingRedirectUrl)) {
                                     window.location.replace(pendingRedirectUrl);
+                                } else {
+                                    showStatus("error", "Invalid redirect URL protocol");
+                                }
                                 } else {
                                     statusBox.appendChild(document.createTextNode("Outlook authorized. You can close this tab."));
                                 }
@@ -920,7 +933,11 @@ export function renderEmailCredentialForm(
                                 showStatus("success", "Credentials saved. Redirecting...");
                                 submitBtn.textContent = "Connected";
                                 submitBtn.removeAttribute("aria-busy");
-                                window.location.replace(pendingRedirectUrl);
+                                if (isSafeRedirectUrl(pendingRedirectUrl)) {
+                                    window.location.replace(pendingRedirectUrl);
+                                } else {
+                                    showStatus("error", "Invalid redirect URL protocol");
+                                }
                                 return;
                             }
 
