@@ -577,13 +577,16 @@ export function renderEmailCredentialForm(
                 var card = document.createElement("div");
                 card.className = "account-card";
                 card.dataset.idx = String(idx);
+                card.setAttribute("role", "group");
 
                 var header = document.createElement("div");
                 header.className = "account-card-header";
                 var title = document.createElement("h3");
                 title.className = "account-title";
+                title.id = "account-title-" + idx;
                 title.textContent = "Account " + (idx + 1);
                 header.appendChild(title);
+                card.setAttribute("aria-labelledby", title.id);
 
                 var removeBtn = document.createElement("button");
                 removeBtn.type = "button";

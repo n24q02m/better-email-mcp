@@ -86,3 +86,6 @@
 ## 2026-06-30 - Review Feedback: Avoid adding unused dependencies
 **Learning:** During UI testing in CI or agent environments, avoid adding heavy dependencies like `playwright` to the project's permanent `package.json` unless explicitly requested. Adding them can bloat the project and violate boundaries.
 **Action:** Always install temporary testing dependencies without saving them to `package.json` (e.g., using `--no-save` or rolling back changes with `git checkout -- package.json bun.lock`), or use standalone scripts that don't pollute the project's dependency tree.
+## 2025-07-03 - [Account Cards Group Accessibility]
+**Learning:** Screen reader users lose context when navigating deeply nested repeatable sections if those sections aren't logically grouped with accessible names. Form fields like 'Email' inside 'Account 2' might just be announced as 'Email' unless the container is properly structured as a group.
+**Action:** When creating repeatable form sections (like account cards), use `role="group"` on the container and `aria-labelledby` pointing to the section's dynamic title ID. This ensures the section title is announced along with its child form controls.
