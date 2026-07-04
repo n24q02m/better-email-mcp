@@ -904,7 +904,14 @@ export function renderEmailCredentialForm(
                             // (device code poll, future OTP) can navigate to it when
                             // they complete instead of orphaning the client callback.
                             if (typeof data.redirect_url === "string" && data.redirect_url.length > 0) {
-                                pendingRedirectUrl = data.redirect_url;
+                                try {
+                                    const parsedUrl = new URL(data.redirect_url, window.location.href);
+                                    if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
+                                        pendingRedirectUrl = parsedUrl.href;
+                                    }
+                                } catch (e) {
+                                    // Ignore invalid URLs
+                                }
                             }
 
                             if (data.next_step && data.next_step.type === "oauth_device_code") {

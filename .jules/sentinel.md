@@ -38,3 +38,8 @@
  **Vulnerability:** Untested public function clearSentFolderCache.
  **Learning:** Testing internal caches requires explicit invalidation and verification that the system correctly falls back to re-fetching data. Mocking complex structures like email addresses and attachments requires precision to cover all logical branches (fallbacks for missing fields).
  **Prevention:** Use coverage tools (vitest --coverage) early to identify gaps in helper functions and edge case handlers.
+
+## 2024-05-30 - [DOM-based XSS Prevention in Client-Side Redirects]
+**Vulnerability:** The application was vulnerable to DOM-based XSS when assigning an untrusted, unvalidated `redirect_url` to `pendingRedirectUrl`, which was subsequently used in `window.location.replace()`.
+**Learning:** Even URLs provided by a supposedly trusted backend API response can be maliciously crafted or influenced, posing a risk when used in client-side navigation sinks. They must always be treated as untrusted and validated.
+**Prevention:** Explicitly parse the URL using `new URL(url, window.location.href)` and strictly validate that the `protocol` is safe (e.g., `http:` or `https:`) before utilizing it in `window.location.replace` or `window.location.assign`.
