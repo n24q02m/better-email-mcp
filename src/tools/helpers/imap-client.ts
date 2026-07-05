@@ -117,19 +117,19 @@ async function withConnection<T>(account: AccountConfig, fn: (client: ImapFlow) 
 // Pre-compile static RegExp patterns as module-level constants so
 // buildSearchCriteria does not recompile them per call.
 const FLAG_MATCHERS: ReadonlyArray<{ pattern: RegExp; key: keyof SearchObject; value: boolean }> = [
-  { pattern: /\bUNFLAGGED\b/i, key: 'flagged', value: false },
-  { pattern: /\bUNSTARRED\b/i, key: 'flagged', value: false },
-  { pattern: /\bUNREAD\b/i, key: 'seen', value: false },
-  { pattern: /\bUNSEEN\b/i, key: 'seen', value: false },
-  { pattern: /\bFLAGGED\b/i, key: 'flagged', value: true },
-  { pattern: /\bSTARRED\b/i, key: 'flagged', value: true },
-  { pattern: /\bREAD\b/i, key: 'seen', value: true },
-  { pattern: /\bSEEN\b/i, key: 'seen', value: true }
+  { pattern: /\bUNFLAGGED\b/gi, key: 'flagged', value: false },
+  { pattern: /\bUNSTARRED\b/gi, key: 'flagged', value: false },
+  { pattern: /\bUNREAD\b/gi, key: 'seen', value: false },
+  { pattern: /\bUNSEEN\b/gi, key: 'seen', value: false },
+  { pattern: /\bFLAGGED\b/gi, key: 'flagged', value: true },
+  { pattern: /\bSTARRED\b/gi, key: 'flagged', value: true },
+  { pattern: /\bREAD\b/gi, key: 'seen', value: true },
+  { pattern: /\bSEEN\b/gi, key: 'seen', value: true }
 ]
 
 const DATE_MATCHERS = {
-  SINCE: { valid: /\bSINCE\s+(\d{4}-\d{2}-\d{2})\b/i, invalid: /\bSINCE\s+\S/i },
-  BEFORE: { valid: /\bBEFORE\s+(\d{4}-\d{2}-\d{2})\b/i, invalid: /\bBEFORE\s+\S/i }
+  SINCE: { valid: /\bSINCE\s+(\d{4}-\d{2}-\d{2})\b/i, invalid: /\bSINCE\s+\S/gi },
+  BEFORE: { valid: /\bBEFORE\s+(\d{4}-\d{2}-\d{2})\b/i, invalid: /\bBEFORE\s+\S/gi }
 } as const
 
 const KV_MATCHERS = {
@@ -142,6 +142,7 @@ const KV_MATCHERS = {
 // in the query parsing hot path.
 const RE_QUOTES = /^["']|["']$/g
 const RE_SUBJECT = /\bSUBJECT\s+(.+)/i
+const RE_WHITESPACE = /\s+/g
 
 function buildSearchCriteria(query: string): SearchObject {
   const trimmed = query.trim()
@@ -156,9 +157,10 @@ function buildSearchCriteria(query: string): SearchObject {
   // 1. Extract standalone flag keywords (no arguments).
   //    Check longer prefixes first to avoid partial matches (UNFLAGGED before FLAGGED, etc.)
   for (const { pattern, key, value } of FLAG_MATCHERS) {
-    if (pattern.test(remaining)) {
+    const nextRemaining = remaining.replace(pattern, ' ')
+    if (nextRemaining !== remaining) {
       Object.assign(criteria, { [key]: value })
-      remaining = remaining.replace(pattern, ' ').trim()
+      remaining = nextRemaining.trim()
     }
   }
 
@@ -170,12 +172,15 @@ function buildSearchCriteria(query: string): SearchObject {
       const criteriaKey = keyword.toLowerCase() as keyof SearchObject
       Object.assign(criteria, { [criteriaKey]: new Date(dateMatch[1]!) })
       remaining = remaining.replace(dateMatch[0], ' ').trim()
-    } else if (invalid.test(remaining)) {
-      throw new EmailMCPError(
-        `Invalid date format in ${keyword} query`,
-        'VALIDATION_ERROR',
-        `Date must be YYYY-MM-DD format. Example: ${keyword} 2026-01-15`
-      )
+    } else {
+      const nextRemaining = remaining.replace(invalid, ' ')
+      if (nextRemaining !== remaining) {
+        throw new EmailMCPError(
+          `Invalid date format in ${keyword} query`,
+          'VALIDATION_ERROR',
+          `Date must be YYYY-MM-DD format. Example: ${keyword} 2026-01-15`
+        )
+      }
     }
   }
 
@@ -237,7 +242,7 @@ async function extractSnippet(source: string | Buffer, maxLength = 200): Promise
     if (!text) return ''
     // If we used fastExtractSnippet, it's already cleaned and truncated
     if (parsed.html && !parsed.text) return text
-    const cleaned = text.replace(/\s+/g, ' ').trim()
+    const cleaned = text.replace(RE_WHITESPACE, ' ').trim()
     if (cleaned.length <= maxLength) return cleaned
     return `${cleaned.substring(0, maxLength)}...`
   } catch {
