@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.34.1 (2026-07-05)
+
+### Bug Fixes
+
+- Use caret range for mcp-core dep to fix npm/npx install
+  ([`3898433`](https://github.com/n24q02m/better-email-mcp/commit/3898433accdfda4870c8afb70e141bc8b411b0ba))
+
+
 ## v1.34.1-beta.1 (2026-07-05)
 
 ### Bug Fixes
