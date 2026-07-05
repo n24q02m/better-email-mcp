@@ -49,3 +49,6 @@
 ## 2026-06-25 - [Avoid redundant .test() checks]
 **Learning:** Checking a regular expression match with `.test()` before performing a `.replace()` (e.g. `if (pattern.test(str)) { str = str.replace(pattern, ' ') }`) is a redundant anti-pattern. If the pattern is missing, both methods scan the string, but `.replace()` on V8 handles no-matches quickly with zero reallocation. Using both means performing a double O(N) scan.
 **Action:** Remove the redundant `pattern.test()` and perform the `.replace()` directly. Compare the newly returned string against the original string (e.g. `if (next !== original) { ... }`) to detect if a replacement occurred.
+## 2025-02-18 - [Optimize findClosestMatch fast-path]
+**Learning:** In hot paths where fuzzy matching is employed (like `findClosestMatch`), if the majority of cases match exactly or are prefixes, deferring the allocation of bigram structures (`Set` allocation and population) for the fuzzy-logic fallback leads to measurable optimization. Separating exact/prefix matching from fuzzy matching into two passes allows early return for common cases with zero bigram overhead.
+**Action:** Always consider inserting a zero-allocation fast-path before performing resource-intensive matching or scoring logic, especially when exact hits or simple startsWith/includes checks resolve the majority of calls.
