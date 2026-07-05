@@ -86,3 +86,7 @@
 ## 2026-06-30 - Review Feedback: Avoid adding unused dependencies
 **Learning:** During UI testing in CI or agent environments, avoid adding heavy dependencies like `playwright` to the project's permanent `package.json` unless explicitly requested. Adding them can bloat the project and violate boundaries.
 **Action:** Always install temporary testing dependencies without saving them to `package.json` (e.g., using `--no-save` or rolling back changes with `git checkout -- package.json bun.lock`), or use standalone scripts that don't pollute the project's dependency tree.
+
+## 2025-06-30 - Form Groups for Screen Readers
+**Learning:** Repeatable form structures (like "Account 1", "Account 2") need structural semantics for screen readers. If identical fields exist across instances (like multiple "Email Address" inputs), screen readers might present them as a flattened list, causing confusion.
+**Action:** Use `role="group"` on the container element for each repeatable form section and apply `aria-labelledby` pointing to the section's dynamic title ID. This groups the internal fields structurally and associates them with the dynamic title context for screen reader users.
