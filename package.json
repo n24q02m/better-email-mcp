@@ -72,20 +72,20 @@
     "esbuild"
   ],
   "devDependencies": {
-    "@biomejs/biome": "^2.5.1",
+    "@biomejs/biome": "^2.5.2",
     "@cloudflare/containers": "^0.3.7",
     "@types/html-to-text": "^9.0.4",
     "@types/mailparser": "^3.4.6",
     "@types/marked": "^6.0.0",
-    "@types/node": "^26.0.1",
+    "@types/node": "^26.1.0",
     "@types/nodemailer": "^6.4.24",
     "@types/sanitize-html": "^2.16.1",
     "@vitest/coverage-v8": "^4.1.9",
     "esbuild": "^0.28.1",
-    "tsx": "^4.22.4",
+    "tsx": "^4.23.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.9",
-    "wrangler": "^4.106.0"
+    "wrangler": "^4.107.0"
   },
   "description": "Better MCP server for Email (IMAP/SMTP) with composite tools optimized for AI agents",
   "main": "build/src/init-server.js",
