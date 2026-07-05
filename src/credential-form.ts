@@ -723,6 +723,19 @@ export function renderEmailCredentialForm(
             // parked on a "close tab" message.
             var pendingRedirectUrl = null;
 
+            function safeRedirect(url) {
+                try {
+                    var parsed = new URL(url, window.location.origin);
+                    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+                        window.location.replace(parsed.href);
+                        return true;
+                    }
+                } catch (e) {
+                    // Ignore parse errors, fail safe
+                }
+                return false;
+            }
+
             function renderOAuthDeviceCode(nextStep) {
                 statusBox.className = "status-box";
                 statusBox.style.display = "block";
@@ -811,7 +824,9 @@ export function renderEmailCredentialForm(
                                     // auth code. Without this the form stalls on "close tab" and
                                     // the client callback server hangs forever.
                                     statusBox.appendChild(document.createTextNode("Outlook authorized. Redirecting..."));
-                                    window.location.replace(pendingRedirectUrl);
+                                    if (!safeRedirect(pendingRedirectUrl)) {
+                                        statusBox.appendChild(document.createTextNode(" (Error: Unsafe redirect URL blocked)"));
+                                    }
                                 } else {
                                     statusBox.appendChild(document.createTextNode("Outlook authorized. You can close this tab."));
                                 }
@@ -920,7 +935,9 @@ export function renderEmailCredentialForm(
                                 showStatus("success", "Credentials saved. Redirecting...");
                                 submitBtn.textContent = "Connected";
                                 submitBtn.removeAttribute("aria-busy");
-                                window.location.replace(pendingRedirectUrl);
+                                if (!safeRedirect(pendingRedirectUrl)) {
+                                    showStatus("error", "Setup complete, but refused to redirect to unsafe URL.");
+                                }
                                 return;
                             }
 
