@@ -723,15 +723,6 @@ export function renderEmailCredentialForm(
             // parked on a "close tab" message.
             var pendingRedirectUrl = null;
 
-            function isSafeRedirectUrl(url) {
-                try {
-                    var parsed = new URL(url, window.location.origin);
-                    return parsed.protocol === "http:" || parsed.protocol === "https:";
-                } catch (e) {
-                    return false;
-                }
-            }
-
             function renderOAuthDeviceCode(nextStep) {
                 statusBox.className = "status-box";
                 statusBox.style.display = "block";
@@ -820,11 +811,7 @@ export function renderEmailCredentialForm(
                                     // auth code. Without this the form stalls on "close tab" and
                                     // the client callback server hangs forever.
                                     statusBox.appendChild(document.createTextNode("Outlook authorized. Redirecting..."));
-                                    if (isSafeRedirectUrl(pendingRedirectUrl)) {
                                     window.location.replace(pendingRedirectUrl);
-                                } else {
-                                    showStatus("error", "Invalid redirect URL protocol");
-                                }
                                 } else {
                                     statusBox.appendChild(document.createTextNode("Outlook authorized. You can close this tab."));
                                 }
@@ -896,7 +883,12 @@ export function renderEmailCredentialForm(
 
                 formFieldset.disabled = true;
                 submitBtn.setAttribute("aria-busy", "true");
-                submitBtn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Connecting...';
+                clearChildren(submitBtn);
+                var spinner1 = document.createElement("span");
+                spinner1.className = "spinner";
+                spinner1.setAttribute("aria-hidden", "true");
+                submitBtn.appendChild(spinner1);
+                submitBtn.appendChild(document.createTextNode(" Connecting..."));
 
                 fetch(submitUrl, {
                     method: "POST",
@@ -921,8 +913,12 @@ export function renderEmailCredentialForm(
                             }
 
                             if (data.next_step && data.next_step.type === "oauth_device_code") {
-                                submitBtn.innerHTML =
-                                    '<span class="spinner" aria-hidden="true"></span> Awaiting Microsoft...';
+                                clearChildren(submitBtn);
+                                var spinner2 = document.createElement("span");
+                                spinner2.className = "spinner";
+                                spinner2.setAttribute("aria-hidden", "true");
+                                submitBtn.appendChild(spinner2);
+                                submitBtn.appendChild(document.createTextNode(" Awaiting Microsoft..."));
                                 submitBtn.removeAttribute("aria-busy");
                                 renderOAuthDeviceCode(data.next_step);
                                 return;
@@ -933,11 +929,7 @@ export function renderEmailCredentialForm(
                                 showStatus("success", "Credentials saved. Redirecting...");
                                 submitBtn.textContent = "Connected";
                                 submitBtn.removeAttribute("aria-busy");
-                                if (isSafeRedirectUrl(pendingRedirectUrl)) {
-                                    window.location.replace(pendingRedirectUrl);
-                                } else {
-                                    showStatus("error", "Invalid redirect URL protocol");
-                                }
+                                window.location.replace(pendingRedirectUrl);
                                 return;
                             }
 
