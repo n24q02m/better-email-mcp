@@ -46,7 +46,3 @@
 **Learning:** V8 recompiles inline literal regular expressions if they appear inside high-frequency loops or hot paths like `map` functions and query parsing (`buildSearchCriteria`). Additionally, calling `.test()` before a global replace operation (`.replace(/.../g, '')`) is an anti-pattern. If the pattern is missing, both `.test()` and `.replace()` perform an `O(N)` scan, but the `.replace()` fast-path returns the original string with zero reallocation.
 
 **Action:** Always pre-compile regular expressions by extracting them to module-scoped constants (`const RE_... = /.../g`), avoiding instantiation on every function invocation. Remove redundant `if (pattern.test(text))` checks before `.replace()` logic, especially in loops, to minimize string scanning overhead.
-
-## 2026-04-24 - Extract Snippet Whitespace Regex
-**Learning:** Recompiling regular expressions in frequently called loop bodies or hot functions causes measurable performance degradation and memory churn in V8.
-**Action:** Extract simple global regular expressions, such as `/\s+/g`, into module-scoped constants (e.g. `const RE_WHITESPACE = /\s+/g`) when used in text processing functions like `extractSnippet` to prevent reallocation and Garbage Collection pressure.

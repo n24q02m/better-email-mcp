@@ -142,7 +142,6 @@ const KV_MATCHERS = {
 // in the query parsing hot path.
 const RE_QUOTES = /^["']|["']$/g
 const RE_SUBJECT = /\bSUBJECT\s+(.+)/i
-const RE_WHITESPACE = /\s+/g
 
 function buildSearchCriteria(query: string): SearchObject {
   const trimmed = query.trim()
@@ -238,7 +237,7 @@ async function extractSnippet(source: string | Buffer, maxLength = 200): Promise
     if (!text) return ''
     // If we used fastExtractSnippet, it's already cleaned and truncated
     if (parsed.html && !parsed.text) return text
-    const cleaned = text.replace(RE_WHITESPACE, ' ').trim()
+    const cleaned = text.replace(/\s+/g, ' ').trim()
     if (cleaned.length <= maxLength) return cleaned
     return `${cleaned.substring(0, maxLength)}...`
   } catch {
