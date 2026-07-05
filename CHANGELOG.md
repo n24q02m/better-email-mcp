@@ -2,6 +2,65 @@
 
 <!-- version list -->
 
+## v1.34.1-beta.1 (2026-07-05)
+
+### Bug Fixes
+
+- Add BYO Deploy to Cloudflare section to README
+  ([#968](https://github.com/n24q02m/better-email-mcp/pull/968),
+  [`7267521`](https://github.com/n24q02m/better-email-mcp/commit/7267521b5318077b963015e3ac7ac5f2db3d2cd8))
+
+- Add role=group to account cards for screen readers
+  ([`ec6216b`](https://github.com/n24q02m/better-email-mcp/commit/ec6216b7bb1ada8915aa2c992eff58de0f83db12))
+
+- Fast-path exact/prefix match before bigram alloc in findClosestMatch
+  ([`1d7fd32`](https://github.com/n24q02m/better-email-mcp/commit/1d7fd3254a9d46d0c29e36878f7dc682cdb62cac))
+
+- Manage form focus for keyboard and screen-reader users
+  ([`fa7b67e`](https://github.com/n24q02m/better-email-mcp/commit/fa7b67e8ee74418ed3beee7cdc630b541cbf5bdc))
+
+- Note Workers Paid plan is required for Containers in README
+  ([#968](https://github.com/n24q02m/better-email-mcp/pull/968),
+  [`7267521`](https://github.com/n24q02m/better-email-mcp/commit/7267521b5318077b963015e3ac7ac5f2db3d2cd8))
+
+- Replace innerHTML with safe DOM manipulation in submit button
+  ([`913a06e`](https://github.com/n24q02m/better-email-mcp/commit/913a06eafd049de2e0f3378953c37527b9cae4a6))
+
+- Replace redundant regex test with direct replace in imap search
+  ([`00a7a41`](https://github.com/n24q02m/better-email-mcp/commit/00a7a419729d2a4d2ed12121636a8eb57201bc7a))
+
+- Substitute PUBLIC_URL and drop routes in cf-deploy.js
+  ([#968](https://github.com/n24q02m/better-email-mcp/pull/968),
+  [`7267521`](https://github.com/n24q02m/better-email-mcp/commit/7267521b5318077b963015e3ac7ac5f2db3d2cd8))
+
+- Use placeholders for PUBLIC_URL and routes in wrangler.jsonc (BYO-generic)
+  ([#968](https://github.com/n24q02m/better-email-mcp/pull/968),
+  [`7267521`](https://github.com/n24q02m/better-email-mcp/commit/7267521b5318077b963015e3ac7ac5f2db3d2cd8))
+
+- Validate redirect URL protocol before window.location.replace
+  ([`dc1cca3`](https://github.com/n24q02m/better-email-mcp/commit/dc1cca3d4e02a696b3ce09a0cd35b702f5213391))
+
+- **deps**: Lock file maintenance
+  ([`70a8607`](https://github.com/n24q02m/better-email-mcp/commit/70a860783a33cb8f14417171101a87bf6eda805c))
+
+- **deps**: Update non-major dependencies
+  ([`ce04b01`](https://github.com/n24q02m/better-email-mcp/commit/ce04b01b3c3ca39740aab35d56cabc39ef89da9c))
+
+### Chores
+
+- **deps**: Update docker/build-push-action digest to 53b7df9
+  ([#960](https://github.com/n24q02m/better-email-mcp/pull/960),
+  [`f625ae1`](https://github.com/n24q02m/better-email-mcp/commit/f625ae13da06a9615eba83ac5cd10d66275266b1))
+
+- **deps**: Update docker/login-action digest to af1e73f
+  ([#972](https://github.com/n24q02m/better-email-mcp/pull/972),
+  [`0b640ef`](https://github.com/n24q02m/better-email-mcp/commit/0b640ef9884b52e07bfbda0818cf2ce825b02419))
+
+- **deps**: Update docker/setup-buildx-action digest to bb05f3f
+  ([#973](https://github.com/n24q02m/better-email-mcp/pull/973),
+  [`ab27a32`](https://github.com/n24q02m/better-email-mcp/commit/ab27a32a1d9ed84a0eaf75468b41e8a78d428893))
+
+
 ## v1.34.0 (2026-07-02)
 
 ### Bug Fixes
