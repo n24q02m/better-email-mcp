@@ -43,3 +43,7 @@
 **Vulnerability:** The `window.location.replace()` function in the frontend credential form (`src/credential-form.ts`) used unvalidated `redirect_url` payloads obtained from backend JSON responses. While the backend provided this URL, an attacker could potentially manipulate the URL via the original POST request or another vector to inject a `javascript:` URI, leading to a DOM-based Cross-Site Scripting (XSS) execution.
 **Learning:** Even URLs originating from a seemingly trusted backend API must be explicitly validated on the client side before being used in sensitive DOM sinks like `window.location`.
 **Prevention:** Always parse and validate the protocol of user-influenced URLs using robust parsers (e.g., `new URL()`) and ensure the protocol is restricted to safe schemes (`http:` or `https:`) before using them for redirection or navigation.
+## 2025-05-22 - XSS via innerHTML in form submission
+**Vulnerability:** The credential form directly assigned dynamic UI string containing nested HTML markup using `.innerHTML` on a submit button.
+**Learning:** Any use of `.innerHTML` even with static-appearing data sets up a brittle pattern where future additions could inadvertently expose the application to Cross-Site Scripting (XSS).
+**Prevention:** Always use safe DOM traversal manipulation utilizing `document.createElement`, `setAttribute`, and `textContent` or `document.createTextNode` instead of string interpolation and `innerHTML`.
