@@ -44,6 +44,9 @@ function isRecord(val: unknown): val is Record<string, unknown> {
   return val !== null && typeof val === 'object' && !Array.isArray(val)
 }
 
+// ⚡ Bolt: Extract static properties to a module-scoped constant to avoid recreating the array.
+const SAFE_ERROR_PROPS = ['message', 'name', 'code', 'status', 'responseCode'] as const
+
 /**
  * Sanitize error object to remove sensitive information (passwords, tokens)
  */
@@ -53,11 +56,14 @@ export function sanitizeErrorDetails(error: unknown): Record<string, unknown> | 
   }
 
   const safe: Record<string, unknown> = {}
-  const props = ['message', 'name', 'code', 'status', 'responseCode'] as const
 
-  for (const prop of props) {
-    if (prop in error && error[prop] !== undefined) {
-      safe[prop] = error[prop]
+  // ⚡ Bolt: Avoid the `in` operator and `for...of` loop overhead by using direct property access.
+  // The `in` operator traverses the prototype chain and is slower than a direct `undefined` check.
+  for (let i = 0; i < SAFE_ERROR_PROPS.length; i++) {
+    const prop = SAFE_ERROR_PROPS[i]!
+    const val = error[prop]
+    if (val !== undefined) {
+      safe[prop] = val
     }
   }
 
