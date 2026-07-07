@@ -93,3 +93,10 @@
 ## 2026-07-02 - Form Focus Management
 **Learning:** In complex interactive forms where asynchronous validation/submission toggles `disabled` states, focus can inadvertently drop to the `body` element. This completely disrupts keyboard and screen reader navigation. Furthermore, when injecting new interactive content dynamically (like an OAuth device code and copy button), keyboard users lose context if focus isn't moved into the newly generated UI.
 **Action:** When re-enabling a disabled form fieldset after an error, programmatically move focus back to the triggering element (e.g., `submitBtn.focus()`). When rendering new interactive flows that pause a multi-step process (like OAuth device code auth), dynamically transfer focus to the primary new interactive element (`copyBtn` or `link`) so users seamlessly enter the new flow without losing their place.
+## 2026-07-03 - Form Lockdown and Disabled CSS State
+**Learning:** When using `<fieldset disabled>` to programmatically lock down an entire form during an asynchronous operation (like submission), the default browser styling for `:disabled` descendant elements (inputs, secondary buttons like add/remove/toggle) is often subtle or missing in custom-themed designs. This leaves users frustrated because the UI appears active but is unresponsive.
+**Action:** Always provide explicit, custom `:disabled` CSS styles (e.g., `opacity: 0.6`, `cursor: not-allowed`, subdued backgrounds/borders) for all interactive form elements when implementing fieldset-based form lockdowns. This ensures the visual state accurately reflects the interaction state.
+
+## 2026-07-03 - External Link Indicators
+**Learning:** External links that open in a new tab without visual warning can disorient users. For screen reader users, opening a new tab without announcement creates a jarring context switch.
+**Action:** Always append a visual indicator (like `↗`) to text for external links and include an explicit `aria-label` (e.g., `"opens in a new tab"`) to pre-warn both sighted and assistive-technology users before they trigger a context switch.
