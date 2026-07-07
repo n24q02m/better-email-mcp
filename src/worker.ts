@@ -162,6 +162,11 @@ export class EmailContainer extends Container<Env> {
   // When the container wakes, ``ensureValidToken()`` checks KV and auto-resumes
   // the poll. See oauth2.ts:loadPendingDeviceCode / persistPendingDeviceCode.
   sleepAfter = '5m'
+  // CF container readiness-probe override. Default 'ping' (URL http://ping/) does
+  // not resolve, so the health-check fetch throws and the container is marked
+  // unhealthy -> CF keeps it running 24/7 instead of sleeping on idle. 'localhost/'
+  // resolves to the container itself; the default route returns 200.
+  pingEndpoint = 'localhost/'
   // IMAP/SMTP + Microsoft OAuth reach the public internet; kv.internal stays
   // intercepted (see outboundByHost).
   enableInternet = true
