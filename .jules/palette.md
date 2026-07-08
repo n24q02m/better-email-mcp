@@ -93,3 +93,6 @@
 ## 2026-07-02 - Form Focus Management
 **Learning:** In complex interactive forms where asynchronous validation/submission toggles `disabled` states, focus can inadvertently drop to the `body` element. This completely disrupts keyboard and screen reader navigation. Furthermore, when injecting new interactive content dynamically (like an OAuth device code and copy button), keyboard users lose context if focus isn't moved into the newly generated UI.
 **Action:** When re-enabling a disabled form fieldset after an error, programmatically move focus back to the triggering element (e.g., `submitBtn.focus()`). When rendering new interactive flows that pause a multi-step process (like OAuth device code auth), dynamically transfer focus to the primary new interactive element (`copyBtn` or `link`) so users seamlessly enter the new flow without losing their place.
+## 2025-07-08 - Visual Indicators for External Links
+**Learning:** Links that open in a new tab (`target="_blank"`) without visual cues can be disorienting, as users expect links to navigate within the same window. Screen reader users also need explicit warning before context shifts abruptly.
+**Action:** Always include a visual indicator (like an arrow '↗') next to the link text and add a descriptive `aria-label` (e.g., "opens in a new tab") to set clear expectations for all users before they click.

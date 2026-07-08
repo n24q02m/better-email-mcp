@@ -440,7 +440,8 @@ export function renderEmailCredentialForm(
                         a.setAttribute("href", helpUrl);
                         a.setAttribute("target", "_blank");
                         a.setAttribute("rel", "noopener noreferrer");
-                        a.textContent = helpText;
+                        a.setAttribute("aria-label", helpText + " (opens in a new tab)");
+                        a.textContent = helpText + " ↗";
                         help.appendChild(a);
                     } else {
                         help.textContent = helpText;
@@ -761,7 +762,7 @@ export function renderEmailCredentialForm(
                 link.setAttribute("aria-label", "Opens Microsoft sign-in page in a new tab");
                 link.style.color = "#6c9bd2";
                 link.style.fontWeight = "bold";
-                link.textContent = nextStep.verification_url;
+                link.textContent = nextStep.verification_url + " ↗";
                 statusBox.appendChild(link);
                 statusBox.appendChild(document.createElement("br"));
                 statusBox.appendChild(document.createElement("br"));
