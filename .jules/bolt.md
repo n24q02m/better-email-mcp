@@ -52,3 +52,7 @@
 ## 2025-02-18 - [Optimize findClosestMatch fast-path]
 **Learning:** In hot paths where fuzzy matching is employed (like `findClosestMatch`), if the majority of cases match exactly or are prefixes, deferring the allocation of bigram structures (`Set` allocation and population) for the fuzzy-logic fallback leads to measurable optimization. Separating exact/prefix matching from fuzzy matching into two passes allows early return for common cases with zero bigram overhead.
 **Action:** Always consider inserting a zero-allocation fast-path before performing resource-intensive matching or scoring logic, especially when exact hits or simple startsWith/includes checks resolve the majority of calls.
+
+## 2024-05-18 - [Optimize property whitelisting]
+**Learning:** In V8 (Node.js/Bun), using the `in` operator inside a loop to check property existence on objects (e.g. `prop in obj`) can be slow because it triggers prototype chain traversal. Direct property access checks (e.g., `obj[prop] !== undefined`) are significantly faster for whitelisting known properties on error objects.
+**Action:** Avoid the `in` operator for static property whitelisting. Extract property lists to module-scoped constants to prevent array allocation, and use direct access checks inside the loop instead.

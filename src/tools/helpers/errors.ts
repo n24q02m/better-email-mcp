@@ -44,6 +44,10 @@ function isRecord(val: unknown): val is Record<string, unknown> {
   return val !== null && typeof val === 'object' && !Array.isArray(val)
 }
 
+// ⚡ Bolt: Extract whitelisted properties to a module-scoped constant.
+// This avoids allocating the array on every function call.
+const SAFE_ERROR_PROPS = ['message', 'name', 'code', 'status', 'responseCode'] as const
+
 /**
  * Sanitize error object to remove sensitive information (passwords, tokens)
  */
@@ -53,11 +57,13 @@ export function sanitizeErrorDetails(error: unknown): Record<string, unknown> | 
   }
 
   const safe: Record<string, unknown> = {}
-  const props = ['message', 'name', 'code', 'status', 'responseCode'] as const
 
-  for (const prop of props) {
-    if (prop in error && error[prop] !== undefined) {
-      safe[prop] = error[prop]
+  for (const prop of SAFE_ERROR_PROPS) {
+    // ⚡ Bolt: Avoid the `in` operator (which traverses the prototype chain).
+    // Direct property access is significantly faster in V8 for known properties.
+    const val = error[prop]
+    if (val !== undefined) {
+      safe[prop] = val
     }
   }
 
