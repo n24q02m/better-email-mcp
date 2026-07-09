@@ -47,3 +47,7 @@
 **Vulnerability:** The credential form directly assigned dynamic UI string containing nested HTML markup using `.innerHTML` on a submit button.
 **Learning:** Any use of `.innerHTML` even with static-appearing data sets up a brittle pattern where future additions could inadvertently expose the application to Cross-Site Scripting (XSS).
 **Prevention:** Always use safe DOM traversal manipulation utilizing `document.createElement`, `setAttribute`, and `textContent` or `document.createTextNode` instead of string interpolation and `innerHTML`.
+## 2026-07-09 - Missing Security Headers in Proxy Fetch
+**Vulnerability:** The `fetch` entrypoint in `src/worker.ts` proxied requests to the container process but forwarded the response directly to the client without setting critical security headers. This omission exposed the application to MIME-sniffing, clickjacking, and potential man-in-the-middle downgrade attacks.
+**Learning:** When acting as a reverse proxy or gateway (like in a Cloudflare Worker), you must explicitly attach security headers (e.g., `X-Content-Type-Options`, `X-Frame-Options`, `Strict-Transport-Security`) to the cloned response before returning it to the client, as the backend container might not set them by default.
+**Prevention:** Always use a `new Response` wrapper around proxied fetches to inject standard security headers (e.g., `nosniff`, `DENY`, `max-age`) on the outbound `Headers` object.
