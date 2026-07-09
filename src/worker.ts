@@ -164,9 +164,10 @@ export class EmailContainer extends Container<Env> {
   sleepAfter = '5m'
   // CF container readiness-probe override. Default 'ping' (URL http://ping/) does
   // not resolve, so the health-check fetch throws and the container is marked
-  // unhealthy -> CF keeps it running 24/7 instead of sleeping on idle. 'localhost/'
-  // resolves to the container itself; the default route returns 200.
-  pingEndpoint = 'localhost/'
+  // unhealthy -> CF keeps it running 24/7 instead of sleeping on idle. core-ts's
+  // local-server.ts serves 200 at /health (liveness route); '/' 302-redirects to
+  // the OAuth/relay app, so the probe must target /health specifically.
+  pingEndpoint = 'localhost/health'
   // IMAP/SMTP + Microsoft OAuth reach the public internet; kv.internal stays
   // intercepted (see outboundByHost).
   enableInternet = true
