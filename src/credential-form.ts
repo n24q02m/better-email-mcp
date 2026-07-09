@@ -237,7 +237,12 @@ export function renderEmailCredentialForm(
         }
         .submit-btn:hover { background-color: #5a7fb5; }
         .submit-btn:focus-visible { outline: 2px solid #4a6fa5; outline-offset: 2px; }
-        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .submit-btn:disabled,
+        .add-btn:disabled,
+        .remove-btn:disabled,
+        .toggle-password-btn:disabled,
+        .copy-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .field-input:disabled { opacity: 0.6; cursor: not-allowed; background-color: #1a1a1a; }
         .status-box {
             display: none;
             border-radius: 8px;

@@ -93,3 +93,8 @@
 ## 2026-07-02 - Form Focus Management
 **Learning:** In complex interactive forms where asynchronous validation/submission toggles `disabled` states, focus can inadvertently drop to the `body` element. This completely disrupts keyboard and screen reader navigation. Furthermore, when injecting new interactive content dynamically (like an OAuth device code and copy button), keyboard users lose context if focus isn't moved into the newly generated UI.
 **Action:** When re-enabling a disabled form fieldset after an error, programmatically move focus back to the triggering element (e.g., `submitBtn.focus()`). When rendering new interactive flows that pause a multi-step process (like OAuth device code auth), dynamically transfer focus to the primary new interactive element (`copyBtn` or `link`) so users seamlessly enter the new flow without losing their place.
+## 2024-05-22 - Visual State for Disabled Form Elements
+
+**Learning:** When locking down a form programmatically (e.g., using `<fieldset disabled>`), child interactive elements like text inputs and secondary buttons functionally become unclickable/untypeable, but visually they remain unchanged unless explicit `:disabled` CSS pseudo-classes are defined. This creates a confusing UX where users think they can interact with the elements but cannot.
+
+**Action:** Always explicitly define custom `:disabled` CSS styles (e.g., opacity reduction, `cursor: not-allowed`, or subdued background colors) for all interactive child elements (inputs, secondary buttons, etc.) within a form. This ensures their visual state correctly matches their functional state and prevents user confusion during async lock downs.
