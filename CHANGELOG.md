@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v1.34.2-beta.2 (2026-07-09)
+
+### Bug Fixes
+
+- Point EmailContainer pingEndpoint at /health (core-ts liveness route) so CF health passes
+  ([#988](https://github.com/n24q02m/better-email-mcp/pull/988),
+  [`f8b5dcc`](https://github.com/n24q02m/better-email-mcp/commit/f8b5dcc70b917be5577a80b14836fef852445e57))
+
+
 ## v1.34.2-beta.1 (2026-07-09)
 
 ### Bug Fixes
