@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.34.2-beta.1 (2026-07-09)
+
+### Bug Fixes
+
+- Cf container health check ping endpoint override
+  ([`1eef180`](https://github.com/n24q02m/better-email-mcp/commit/1eef1808e99f30d802676d1e16f4e6a49329a58a))
+
+
 ## v1.34.1 (2026-07-05)
 
 ### Bug Fixes
