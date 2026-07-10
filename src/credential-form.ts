@@ -122,8 +122,9 @@ export function renderEmailCredentialForm(
             cursor: pointer;
             font-size: 0.75rem;
         }
-        .remove-btn:hover { background-color: rgba(248, 113, 113, 0.08); }
+        .remove-btn:hover:not(:disabled) { background-color: rgba(248, 113, 113, 0.08); }
         .remove-btn:focus-visible { outline: 2px solid #f87171; outline-offset: 2px; }
+        .remove-btn:disabled { opacity: 0.5; cursor: not-allowed; border-color: rgba(248, 113, 113, 0.1); }
         .copy-btn {
             background: transparent;
             color: #6c9bd2;
@@ -174,6 +175,12 @@ export function renderEmailCredentialForm(
             border-color: #4a6fa5;
             box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.2);
         }
+        .field-input:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            background-color: rgba(13, 13, 13, 0.5);
+            border-color: #1a1a1a;
+        }
         .field-input[aria-invalid="true"] {
             border-color: #f87171;
         }
@@ -187,8 +194,9 @@ export function renderEmailCredentialForm(
             color: #9ca3af; font-size: 0.75rem; cursor: pointer; padding: 0.25rem 0.5rem;
             border-radius: 4px; font-weight: 600; text-transform: uppercase;
         }
-        .toggle-password-btn:hover { color: #e8e8e8; background-color: rgba(255,255,255,0.1); }
+        .toggle-password-btn:hover:not(:disabled) { color: #e8e8e8; background-color: rgba(255,255,255,0.1); }
         .toggle-password-btn:focus-visible { outline: 2px solid #6c9bd2; outline-offset: 2px; }
+        .toggle-password-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .field-input.has-toggle { padding-right: 4rem; }
         .help-text { font-size: 0.8125rem; color: #9ca3af; margin-top: 0.375rem; }
         .field-error {
@@ -221,8 +229,9 @@ export function renderEmailCredentialForm(
             margin-bottom: 1rem;
             transition: background-color 0.15s ease, border-color 0.15s ease;
         }
-        .add-btn:hover { background-color: rgba(108, 155, 210, 0.08); border-color: #4a6fa5; }
+        .add-btn:hover:not(:disabled) { background-color: rgba(108, 155, 210, 0.08); border-color: #4a6fa5; }
         .add-btn:focus-visible { outline: 2px solid #6c9bd2; outline-offset: 2px; }
+        .add-btn:disabled { opacity: 0.5; cursor: not-allowed; border-color: #2a3a4a; }
         .submit-btn {
             width: 100%;
             background-color: #4a6fa5;
@@ -440,7 +449,8 @@ export function renderEmailCredentialForm(
                         a.setAttribute("href", helpUrl);
                         a.setAttribute("target", "_blank");
                         a.setAttribute("rel", "noopener noreferrer");
-                        a.textContent = helpText;
+                        a.textContent = helpText + " ↗";
+                        a.setAttribute("aria-label", helpText + " (opens in a new tab)");
                         help.appendChild(a);
                     } else {
                         help.textContent = helpText;
@@ -761,7 +771,8 @@ export function renderEmailCredentialForm(
                 link.setAttribute("aria-label", "Opens Microsoft sign-in page in a new tab");
                 link.style.color = "#6c9bd2";
                 link.style.fontWeight = "bold";
-                link.textContent = nextStep.verification_url;
+                link.textContent = nextStep.verification_url + " ↗";
+                link.setAttribute("aria-label", "Opens Microsoft sign-in page in a new tab: " + nextStep.verification_url);
                 statusBox.appendChild(link);
                 statusBox.appendChild(document.createElement("br"));
                 statusBox.appendChild(document.createElement("br"));
