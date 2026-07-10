@@ -9,8 +9,12 @@ describe('mcp-core dependency pin', () => {
     // Storage backends (CfKvBackend/backendFromEnv) + EdDSA-from-CREDENTIAL_SECRET
     // shipped in the 1.18.0-beta line and are stable as of 1.18.1; the old exact
     // 1.17.4 pin lacks them, and beta pins should not reach the stable build.
-    expect(dep).toContain('1.18.1')
-    expect(dep).not.toBe('1.17.4')
+    const [major, minor, patch] = dep
+      .replace(/^[^\d]*/, '')
+      .split('.')
+      .map(Number)
+    const meetsFloor = major > 1 || (major === 1 && minor > 18) || (major === 1 && minor === 18 && patch >= 1)
+    expect(meetsFloor).toBe(true)
   })
 
   test('does not use a path/workspace source for mcp-core (npm dependency only)', () => {
