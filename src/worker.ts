@@ -167,7 +167,16 @@ export default {
     if (env.EMAIL) {
       const userId = await extractUserId()
       const stub = env.EMAIL.get(env.EMAIL.idFromName(userId))
-      return stub.fetch(request)
+      const response = await stub.fetch(request)
+      const newHeaders = new Headers(response.headers)
+      newHeaders.set('X-Content-Type-Options', 'nosniff')
+      newHeaders.set('X-Frame-Options', 'DENY')
+      newHeaders.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: newHeaders
+      })
     }
     return new Response('not found', { status: 404 })
   }
