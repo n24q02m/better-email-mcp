@@ -466,11 +466,11 @@ export function renderEmailCredentialForm(
                     const inputEl = event.target;
                     inputEl.setAttribute("aria-invalid", "true");
                     if (inputEl.validity.valueMissing) {
-                        errorEl.textContent = "This field is required.";
+                        errorEl.textContent = label + " is required.";
                     } else if (inputEl.validity.typeMismatch && inputEl.type === "email") {
-                        errorEl.textContent = "Please enter a valid email address.";
+                        errorEl.textContent = "Please enter a valid " + label.toLowerCase() + " (e.g., name@example.com).";
                     } else {
-                        errorEl.textContent = "Invalid value.";
+                        errorEl.textContent = "Invalid " + label.toLowerCase() + ".";
                     }
                     errorEl.classList.add("active");
                 });
@@ -481,6 +481,15 @@ export function renderEmailCredentialForm(
                         inputEl.removeAttribute("aria-invalid");
                         errorEl.textContent = "";
                         errorEl.classList.remove("active");
+                    }
+                });
+
+                input.addEventListener("blur", function (event) {
+                    const inputEl = event.target;
+                    // UX: Provide immediate feedback on blur if the user has attempted to fill out the field
+                    if (inputEl.value.trim() !== "" || inputEl.dataset.touched === "true") {
+                        inputEl.dataset.touched = "true";
+                        inputEl.checkValidity();
                     }
                 });
 

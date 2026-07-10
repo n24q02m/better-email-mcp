@@ -100,3 +100,6 @@
 ## 2026-07-03 - External Link Indicators
 **Learning:** External links that open in a new tab without visual warning can disorient users. For screen reader users, opening a new tab without announcement creates a jarring context switch.
 **Action:** Always append a visual indicator (like `↗`) to text for external links and include an explicit `aria-label` (e.g., `"opens in a new tab"`) to pre-warn both sighted and assistive-technology users before they trigger a context switch.
+## 2023-10-27 - Inline Validation and Context-Aware Errors
+**Learning:** Native form validation combined with generic error messages (e.g., "Invalid value") leaves users confused. Additionally, relying solely on "submit" for validation frustrates users, as they must complete the entire form before receiving any feedback.
+**Action:** Enhance native validation events by dynamically using the field's `label` in error messages to provide context. Introduce a `blur` event listener to trigger validation specifically on fields the user has touched, providing immediate feedback while maintaining accessibility.
