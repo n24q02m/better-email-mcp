@@ -52,3 +52,6 @@
 ## 2025-02-18 - [Optimize findClosestMatch fast-path]
 **Learning:** In hot paths where fuzzy matching is employed (like `findClosestMatch`), if the majority of cases match exactly or are prefixes, deferring the allocation of bigram structures (`Set` allocation and population) for the fuzzy-logic fallback leads to measurable optimization. Separating exact/prefix matching from fuzzy matching into two passes allows early return for common cases with zero bigram overhead.
 **Action:** Always consider inserting a zero-allocation fast-path before performing resource-intensive matching or scoring logic, especially when exact hits or simple startsWith/includes checks resolve the majority of calls.
+## 2026-06-25 - [Optimize sanitizeErrorDetails property whitelisting]
+**Learning:** In V8, checking `prop in error` inside a `for...of` loop over a static array to whitelist properties incurs overhead from both the loop allocation and the `in` operator (which traverses the prototype chain). Directly accessing properties on the object and comparing to `undefined` is significantly faster.
+**Action:** Extract whitelisted properties to a module-scoped constant (e.g. `SAFE_ERROR_PROPS`) and use direct property access (`const val = error[prop]; if (val !== undefined)`) inside a standard `for` loop to avoid the `in` operator and prototype traversal overhead.
