@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.35.0-beta.2 (2026-07-10)
+
+### Bug Fixes
+
+- Decline standing GET /mcp SSE stream at the edge
+  ([#994](https://github.com/n24q02m/better-email-mcp/pull/994),
+  [`f3c2869`](https://github.com/n24q02m/better-email-mcp/commit/f3c2869bc0c847199c0a32283ef0ff0e85666b24))
+
+- Fail the release when the computed version already exists on npm
+  ([#993](https://github.com/n24q02m/better-email-mcp/pull/993),
+  [`824121d`](https://github.com/n24q02m/better-email-mcp/commit/824121d7639efb513eab7149c40572e24cb5346b))
+
+
 ## v1.35.0-beta.1 (2026-07-10)
 
 ### Bug Fixes
