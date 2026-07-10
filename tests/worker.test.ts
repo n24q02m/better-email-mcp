@@ -89,7 +89,9 @@ describe('worker (KV-only)', () => {
     const env = { EMAIL: { idFromName, get: vi.fn().mockReturnValue(stub) } }
     // Bearer with base64url payload {"sub":"alice"} — single-DO collapse routes it to "default"
     const payload = Buffer.from(JSON.stringify({ sub: 'alice' })).toString('base64url')
+    // POST (not GET): GET /mcp is now declined with 405 at the edge (standing SSE stream).
     const req = new Request('https://email.n24q02m.com/mcp', {
+      method: 'POST',
       headers: { authorization: `Bearer h.${payload}.s` }
     })
     await worker.fetch(req, env as never)
@@ -110,8 +112,9 @@ describe('worker (KV-only)', () => {
 
   test('fetch returns 404 when the EMAIL binding is absent', async () => {
     // Bearer header clears the edge gate so the request reaches the env.EMAIL check.
+    // POST (not GET): GET /mcp is now declined with 405 at the edge (standing SSE stream).
     const resp = await worker.fetch(
-      new Request('https://email.n24q02m.com/mcp', { headers: { authorization: 'Bearer test' } }),
+      new Request('https://email.n24q02m.com/mcp', { method: 'POST', headers: { authorization: 'Bearer test' } }),
       {} as never
     )
     expect(resp.status).toBe(404)
@@ -153,6 +156,41 @@ describe('worker (KV-only)', () => {
     const env = { EMAIL: { idFromName: vi.fn().mockReturnValue('id'), get: vi.fn().mockReturnValue(stub) } }
     await worker.fetch(new Request('https://email.n24q02m.com/authorize?foo=1'), env as never)
     expect(stub.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  test('GET /mcp with a Bearer token -> 405, declining the standing SSE stream, DO never touched', async () => {
+    const stub = { fetch: vi.fn().mockResolvedValue(new Response('ok')) }
+    const env = { EMAIL: { idFromName: vi.fn(), get: vi.fn().mockReturnValue(stub) } }
+    const resp = await worker.fetch(
+      new Request('https://email.n24q02m.com/mcp', { method: 'GET', headers: { authorization: 'Bearer anything' } }),
+      env as never
+    )
+    expect(resp.status).toBe(405)
+    expect(resp.headers.get('allow')).toBe('POST, DELETE')
+    expect(stub.fetch).not.toHaveBeenCalled()
+  })
+
+  test('GET /mcp/sub-path with a Bearer token -> 405', async () => {
+    const stub = { fetch: vi.fn().mockResolvedValue(new Response('ok')) }
+    const env = { EMAIL: { idFromName: vi.fn(), get: vi.fn().mockReturnValue(stub) } }
+    const resp = await worker.fetch(
+      new Request('https://email.n24q02m.com/mcp/sub', {
+        method: 'GET',
+        headers: { authorization: 'Bearer anything' }
+      }),
+      env as never
+    )
+    expect(resp.status).toBe(405)
+    expect(resp.headers.get('allow')).toBe('POST, DELETE')
+    expect(stub.fetch).not.toHaveBeenCalled()
+  })
+
+  test('GET /mcp with no Authorization -> still 401 (edge auth gate runs before the 405 check)', async () => {
+    const stub = { fetch: vi.fn().mockResolvedValue(new Response('ok')) }
+    const env = { EMAIL: { idFromName: vi.fn(), get: vi.fn().mockReturnValue(stub) } }
+    const resp = await worker.fetch(new Request('https://email.n24q02m.com/mcp', { method: 'GET' }), env as never)
+    expect(resp.status).toBe(401)
+    expect(stub.fetch).not.toHaveBeenCalled()
   })
 
   test('defaultPort 8080 + sleepAfter is 5m (device-code session KV-persisted, no longer needs >=15m)', () => {
