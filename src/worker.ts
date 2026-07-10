@@ -118,6 +118,19 @@ export const OUTBOUND_BY_HOST: Record<string, OutboundHandler<Env>> = {
   'kv.internal': kvOutbound
 }
 
+// Bearer credential presence check. Structural only -- validity is the container's job.
+const BEARER = /^Bearer\s+\S/i
+
+function unauthenticated(request: Request): Response {
+  const { origin } = new URL(request.url)
+  return new Response(null, {
+    status: 401,
+    headers: {
+      'WWW-Authenticate': `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`
+    }
+  })
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     // Public entrypoint: ONLY routes inbound requests to the per-user container
@@ -127,6 +140,19 @@ export default {
     // KV namespace unauthenticated. Production container outbound reaches it via
     // @cloudflare/containers' ContainerProxy + the EmailContainer.outboundByHost
     // registry below; unit tests call the handler directly via OUTBOUND_BY_HOST.
+    // Edge auth gate. mcp-core's OAuth AS runs INSIDE the container, so before this
+    // gate every anonymous /mcp request started the container and reset its 5m idle
+    // timer -- an unauthenticated caller could pin it awake and bill GiB-s around the
+    // clock. Verified 2026-07-09: a python-httpx client POSTed /mcp with no
+    // Authorization header every ~20s for 12h+. The check is STRUCTURAL: it rejects
+    // requests carrying no bearer credential at all and reproduces the container's own
+    // 401 (empty body + RFC 9728 WWW-Authenticate). Token VALIDITY is never judged
+    // here -- the container remains the sole authority, so no mcp-core auth logic is
+    // duplicated at the edge.
+    const url = new URL(request.url)
+    if (url.pathname === '/mcp' || url.pathname.startsWith('/mcp/')) {
+      if (!BEARER.test(request.headers.get('authorization') ?? '')) return unauthenticated(request)
+    }
     if (env.EMAIL) {
       const userId = await extractUserId()
       const stub = env.EMAIL.get(env.EMAIL.idFromName(userId))
@@ -162,11 +188,12 @@ export class EmailContainer extends Container<Env> {
   // When the container wakes, ``ensureValidToken()`` checks KV and auto-resumes
   // the poll. See oauth2.ts:loadPendingDeviceCode / persistPendingDeviceCode.
   sleepAfter = '5m'
-  // CF container readiness-probe override. Default 'ping' (URL http://ping/) does
-  // not resolve, so the health-check fetch throws and the container is marked
-  // unhealthy -> CF keeps it running 24/7 instead of sleeping on idle. core-ts's
-  // local-server.ts serves 200 at /health (liveness route); '/' 302-redirects to
-  // the OAuth/relay app, so the probe must target /health specifically.
+  // Port-readiness probe used by @cloudflare/containers' waitForPort(): it does
+  // tcpPort.fetch('http://' + pingEndpoint) against the container's bound port, so the
+  // host segment is only a Host header (no DNS) and ANY HTTP response marks the port
+  // ready. We point it at /health because core-ts serves a cheap 200 there while '/'
+  // 302-redirects into the OAuth app. This does NOT drive the platform's `healthy`
+  // metric -- see the edge auth gate above for the real cause of containers never sleeping.
   pingEndpoint = 'localhost/health'
   // IMAP/SMTP + Microsoft OAuth reach the public internet; kv.internal stays
   // intercepted (see outboundByHost).
