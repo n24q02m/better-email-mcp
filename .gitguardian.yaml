@@ -1,0 +1,12 @@
+# Public-by-design app identifiers -- reviewed and deliberately kept.
+# DEFAULT_CLIENT_ID in src/tools/helpers/oauth2.ts is a bundled Azure AD
+# PUBLIC client ID (no client secret involved -- same pattern Thunderbird
+# and other public OAuth clients use; see
+# https://learn.microsoft.com/en-us/entra/identity-platform/msal-client-applications
+# for the public-vs-confidential client distinction). Scanner alerts on this
+# exact value are a false positive. Do NOT rotate, do NOT placeholder-ize.
+version: 2
+secret:
+  ignored_matches:
+    - name: azure-ad-bundled-public-client-id
+      match: "d56f8c71-9f7c-43f4-9934-be29cb6e77b0"
