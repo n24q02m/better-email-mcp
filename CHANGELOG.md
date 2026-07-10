@@ -2,6 +2,29 @@
 
 <!-- version list -->
 
+## v1.35.0-beta.1 (2026-07-10)
+
+### Bug Fixes
+
+- Reject unauthenticated /mcp at the Worker edge
+  ([#992](https://github.com/n24q02m/better-email-mcp/pull/992),
+  [`7472c0a`](https://github.com/n24q02m/better-email-mcp/commit/7472c0a6cd874cf3d0977d847945697e09013348))
+
+### Features
+
+- Add opencode github agent (responds to /oc)
+  ([`cfaffc4`](https://github.com/n24q02m/better-email-mcp/commit/cfaffc4ede63ce7b389baad84d5b0e140881bdfa))
+
+- Add review-learnings store the automated reviewer must obey
+  ([`6510aa0`](https://github.com/n24q02m/better-email-mcp/commit/6510aa06cc369908813f2d3ab065e328aa56c40a))
+
+- Auto-respond only to issues and PRs opened by outside people
+  ([`5278628`](https://github.com/n24q02m/better-email-mcp/commit/52786289ae4c0ac79db7d7e1638d1e592a6e5e29))
+
+- Reviewer must obey .github/review-learnings.md
+  ([`e68ef9a`](https://github.com/n24q02m/better-email-mcp/commit/e68ef9af5bda8ba2da1e26fd2502a24136a408f6))
+
+
 ## v1.34.2-beta.2 (2026-07-09)
 
 ### Bug Fixes
