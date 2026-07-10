@@ -1393,7 +1393,8 @@ describe('Outlook token embed (per-sub config blob)', () => {
     await saveTokens('a@outlook.com', TOK('a'), 'sub-1')
 
     const blob = await store.load('sub-1')
-    expect((blob?.outlookTokens as Record<string, OAuth2Tokens>)['a@outlook.com']).toEqual(TOK('a'))
+    if (!blob) throw new Error('expected store.load to return a blob after saveTokens')
+    expect((blob.outlookTokens as Record<string, OAuth2Tokens>)['a@outlook.com']).toEqual(TOK('a'))
     expect(await loadStoredTokens('a@outlook.com', 'sub-1')).toEqual(TOK('a'))
     // Embed path must NOT touch the legacy tokens.json file.
     expect(mockWriteFileSync).not.toHaveBeenCalled()
@@ -1416,8 +1417,9 @@ describe('Outlook token embed (per-sub config blob)', () => {
     await saveTokens('a@outlook.com', TOK('a'), 'sub-1')
 
     const blob = await store.load('sub-1')
-    expect((blob?.accounts as unknown[]).length).toBe(1)
-    expect((blob?.outlookTokens as Record<string, OAuth2Tokens>)['a@outlook.com']).toEqual(TOK('a'))
+    if (!blob) throw new Error('expected store.load to return a blob after saveTokens')
+    expect((blob.accounts as unknown[]).length).toBe(1)
+    expect((blob.outlookTokens as Record<string, OAuth2Tokens>)['a@outlook.com']).toEqual(TOK('a'))
   })
 
   it('uses currentSub() when the sub arg is omitted (request scope)', async () => {
