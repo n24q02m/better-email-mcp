@@ -98,17 +98,61 @@ describe('worker (KV-only)', () => {
   })
 
   test('fetch falls back to "default" sub when no Bearer token (E.2 single-user DO)', async () => {
+    // /authorize is not gated by the edge auth check (only /mcp is), so this still
+    // exercises extractUserId()'s unconditional "default" return.
     const idFromName = vi.fn().mockReturnValue('id-default')
     const env = {
       EMAIL: { idFromName, get: vi.fn().mockReturnValue({ fetch: vi.fn().mockResolvedValue(new Response()) }) }
     }
-    await worker.fetch(new Request('https://email.n24q02m.com/mcp'), env as never)
+    await worker.fetch(new Request('https://email.n24q02m.com/authorize'), env as never)
     expect(idFromName).toHaveBeenCalledWith('default')
   })
 
   test('fetch returns 404 when the EMAIL binding is absent', async () => {
-    const resp = await worker.fetch(new Request('https://email.n24q02m.com/mcp'), {} as never)
+    // Bearer header clears the edge gate so the request reaches the env.EMAIL check.
+    const resp = await worker.fetch(
+      new Request('https://email.n24q02m.com/mcp', { headers: { authorization: 'Bearer test' } }),
+      {} as never
+    )
     expect(resp.status).toBe(404)
+  })
+
+  test('edge auth gate: POST /mcp with no Authorization -> 401, DO never touched', async () => {
+    const stub = { fetch: vi.fn().mockResolvedValue(new Response('ok')) }
+    const env = { EMAIL: { idFromName: vi.fn(), get: vi.fn().mockReturnValue(stub) } }
+    const resp = await worker.fetch(new Request('https://email.n24q02m.com/mcp', { method: 'POST' }), env as never)
+    expect(resp.status).toBe(401)
+    expect(await resp.text()).toBe('')
+    expect(resp.headers.get('WWW-Authenticate')).toMatch(
+      /^Bearer resource_metadata="https:\/\/[^"]+\/\.well-known\/oauth-protected-resource"$/
+    )
+    expect(stub.fetch).not.toHaveBeenCalled()
+  })
+
+  test('edge auth gate: OPTIONS /mcp with no Authorization -> 401, DO never touched', async () => {
+    const stub = { fetch: vi.fn().mockResolvedValue(new Response('ok')) }
+    const env = { EMAIL: { idFromName: vi.fn(), get: vi.fn().mockReturnValue(stub) } }
+    const resp = await worker.fetch(new Request('https://email.n24q02m.com/mcp', { method: 'OPTIONS' }), env as never)
+    expect(resp.status).toBe(401)
+    expect(stub.fetch).not.toHaveBeenCalled()
+  })
+
+  test('edge auth gate: POST /mcp with a Bearer token reaches the DO (validity not judged)', async () => {
+    const stub = { fetch: vi.fn().mockResolvedValue(new Response('ok')) }
+    const env = { EMAIL: { idFromName: vi.fn().mockReturnValue('id'), get: vi.fn().mockReturnValue(stub) } }
+    const resp = await worker.fetch(
+      new Request('https://email.n24q02m.com/mcp', { method: 'POST', headers: { authorization: 'Bearer anything' } }),
+      env as never
+    )
+    expect(stub.fetch).toHaveBeenCalledTimes(1)
+    expect(resp.status).toBe(200)
+  })
+
+  test('edge auth gate: non-/mcp path with no Authorization still reaches the DO', async () => {
+    const stub = { fetch: vi.fn().mockResolvedValue(new Response('ok')) }
+    const env = { EMAIL: { idFromName: vi.fn().mockReturnValue('id'), get: vi.fn().mockReturnValue(stub) } }
+    await worker.fetch(new Request('https://email.n24q02m.com/authorize?foo=1'), env as never)
+    expect(stub.fetch).toHaveBeenCalledTimes(1)
   })
 
   test('defaultPort 8080 + sleepAfter is 5m (device-code session KV-persisted, no longer needs >=15m)', () => {
