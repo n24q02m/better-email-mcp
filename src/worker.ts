@@ -131,6 +131,22 @@ function unauthenticated(request: Request): Response {
   })
 }
 
+/**
+ * Applies security headers to all outbound responses from the Worker.
+ */
+function withSecurityHeaders(response: Response): Response {
+  const headers = new Headers(response.headers)
+  headers.set('X-Content-Type-Options', 'nosniff')
+  headers.set('X-Frame-Options', 'DENY')
+  headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  })
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     // Public entrypoint: ONLY routes inbound requests to the per-user container
@@ -151,7 +167,9 @@ export default {
     // duplicated at the edge.
     const url = new URL(request.url)
     if (url.pathname === '/mcp' || url.pathname.startsWith('/mcp/')) {
-      if (!BEARER.test(request.headers.get('authorization') ?? '')) return unauthenticated(request)
+      if (!BEARER.test(request.headers.get('authorization') ?? '')) {
+        return withSecurityHeaders(unauthenticated(request))
+      }
     }
     // Standing GET /mcp = the streamable-HTTP server-push SSE stream. On a
     // scale-to-zero container this is pure idle cost: @cloudflare/containers
@@ -162,23 +180,15 @@ export default {
     // response. The spec allows declining the stream: both official SDKs
     // treat 405 as the optional-feature path and continue POST-only.
     if (request.method === 'GET' && (url.pathname === '/mcp' || url.pathname.startsWith('/mcp/'))) {
-      return new Response(null, { status: 405, headers: { Allow: 'POST, DELETE' } })
+      return withSecurityHeaders(new Response(null, { status: 405, headers: { Allow: 'POST, DELETE' } }))
     }
     if (env.EMAIL) {
       const userId = await extractUserId()
       const stub = env.EMAIL.get(env.EMAIL.idFromName(userId))
       const response = await stub.fetch(request)
-      const newHeaders = new Headers(response.headers)
-      newHeaders.set('X-Content-Type-Options', 'nosniff')
-      newHeaders.set('X-Frame-Options', 'DENY')
-      newHeaders.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
-      return new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: newHeaders
-      })
+      return withSecurityHeaders(response)
     }
-    return new Response('not found', { status: 404 })
+    return withSecurityHeaders(new Response('not found', { status: 404 }))
   }
 }
 
