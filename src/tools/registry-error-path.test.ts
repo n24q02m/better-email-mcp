@@ -350,7 +350,8 @@ describe('registry.ts coverage - error and edge paths', () => {
             type: 'text',
             text: JSON.stringify(mockOpenRelayResult, null, 2)
           }
-        ]
+        ],
+        structuredContent: mockOpenRelayResult
       })
       expect(mockOpenRelayHandler).toHaveBeenCalled()
     })

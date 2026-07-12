@@ -27,7 +27,7 @@ import { type SendInput, send } from './composite/send.js'
 // Import mega tools
 import { type AccountConfig, loadConfig } from './helpers/config.js'
 import { aiReadableMessage, EmailMCPError, enhanceError, findClosestMatch } from './helpers/errors.js'
-import { isValidToolName, wrapToolResult } from './helpers/security.js'
+import { isValidToolName, markStructuredContent, wrapToolResult } from './helpers/security.js'
 
 // Get docs directory path - works for both bundled CLI and unbundled code
 const __filename = fileURLToPath(import.meta.url)
@@ -87,7 +87,8 @@ const TOOLS = [
         destination: { type: 'string', description: 'Target folder for move action' }
       },
       required: ['action']
-    }
+    },
+    outputSchema: { type: 'object', additionalProperties: true }
   },
   {
     name: 'folders',
@@ -111,7 +112,8 @@ const TOOLS = [
         account: { type: 'string', description: 'Account email filter (optional, defaults to all)' }
       },
       required: ['action']
-    }
+    },
+    outputSchema: { type: 'object', additionalProperties: true }
   },
   {
     name: 'attachments',
@@ -141,7 +143,8 @@ const TOOLS = [
         }
       },
       required: ['action', 'account', 'uid']
-    }
+    },
+    outputSchema: { type: 'object', additionalProperties: true }
   },
   {
     name: 'send',
@@ -180,7 +183,8 @@ const TOOLS = [
         folder: { type: 'string', description: 'Folder of original email (default: INBOX)' }
       },
       required: ['action', 'account', 'body']
-    }
+    },
+    outputSchema: { type: 'object', additionalProperties: true }
   },
   {
     name: 'config',
@@ -207,7 +211,8 @@ const TOOLS = [
         }
       },
       required: ['action']
-    }
+    },
+    outputSchema: { type: 'object', additionalProperties: true }
   },
   {
     name: 'config__open_relay',
@@ -220,7 +225,8 @@ const TOOLS = [
       idempotentHint: false,
       openWorldHint: true
     },
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false }
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    outputSchema: { type: 'object', additionalProperties: true }
   },
   {
     name: 'help',
@@ -348,7 +354,8 @@ export function registerTools(server: Server, initialAccounts: AccountConfig[]) 
       if (name === 'config__open_relay') {
         const result = await openRelayHandler()
         return {
-          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+          structuredContent: result as unknown as Record<string, unknown>
         }
       }
 
@@ -395,7 +402,13 @@ export function registerTools(server: Server, initialAccounts: AccountConfig[]) 
             type: 'text',
             text: wrapToolResult(name, jsonText)
           }
-        ]
+        ],
+        // help returns markdown-style docs by design (constraint: no structured envelope).
+        // External-content tools (messages, attachments) get an untrusted-source marker
+        // at the envelope level since structuredContent bypasses wrapToolResult's XML tag.
+        ...(name !== 'help'
+          ? { structuredContent: markStructuredContent(name, result as Record<string, unknown>) }
+          : {})
       }
     } catch (error) {
       const enhancedError = error instanceof EmailMCPError ? error : enhanceError(error)

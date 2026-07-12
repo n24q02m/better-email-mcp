@@ -62,6 +62,7 @@ describe('config__open_relay tool registration', () => {
       properties: {},
       additionalProperties: false
     })
+    expect(tool.outputSchema).toEqual({ type: 'object', additionalProperties: true })
     expect(tool.annotations.openWorldHint).toBe(true)
   })
 
@@ -82,6 +83,7 @@ describe('config__open_relay tool registration', () => {
     expect(parsed).toHaveProperty('url')
     expect(parsed).toHaveProperty('browserOpened')
     expect(parsed).toHaveProperty('status')
+    expect(result.structuredContent).toEqual(mockOpenRelayResult)
   })
 
   it('config__open_relay works when no accounts are configured (credential guard exempt)', async () => {
