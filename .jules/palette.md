@@ -103,3 +103,6 @@
 ## 2023-10-27 - Inline Validation and Context-Aware Errors
 **Learning:** Native form validation combined with generic error messages (e.g., "Invalid value") leaves users confused. Additionally, relying solely on "submit" for validation frustrates users, as they must complete the entire form before receiving any feedback.
 **Action:** Enhance native validation events by dynamically using the field's `label` in error messages to provide context. Introduce a `blur` event listener to trigger validation specifically on fields the user has touched, providing immediate feedback while maintaining accessibility.
+## 2024-07-12 - Adding focus-within spatial hints
+**Learning:** For complex form structures like multi-input cards, adding `:focus-within` styles to the parent container drastically improves spatial orientation for keyboard users, making it obvious which group they are currently interacting with. It also prevents the "where am I?" problem when tabbing between similarly structured blocks.
+**Action:** Always consider `:focus-within` highlighting on parent containers for repeating blocks of interactive elements.

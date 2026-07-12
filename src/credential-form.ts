@@ -96,6 +96,11 @@ export function renderEmailCredentialForm(
             padding: 1rem;
             margin-bottom: 0.875rem;
             background-color: #121212;
+            transition: border-color 0.15s ease, background-color 0.15s ease;
+        }
+        .account-card:focus-within {
+            border-color: #3a5a8a;
+            background-color: #161616;
         }
         .account-card-header {
             display: flex;
@@ -417,12 +422,14 @@ export function renderEmailCredentialForm(
                     toggleBtn.className = "toggle-password-btn";
                     toggleBtn.textContent = "Show";
                     toggleBtn.setAttribute("aria-label", "Show password as plain text");
+                    toggleBtn.setAttribute("title", "Show password as plain text");
                     toggleBtn.setAttribute("aria-pressed", "false");
                     toggleBtn.addEventListener("click", function () {
                         const isPass = input.getAttribute("type") === "password";
                         input.setAttribute("type", isPass ? "text" : "password");
                         toggleBtn.textContent = isPass ? "Hide" : "Show";
                         toggleBtn.setAttribute("aria-label", isPass ? "Hide password" : "Show password as plain text");
+                        toggleBtn.setAttribute("title", isPass ? "Hide password" : "Show password as plain text");
                         toggleBtn.setAttribute("aria-pressed", isPass ? "true" : "false");
                     });
                     wrapper.appendChild(toggleBtn);
@@ -511,6 +518,7 @@ export function renderEmailCredentialForm(
                     if (removeBtn && removeBtn instanceof HTMLElement) {
                         removeBtn.style.display = cards.length > 1 ? "" : "none";
                         removeBtn.setAttribute("aria-label", "Remove " + titleStr);
+                        removeBtn.setAttribute("title", "Remove " + titleStr);
                     }
                 }
             }
@@ -612,6 +620,7 @@ export function renderEmailCredentialForm(
                 removeBtn.className = "remove-btn";
                 removeBtn.textContent = "Remove";
                 removeBtn.setAttribute("aria-label", "Remove Account " + (idx + 1));
+                removeBtn.setAttribute("title", "Remove Account " + (idx + 1));
                 removeBtn.addEventListener("click", function () {
                     var inputs = card.querySelectorAll("input");
                     var hasData = false;
@@ -879,7 +888,10 @@ export function renderEmailCredentialForm(
                 // Immediately focus the first input field of the new card
                 // so keyboard users can seamlessly start typing.
                 var firstInput = newCard.querySelector("input");
-                if (firstInput) firstInput.focus();
+                if (firstInput) {
+                    firstInput.focus({ preventScroll: true });
+                    newCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
             });
 
             form.addEventListener("submit", function (evt) {
