@@ -2,6 +2,79 @@
 
 <!-- version list -->
 
+## v1.35.0-beta.3 (2026-07-12)
+
+### Bug Fixes
+
+- Add context-aware inline validation to credential form
+  ([`00c499d`](https://github.com/n24q02m/better-email-mcp/commit/00c499d865a7f0c43e2d4d1b0b7ff6ce3439f845))
+
+- Add form lockdown visual feedback and external link indicators
+  ([`9c72332`](https://github.com/n24q02m/better-email-mcp/commit/9c72332da423be2e735a8bb06fcf5dd38c6fe043))
+
+- Add security headers to worker responses
+  ([`1dc62b6`](https://github.com/n24q02m/better-email-mcp/commit/1dc62b6fe532be167aa13010c52ba25f83847d0a))
+
+- Apply security headers to all worker responses
+  ([`a484eca`](https://github.com/n24q02m/better-email-mcp/commit/a484ecabef2add6060c39ceeefd91b2189276ff2))
+
+- Bump @n24q02m/mcp-core to 1.18.2 ([#997](https://github.com/n24q02m/better-email-mcp/pull/997),
+  [`ee67a7b`](https://github.com/n24q02m/better-email-mcp/commit/ee67a7b84a6cbe81cc3a2d87e89e8a8c4752279f))
+
+- Document public-by-design identifiers for secret scanners
+  ([#995](https://github.com/n24q02m/better-email-mcp/pull/995),
+  [`456db5e`](https://github.com/n24q02m/better-email-mcp/commit/456db5e3416920db69c43bbb995d6bc51d585cda))
+
+- Enforce fix(deps) semantic commit prefix in renovate config
+  ([`b2e0ec5`](https://github.com/n24q02m/better-email-mcp/commit/b2e0ec54718aab060b8204ec8dd15c2b6229b4db))
+
+- Export EXTERNAL_CONTENT_TOOLS as single source of truth for XPIA markers
+  ([#1008](https://github.com/n24q02m/better-email-mcp/pull/1008),
+  [`fcab776`](https://github.com/n24q02m/better-email-mcp/commit/fcab776a0a1cc0feb2f0b5c882a44b0df63062df))
+
+- Lock file maintenance with biome rule compliance
+  ([`3a07c65`](https://github.com/n24q02m/better-email-mcp/commit/3a07c653bf5e55724b4246c87a82e424b82c8f79))
+
+- Make mcp-core-pin.test.ts assert a semver floor instead of a literal patch match
+  ([#997](https://github.com/n24q02m/better-email-mcp/pull/997),
+  [`ee67a7b`](https://github.com/n24q02m/better-email-mcp/commit/ee67a7b84a6cbe81cc3a2d87e89e8a8c4752279f))
+
+- Make renovate automerge effective (isolated groups, digest+lockfile automerge, 7-day cooldown)
+  ([`6a26c6a`](https://github.com/n24q02m/better-email-mcp/commit/6a26c6a668a6865f3dcb9610799fc3dda7c2032a))
+
+- Mark untrusted source in structured content envelope
+  ([#1008](https://github.com/n24q02m/better-email-mcp/pull/1008),
+  [`fcab776`](https://github.com/n24q02m/better-email-mcp/commit/fcab776a0a1cc0feb2f0b5c882a44b0df63062df))
+
+- Optimize sanitizeErrorDetails property whitelisting
+  ([`ba54929`](https://github.com/n24q02m/better-email-mcp/commit/ba5492935d55dd7504cae2f9123bb0727874ffda))
+
+- Satisfy new biome rule on optional index access in tests
+  ([`3a07c65`](https://github.com/n24q02m/better-email-mcp/commit/3a07c653bf5e55724b4246c87a82e424b82c8f79))
+
+- **deps**: Lock file maintenance ([#1006](https://github.com/n24q02m/better-email-mcp/pull/1006),
+  [`dd0cf22`](https://github.com/n24q02m/better-email-mcp/commit/dd0cf227b3cd205964de9438c738904154532822))
+
+### Chores
+
+- **deps**: Lock file maintenance
+  ([`3a07c65`](https://github.com/n24q02m/better-email-mcp/commit/3a07c653bf5e55724b4246c87a82e424b82c8f79))
+
+- **deps**: Update actions/checkout action to v7
+  ([#999](https://github.com/n24q02m/better-email-mcp/pull/999),
+  [`dd882f9`](https://github.com/n24q02m/better-email-mcp/commit/dd882f957ee1171b5885bb0ef8554b33f827e45f))
+
+- **deps**: Update dependency typescript to v7
+  ([#1000](https://github.com/n24q02m/better-email-mcp/pull/1000),
+  [`0fab8b2`](https://github.com/n24q02m/better-email-mcp/commit/0fab8b2cbd131a8fe3cd92045742207d2a6dee4d))
+
+### Features
+
+- Declare output schemas and emit structured content
+  ([#1008](https://github.com/n24q02m/better-email-mcp/pull/1008),
+  [`fcab776`](https://github.com/n24q02m/better-email-mcp/commit/fcab776a0a1cc0feb2f0b5c882a44b0df63062df))
+
+
 ## v1.35.0-beta.2 (2026-07-10)
 
 ### Bug Fixes
