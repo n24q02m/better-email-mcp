@@ -123,11 +123,12 @@ describe('registry.ts coverage - additional paths', () => {
   describe('Config tool', () => {
     it('should invoke handleConfig when config tool is called', async () => {
       const { handleConfig } = await import('./composite/config.js')
-      vi.mocked(handleConfig).mockResolvedValue({ action: 'cache_clear', ok: true, cleared: 0 })
+      const mockResult = { action: 'cache_clear', ok: true, cleared: 0 } as const
+      vi.mocked(handleConfig).mockResolvedValue(mockResult)
 
       const { callToolHandler } = setupHandler([{ email: 'test@example.com' }])
 
-      await callToolHandler({
+      const result = await callToolHandler({
         params: {
           name: 'config',
           arguments: { action: 'status' }
@@ -135,6 +136,8 @@ describe('registry.ts coverage - additional paths', () => {
       })
 
       expect(handleConfig).toHaveBeenCalled()
+      // config is an internal tool, not in EXTERNAL_CONTENT_TOOLS — bare structuredContent
+      expect(result.structuredContent).toEqual(mockResult)
     })
   })
 

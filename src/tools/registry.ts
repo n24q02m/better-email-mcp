@@ -27,7 +27,7 @@ import { type SendInput, send } from './composite/send.js'
 // Import mega tools
 import { type AccountConfig, loadConfig } from './helpers/config.js'
 import { aiReadableMessage, EmailMCPError, enhanceError, findClosestMatch } from './helpers/errors.js'
-import { isValidToolName, wrapToolResult } from './helpers/security.js'
+import { isValidToolName, markStructuredContent, wrapToolResult } from './helpers/security.js'
 
 // Get docs directory path - works for both bundled CLI and unbundled code
 const __filename = fileURLToPath(import.meta.url)
@@ -403,8 +403,12 @@ export function registerTools(server: Server, initialAccounts: AccountConfig[]) 
             text: wrapToolResult(name, jsonText)
           }
         ],
-        // help returns markdown-style docs by design (constraint: no structured envelope)
-        ...(name !== 'help' ? { structuredContent: result as Record<string, unknown> } : {})
+        // help returns markdown-style docs by design (constraint: no structured envelope).
+        // External-content tools (messages, attachments) get an untrusted-source marker
+        // at the envelope level since structuredContent bypasses wrapToolResult's XML tag.
+        ...(name !== 'help'
+          ? { structuredContent: markStructuredContent(name, result as Record<string, unknown>) }
+          : {})
       }
     } catch (error) {
       const enhancedError = error instanceof EmailMCPError ? error : enhanceError(error)
