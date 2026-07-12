@@ -96,6 +96,21 @@ describe('ListToolsRequestSchema handler', () => {
     const names = result.tools.map((t: any) => t.name)
     expect(names).toEqual(['messages', 'folders', 'attachments', 'send', 'config', 'config__open_relay', 'help'])
   })
+
+  it('declares outputSchema for every tool except help', async () => {
+    const { getHandler } = createMockServerWithHandlers()
+    const handler = getHandler(ListToolsRequestSchema)
+
+    const result = await handler({})
+
+    for (const tool of result.tools) {
+      if (tool.name === 'help') {
+        expect(tool.outputSchema).toBeUndefined()
+      } else {
+        expect(tool.outputSchema).toEqual({ type: 'object', additionalProperties: true })
+      }
+    }
+  })
 })
 
 describe('ListResourcesRequestSchema handler', () => {
@@ -164,6 +179,8 @@ describe('CallToolRequestSchema handler - successful tool calls', () => {
     // messages tool wraps with untrusted_email_content tags
     expect(result.content[0].text).toContain('<untrusted_email_content>')
     expect(result.content[0].text).toContain(JSON.stringify(mockResult, null, 2))
+    // structuredContent carries the raw (unwrapped) result object
+    expect(result.structuredContent).toEqual(mockResult)
   })
 
   it('should call folders function and return JSON result', async () => {
@@ -187,6 +204,7 @@ describe('CallToolRequestSchema handler - successful tool calls', () => {
     expect(result.content[0].type).toBe('text')
     // folders tool is NOT in EXTERNAL_CONTENT_TOOLS, so no wrapping
     expect(result.content[0].text).toBe(JSON.stringify(mockResult, null, 2))
+    expect(result.structuredContent).toEqual(mockResult)
   })
 
   it('should call send function and return JSON result', async () => {

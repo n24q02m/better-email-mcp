@@ -85,6 +85,7 @@ describe('CallToolRequestSchema handler coverage', () => {
     expect(result.content[0].text).toContain('<untrusted_email_content>')
     expect(result.content[0].text).toContain('</untrusted_email_content>')
     expect(result.content[0].text).toContain(JSON.stringify(mockResult, null, 2))
+    expect(result.structuredContent).toEqual(mockResult)
   })
 
   it('should handle tool handler throwing an error', async () => {

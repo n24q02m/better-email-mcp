@@ -63,6 +63,8 @@ describe('handleHelp documentation tool', () => {
     expect(result.isError).toBeUndefined()
     expect(result.content[0].text).toContain('messages')
     expect(result.content[0].text).toContain(mockContent)
+    // help returns markdown docs by design — no structuredContent envelope
+    expect(result.structuredContent).toBeUndefined()
   })
 
   it('should return DOC_NOT_FOUND error when readFile fails (catch block)', async () => {

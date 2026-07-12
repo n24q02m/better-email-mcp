@@ -87,7 +87,8 @@ const TOOLS = [
         destination: { type: 'string', description: 'Target folder for move action' }
       },
       required: ['action']
-    }
+    },
+    outputSchema: { type: 'object', additionalProperties: true }
   },
   {
     name: 'folders',
@@ -111,7 +112,8 @@ const TOOLS = [
         account: { type: 'string', description: 'Account email filter (optional, defaults to all)' }
       },
       required: ['action']
-    }
+    },
+    outputSchema: { type: 'object', additionalProperties: true }
   },
   {
     name: 'attachments',
@@ -141,7 +143,8 @@ const TOOLS = [
         }
       },
       required: ['action', 'account', 'uid']
-    }
+    },
+    outputSchema: { type: 'object', additionalProperties: true }
   },
   {
     name: 'send',
@@ -180,7 +183,8 @@ const TOOLS = [
         folder: { type: 'string', description: 'Folder of original email (default: INBOX)' }
       },
       required: ['action', 'account', 'body']
-    }
+    },
+    outputSchema: { type: 'object', additionalProperties: true }
   },
   {
     name: 'config',
@@ -207,7 +211,8 @@ const TOOLS = [
         }
       },
       required: ['action']
-    }
+    },
+    outputSchema: { type: 'object', additionalProperties: true }
   },
   {
     name: 'config__open_relay',
@@ -220,7 +225,8 @@ const TOOLS = [
       idempotentHint: false,
       openWorldHint: true
     },
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false }
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    outputSchema: { type: 'object', additionalProperties: true }
   },
   {
     name: 'help',
@@ -348,7 +354,8 @@ export function registerTools(server: Server, initialAccounts: AccountConfig[]) 
       if (name === 'config__open_relay') {
         const result = await openRelayHandler()
         return {
-          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
+          content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+          structuredContent: result as unknown as Record<string, unknown>
         }
       }
 
@@ -395,7 +402,9 @@ export function registerTools(server: Server, initialAccounts: AccountConfig[]) 
             type: 'text',
             text: wrapToolResult(name, jsonText)
           }
-        ]
+        ],
+        // help returns markdown-style docs by design (constraint: no structured envelope)
+        ...(name !== 'help' ? { structuredContent: result as Record<string, unknown> } : {})
       }
     } catch (error) {
       const enhancedError = error instanceof EmailMCPError ? error : enhanceError(error)
