@@ -7,7 +7,7 @@ import type { AccountConfig } from '../helpers/config.js'
 import { resolveSingleAccount } from '../helpers/config.js'
 import { createUnknownActionError, EmailMCPError, withErrorHandling } from '../helpers/errors.js'
 import { appendToFolder, readEmail, resolveSentFolder } from '../helpers/imap-client.js'
-import type { SendResult } from '../helpers/smtp-client.js'
+import type { EmailAttachment, SendResult } from '../helpers/smtp-client.js'
 import { forwardEmail, replyToEmail, sendNewEmail } from '../helpers/smtp-client.js'
 
 /**
@@ -57,6 +57,9 @@ export interface SendInput {
   // Reply/Forward - reference to original email
   uid?: number
   folder?: string
+
+  // Optional file attachments, symmetric with the attachments download shape
+  attachments?: EmailAttachment[]
 }
 
 /**
@@ -111,7 +114,8 @@ async function handleNew(accounts: AccountConfig[], input: SendInput): Promise<a
     subject: input.subject,
     body: input.body,
     cc: input.cc,
-    bcc: input.bcc
+    bcc: input.bcc,
+    attachments: input.attachments
   })
 
   const saved_to_sent = await saveToSent(account, result)
@@ -164,7 +168,8 @@ async function handleReply(accounts: AccountConfig[], input: SendInput): Promise
     cc: input.cc,
     bcc: input.bcc,
     in_reply_to: original.message_id,
-    references: original.references || original.message_id
+    references: original.references || original.message_id,
+    attachments: input.attachments
   })
 
   const saved_to_sent = await saveToSent(account, result)
@@ -213,7 +218,8 @@ async function handleForward(accounts: AccountConfig[], input: SendInput): Promi
     body: input.body,
     cc: input.cc,
     bcc: input.bcc,
-    original_body: original.body_text
+    original_body: original.body_text,
+    attachments: input.attachments
   })
 
   const saved_to_sent = await saveToSent(account, result)

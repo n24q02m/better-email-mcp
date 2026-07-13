@@ -127,6 +127,22 @@ describe('send - new', () => {
       expect.objectContaining({ cc: 'cc@test.com', bcc: 'bcc@test.com' })
     )
   })
+
+  it('passes attachments through to sendNewEmail', async () => {
+    mockSendNewEmail.mockResolvedValue({ success: true, message_id: '<id>' })
+    const attachments = [{ filename: 'a.pdf', content_base64: 'YQ==', content_type: 'application/pdf' }]
+
+    await send(gmailAccounts, {
+      action: 'new',
+      account: 'user1@gmail.com',
+      to: 'r@test.com',
+      subject: 'T',
+      body: 'B',
+      attachments
+    })
+
+    expect(mockSendNewEmail).toHaveBeenCalledWith(gmailAccounts[0], expect.objectContaining({ attachments }))
+  })
 })
 
 // ============================================================================
