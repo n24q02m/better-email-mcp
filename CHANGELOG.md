@@ -2,6 +2,36 @@
 
 <!-- version list -->
 
+## v1.35.0-beta.4 (2026-07-13)
+
+### Bug Fixes
+
+- Correct mention gate expression (balanced parens + precedence)
+  ([#1013](https://github.com/n24q02m/better-email-mcp/pull/1013),
+  [`f409d01`](https://github.com/n24q02m/better-email-mcp/commit/f409d016f8abacb51368683ea86597d8028f2e8c))
+
+- Gate oc mention job on comment author write access
+  ([#1013](https://github.com/n24q02m/better-email-mcp/pull/1013),
+  [`f409d01`](https://github.com/n24q02m/better-email-mcp/commit/f409d016f8abacb51368683ea86597d8028f2e8c))
+
+- Run opencode bot on hosted runners
+  ([#1012](https://github.com/n24q02m/better-email-mcp/pull/1012),
+  [`6c890a9`](https://github.com/n24q02m/better-email-mcp/commit/6c890a95ee4154fa274e38285af2636edc84db7d))
+
+- **deps**: Lock file maintenance ([#1010](https://github.com/n24q02m/better-email-mcp/pull/1010),
+  [`43efe8e`](https://github.com/n24q02m/better-email-mcp/commit/43efe8e5bac2dec4d216c2696a9c67ed6f750b0c))
+
+- **deps**: Update patch dependencies
+  ([#1009](https://github.com/n24q02m/better-email-mcp/pull/1009),
+  [`e90ee4e`](https://github.com/n24q02m/better-email-mcp/commit/e90ee4ee4adfc727f23d0e48b130d35bf3c7f902))
+
+### Features
+
+- Send attachments via base64 payloads symmetric with download
+  ([#1014](https://github.com/n24q02m/better-email-mcp/pull/1014),
+  [`287d26c`](https://github.com/n24q02m/better-email-mcp/commit/287d26c7e11afb7cb2aca487950296628dcf4630))
+
+
 ## v1.35.0-beta.3 (2026-07-12)
 
 ### Bug Fixes
