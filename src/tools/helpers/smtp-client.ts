@@ -10,6 +10,12 @@ import { EmailMCPError } from './errors.js'
 import { EMAIL_SANITIZE_OPTIONS, sanitizeHtml } from './html-utils.js'
 import { ensureValidToken } from './oauth2.js'
 
+export interface EmailAttachment {
+  filename: string
+  content_base64: string
+  content_type?: string
+}
+
 export interface SendEmailOptions {
   to: string
   subject: string
@@ -18,12 +24,65 @@ export interface SendEmailOptions {
   bcc?: string
   in_reply_to?: string
   references?: string
+  attachments?: EmailAttachment[]
 }
 
 export interface SendResult {
   success: boolean
   message_id: string
   raw?: Buffer
+}
+
+const MAX_ATTACHMENT_COUNT = 10
+
+// 25MB is the lowest common total-message-size limit shared by Gmail and Outlook.
+const MAX_ATTACHMENT_TOTAL_BYTES = 25 * 1024 * 1024
+
+/**
+ * Validate attachment count and estimated total size before any payload is decoded.
+ * Size is estimated from base64 length (length * 3/4) so an oversized request is
+ * rejected without paying the cost of decoding every attachment first.
+ */
+function validateAttachments(attachments: EmailAttachment[] | undefined): void {
+  if (!attachments || attachments.length === 0) return
+
+  if (attachments.length > MAX_ATTACHMENT_COUNT) {
+    throw new EmailMCPError(
+      `Too many attachments: ${attachments.length} (max ${MAX_ATTACHMENT_COUNT})`,
+      'VALIDATION_ERROR',
+      `Send at most ${MAX_ATTACHMENT_COUNT} attachments per email`
+    )
+  }
+
+  let estimatedBytes = 0
+  for (let i = 0; i < attachments.length; i++) {
+    estimatedBytes += (attachments[i]!.content_base64.length * 3) / 4
+  }
+
+  if (estimatedBytes > MAX_ATTACHMENT_TOTAL_BYTES) {
+    throw new EmailMCPError(
+      `Attachments too large: ~${(estimatedBytes / (1024 * 1024)).toFixed(1)}MB (max ${MAX_ATTACHMENT_TOTAL_BYTES / (1024 * 1024)}MB)`,
+      'VALIDATION_ERROR',
+      'Reduce attachment size or count'
+    )
+  }
+}
+
+/**
+ * Map base64 attachment payloads to Nodemailer's native attachment format.
+ * Returns undefined (rather than an empty array) when there are no attachments,
+ * so callers can omit the `attachments` key from mailOptions entirely.
+ */
+function mapAttachments(
+  attachments: EmailAttachment[] | undefined
+): Array<{ filename: string; content: Buffer; contentType?: string }> | undefined {
+  if (!attachments || attachments.length === 0) return undefined
+
+  return attachments.map((attachment) => ({
+    filename: attachment.filename,
+    content: Buffer.from(attachment.content_base64, 'base64'),
+    contentType: attachment.content_type
+  }))
 }
 
 /**
@@ -80,6 +139,7 @@ async function buildRawMessage(mailOptions: {
   html: string
   inReplyTo?: string
   references?: string
+  attachments?: Array<{ filename: string; content: Buffer; contentType?: string }>
 }): Promise<Buffer> {
   // Dynamic import to avoid TypeScript issues with Nodemailer's internal module
   const { default: MailComposer } = await import('nodemailer/lib/mail-composer/index.js')
@@ -134,6 +194,9 @@ async function sendRawMessage(
  * Send a new email
  */
 export async function sendNewEmail(account: AccountConfig, options: SendEmailOptions): Promise<SendResult> {
+  validateAttachments(options.attachments)
+  const attachments = mapAttachments(options.attachments)
+
   const mailOptions = {
     from: account.email,
     to: options.to,
@@ -141,7 +204,8 @@ export async function sendNewEmail(account: AccountConfig, options: SendEmailOpt
     bcc: options.bcc,
     subject: options.subject,
     text: options.body,
-    html: textToHtml(options.body)
+    html: textToHtml(options.body),
+    ...(attachments ? { attachments } : {})
   }
 
   const raw = await buildRawMessage(mailOptions)
@@ -167,6 +231,9 @@ export async function replyToEmail(account: AccountConfig, options: SendEmailOpt
     )
   }
 
+  validateAttachments(options.attachments)
+  const attachments = mapAttachments(options.attachments)
+
   const subject = options.subject.startsWith('Re:') ? options.subject : `Re: ${options.subject}`
 
   const mailOptions = {
@@ -178,7 +245,8 @@ export async function replyToEmail(account: AccountConfig, options: SendEmailOpt
     text: options.body,
     html: textToHtml(options.body),
     inReplyTo: options.in_reply_to,
-    references: options.references || options.in_reply_to
+    references: options.references || options.in_reply_to,
+    ...(attachments ? { attachments } : {})
   }
 
   const raw = await buildRawMessage(mailOptions)
@@ -199,6 +267,9 @@ export async function forwardEmail(
   account: AccountConfig,
   options: SendEmailOptions & { original_body: string }
 ): Promise<SendResult> {
+  validateAttachments(options.attachments)
+  const attachments = mapAttachments(options.attachments)
+
   const subject = options.subject.startsWith('Fwd:') ? options.subject : `Fwd: ${options.subject}`
   const body = `${options.body}\n\n---------- Forwarded message ----------\n${options.original_body}`
 
@@ -209,7 +280,8 @@ export async function forwardEmail(
     bcc: options.bcc,
     subject,
     text: body,
-    html: textToHtml(body)
+    html: textToHtml(body),
+    ...(attachments ? { attachments } : {})
   }
 
   const raw = await buildRawMessage(mailOptions)

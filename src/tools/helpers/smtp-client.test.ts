@@ -254,6 +254,29 @@ describe('sendNewEmail', () => {
 
     expect(result.raw).toBe(rawBuf)
   })
+
+  it('does not include an attachments key in mailOptions when none are provided', async () => {
+    await sendNewEmail(account, { to: 'r@test.com', subject: 'T', body: 'B' })
+
+    const composerArgs = (MockMailComposer as any).mock.calls[0]![0]
+    expect(composerArgs).not.toHaveProperty('attachments')
+  })
+
+  it('maps base64 attachments to Nodemailer format', async () => {
+    await sendNewEmail(account, {
+      to: 'r@test.com',
+      subject: 'T',
+      body: 'B',
+      attachments: [
+        { filename: 'a.txt', content_base64: Buffer.from('hello').toString('base64'), content_type: 'text/plain' }
+      ]
+    })
+
+    const composerArgs = (MockMailComposer as any).mock.calls[0]![0]
+    expect(composerArgs.attachments).toEqual([
+      { filename: 'a.txt', content: Buffer.from('hello'), contentType: 'text/plain' }
+    ])
+  })
 })
 
 // ============================================================================
@@ -323,6 +346,21 @@ describe('replyToEmail', () => {
 
     expect(result.raw).toBeInstanceOf(Buffer)
   })
+
+  it('maps base64 attachments to Nodemailer format', async () => {
+    await replyToEmail(account, {
+      to: 'x@test.com',
+      subject: 'Test',
+      body: 'reply',
+      in_reply_to: '<msg@test>',
+      attachments: [{ filename: 'a.txt', content_base64: Buffer.from('hi').toString('base64') }]
+    })
+
+    const composerArgs = (MockMailComposer as any).mock.calls[0]![0]
+    expect(composerArgs.attachments).toEqual([
+      { filename: 'a.txt', content: Buffer.from('hi'), contentType: undefined }
+    ])
+  })
 })
 
 // ============================================================================
@@ -382,6 +420,21 @@ describe('forwardEmail', () => {
     })
 
     expect(result.raw).toBeInstanceOf(Buffer)
+  })
+
+  it('maps base64 attachments to Nodemailer format', async () => {
+    await forwardEmail(account, {
+      to: 'x@test.com',
+      subject: 'Test',
+      body: 'fwd',
+      original_body: 'orig',
+      attachments: [{ filename: 'a.txt', content_base64: Buffer.from('hi').toString('base64') }]
+    })
+
+    const composerArgs = (MockMailComposer as any).mock.calls[0]![0]
+    expect(composerArgs.attachments).toEqual([
+      { filename: 'a.txt', content: Buffer.from('hi'), contentType: undefined }
+    ])
   })
 })
 

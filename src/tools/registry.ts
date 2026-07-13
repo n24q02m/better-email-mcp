@@ -149,7 +149,7 @@ const TOOLS = [
   {
     name: 'send',
     description:
-      'Compose and send emails.\n\nActions (required params -> optional):\n- new (account, to, subject, body -> cc, bcc)\n- reply (account, uid, body -> to, folder): auto-derives recipient, prepends "Re:"\n- forward (account, uid, to, body -> folder): includes original, prepends "Fwd:"\n\nBody: plain text (default) or HTML (<b>, <a href>, <table>). Do NOT mix.',
+      'Compose and send emails.\n\nActions (required params -> optional):\n- new (account, to, subject, body -> cc, bcc, attachments)\n- reply (account, uid, body -> to, folder, attachments): auto-derives recipient, prepends "Re:"\n- forward (account, uid, to, body -> folder, attachments): includes original, prepends "Fwd:"\n\nBody: plain text (default) or HTML (<b>, <a href>, <table>). Do NOT mix.\n\nAttachments: base64 content, same shape as attachments download (filename, content_base64, content_type). Max 10 files, total decoded size <= 25MB.',
     annotations: {
       title: 'Send',
       readOnlyHint: false,
@@ -180,7 +180,20 @@ const TOOLS = [
         cc: { type: 'string', description: 'CC recipients (comma-separated)' },
         bcc: { type: 'string', description: 'BCC recipients (comma-separated)' },
         uid: { type: 'number', description: 'Original email UID (required for reply/forward)' },
-        folder: { type: 'string', description: 'Folder of original email (default: INBOX)' }
+        folder: { type: 'string', description: 'Folder of original email (default: INBOX)' },
+        attachments: {
+          type: 'array',
+          description: 'File attachments to include (optional). Max 10 files, total decoded size <= 25MB.',
+          items: {
+            type: 'object',
+            properties: {
+              filename: { type: 'string', description: 'Attachment filename' },
+              content_base64: { type: 'string', description: 'File content encoded as base64' },
+              content_type: { type: 'string', description: 'MIME type (optional, e.g. application/pdf)' }
+            },
+            required: ['filename', 'content_base64']
+          }
+        }
       },
       required: ['action', 'account', 'body']
     },
