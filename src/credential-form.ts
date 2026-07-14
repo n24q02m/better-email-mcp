@@ -417,12 +417,14 @@ export function renderEmailCredentialForm(
                     toggleBtn.className = "toggle-password-btn";
                     toggleBtn.textContent = "Show";
                     toggleBtn.setAttribute("aria-label", "Show password as plain text");
+                    toggleBtn.setAttribute("title", "Show password as plain text");
                     toggleBtn.setAttribute("aria-pressed", "false");
                     toggleBtn.addEventListener("click", function () {
                         const isPass = input.getAttribute("type") === "password";
                         input.setAttribute("type", isPass ? "text" : "password");
                         toggleBtn.textContent = isPass ? "Hide" : "Show";
                         toggleBtn.setAttribute("aria-label", isPass ? "Hide password" : "Show password as plain text");
+                        toggleBtn.setAttribute("title", isPass ? "Hide password" : "Show password as plain text");
                         toggleBtn.setAttribute("aria-pressed", isPass ? "true" : "false");
                     });
                     wrapper.appendChild(toggleBtn);
@@ -511,6 +513,7 @@ export function renderEmailCredentialForm(
                     if (removeBtn && removeBtn instanceof HTMLElement) {
                         removeBtn.style.display = cards.length > 1 ? "" : "none";
                         removeBtn.setAttribute("aria-label", "Remove " + titleStr);
+                        removeBtn.setAttribute("title", "Remove " + titleStr);
                     }
                 }
             }
@@ -612,6 +615,7 @@ export function renderEmailCredentialForm(
                 removeBtn.className = "remove-btn";
                 removeBtn.textContent = "Remove";
                 removeBtn.setAttribute("aria-label", "Remove Account " + (idx + 1));
+                removeBtn.setAttribute("title", "Remove Account " + (idx + 1));
                 removeBtn.addEventListener("click", function () {
                     var inputs = card.querySelectorAll("input");
                     var hasData = false;
@@ -638,12 +642,16 @@ export function renderEmailCredentialForm(
                     if (focusTarget) {
                         var firstInput = focusTarget.querySelector("input");
                         if (firstInput && firstInput instanceof HTMLElement) {
-                            firstInput.focus();
+                            firstInput.focus({ preventScroll: true });
+                            firstInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                             return;
                         }
                     }
 
-                    if (addBtn) addBtn.focus();
+                    if (addBtn) {
+                        addBtn.focus({ preventScroll: true });
+                        addBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
                 });
                 header.appendChild(removeBtn);
                 card.appendChild(header);
@@ -816,9 +824,11 @@ export function renderEmailCredentialForm(
                 // UX/a11y: immediately focus the copy button (or link fallback) so screen readers
                 // read the context and keyboard users can seamlessly proceed.
                 if (typeof copyBtn !== "undefined" && copyBtn) {
-                    copyBtn.focus();
+                    copyBtn.focus({ preventScroll: true });
+                    copyBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 } else {
-                    link.focus();
+                    link.focus({ preventScroll: true });
+                    link.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }
 
                 statusBox.appendChild(document.createElement("br"));
@@ -879,7 +889,10 @@ export function renderEmailCredentialForm(
                 // Immediately focus the first input field of the new card
                 // so keyboard users can seamlessly start typing.
                 var firstInput = newCard.querySelector("input");
-                if (firstInput) firstInput.focus();
+                if (firstInput) {
+                    firstInput.focus({ preventScroll: true });
+                    firstInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
             });
 
             form.addEventListener("submit", function (evt) {
@@ -893,7 +906,10 @@ export function renderEmailCredentialForm(
                 // carries the novalidate attribute so this is the only validation gate.
                 if (!form.checkValidity()) {
                     var firstInvalid = form.querySelector(":invalid");
-                    if (firstInvalid instanceof HTMLElement) firstInvalid.focus();
+                    if (firstInvalid instanceof HTMLElement) {
+                        firstInvalid.focus({ preventScroll: true });
+                        firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
                     return;
                 }
 
@@ -948,7 +964,8 @@ export function renderEmailCredentialForm(
                                 formFieldset.disabled = false;
                                 submitBtn.removeAttribute("aria-busy");
                                 submitBtn.textContent = "Connect";
-                                submitBtn.focus();
+                                submitBtn.focus({ preventScroll: true });
+                                submitBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                                 return;
                             }
 
@@ -992,7 +1009,8 @@ export function renderEmailCredentialForm(
                         formFieldset.disabled = false;
                         submitBtn.removeAttribute("aria-busy");
                         submitBtn.textContent = "Connect";
-                        submitBtn.focus();
+                        submitBtn.focus({ preventScroll: true });
+                        submitBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     });
             });
         })();
