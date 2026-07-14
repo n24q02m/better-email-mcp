@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v1.35.0 (2026-07-14)
+
+### Bug Fixes
+
+- **deps**: Lock file maintenance ([#1016](https://github.com/n24q02m/better-email-mcp/pull/1016),
+  [`901f3fe`](https://github.com/n24q02m/better-email-mcp/commit/901f3fe21fe303b1f49acdf3179e6c787c0efae3))
+
+- **deps**: Update patch dependencies to ^4.1.10
+  ([#1015](https://github.com/n24q02m/better-email-mcp/pull/1015),
+  [`78cda14`](https://github.com/n24q02m/better-email-mcp/commit/78cda1499dcfe938aa36ef3b792736032751400b))
+
+### Features
+
+- Add smithery.yaml for stdio deployment
+  ([#1017](https://github.com/n24q02m/better-email-mcp/pull/1017),
+  [`d4d651a`](https://github.com/n24q02m/better-email-mcp/commit/d4d651a62ad6a6c670d62b8ee937b8c1042ef14a))
+
+
 ## v1.35.0-beta.4 (2026-07-13)
 
 ### Bug Fixes
