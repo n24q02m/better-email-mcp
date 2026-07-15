@@ -47,6 +47,8 @@ mcp-name: io.github.n24q02m/better-email-mcp
 
 - [Features](#features)
 - [Install](#install)
+- [CLI](#cli)
+- [Smithery](#smithery)
 - [Documentation](#documentation)
 - [Tools](#tools)
 - [Comparison](#comparison)
@@ -95,6 +97,40 @@ The server runs in two modes: **stdio** (default, single-user, credentials from 
 Multiple accounts are comma-separated: `user1@gmail.com:pass1,user2@outlook.com:pass2`. See [Configuration](#configuration) for all env vars, and [Remote (HTTP Mode)](#remote-http-mode) to run a hosted multi-user server.
 
 Most providers use an **App Password** (no OAuth setup); Outlook/Hotmail/Live use a bundled OAuth device-code flow in HTTP mode. Settings (IMAP/SMTP host, port) are auto-discovered from the email domain.
+
+## CLI
+
+The package ships one binary, `better-email-mcp` (run via `npx @n24q02m/better-email-mcp`). With no arguments it starts the MCP server over stdio; it also accepts one flag and one subcommand:
+
+| Invocation | Description |
+|:-----------|:------------|
+| `better-email-mcp` | Start the MCP server over **stdio** (default). Reads credentials from `EMAIL_CREDENTIALS`, or from `EMAIL_USER` + `EMAIL_APP_PASSWORD` |
+| `better-email-mcp --http` | Start the server in **HTTP** (multi-user, OAuth 2.1) mode. Equivalent to `MCP_TRANSPORT=http` or `TRANSPORT_MODE=http` |
+| `better-email-mcp auth <email>` | Authenticate an Outlook/Hotmail/Live account via OAuth2 Device Code flow. Tokens are saved to `~/.better-email-mcp/tokens.json` |
+
+```bash
+# stdio server (normally launched by your MCP client, not by hand)
+EMAIL_CREDENTIALS="user@gmail.com:app-password" npx @n24q02m/better-email-mcp
+
+# HTTP multi-user server
+npx @n24q02m/better-email-mcp --http
+
+# One-off Outlook OAuth device-code sign-in
+npx @n24q02m/better-email-mcp auth user@outlook.com
+```
+
+`auth` is only for Outlook/Hotmail/Live addresses -- other providers use an App Password in `EMAIL_CREDENTIALS`. See [Remote (HTTP Mode)](#remote-http-mode) for the hosted endpoint and HTTP config.
+
+## Smithery
+
+Published with a [Smithery](https://smithery.ai) config ([`smithery.yaml`](smithery.yaml)). Smithery runs the server over **stdio** with no build config required; credentials are supplied at runtime through the server's own setup flow (see [Configuration](#configuration)). The start command is:
+
+```yaml
+startCommand:
+  type: stdio
+  commandFunction: |-
+    (config) => ({ command: 'npx', args: ['-y', '@n24q02m/better-email-mcp'] })
+```
 
 ## Documentation
 
