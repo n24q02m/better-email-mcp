@@ -96,6 +96,11 @@ export function renderEmailCredentialForm(
             padding: 1rem;
             margin-bottom: 0.875rem;
             background-color: #121212;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .account-card:focus-within {
+            border-color: #4a6fa5;
+            box-shadow: 0 0 0 1px rgba(74, 111, 165, 0.2);
         }
         .account-card-header {
             display: flex;
@@ -417,12 +422,14 @@ export function renderEmailCredentialForm(
                     toggleBtn.className = "toggle-password-btn";
                     toggleBtn.textContent = "Show";
                     toggleBtn.setAttribute("aria-label", "Show password as plain text");
+                    toggleBtn.setAttribute("title", "Show password as plain text");
                     toggleBtn.setAttribute("aria-pressed", "false");
                     toggleBtn.addEventListener("click", function () {
                         const isPass = input.getAttribute("type") === "password";
                         input.setAttribute("type", isPass ? "text" : "password");
                         toggleBtn.textContent = isPass ? "Hide" : "Show";
                         toggleBtn.setAttribute("aria-label", isPass ? "Hide password" : "Show password as plain text");
+                        toggleBtn.setAttribute("title", isPass ? "Hide password" : "Show password as plain text");
                         toggleBtn.setAttribute("aria-pressed", isPass ? "true" : "false");
                     });
                     wrapper.appendChild(toggleBtn);
@@ -511,6 +518,7 @@ export function renderEmailCredentialForm(
                     if (removeBtn && removeBtn instanceof HTMLElement) {
                         removeBtn.style.display = cards.length > 1 ? "" : "none";
                         removeBtn.setAttribute("aria-label", "Remove " + titleStr);
+                        removeBtn.setAttribute("title", "Remove " + titleStr);
                     }
                 }
             }
@@ -612,6 +620,7 @@ export function renderEmailCredentialForm(
                 removeBtn.className = "remove-btn";
                 removeBtn.textContent = "Remove";
                 removeBtn.setAttribute("aria-label", "Remove Account " + (idx + 1));
+                removeBtn.setAttribute("title", "Remove Account " + (idx + 1));
                 removeBtn.addEventListener("click", function () {
                     var inputs = card.querySelectorAll("input");
                     var hasData = false;
@@ -799,14 +808,17 @@ export function renderEmailCredentialForm(
                     copyBtn.textContent = "Copy";
                     copyBtn.className = "copy-btn";
                     copyBtn.setAttribute("aria-label", "Copy code to clipboard");
+                    copyBtn.setAttribute("title", "Copy code to clipboard");
                     copyBtn.addEventListener("click", function () {
                         navigator.clipboard.writeText(nextStep.user_code).then(function () {
                             copyBtn.textContent = "Copied!";
                             copyBtn.setAttribute("aria-label", "Code copied to clipboard");
+                            copyBtn.setAttribute("title", "Code copied to clipboard");
                             copyBtn.setAttribute("aria-live", "polite");
                             setTimeout(function () {
                                 copyBtn.textContent = "Copy";
                                 copyBtn.setAttribute("aria-label", "Copy code to clipboard");
+                                copyBtn.setAttribute("title", "Copy code to clipboard");
                             }, 2000);
                         });
                     });

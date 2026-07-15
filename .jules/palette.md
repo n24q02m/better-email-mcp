@@ -103,3 +103,8 @@
 ## 2023-10-27 - Inline Validation and Context-Aware Errors
 **Learning:** Native form validation combined with generic error messages (e.g., "Invalid value") leaves users confused. Additionally, relying solely on "submit" for validation frustrates users, as they must complete the entire form before receiving any feedback.
 **Action:** Enhance native validation events by dynamically using the field's `label` in error messages to provide context. Introduce a `blur` event listener to trigger validation specifically on fields the user has touched, providing immediate feedback while maintaining accessibility.
+
+## 2023-10-27 - Icon Button Tooltips and Spatial Orientation
+
+**Learning:** When navigating dynamic forms with repeated interactive elements, adding `:focus-within` to container cards helps maintain spatial orientation for keyboard users. Furthermore, relying only on `aria-label` for icon-like or sparse-text action buttons (like toggles, copies, or removals) leaves sighted pointer users guessing their exact function, especially if iconography is ambiguous.
+**Action:** Use `:focus-within` to apply prominent focus styling to repeating parent containers. Always complement existing `aria-label` attributes on icon-like or secondary action buttons with the native HTML `title` attribute to provide visible tooltip hints on hover for sighted users.
