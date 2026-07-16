@@ -8,8 +8,8 @@
  *  - stdio mode (default): credentials come from env vars
  *    (EMAIL_PROVIDER + EMAIL_USER + EMAIL_APP_PASSWORD), validated up-front in
  *    `init-server.ts`. No relay form spawn.
- *  - http mode (opt-in): credentials are pasted into the multi-account
- *    `renderEmailCredentialForm` served by `transports/http.ts`. The HTTP
+ *  - http mode (opt-in): credentials are entered into mcp-core's shared
+ *    card-group credential form served by `transports/http.ts`. The HTTP
  *    transport runs `runLocalServer` directly — there is no separate
  *    "trigger relay setup" path anymore (deleted 2026-05-01 per spec
  *    2026-05-01-stdio-pure-http-multiuser.md §5.2.1).

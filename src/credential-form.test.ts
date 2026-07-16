@@ -1,119 +1,70 @@
-import type { RelayConfigSchema } from '@n24q02m/mcp-core'
+import { renderCredentialForm } from '@n24q02m/mcp-core'
 import { describe, expect, it } from 'vitest'
 
-import { renderEmailCredentialForm } from './credential-form.js'
+import { RELAY_SCHEMA } from './relay-schema.js'
 
-const schema: RelayConfigSchema = {
-  server: 'better-email-mcp',
-  displayName: 'Email MCP',
-  fields: []
-}
+/**
+ * The forked `renderEmailCredentialForm` was dropped in favour of mcp-core's
+ * shared `renderCredentialForm` driven by the `cardGroup` schema (RELAY_SCHEMA).
+ * These tests pin the served-form contract that the de-fork must preserve:
+ * same field set, Add/Remove card controls, and an `accounts`-array submit.
+ */
+describe('email credential form (core card-group renderer)', () => {
+  const render = (submitUrl: string) => renderCredentialForm(RELAY_SCHEMA, { submitUrl })
 
-describe('renderEmailCredentialForm', () => {
-  it('returns complete HTML document', () => {
-    const html = renderEmailCredentialForm(schema, { submitUrl: '/authorize?nonce=abc' })
+  it('returns a complete HTML document titled with the display name', () => {
+    const html = render('/authorize?nonce=abc')
     expect(html).toContain('<!DOCTYPE html>')
     expect(html).toContain('Email MCP')
   })
 
-  it('includes account container and Add Account button', () => {
-    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
-    expect(html).toMatch(/accounts-container|account-card/i)
+  it('renders the repeatable card group with an Add-account control', () => {
+    const html = render('/auth')
+    expect(html).toContain('card-group-container')
+    expect(html).toContain('card-group-add')
     expect(html).toContain('Add Another Account')
   })
 
-  it('includes domain auto-detect JS for gmail', () => {
-    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
-    expect(html).toContain('gmail.com')
-    expect(html).toContain('myaccount.google.com/apppasswords')
+  it('exposes Remove-card controls for the multi-account contract', () => {
+    const html = render('/auth')
+    expect(html).toContain('card-group-remove')
   })
 
-  it('includes Outlook domains list', () => {
-    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
-    expect(html).toContain('outlook.com')
-    expect(html).toContain('hotmail.com')
-    expect(html).toContain('live.com')
+  it('carries every account field (email, password, IMAP host + port)', () => {
+    const html = render('/auth')
+    expect(html).toContain('"email"')
+    expect(html).toContain('"password"')
+    expect(html).toContain('"imap_host"')
+    expect(html).toContain('"imap_port"')
   })
 
-  it('POSTs to provided submitUrl', () => {
-    const html = renderEmailCredentialForm(schema, { submitUrl: '/authorize?nonce=xyz' })
+  it('titles each card by the email field', () => {
+    const html = render('/auth')
+    // titleField is threaded into the card-group script as TITLE_FIELD.
+    expect(html).toMatch(/TITLE_FIELD\s*=\s*"email"/)
+  })
+
+  it('submits accounts as a JSON array under the group key', () => {
+    const html = render('/auth')
+    expect(html).toMatch(/GROUP_KEY\s*=\s*"accounts"/)
+    expect(html).toContain('payload[GROUP_KEY] = items')
+  })
+
+  it('POSTs to the provided submitUrl', () => {
+    const html = render('/authorize?nonce=xyz')
     expect(html).toContain('/authorize?nonce=xyz')
   })
 
-  it('uses safe DOM methods (createElement + textContent)', () => {
-    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
-    expect(html).toContain('createElement')
-    expect(html).toContain('textContent')
-  })
-
-  it('formats EMAIL_CREDENTIALS as comma-separated email:password pairs', () => {
-    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
-    expect(html).toContain('EMAIL_CREDENTIALS')
-  })
-
-  it('shows original Outlook OAuth2 notice (auto-handled by server)', () => {
-    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
-    // No more "Phase L2" / "not supported" / "coming soon" language.
-    expect(html).not.toMatch(/Phase L2/i)
-    expect(html).not.toMatch(/not supported yet/i)
-    expect(html).not.toMatch(/coming soon/i)
-    // Keep the original notice.
-    expect(html).toMatch(/Outlook[^"]*OAuth2?[^"]*handled automatically/i)
-  })
-
-  it('handles oauth_device_code response with verification URL + user code', () => {
-    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
+  it('retains the Outlook device-code follow-up (poll for s.outlook complete)', () => {
+    const html = render('/auth')
     expect(html).toContain('oauth_device_code')
-    expect(html).toContain('verification_url')
-    expect(html).toContain('user_code')
-  })
-
-  it('polls /setup-status for outlook === "complete"', () => {
-    const html = renderEmailCredentialForm(schema, { submitUrl: '/authorize?nonce=abc' })
+    expect(html).toMatch(/s\.outlook\s*===\s*"complete"/)
     expect(html).toContain('/setup-status')
-    expect(html).toMatch(/s\.outlook\s*===\s*["']complete["']/)
   })
 
-  it('no longer blocks submit when only Outlook accounts are present', () => {
-    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
-    // Previous behavior: showStatus("error", ... "Phase L2" ...). Gone now.
-    expect(html).not.toMatch(/Outlook[^"]*not supported yet/i)
-    expect(html).not.toMatch(/Remove any Outlook accounts/i)
-  })
-
-  it('renders an optional IMAP Port field for custom domains (issue #610)', () => {
-    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
-    expect(html).toContain('IMAP Port')
-    expect(html).toContain('imapport')
-  })
-
-  it('mentions localhost / proxy support in the IMAP host help text', () => {
-    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
-    expect(html).toMatch(/localhost/i)
-  })
-
-  it('appends a custom IMAP port to the credential string when provided', () => {
-    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
-    // The submit encoder builds email:password:host[:port] from collected fields.
-    expect(html).toContain('imapSpec')
-    expect(html).toContain('a.imapPort')
-  })
-
-  it('ties the form to its heading via aria-labelledby (WCAG name, role, value)', () => {
-    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
-    expect(html).toMatch(/<h2[^>]*id="form-heading"/)
-    expect(html).toMatch(/<form[^>]*aria-labelledby="form-heading"/)
-  })
-
-  it('validates on submit and focuses the first invalid field (WCAG 3.3.1 / 2.4.3)', () => {
-    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
-    expect(html).toContain('form.checkValidity()')
-    expect(html).toContain('querySelector(":invalid")')
-    expect(html).toContain('instanceof HTMLElement')
-  })
-
-  it('announces the Outlook device-code waiting region politely (aria-live)', () => {
-    const html = renderEmailCredentialForm(schema, { submitUrl: '/auth' })
-    expect(html).toContain('waiting.setAttribute("aria-live", "polite")')
+  it('mentions Outlook OAuth handling + App Password guidance in the schema copy', () => {
+    const html = render('/auth')
+    expect(html).toMatch(/Outlook[^<]*OAuth2/i)
+    expect(html).toMatch(/App Password/i)
   })
 })
