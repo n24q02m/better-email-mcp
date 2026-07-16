@@ -14,7 +14,8 @@ vi.mock('@modelcontextprotocol/sdk/server/index.js', () => ({
 
 vi.mock('@n24q02m/mcp-core', () => ({
   runHttpServer: vi.fn(),
-  writeConfig: vi.fn()
+  writeConfig: vi.fn(),
+  renderCredentialForm: vi.fn()
 }))
 
 vi.mock('imapflow', () => ({
@@ -279,8 +280,8 @@ describe('http transport', () => {
     })
 
     it('handles Outlook OAuth2 completion and flips setup-status outlook key to complete', async () => {
-      // Regression for 2026-05-03 bug: form's polling JS at
-      // src/credential-form.ts:564 checks ``s.outlook === "complete"`` but
+      // Regression for 2026-05-03 bug: the card-group form's polling JS
+      // (mcp-core CARD_GROUP_SCRIPT) checks ``s.outlook === "complete"`` but
       // ``setMarkSetupComplete`` was wired without the producer side ever
       // calling ``markSetupCompleteFn("outlook")`` after Microsoft token save
       // → form spinner stuck on "Waiting for Microsoft authorization..."
@@ -398,6 +399,62 @@ describe('http transport', () => {
       // But we are interested in registerTools calls.
       // In some environments, registerTools is called before we reach here.
       // Just ensuring it was called at some point.
+    })
+
+    describe('card-group accounts[] submit shape', () => {
+      it('encodes an accounts array into EMAIL_CREDENTIALS and runs the pipeline', async () => {
+        const mockAccounts = [{ email: 'test@gmail.com', imap: {}, authType: 'password' }]
+        vi.mocked(parseCredentials).mockResolvedValue(mockAccounts as any)
+        vi.mocked(isOutlookDomain).mockReturnValue(false)
+
+        const result = await onCredentialsSaved({ accounts: [{ email: 'test@gmail.com', password: 'pass' }] })
+
+        expect(parseCredentials).toHaveBeenCalledWith('test@gmail.com:pass')
+        expect(writeConfig).toHaveBeenCalledWith('better-email-mcp', { EMAIL_CREDENTIALS: 'test@gmail.com:pass' })
+        expect(setState).toHaveBeenCalledWith('configured')
+        expect(result).toBeNull()
+      })
+
+      it('encodes a custom IMAP host + port from the card fields', async () => {
+        const mockAccounts = [{ email: 'test@custom.com', imap: {}, authType: 'password' }]
+        vi.mocked(parseCredentials).mockResolvedValue(mockAccounts as any)
+        vi.mocked(isOutlookDomain).mockReturnValue(false)
+
+        await onCredentialsSaved({
+          accounts: [{ email: 'test@custom.com', password: 'pass', imap_host: 'imap.custom.com', imap_port: '1993' }]
+        })
+
+        expect(parseCredentials).toHaveBeenCalledWith('test@custom.com:pass:imap.custom.com:1993')
+      })
+
+      it('drops the password for an Outlook card and triggers device code', async () => {
+        const mockAccounts = [{ email: 'test@outlook.com', imap: {}, authType: 'oauth2' }]
+        vi.mocked(parseCredentials).mockResolvedValue(mockAccounts as any)
+        vi.mocked(isOutlookDomain).mockReturnValue(true)
+        vi.mocked(initiateOutlookDeviceCode).mockResolvedValue({
+          verificationUri: 'https://microsoft.com/devicelogin',
+          userCode: 'ABCD-EFGH'
+        } as any)
+
+        const result = await onCredentialsSaved({ accounts: [{ email: 'test@outlook.com', password: '' }] })
+
+        // Outlook card assembles to email-only, so the parsed string carries no password.
+        expect(parseCredentials).toHaveBeenCalledWith('test@outlook.com')
+        expect(result).toEqual({
+          type: 'oauth_device_code',
+          verification_url: 'https://microsoft.com/devicelogin',
+          user_code: 'ABCD-EFGH',
+          email: 'test@outlook.com'
+        })
+      })
+
+      it('returns the missing-credentials error for an empty accounts array', async () => {
+        const result = await onCredentialsSaved({ accounts: [] })
+        expect(result).toEqual({
+          type: 'error',
+          text: 'Email credentials are required. Format: email:app-password'
+        })
+      })
     })
   })
 })

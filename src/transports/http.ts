@@ -3,10 +3,13 @@
  *
  * Per spec 2026-05-01-stdio-pure-http-multiuser.md §5.2.1, the legacy
  * `MCP_MODE = 'remote-relay' | 'local-relay'` distinction is gone. HTTP mode
- * always serves the multi-account `renderEmailCredentialForm` (Gmail / Yahoo /
- * iCloud / custom IMAP via paste form, OR Outlook OAuth via the bundled
- * Azure AD public client_id `d56f8c71-9f7c-43f4-9934-be29cb6e77b0` already in
- * `tools/helpers/oauth2.ts`). Per-user credential isolation is keyed by JWT
+ * always serves mcp-core's shared card-group credential form
+ * (`renderCredentialForm` driven by `RELAY_SCHEMA.cardGroup`) — one card per
+ * account (Gmail / Yahoo / iCloud / custom IMAP via paste, OR Outlook OAuth via
+ * the bundled Azure AD public client_id `d56f8c71-9f7c-43f4-9934-be29cb6e77b0`
+ * in `tools/helpers/oauth2.ts`). The form submits an `accounts` array that
+ * `onCredentialsSaved` re-encodes into `EMAIL_CREDENTIALS` via
+ * `assembleEmailCredentials`. Per-user credential isolation is keyed by JWT
  * `sub` issued by the local OAuth 2.1 AS in mcp-core.
  *
  * Lifecycle:
@@ -18,14 +21,13 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import type { NextStep, RelayConfigSchema, RunHttpServerOptions, SubjectContext } from '@n24q02m/mcp-core'
-import { runHttpServer, writeConfig } from '@n24q02m/mcp-core'
+import type { NextStep, RunHttpServerOptions, SubjectContext } from '@n24q02m/mcp-core'
+import { renderCredentialForm, runHttpServer, writeConfig } from '@n24q02m/mcp-core'
 import { ImapFlow } from 'imapflow'
 
 import { PerSubCredStore } from '../auth/cred-store.js'
 import { type CredStoreLike, InMemoryCredStore } from '../auth/in-memory-cred-store.js'
 import { subjectContext } from '../auth/subject-context.js'
-import { renderEmailCredentialForm } from '../credential-form.js'
 import {
   getMarkSetupComplete,
   resolveCredentialState,
@@ -34,6 +36,7 @@ import {
   setState
 } from '../credential-state.js'
 import { RELAY_SCHEMA } from '../relay-schema.js'
+import { assembleEmailCredentials, type EmailAccountCard } from '../relay-setup.js'
 import { type AccountConfig, loadConfig, parseCredentials } from '../tools/helpers/config.js'
 import { initiateOutlookDeviceCode, isOutlookDomain, setOutlookTokenStore } from '../tools/helpers/oauth2.js'
 import { registerTools } from '../tools/registry.js'
@@ -168,7 +171,12 @@ function buildOptions(args: {
     creds: Record<string, string>,
     context: SubjectContext
   ): Promise<NextStep | null> => {
-    const raw = creds?.EMAIL_CREDENTIALS?.trim()
+    // The card-group form POSTs `{ accounts: [{ email, password, imap_host,
+    // imap_port }, ...] }`; encode it into the EMAIL_CREDENTIALS string here.
+    // A direct `EMAIL_CREDENTIALS` string (legacy / non-form POST) is still
+    // accepted so the credential contract stays backward-compatible.
+    const submitted = creds as { EMAIL_CREDENTIALS?: string; accounts?: EmailAccountCard[] }
+    const raw = submitted?.EMAIL_CREDENTIALS?.trim() || assembleEmailCredentials(submitted?.accounts)
     if (!raw) {
       return { type: 'error', text: 'Email credentials are required. Format: email:app-password' }
     }
@@ -249,11 +257,11 @@ function buildOptions(args: {
 
   return {
     serverName: SERVER_NAME,
-    relaySchema: RELAY_SCHEMA as unknown as RelayConfigSchema,
+    relaySchema: RELAY_SCHEMA,
     port,
     host,
     onCredentialsSaved,
-    customCredentialFormHtml: renderEmailCredentialForm,
+    customCredentialFormHtml: renderCredentialForm,
     setupCompleteHook: (markComplete: (key?: string) => void) => {
       setMarkSetupComplete(markComplete)
     }
