@@ -67,7 +67,7 @@ src/
   - Local IMAP proxy: `user@custom.com:password:localhost:1993` (`localhost` accepted as host; per-account port)
 - **http mode** (opt-in via `--http`, `MCP_TRANSPORT=http`, or `TRANSPORT_MODE=http`): `PUBLIC_URL` (for relay/OAuth redirect URLs). Per-user credentials are held in an in-memory store (`auth/in-memory-cred-store.ts`, keyed by JWT `sub`, cleared on restart). `MCP_AUTH_DISABLE=1` skips Bearer JWT verification (for deploys behind an external auth gateway).
 - `PORT` (default `0` = OS-assigned random port), `HOST` (optional bind address)
-- `OUTLOOK_CLIENT_ID` -- tu chon, cho self-hosted OAuth2 client
+- `OUTLOOK_CLIENT_ID` -- tu chon, cho self-hosted OAuth2 client. CLI `auth --client-id=<id>` override env var (flag thang env, xem `auth-cli.ts:parseArgs`)
 
 ## Code conventions
 

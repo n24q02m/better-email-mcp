@@ -1,13 +1,13 @@
 /**
  * Better Email MCP Server Starter
  *
- * Wired via mcp-core's buildCli: `auth` subcommand routes to the OAuth2
- * device-code CLI (extra handler); bare/flag argv starts the MCP server
- * (config/relay/doctor/--version/-h built in).
+ * Wired via mcp-core's buildCli: `auth`/`logout` subcommands route to the
+ * OAuth2 device-code CLI (extra handlers); bare/flag argv starts the MCP
+ * server (config/relay/doctor/--version/-h built in).
  */
 
 import { buildCli } from '@n24q02m/mcp-core'
-import { runAuth } from '../src/auth-cli.js'
+import { runAuth, runLogout } from '../src/auth-cli.js'
 import { getVersion, initServer } from '../src/init-server.js'
 
 const SERVER_NAME = 'better-email-mcp'
@@ -53,6 +53,10 @@ buildCli(SERVER_NAME, {
   extra: {
     auth: async () => {
       await runAuth()
+      return 0
+    },
+    logout: async () => {
+      await runLogout()
       return 0
     }
   }

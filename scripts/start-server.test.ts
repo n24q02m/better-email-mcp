@@ -3,11 +3,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setHomeDirForTesting } from '@n24q02m/mcp-core/storage'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { runAuth } from '../src/auth-cli.js'
+import { runAuth, runLogout } from '../src/auth-cli.js'
 import { initServer } from '../src/init-server.js'
 
 vi.mock('../src/auth-cli.js', () => ({
-  runAuth: vi.fn()
+  runAuth: vi.fn(),
+  runLogout: vi.fn()
 }))
 
 vi.mock('../src/init-server.js', () => ({
@@ -48,6 +49,18 @@ describe('start-server (buildCli wiring)', () => {
     await vi.waitFor(() => expect(runAuth).toHaveBeenCalled())
 
     expect(runAuth).toHaveBeenCalled()
+    expect(initServer).not.toHaveBeenCalled()
+    expect(process.exit).toHaveBeenCalledWith(0)
+  })
+
+  it('routes the "logout" subcommand to runLogout and does not start the server', async () => {
+    process.argv.push('logout')
+    vi.mocked(runLogout).mockResolvedValue(undefined)
+
+    await import('./start-server.js')
+    await vi.waitFor(() => expect(runLogout).toHaveBeenCalled())
+
+    expect(runLogout).toHaveBeenCalled()
     expect(initServer).not.toHaveBeenCalled()
     expect(process.exit).toHaveBeenCalledWith(0)
   })

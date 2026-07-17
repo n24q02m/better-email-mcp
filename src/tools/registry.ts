@@ -202,7 +202,7 @@ const TOOLS = [
   {
     name: 'config',
     description:
-      'Manage email credential setup and runtime configuration.\n\nSetup actions (credential lifecycle):\n- status: Show current credential state, setup URL, and configured accounts\n- setup_start (-> force): Trigger relay setup session and return the setup URL. Set force=true to restart even if already in progress\n- setup_reset: Clear all saved credentials and reset to awaiting_setup state\n- setup_complete: Re-check credential state after external config changes (e.g. relay submission)\n\nRuntime actions:\n- set: Update runtime settings (email has no runtime settings; returns ok=false)\n- cache_clear: Clear in-memory account and OAuth token caches',
+      'Manage email credential setup and runtime configuration.\n\nSetup actions (credential lifecycle):\n- status: Show current credential state, setup URL, and configured accounts\n- setup_status: Show credential state and setup URL only (no accounts list; cross-server parity action)\n- setup_start (-> force): Trigger relay setup session and return the setup URL. Set force=true to restart even if already in progress\n- setup_reset: Clear all saved credentials and reset to awaiting_setup state\n- setup_complete: Re-check credential state after external config changes (e.g. relay submission)\n\nRuntime actions:\n- set: Update runtime settings (email has no runtime settings; returns ok=false)\n- cache_clear: Clear in-memory account and OAuth token caches',
     annotations: {
       title: 'Config',
       readOnlyHint: false,
@@ -215,7 +215,7 @@ const TOOLS = [
       properties: {
         action: {
           type: 'string',
-          enum: ['status', 'setup_start', 'setup_reset', 'setup_complete', 'set', 'cache_clear'],
+          enum: ['status', 'setup_status', 'setup_start', 'setup_reset', 'setup_complete', 'set', 'cache_clear'],
           description: 'Action to perform'
         },
         force: {

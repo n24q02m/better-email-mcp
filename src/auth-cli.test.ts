@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { runAuth } from './auth-cli.js'
-import { deviceCodeAuth, isOutlookDomain } from './tools/helpers/oauth2.js'
+import { runAuth, runLogout } from './auth-cli.js'
+import { deleteStoredTokens, deviceCodeAuth, isOutlookDomain } from './tools/helpers/oauth2.js'
 
 vi.mock('./tools/helpers/oauth2.js', () => ({
   deviceCodeAuth: vi.fn(),
-  isOutlookDomain: vi.fn()
+  isOutlookDomain: vi.fn(),
+  deleteStoredTokens: vi.fn()
 }))
 
 describe('runAuth', () => {
@@ -34,7 +35,7 @@ describe('runAuth', () => {
   it('should exit with 1 and print usage if no email is provided', async () => {
     await expect(runAuth()).rejects.toThrow('process.exit called with 1')
 
-    expect(console.error).toHaveBeenCalledWith('Usage: better-email-mcp auth <email>')
+    expect(console.error).toHaveBeenCalledWith('Usage: better-email-mcp auth [outlook] <email> [--client-id=<id>]')
     expect(console.error).toHaveBeenCalledWith('Example: better-email-mcp auth user@outlook.com')
     expect(console.error).toHaveBeenCalledWith('')
     expect(console.error).toHaveBeenCalledWith(
@@ -107,5 +108,97 @@ describe('runAuth', () => {
 
     expect(console.error).toHaveBeenCalledWith('\nError: String error')
     expect(process.exit).toHaveBeenCalledWith(1)
+  })
+
+  it('should accept an optional leading "outlook" provider positional', async () => {
+    process.argv.push('outlook', 'user@outlook.com')
+    vi.mocked(isOutlookDomain).mockReturnValue(true)
+    vi.mocked(deviceCodeAuth).mockResolvedValue({} as any)
+
+    await runAuth()
+
+    expect(isOutlookDomain).toHaveBeenCalledWith('user@outlook.com')
+    expect(deviceCodeAuth).toHaveBeenCalledWith('user@outlook.com')
+  })
+
+  it('should thread a --client-id=<id> flag through to deviceCodeAuth', async () => {
+    process.argv.push('user@outlook.com', '--client-id=my-azure-app')
+    vi.mocked(isOutlookDomain).mockReturnValue(true)
+    vi.mocked(deviceCodeAuth).mockResolvedValue({} as any)
+
+    await runAuth()
+
+    expect(deviceCodeAuth).toHaveBeenCalledWith('user@outlook.com', 'my-azure-app')
+  })
+
+  it('should thread a separate --client-id <id> flag through to deviceCodeAuth', async () => {
+    process.argv.push('user@outlook.com', '--client-id', 'my-azure-app')
+    vi.mocked(isOutlookDomain).mockReturnValue(true)
+    vi.mocked(deviceCodeAuth).mockResolvedValue({} as any)
+
+    await runAuth()
+
+    expect(deviceCodeAuth).toHaveBeenCalledWith('user@outlook.com', 'my-azure-app')
+  })
+})
+
+describe('runLogout', () => {
+  const originalArgv = process.argv
+  const originalConsoleError = console.error
+
+  beforeEach(() => {
+    process.argv = ['node', 'script.js', 'logout']
+    console.error = vi.fn()
+  })
+
+  afterEach(() => {
+    process.argv = originalArgv
+    console.error = originalConsoleError
+    vi.clearAllMocks()
+  })
+
+  it('deletes the token for the given email and reports it', async () => {
+    process.argv.push('user@outlook.com')
+    vi.mocked(deleteStoredTokens).mockResolvedValue(['user@outlook.com'])
+
+    await runLogout()
+
+    expect(deleteStoredTokens).toHaveBeenCalledWith('user@outlook.com')
+    expect(console.error).toHaveBeenCalledWith('Logged out. Cleared token(s) for: user@outlook.com')
+  })
+
+  it('accepts an optional leading "outlook" provider positional', async () => {
+    process.argv.push('outlook', 'user@outlook.com')
+    vi.mocked(deleteStoredTokens).mockResolvedValue(['user@outlook.com'])
+
+    await runLogout()
+
+    expect(deleteStoredTokens).toHaveBeenCalledWith('user@outlook.com')
+  })
+
+  it('clears every stored token when no email is given', async () => {
+    vi.mocked(deleteStoredTokens).mockResolvedValue(['a@outlook.com', 'b@outlook.com'])
+
+    await runLogout()
+
+    expect(deleteStoredTokens).toHaveBeenCalledWith(undefined)
+    expect(console.error).toHaveBeenCalledWith('Logged out. Cleared token(s) for: a@outlook.com, b@outlook.com')
+  })
+
+  it('reports nothing to log out when there is no saved token for the email', async () => {
+    process.argv.push('user@outlook.com')
+    vi.mocked(deleteStoredTokens).mockResolvedValue([])
+
+    await runLogout()
+
+    expect(console.error).toHaveBeenCalledWith('Nothing to log out (no saved token for user@outlook.com).')
+  })
+
+  it('reports nothing to log out when there are no saved tokens at all', async () => {
+    vi.mocked(deleteStoredTokens).mockResolvedValue([])
+
+    await runLogout()
+
+    expect(console.error).toHaveBeenCalledWith('Nothing to log out (no saved Outlook tokens).')
   })
 })

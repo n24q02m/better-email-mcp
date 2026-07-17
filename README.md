@@ -106,7 +106,8 @@ The package ships one binary, `better-email-mcp` (run via `npx @n24q02m/better-e
 |:-----------|:------------|
 | `better-email-mcp` | Start the MCP server over **stdio** (default). Reads credentials from `EMAIL_CREDENTIALS`, or from `EMAIL_USER` + `EMAIL_APP_PASSWORD` |
 | `better-email-mcp --http` | Start the server in **HTTP** (multi-user, OAuth 2.1) mode. Equivalent to `MCP_TRANSPORT=http` or `TRANSPORT_MODE=http` |
-| `better-email-mcp auth <email>` | Authenticate an Outlook/Hotmail/Live account via OAuth2 Device Code flow. Tokens are saved to `~/.better-email-mcp/tokens.json` |
+| `better-email-mcp auth [outlook] <email> [--client-id=<id>]` | Authenticate an Outlook/Hotmail/Live account via OAuth2 Device Code flow. Tokens are saved to `~/.better-email-mcp/tokens.json`. The `outlook` provider positional is optional (email has a single OAuth2 provider); `--client-id` overrides `OUTLOOK_CLIENT_ID` for a self-hosted Azure AD app |
+| `better-email-mcp logout [<email>]` | Clear the locally stored Outlook token(s). Omit `<email>` to clear every stored token |
 
 ```bash
 # stdio server (normally launched by your MCP client, not by hand)
@@ -117,9 +118,12 @@ npx @n24q02m/better-email-mcp --http
 
 # One-off Outlook OAuth device-code sign-in
 npx @n24q02m/better-email-mcp auth user@outlook.com
+
+# Sign out of a single account (or omit the email to clear all)
+npx @n24q02m/better-email-mcp logout user@outlook.com
 ```
 
-`auth` is only for Outlook/Hotmail/Live addresses -- other providers use an App Password in `EMAIL_CREDENTIALS`. See [Remote (HTTP Mode)](#remote-http-mode) for the hosted endpoint and HTTP config.
+`auth`/`logout` are only for Outlook/Hotmail/Live addresses -- other providers use an App Password in `EMAIL_CREDENTIALS`. See [Remote (HTTP Mode)](#remote-http-mode) for the hosted endpoint and HTTP config.
 
 ## Smithery
 
@@ -153,7 +157,7 @@ Full docs at **[mcp.n24q02m.com/servers/better-email-mcp/setup/](https://mcp.n24
 | `folders` | `list` | List mailbox folders |
 | `attachments` | `list`, `download` | List and download email attachments |
 | `send` | `new`, `reply`, `forward` | Compose, reply, and forward emails |
-| `config` | `status`, `setup_start`, `setup_reset`, `setup_complete`, `set`, `cache_clear` | Credential setup via browser relay, status check, reset, re-resolve, cache clear |
+| `config` | `status`, `setup_status`, `setup_start`, `setup_reset`, `setup_complete`, `set`, `cache_clear` | Credential setup via browser relay, status check, reset, re-resolve, cache clear |
 | `config__open_relay` | - | Open the relay configuration form in the browser and return the relay URL |
 | `help` | - | Get full documentation for any tool |
 
@@ -253,7 +257,7 @@ In **stdio mode**, Outlook accounts use an **App Password** instead (Outlook Acc
 | `PORT` | No | `0` (OS-assigned) | Server port (http mode); set explicitly (e.g. `8080`) to bind a fixed port |
 | `HOST` | No | - | Bind address (http mode) |
 | `MCP_AUTH_DISABLE` | No (http) | - | Set to `1` to skip Bearer JWT verification when behind an external auth gateway |
-| `OUTLOOK_CLIENT_ID` | No | `d56f8c71-9f7c-43f4-9934-be29cb6e77b0` (bundled public client) | Override the bundled Azure AD public client for self-hosted Outlook OAuth2 |
+| `OUTLOOK_CLIENT_ID` | No | `d56f8c71-9f7c-43f4-9934-be29cb6e77b0` (bundled public client) | Override the bundled Azure AD public client for self-hosted Outlook OAuth2 (or `--client-id=<id>` on `auth`, which overrides this env var) |
 | `OUTLOOK_EMAIL` | No | - | Workaround when Microsoft device-code response omits the email field |
 
 ### Multiple Accounts

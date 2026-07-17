@@ -312,6 +312,48 @@ export async function saveTokens(email: string, tokens: OAuth2Tokens, sub?: stri
 }
 
 /**
+ * Delete stored OAuth2 token(s) from the local file store (single-user /
+ * stdio CLI scope only -- HTTP multi-user tokens live in the per-sub KV blob
+ * and are cleared via account-level ``config`` actions, not this CLI path).
+ * Omitting ``email`` clears every stored token. Returns the email keys that
+ * were actually removed (empty array if there was nothing to delete).
+ */
+export async function deleteStoredTokens(email?: string): Promise<string[]> {
+  if (!existsSync(TOKEN_FILE)) {
+    cachedTokenStore = null
+    return []
+  }
+
+  let store: TokenStore
+  try {
+    const data = readFileSync(TOKEN_FILE, 'utf-8')
+    store = parseTokenStore(data) ?? {}
+  } catch {
+    store = {}
+  }
+
+  const deleted: string[] = []
+  if (email) {
+    const key = email.toLowerCase()
+    if (store[key]) {
+      delete store[key]
+      deleted.push(key)
+    }
+  } else {
+    deleted.push(...Object.keys(store))
+    store = {}
+  }
+
+  if (deleted.length === 0) {
+    return deleted
+  }
+
+  cachedTokenStore = store
+  writeFileSync(TOKEN_FILE, JSON.stringify(store, null, 2), { mode: 0o600 })
+  return deleted
+}
+
+/**
  * Legacy email-keyed ``tokens.json`` write (single-user / stdio). Synchronous so
  * the file side-effect runs before ``saveTokens`` yields — preserving the
  * historical fire-and-forget contract. Creates the config dir if needed; 0600.
