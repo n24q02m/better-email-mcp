@@ -24,7 +24,7 @@ const SERVER_NAME = 'better-email-mcp'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-function getVersion(): string {
+export function getVersion(): string {
   // Walk up from __dirname to find package.json.
   // Needed because __dirname differs between contexts:
   //   - src/          (dev via tsx)
