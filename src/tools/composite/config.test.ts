@@ -139,6 +139,50 @@ describe('config - status', () => {
   })
 })
 
+describe('config - setup_status', () => {
+  it('returns credential state without the accounts list', async () => {
+    mockGetState.mockReturnValue('configured')
+    mockGetSetupUrl.mockReturnValue(null)
+
+    const result = await handleConfig(accounts, { action: 'setup_status' })
+
+    expect(result).toEqual({
+      action: 'setup_status',
+      state: 'configured',
+      setup_url: null
+    })
+    expect(result).not.toHaveProperty('accounts')
+  })
+
+  it('returns setup URL when in setup_in_progress state', async () => {
+    mockGetState.mockReturnValue('setup_in_progress')
+    mockGetSetupUrl.mockReturnValue('https://relay.example.com/setup/abc123')
+
+    const result = await handleConfig(accounts, { action: 'setup_status' })
+
+    expect(result).toEqual({
+      action: 'setup_status',
+      state: 'setup_in_progress',
+      setup_url: 'https://relay.example.com/setup/abc123'
+    })
+  })
+
+  it('derives configured state from per-sub accounts in multi-user mode (same as status)', async () => {
+    mockGetState.mockReturnValue('awaiting_setup')
+    mockGetSetupUrl.mockReturnValue(null)
+
+    const result = await subjectContext.run({ sub: 'sub-123', accounts }, () =>
+      handleConfig(accounts, { action: 'setup_status' })
+    )
+
+    expect(result).toEqual({
+      action: 'setup_status',
+      state: 'configured',
+      setup_url: null
+    })
+  })
+})
+
 describe('config - setup_start', () => {
   it('returns current state and setup URL without triggering relay spawn', async () => {
     mockGetState.mockReturnValue('awaiting_setup')

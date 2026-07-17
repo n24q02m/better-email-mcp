@@ -4,7 +4,7 @@
  * Replaces the former `setup` tool with canonical name `config`.
  *
  * Setup actions (credential lifecycle):
- *   status, setup_start, setup_reset, setup_complete
+ *   status, setup_status, setup_start, setup_reset, setup_complete
  *
  * Runtime config actions:
  *   set, cache_clear
@@ -20,7 +20,7 @@ import { _resetTokenCache } from '../helpers/oauth2.js'
 import { clearArchiveFolderCache } from './messages.js'
 
 export interface ConfigInput {
-  action: 'status' | 'setup_start' | 'setup_reset' | 'setup_complete' | 'set' | 'cache_clear'
+  action: 'status' | 'setup_status' | 'setup_start' | 'setup_reset' | 'setup_complete' | 'set' | 'cache_clear'
   force?: boolean
   key?: string
   value?: string
@@ -31,6 +31,12 @@ interface ConfigStatusResult {
   state: CredentialState
   setup_url: string | null
   accounts: string[]
+}
+
+interface ConfigSetupStatusResult {
+  action: 'setup_status'
+  state: CredentialState
+  setup_url: string | null
 }
 
 interface ConfigSetupStartResult {
@@ -66,6 +72,7 @@ interface ConfigCacheClearResult {
 
 type ConfigResult =
   | ConfigStatusResult
+  | ConfigSetupStatusResult
   | ConfigSetupStartResult
   | ConfigSetupResetResult
   | ConfigSetupCompleteResult
@@ -80,6 +87,9 @@ export async function handleConfig(accounts: AccountConfig[], input: ConfigInput
     switch (input.action) {
       case 'status':
         return handleStatus(accounts)
+
+      case 'setup_status':
+        return handleSetupStatus(accounts)
 
       case 'setup_start':
         return await handleSetupStart(input)
@@ -99,29 +109,45 @@ export async function handleConfig(accounts: AccountConfig[], input: ConfigInput
       default:
         throw createUnknownActionError(
           input.action,
-          'status, setup_start, setup_reset, setup_complete, set, cache_clear'
+          'status, setup_status, setup_start, setup_reset, setup_complete, set, cache_clear'
         )
     }
   })()
 }
 
-function handleStatus(accounts: AccountConfig[]): ConfigStatusResult {
-  // Per-subject status (multi-user / Cloudflare). When the request carries a JWT
-  // `sub` scope, the process-wide single-user `getState()` lifecycle is
-  // meaningless: a per-sub container may only ever READ blobs from KV and never
-  // run the single-user save that flips getState() to 'configured', so it would
-  // forever report 'awaiting_setup' even though the caller's accounts resolved
-  // (the `folders`/`messages` tools work). Derive the state from whether THIS
-  // subject's accounts resolved instead. Single-user (no sub: stdio /
-  // auth-disabled gateway) keeps the global credential-state machine, which also
-  // distinguishes 'setup_in_progress' (Outlook device-code pending).
+// Per-subject credential state (multi-user / Cloudflare). When the request
+// carries a JWT `sub` scope, the process-wide single-user `getState()`
+// lifecycle is meaningless: a per-sub container may only ever READ blobs from
+// KV and never run the single-user save that flips getState() to
+// 'configured', so it would forever report 'awaiting_setup' even though the
+// caller's accounts resolved (the `folders`/`messages` tools work). Derive the
+// state from whether THIS subject's accounts resolved instead. Single-user
+// (no sub: stdio / auth-disabled gateway) keeps the global credential-state
+// machine, which also distinguishes 'setup_in_progress' (Outlook device-code
+// pending). Shared by `status` and `setup_status` so both stay consistent.
+function resolveConfigState(accounts: AccountConfig[]): CredentialState {
   const sub = currentSub()
-  const state: CredentialState = sub ? (accounts.length > 0 ? 'configured' : 'awaiting_setup') : getState()
+  return sub ? (accounts.length > 0 ? 'configured' : 'awaiting_setup') : getState()
+}
+
+function handleStatus(accounts: AccountConfig[]): ConfigStatusResult {
   return {
     action: 'status',
-    state,
+    state: resolveConfigState(accounts),
     setup_url: getSetupUrl(),
     accounts: accounts.map((a) => a.email)
+  }
+}
+
+// Credential/setup-only view of `status` (no `accounts` list), for
+// cross-server tool-surface parity with wet/mnemo/telegram's
+// `config(action="setup_status")`. `status` keeps returning `accounts` too
+// (backward compatible; unchanged behavior).
+function handleSetupStatus(accounts: AccountConfig[]): ConfigSetupStatusResult {
+  return {
+    action: 'setup_status',
+    state: resolveConfigState(accounts),
+    setup_url: getSetupUrl()
   }
 }
 

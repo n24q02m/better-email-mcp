@@ -48,6 +48,7 @@ import {
   _resetBrowserOpenDedupe,
   _resetTokenCache,
   decodeIdTokenSubject,
+  deleteStoredTokens,
   deviceCodeAuth,
   ensureValidToken,
   getClientId,
@@ -871,6 +872,82 @@ describe('saveTokens edge cases', () => {
     const written = JSON.parse(mockWriteFileSync.mock.calls[1]![1] as string)
     expect(written['first@outlook.com']).toEqual(tokens1)
     expect(written['second@outlook.com']).toEqual(tokens2)
+  })
+})
+
+// ============================================================================
+// deleteStoredTokens (CLI `logout`)
+// ============================================================================
+
+describe('deleteStoredTokens', () => {
+  beforeEach(() => {
+    _resetTokenCache()
+    vi.clearAllMocks()
+  })
+
+  it('returns an empty array and does not write when no token file exists', async () => {
+    mockExistsSync.mockReturnValue(false)
+
+    const deleted = await deleteStoredTokens('user@outlook.com')
+
+    expect(deleted).toEqual([])
+    expect(mockWriteFileSync).not.toHaveBeenCalled()
+  })
+
+  it('deletes a single stored token by email and preserves the rest', async () => {
+    mockExistsSync.mockReturnValue(true)
+    mockReadFileSync.mockReturnValue(
+      JSON.stringify({
+        'a@outlook.com': { accessToken: 'a', refreshToken: 'a', expiresAt: 1, clientId: 'c' },
+        'b@outlook.com': { accessToken: 'b', refreshToken: 'b', expiresAt: 2, clientId: 'c' }
+      })
+    )
+
+    const deleted = await deleteStoredTokens('A@outlook.com')
+
+    expect(deleted).toEqual(['a@outlook.com'])
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(Object.keys(written)).toEqual(['b@outlook.com'])
+  })
+
+  it('returns an empty array and does not write when the email has no stored token', async () => {
+    mockExistsSync.mockReturnValue(true)
+    mockReadFileSync.mockReturnValue(
+      JSON.stringify({ 'a@outlook.com': { accessToken: 'a', refreshToken: 'a', expiresAt: 1, clientId: 'c' } })
+    )
+
+    const deleted = await deleteStoredTokens('missing@outlook.com')
+
+    expect(deleted).toEqual([])
+    expect(mockWriteFileSync).not.toHaveBeenCalled()
+  })
+
+  it('clears every stored token when email is omitted', async () => {
+    mockExistsSync.mockReturnValue(true)
+    mockReadFileSync.mockReturnValue(
+      JSON.stringify({
+        'a@outlook.com': { accessToken: 'a', refreshToken: 'a', expiresAt: 1, clientId: 'c' },
+        'b@outlook.com': { accessToken: 'b', refreshToken: 'b', expiresAt: 2, clientId: 'c' }
+      })
+    )
+
+    const deleted = await deleteStoredTokens()
+
+    expect(deleted.sort()).toEqual(['a@outlook.com', 'b@outlook.com'])
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written).toEqual({})
+  })
+
+  it('treats a corrupted token file as empty (nothing to delete)', async () => {
+    mockExistsSync.mockReturnValue(true)
+    mockReadFileSync.mockImplementation(() => {
+      throw new SyntaxError('Unexpected token')
+    })
+
+    const deleted = await deleteStoredTokens('user@outlook.com')
+
+    expect(deleted).toEqual([])
+    expect(mockWriteFileSync).not.toHaveBeenCalled()
   })
 })
 
