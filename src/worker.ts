@@ -89,23 +89,23 @@ const kvOutbound: OutboundHandler<Env> = async (request, env) => {
   // checked before the normal lookup so it never shadows a real KV key. The
   // server's PerSubCredStore.ready() hits this at startup.
   if (request.method === 'GET' && key === '__ready') {
-    return Response.json({ ready: true })
+    return withSecurityHeaders(Response.json({ ready: true }))
   }
   if (request.method === 'GET') {
     // FOOTGUN 3: credential blobs are binary (nonce + AES-GCM ciphertext);
     // read/write as ArrayBuffer so bytes round-trip without UTF-8 corruption.
     const v = await env.KV.get(key, 'arrayBuffer')
-    return v === null ? new Response('', { status: 404 }) : new Response(v, { status: 200 })
+    return withSecurityHeaders(v === null ? new Response('', { status: 404 }) : new Response(v, { status: 200 }))
   }
   if (request.method === 'PUT') {
     await env.KV.put(key, await request.arrayBuffer())
-    return new Response('', { status: 200 })
+    return withSecurityHeaders(new Response('', { status: 200 }))
   }
   if (request.method === 'DELETE') {
     await env.KV.delete(key)
-    return new Response('', { status: 200 })
+    return withSecurityHeaders(new Response('', { status: 200 }))
   }
-  return new Response('method not allowed', { status: 405 })
+  return withSecurityHeaders(new Response('method not allowed', { status: 405 }))
 }
 
 // Outbound handler registry, keyed by internal hostname. KV-only: no d1/vectorize
