@@ -55,3 +55,7 @@
 ## 2026-06-25 - [Optimize sanitizeErrorDetails property whitelisting]
 **Learning:** In V8, checking `prop in error` inside a `for...of` loop over a static array to whitelist properties incurs overhead from both the loop allocation and the `in` operator (which traverses the prototype chain). Directly accessing properties on the object and comparing to `undefined` is significantly faster.
 **Action:** Extract whitelisted properties to a module-scoped constant (e.g. `SAFE_ERROR_PROPS`) and use direct property access (`const val = error[prop]; if (val !== undefined)`) inside a standard `for` loop to avoid the `in` operator and prototype traversal overhead.
+
+## 2024-07-17 - [Eliminate V8 Array Allocations in `for...of` loops]
+**Learning:** In V8 environments, initializing static array literals directly inside `for...of` loop definitions (e.g., `for (const key of ['A', 'B'])`) within frequently executed functions (hot paths like query parsing) forces the engine to reallocate the array on every invocation, adding unnecessary garbage collection overhead.
+**Action:** Extract these array literals into module-scoped static constants (e.g., `const KEYS = ['A', 'B'] as const`) to prevent repeated memory allocations and improve execution speed in hot paths.

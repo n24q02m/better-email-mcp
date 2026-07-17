@@ -144,6 +144,11 @@ const RE_QUOTES = /^["']|["']$/g
 const RE_SUBJECT = /\bSUBJECT\s+(.+)/i
 const RE_WHITESPACE = /\s+/g
 
+// ⚡ Bolt: Extract static array literals to prevent reallocation in V8 `for...of` loops
+// in this frequently executed query parsing hot path.
+const DATE_KEYWORDS = ['SINCE', 'BEFORE'] as const
+const KV_KEYWORDS = ['FROM', 'TO'] as const
+
 function buildSearchCriteria(query: string): SearchObject {
   const trimmed = query.trim()
   if (!trimmed) return {}
@@ -165,7 +170,7 @@ function buildSearchCriteria(query: string): SearchObject {
   }
 
   // 2. Extract date clauses: SINCE YYYY-MM-DD, BEFORE YYYY-MM-DD
-  for (const keyword of ['SINCE', 'BEFORE'] as const) {
+  for (const keyword of DATE_KEYWORDS) {
     const { valid, invalid } = DATE_MATCHERS[keyword]
     const dateMatch = remaining.match(valid)
     if (dateMatch) {
@@ -185,7 +190,7 @@ function buildSearchCriteria(query: string): SearchObject {
   }
 
   // 3. Extract FROM / TO (single token or quoted string)
-  for (const keyword of ['FROM', 'TO'] as const) {
+  for (const keyword of KV_KEYWORDS) {
     const kvMatch = remaining.match(KV_MATCHERS[keyword])
     if (kvMatch) {
       const criteriaKey = keyword.toLowerCase() as keyof SearchObject
