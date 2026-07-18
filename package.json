@@ -60,7 +60,7 @@
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@n24q02m/mcp-core": "1.20.0-beta.2",
+    "@n24q02m/mcp-core": "1.20.0",
     "html-to-text": "^10.0.0",
     "imapflow": "^1.4.6",
     "mailparser": "^3.9.14",
