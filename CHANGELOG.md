@@ -2,6 +2,60 @@
 
 <!-- version list -->
 
+## v1.36.0-beta.1 (2026-07-18)
+
+### Bug Fixes
+
+- Add orphan-tag integrity guard to release CI
+  ([#1029](https://github.com/n24q02m/better-email-mcp/pull/1029),
+  [`3e392b8`](https://github.com/n24q02m/better-email-mcp/commit/3e392b80d6199e8704e1510089f0a3b52621ba31))
+
+- Adopt better-semantic-release for built-in release guards
+  ([`e4c747b`](https://github.com/n24q02m/better-email-mcp/commit/e4c747be4ad9c1305be469eaf68d2c078ff1a0b6))
+
+- Bump mcp-core floor to 1.19.0 stable
+  ([#1026](https://github.com/n24q02m/better-email-mcp/pull/1026),
+  [`5985221`](https://github.com/n24q02m/better-email-mcp/commit/5985221e34640a5748ce1aa635d1449194eaedfc))
+
+- Pin rangeStrategy on delayed packageRules to fix renovate artifacts failure
+  ([#1030](https://github.com/n24q02m/better-email-mcp/pull/1030),
+  [`b801b63`](https://github.com/n24q02m/better-email-mcp/commit/b801b63e5ffc08df27b0ee60ccedba7af1bd7428))
+
+- **deps**: Update patch dependencies
+  ([#1023](https://github.com/n24q02m/better-email-mcp/pull/1023),
+  [`fb26054`](https://github.com/n24q02m/better-email-mcp/commit/fb26054191b68c60461e5069b241f756680d85fd))
+
+- **deps**: Update wrangler to ^4.107.1
+  ([#1019](https://github.com/n24q02m/better-email-mcp/pull/1019),
+  [`63e40f2`](https://github.com/n24q02m/better-email-mcp/commit/63e40f24d2fafc0e6d22ce698c0e8abfd4630f99))
+
+- **deps**: Update wrangler to ^4.110.0
+  ([#1028](https://github.com/n24q02m/better-email-mcp/pull/1028),
+  [`8ac19d1`](https://github.com/n24q02m/better-email-mcp/commit/8ac19d10534cdc6aee8a481822b3de405329641c))
+
+### Features
+
+- Add PR-title conventional-commit gate + no-bump release warning
+  ([#1032](https://github.com/n24q02m/better-email-mcp/pull/1032),
+  [`05d0d00`](https://github.com/n24q02m/better-email-mcp/commit/05d0d0013f2c047a65500293b36e8da2b18ce85a))
+
+- Add setup_status config action, logout CLI, and BYO client-id flag
+  ([#1034](https://github.com/n24q02m/better-email-mcp/pull/1034),
+  [`a64eb1a`](https://github.com/n24q02m/better-email-mcp/commit/a64eb1ad49c53dbb5fafe76cf50fd85e64873930))
+
+- Document CLI and smithery in README
+  ([#1022](https://github.com/n24q02m/better-email-mcp/pull/1022),
+  [`448e4f9`](https://github.com/n24q02m/better-email-mcp/commit/448e4f9fc243c7f9c8dd29f0a9cb6a12300704cb))
+
+- Use core credential form renderer with card group schema, drop fork
+  ([#1027](https://github.com/n24q02m/better-email-mcp/pull/1027),
+  [`0737c9b`](https://github.com/n24q02m/better-email-mcp/commit/0737c9bce9bab39a97e91fa21f53cdfec337f1d1))
+
+- Wire core buildCli for doctor/config/relay/--version
+  ([#1033](https://github.com/n24q02m/better-email-mcp/pull/1033),
+  [`d83ef7f`](https://github.com/n24q02m/better-email-mcp/commit/d83ef7fcbda2e772de8db3048baebb0e2877dc8b))
+
+
 ## v1.35.0 (2026-07-14)
 
 ### Bug Fixes
