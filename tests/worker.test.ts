@@ -37,6 +37,9 @@ describe('worker (KV-only)', () => {
       {} as never
     )
     expect(resp?.status).toBe(200)
+    expect(resp?.headers.get('X-Content-Type-Options')).toBe('nosniff')
+    expect(resp?.headers.get('X-Frame-Options')).toBe('DENY')
+    expect(resp?.headers.get('Strict-Transport-Security')).toBe('max-age=31536000; includeSubDomains')
     expect(await resp?.json()).toEqual({ ready: true })
     // The probe must NOT touch the KV binding.
     expect(env.KV.get).not.toHaveBeenCalled()
@@ -60,6 +63,7 @@ describe('worker (KV-only)', () => {
       {} as never
     )
     expect(put?.status).toBe(200)
+    expect(put?.headers.get('X-Content-Type-Options')).toBe('nosniff')
 
     const get = await handler?.(
       new Request('http://kv.internal/better-email/subs/u1/config', { method: 'GET' }),
@@ -67,6 +71,7 @@ describe('worker (KV-only)', () => {
       {} as never
     )
     expect(get?.status).toBe(200)
+    expect(get?.headers.get('X-Content-Type-Options')).toBe('nosniff')
     expect(new Uint8Array(await (get as Response).arrayBuffer())).toEqual(new Uint8Array([1, 2, 3, 255, 0]))
 
     const del = await handler?.(
@@ -75,12 +80,15 @@ describe('worker (KV-only)', () => {
       {} as never
     )
     expect(del?.status).toBe(200)
+    expect(del?.headers.get('X-Content-Type-Options')).toBe('nosniff')
+
     const miss = await handler?.(
       new Request('http://kv.internal/better-email/subs/u1/config', { method: 'GET' }),
       env as never,
       {} as never
     )
     expect(miss?.status).toBe(404)
+    expect(miss?.headers.get('X-Content-Type-Options')).toBe('nosniff')
   })
 
   test('fetch routes every sub to the single "default" DO (single-DO collapse)', async () => {
