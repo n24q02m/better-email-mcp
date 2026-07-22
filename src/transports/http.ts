@@ -22,7 +22,7 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { NextStep, RunHttpServerOptions, SubjectContext } from '@n24q02m/mcp-core'
-import { renderCredentialForm, runHttpServer, writeConfig } from '@n24q02m/mcp-core'
+import { runHttpServer, writeConfig } from '@n24q02m/mcp-core'
 import { ImapFlow } from 'imapflow'
 
 import { PerSubCredStore } from '../auth/cred-store.js'
@@ -261,7 +261,14 @@ function buildOptions(args: {
     port,
     host,
     onCredentialsSaved,
-    customCredentialFormHtml: renderCredentialForm,
+    // Opt in to the username-derived stable subject, so a returning user reaches
+    // the same per-`sub` bucket instead of the one-off subject minted for each
+    // /authorize round-trip. No `customCredentialFormHtml` here on purpose: it
+    // used to pass mcp-core's own `renderCredentialForm` straight back to
+    // mcp-core, and a custom renderer suppresses the workspace-username field
+    // because the OAuth app only forwards `includeUsernameField` to its default
+    // renderer. Letting core render its own form is what makes the field appear.
+    stableSubEnabled: true,
     setupCompleteHook: (markComplete: (key?: string) => void) => {
       setMarkSetupComplete(markComplete)
     }
