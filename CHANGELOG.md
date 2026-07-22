@@ -2,6 +2,32 @@
 
 <!-- version list -->
 
+## v1.37.0-beta.1 (2026-07-22)
+
+### Bug Fixes
+
+- Hoist query-parsing keyword lists to module constants
+  ([`a9f8f6e`](https://github.com/n24q02m/better-email-mcp/commit/a9f8f6e102058f387bdfeb024e451f6c3c9b2073))
+
+- Honor PUBLIC_URL when building setup URL and startup banner
+  ([#1043](https://github.com/n24q02m/better-email-mcp/pull/1043),
+  [`f747674`](https://github.com/n24q02m/better-email-mcp/commit/f7476746495f08ce87391ca8921c4d21897434c5))
+
+- Pin GitHub Action references to commit SHAs
+  ([#1040](https://github.com/n24q02m/better-email-mcp/pull/1040),
+  [`ddf33d3`](https://github.com/n24q02m/better-email-mcp/commit/ddf33d30565a7d510af79e36750188281c5d6b15))
+
+- Remove redundant orphan-tag shell guard (better-semantic-release @v1 has a built-in one)
+  ([#1039](https://github.com/n24q02m/better-email-mcp/pull/1039),
+  [`8467ee2`](https://github.com/n24q02m/better-email-mcp/commit/8467ee279c9da66e0cba68b0ebacb9dd1bd566e4))
+
+### Features
+
+- Derive a stable subject from the workspace username
+  ([#1044](https://github.com/n24q02m/better-email-mcp/pull/1044),
+  [`898a408`](https://github.com/n24q02m/better-email-mcp/commit/898a408c38ef448a7619a3364a8e180034d1fc14))
+
+
 ## v1.36.0 (2026-07-18)
 
 ### Bug Fixes
