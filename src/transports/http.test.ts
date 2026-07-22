@@ -2,7 +2,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { runHttpServer, writeConfig } from '@n24q02m/mcp-core'
 import { ImapFlow } from 'imapflow'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
-import { getMarkSetupComplete, resolveCredentialState, setState } from '../credential-state.js'
+import { getMarkSetupComplete, resolveCredentialState, setSetupUrl, setState } from '../credential-state.js'
 import { loadConfig, parseCredentials } from '../tools/helpers/config.js'
 import { initiateOutlookDeviceCode, isOutlookDomain } from '../tools/helpers/oauth2.js'
 import { registerTools } from '../tools/registry.js'
@@ -57,7 +57,29 @@ vi.mock('../auth/outlook-device-code.js', () => ({
 }))
 
 // We need to import startHttp AFTER mocks are set up
-import { startHttp } from './http.js'
+import { resolveSetupBaseUrl, startHttp } from './http.js'
+
+describe('resolveSetupBaseUrl', () => {
+  it('prefers PUBLIC_URL over the bind address', () => {
+    expect(resolveSetupBaseUrl('https://mail.example.com', '0.0.0.0', 8080)).toBe('https://mail.example.com')
+  })
+
+  it('strips a trailing slash so the /authorize path is not doubled', () => {
+    expect(resolveSetupBaseUrl('https://mail.example.com/', '0.0.0.0', 8080)).toBe('https://mail.example.com')
+  })
+
+  it('rewrites the 0.0.0.0 wildcard bind to localhost when PUBLIC_URL is unset', () => {
+    expect(resolveSetupBaseUrl(undefined, '0.0.0.0', 8080)).toBe('http://localhost:8080')
+  })
+
+  it('keeps a concrete bind host', () => {
+    expect(resolveSetupBaseUrl(undefined, '127.0.0.1', 3000)).toBe('http://127.0.0.1:3000')
+  })
+
+  it('treats an empty PUBLIC_URL as unset', () => {
+    expect(resolveSetupBaseUrl('', '0.0.0.0', 8080)).toBe('http://localhost:8080')
+  })
+})
 
 describe('http transport', () => {
   let consoleSpy: any
@@ -151,6 +173,24 @@ describe('http transport', () => {
         )
       })
       delete process.env.MCP_PORT
+    })
+
+    it('publishes a setup URL built from PUBLIC_URL, not from the bind address', async () => {
+      // Regression for #1042: the setup URL reported by `config` (status /
+      // setup_status / setup_start) came from the listening socket, so a
+      // container bound to 0.0.0.0 advertised an unreachable
+      // http://0.0.0.0:8080/authorize behind the public hostname.
+      process.env.PUBLIC_URL = 'https://mail.example.com'
+      vi.mocked(runHttpServer).mockResolvedValue({
+        host: '0.0.0.0',
+        port: 8080,
+        close: vi.fn().mockResolvedValue(undefined)
+      } as any)
+
+      await runStartHttpAndTriggerShutdown(async () => {
+        expect(setSetupUrl).toHaveBeenCalledWith('https://mail.example.com/authorize')
+      })
+      delete process.env.PUBLIC_URL
     })
   })
 

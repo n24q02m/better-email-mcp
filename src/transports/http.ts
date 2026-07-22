@@ -268,6 +268,26 @@ function buildOptions(args: {
   }
 }
 
+/** Bind-any wildcards: valid to listen on, never routable from a client. */
+const UNROUTABLE_BIND_HOSTS = new Set(['0.0.0.0', '::', '[::]'])
+
+/**
+ * Resolve the origin used for the `/authorize` setup link and the startup banner.
+ *
+ * `PUBLIC_URL` wins whenever it is set: it is the externally reachable origin that
+ * mcp-core advertises in the OAuth discovery documents and in `config__open_relay`,
+ * so the setup URL must match it or the user is sent to a host that cannot serve
+ * the form. Falling back to the listening address is only correct for a direct
+ * local bind, and `0.0.0.0` / `::` must be rewritten to `localhost` there because
+ * a wildcard bind address is not a destination a client can dial.
+ */
+export function resolveSetupBaseUrl(publicUrl: string | undefined, host: string, port: number): string {
+  const configured = publicUrl?.trim()
+  if (configured) return configured.replace(/\/$/, '')
+  const reachableHost = UNROUTABLE_BIND_HOSTS.has(host) ? 'localhost' : host
+  return `http://${reachableHost}:${port}`
+}
+
 export async function startHttp(): Promise<void> {
   // Share the per-sub credential store with the Outlook token layer so OAuth
   // refresh tokens embed in the SAME per-sub config blob as the account list
@@ -362,9 +382,10 @@ export async function startHttp(): Promise<void> {
 
   const handle = await runHttpServer(serverFactory, options)
 
-  const setupUrl = `http://${handle.host}:${handle.port}/authorize`
+  const baseUrl = resolveSetupBaseUrl(process.env.PUBLIC_URL, handle.host, handle.port)
+  const setupUrl = `${baseUrl}/authorize`
   setSetupUrl(setupUrl)
-  console.error(`[${SERVER_NAME}] HTTP mode on http://${handle.host}:${handle.port}/mcp`)
+  console.error(`[${SERVER_NAME}] HTTP mode on ${baseUrl}/mcp`)
   if (currentAccounts.length === 0) {
     console.error(`[${SERVER_NAME}] Open ${setupUrl} to configure your email accounts`)
   }
