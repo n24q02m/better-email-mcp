@@ -64,7 +64,7 @@
     "html-to-text": "^10.0.0",
     "imapflow": "^1.4.6",
     "mailparser": "^3.9.14",
-    "marked": "^17.0.6",
+    "marked": "^18.0.7",
     "nodemailer": "^9.0.3",
     "sanitize-html": "^2.17.5"
   },
