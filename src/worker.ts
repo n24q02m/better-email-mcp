@@ -73,6 +73,22 @@ function pickContainerEnv(env: Env): Record<string, string> {
   return out
 }
 
+/**
+ * Applies security headers to all outbound responses from the Worker.
+ */
+function withSecurityHeaders(response: Response): Response {
+  const headers = new Headers(response.headers)
+  headers.set('X-Content-Type-Options', 'nosniff')
+  headers.set('X-Frame-Options', 'DENY')
+  headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  })
+}
+
 // --- Outbound handler (container -> Worker KV binding) ----------------------
 // Runs when the container makes an outbound HTTP request to kv.internal. It is
 // registered via `EmailContainer.outboundByHost` (ASSIGNMENT, not a class field)
@@ -89,23 +105,23 @@ const kvOutbound: OutboundHandler<Env> = async (request, env) => {
   // checked before the normal lookup so it never shadows a real KV key. The
   // server's PerSubCredStore.ready() hits this at startup.
   if (request.method === 'GET' && key === '__ready') {
-    return Response.json({ ready: true })
+    return withSecurityHeaders(Response.json({ ready: true }))
   }
   if (request.method === 'GET') {
     // FOOTGUN 3: credential blobs are binary (nonce + AES-GCM ciphertext);
     // read/write as ArrayBuffer so bytes round-trip without UTF-8 corruption.
     const v = await env.KV.get(key, 'arrayBuffer')
-    return v === null ? new Response('', { status: 404 }) : new Response(v, { status: 200 })
+    return withSecurityHeaders(v === null ? new Response('', { status: 404 }) : new Response(v, { status: 200 }))
   }
   if (request.method === 'PUT') {
     await env.KV.put(key, await request.arrayBuffer())
-    return new Response('', { status: 200 })
+    return withSecurityHeaders(new Response('', { status: 200 }))
   }
   if (request.method === 'DELETE') {
     await env.KV.delete(key)
-    return new Response('', { status: 200 })
+    return withSecurityHeaders(new Response('', { status: 200 }))
   }
-  return new Response('method not allowed', { status: 405 })
+  return withSecurityHeaders(new Response('method not allowed', { status: 405 }))
 }
 
 // Outbound handler registry, keyed by internal hostname. KV-only: no d1/vectorize
@@ -128,22 +144,6 @@ function unauthenticated(request: Request): Response {
     headers: {
       'WWW-Authenticate': `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`
     }
-  })
-}
-
-/**
- * Applies security headers to all outbound responses from the Worker.
- */
-function withSecurityHeaders(response: Response): Response {
-  const headers = new Headers(response.headers)
-  headers.set('X-Content-Type-Options', 'nosniff')
-  headers.set('X-Frame-Options', 'DENY')
-  headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
-
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers
   })
 }
 
