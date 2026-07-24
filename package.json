@@ -62,7 +62,7 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@n24q02m/mcp-core": "1.21.0-beta.1",
     "html-to-text": "^10.0.0",
-    "imapflow": "^1.4.6",
+    "imapflow": "^1.5.0",
     "mailparser": "^3.9.14",
     "marked": "^17.0.6",
     "nodemailer": "^9.0.3",
