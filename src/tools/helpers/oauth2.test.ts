@@ -452,6 +452,7 @@ describe('ensureValidToken', () => {
 
     // Mock device code request
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         device_code: 'dc-auto',
         user_code: 'AUTO-CODE',
@@ -474,6 +475,7 @@ describe('ensureValidToken', () => {
     mockReadFileSync.mockReturnValue('{}')
 
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         device_code: 'dc-browser',
         user_code: 'BROWSER-CODE',
@@ -498,6 +500,7 @@ describe('ensureValidToken', () => {
     mockReadFileSync.mockReturnValue('{}')
 
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         device_code: 'dc-nodup',
         user_code: 'NODUP-CODE',
@@ -527,6 +530,7 @@ describe('ensureValidToken', () => {
 
     // First call: device code request
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         device_code: 'dc-1',
         user_code: 'FIRST-CODE',
@@ -614,6 +618,7 @@ describe('deviceCodeAuth', () => {
   it('completes Device Code flow successfully', async () => {
     // First call: device code request
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         device_code: 'dc-123',
         user_code: 'ABCD-EFGH',
@@ -644,6 +649,7 @@ describe('deviceCodeAuth', () => {
   it('polls until authorization is granted', async () => {
     // Device code request
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         device_code: 'dc-123',
         user_code: 'CODE',
@@ -655,6 +661,7 @@ describe('deviceCodeAuth', () => {
 
     // First poll: pending
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({ error: 'authorization_pending' })
     })
 
@@ -676,6 +683,7 @@ describe('deviceCodeAuth', () => {
 
   it('throws on device code request failure', async () => {
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         error: 'invalid_client',
         error_description: 'Client ID not found'
@@ -687,6 +695,7 @@ describe('deviceCodeAuth', () => {
 
   it('throws on authorization declined', async () => {
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         device_code: 'dc',
         user_code: 'CODE',
@@ -697,6 +706,7 @@ describe('deviceCodeAuth', () => {
     })
 
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         error: 'authorization_declined',
         error_description: 'User declined'
@@ -713,6 +723,7 @@ describe('deviceCodeAuth', () => {
       if (callCount === 1) {
         // Device code request
         return {
+          headers: new Headers({ 'Content-Type': 'application/json' }),
           json: async () => ({
             device_code: 'dc-slow',
             user_code: 'SLOW-CODE',
@@ -724,10 +735,14 @@ describe('deviceCodeAuth', () => {
       }
       if (callCount === 2) {
         // First poll: slow_down
-        return { json: async () => ({ error: 'slow_down' }) }
+        return {
+          headers: new Headers({ 'Content-Type': 'application/json' }),
+          json: async () => ({ error: 'slow_down' })
+        }
       }
       // Subsequent polls: success
       return {
+        headers: new Headers({ 'Content-Type': 'application/json' }),
         json: async () => ({
           access_token: 'at-after-slow',
           refresh_token: 'rt-after-slow',
@@ -746,6 +761,7 @@ describe('deviceCodeAuth', () => {
     delete process.env.OUTLOOK_CLIENT_ID
 
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         device_code: 'dc-default',
         user_code: 'DEFAULT-CODE',
@@ -756,6 +772,7 @@ describe('deviceCodeAuth', () => {
     })
 
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         access_token: 'at-default',
         refresh_token: 'rt-default',
@@ -770,6 +787,7 @@ describe('deviceCodeAuth', () => {
 
   it('throws on device code request with no user_code', async () => {
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         device_code: 'dc',
         verification_uri: 'https://microsoft.com/devicelogin',
@@ -784,6 +802,7 @@ describe('deviceCodeAuth', () => {
 
   it('throws on device code request with error but no description', async () => {
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         error: 'server_error'
       })
@@ -794,6 +813,7 @@ describe('deviceCodeAuth', () => {
 
   it('throws on other token error without error_description', async () => {
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         device_code: 'dc-badcode',
         user_code: 'BAD-CODE',
@@ -804,6 +824,7 @@ describe('deviceCodeAuth', () => {
     })
 
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         error: 'bad_verification_code'
       })
@@ -1071,6 +1092,7 @@ describe('openBrowser delegates to mcp-core', () => {
 
     const maliciousUri = 'https://microsoft.com/devicelogin?code=ABCD;echo"vulnerable"'
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         device_code: 'dc-sec',
         user_code: 'SEC-CODE',
@@ -1096,6 +1118,7 @@ describe('openBrowser delegates to mcp-core', () => {
     mockReadFileSync.mockReturnValue('{}')
 
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         device_code: 'dc-proto',
         user_code: 'PROTO-CODE',
@@ -1121,6 +1144,7 @@ describe('openBrowser delegates to mcp-core', () => {
 
     const hyphenUri = 'https://-example.com'
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         device_code: 'dc-hyphen',
         user_code: 'HYPHEN-CODE',
@@ -1170,6 +1194,7 @@ describe('initiateOutlookDeviceCode', () => {
 
   it('requests device code and returns verification URI + user code', async () => {
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         device_code: 'dc-new',
         user_code: 'FRESH-123',
@@ -1205,6 +1230,7 @@ describe('initiateOutlookDeviceCode', () => {
 
   it('invokes onComplete callback when background poll succeeds', async () => {
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         device_code: 'dc-cb',
         user_code: 'CB-123',
@@ -1234,6 +1260,7 @@ describe('initiateOutlookDeviceCode', () => {
 
   it('does not throw if onComplete callback fails', async () => {
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         device_code: 'dc-cb-fail',
         user_code: 'CB-FAIL',
@@ -1262,6 +1289,7 @@ describe('initiateOutlookDeviceCode', () => {
 
   it('throws descriptive error when Microsoft rejects the device code request', async () => {
     mockFetch.mockResolvedValueOnce({
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: async () => ({
         error: 'invalid_client',
         error_description: 'Unknown client ID'

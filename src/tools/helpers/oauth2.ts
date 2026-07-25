@@ -519,6 +519,11 @@ async function requestDeviceCode(clientId: string): Promise<DeviceCodeResponse> 
     })
   })
 
+  const contentType = response.headers.get('Content-Type') || ''
+  if (!contentType.includes('application/json')) {
+    throw new Error(`Device code request failed: Invalid content type "${contentType}"`)
+  }
+
   const data = (await response.json()) as DeviceCodeResponse
 
   if (data.error || !data.user_code) {
