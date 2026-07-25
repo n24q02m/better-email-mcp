@@ -16,21 +16,74 @@ import { currentSub } from '../../auth/subject-context.js'
 import { getMarkSetupComplete, setState } from '../../credential-state.js'
 import { isSafeUrl } from './security.js'
 
-// Microsoft OAuth2 endpoints — "consumers" tenant for personal Microsoft accounts
-const TENANT = 'consumers'
-const AUTH_BASE = `https://login.microsoftonline.com/${TENANT}/oauth2/v2.0`
-const DEVICE_CODE_URL = `${AUTH_BASE}/devicecode`
-const TOKEN_URL = `${AUTH_BASE}/token`
+// Microsoft OAuth2 endpoints. The tenant segment decides which directory signs
+// the user in: "consumers" = personal Microsoft accounts, "common" = personal
+// plus work/school (Entra ID), or a specific tenant GUID / verified domain.
+// It is configurable because a work/school mailbox can neither complete the
+// device-code flow nor refresh a token minted elsewhere against /consumers —
+// the refresh fails with AADSTS7000012 (grant obtained for a different tenant).
+const DEFAULT_TENANT = 'consumers'
+
+// The tenant is interpolated into the endpoint path, so keep it to the shapes
+// Microsoft actually accepts (GUID, "common"/"consumers"/"organizations", or a
+// verified domain). Anything carrying a separator is refused rather than
+// reshaping the URL.
+const TENANT_PATTERN = /^[A-Za-z0-9._-]+$/
+
+let warnedInvalidTenant: string | null = null
+
+/**
+ * Tenant used for the device-code and token endpoints. ``OUTLOOK_TENANT`` wins
+ * when it is set and well-formed; otherwise the caller's default applies (the
+ * two call sites differ: this module historically signs in personal accounts,
+ * the HTTP delegated flow uses "common").
+ */
+export function getOutlookTenant(fallback: string = DEFAULT_TENANT): string {
+  const configured = process.env.OUTLOOK_TENANT?.trim()
+  if (!configured) return fallback
+  if (!TENANT_PATTERN.test(configured)) {
+    if (warnedInvalidTenant !== configured) {
+      warnedInvalidTenant = configured
+      console.error(`[better-email-mcp] Ignoring malformed OUTLOOK_TENANT; falling back to "${fallback}".`)
+    }
+    return fallback
+  }
+  return configured
+}
+
+function authBase(): string {
+  return `https://login.microsoftonline.com/${getOutlookTenant()}/oauth2/v2.0`
+}
+
+function deviceCodeUrl(): string {
+  return `${authBase()}/devicecode`
+}
+
+function tokenUrl(): string {
+  return `${authBase()}/token`
+}
 
 // IMAP + SMTP + offline_access (for refresh tokens)
 // Full resource URL with outlook.office.com — required for personal Microsoft accounts.
 // outlook.office.com (personal/MSA) vs outlook.office365.com (work/school/Entra ID).
 // Short scopes (no URL) produce Microsoft Graph tokens that Exchange Online IMAP rejects.
-const SCOPES = [
+const DEFAULT_SCOPES = [
   'https://outlook.office.com/IMAP.AccessAsUser.All',
   'https://outlook.office.com/SMTP.Send',
   'offline_access'
 ]
+
+/**
+ * Scopes requested at sign-in and re-sent on refresh. ``OUTLOOK_SCOPES``
+ * (space-separated) overrides the default set — a grant consented with a
+ * narrower scope (IMAP-only, no SMTP) is legitimate for read-only deployments,
+ * and refreshing such a grant against the full list is rejected.
+ */
+export function getOutlookScopes(fallback: string[] = DEFAULT_SCOPES): string[] {
+  const configured = process.env.OUTLOOK_SCOPES?.trim()
+  if (!configured) return [...fallback]
+  return configured.split(/\s+/).filter(Boolean)
+}
 
 // Time constants
 const MS_PER_SECOND = 1000
@@ -148,13 +201,29 @@ export function decodeIdTokenSubject(idToken: unknown): string | null {
 const OUTLOOK_DOMAINS = new Set(['outlook.com', 'hotmail.com', 'live.com'])
 
 /**
- * Check if an email address belongs to an Outlook/Hotmail/Live domain
+ * Additional domains routed to OAuth via ``OUTLOOK_EXTRA_DOMAINS``
+ * (comma-separated). An M365 mailbox on a custom domain looks like any other
+ * address, so without this it is treated as a password account — and Microsoft
+ * disabled basic auth for Exchange Online in 2024, leaving no working path.
+ */
+function extraOutlookDomains(): string[] {
+  const configured = process.env.OUTLOOK_EXTRA_DOMAINS?.trim()
+  if (!configured) return []
+  return configured
+    .split(',')
+    .map((domain) => domain.trim().toLowerCase())
+    .filter(Boolean)
+}
+
+/**
+ * Check if an email address belongs to an Outlook/Hotmail/Live domain, or to a
+ * domain the deployment declared as OAuth-backed via ``OUTLOOK_EXTRA_DOMAINS``.
  */
 export function isOutlookDomain(email: string): boolean {
   const atIndex = email.indexOf('@')
   if (atIndex === -1) return false
   const domain = email.substring(atIndex + 1).toLowerCase()
-  return OUTLOOK_DOMAINS.has(domain)
+  return OUTLOOK_DOMAINS.has(domain) || extraOutlookDomains().includes(domain)
 }
 
 // Bundled Azure AD public client ID for better-email-mcp.
@@ -389,14 +458,14 @@ function saveTokensToFile(emailKey: string, tokens: OAuth2Tokens): void {
  * Microsoft may rotate the refresh token on each use.
  */
 export async function refreshAccessToken(clientId: string, refreshToken: string): Promise<TokenResponse> {
-  const response = await fetch(TOKEN_URL, {
+  const response = await fetch(tokenUrl(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       client_id: clientId,
       grant_type: 'refresh_token',
       refresh_token: refreshToken,
-      scope: SCOPES.join(' ')
+      scope: getOutlookScopes().join(' ')
     })
   })
 
@@ -510,12 +579,12 @@ function openBrowser(url: string): void {
  * Request a device code from Microsoft's OAuth2 endpoint.
  */
 async function requestDeviceCode(clientId: string): Promise<DeviceCodeResponse> {
-  const response = await fetch(DEVICE_CODE_URL, {
+  const response = await fetch(deviceCodeUrl(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       client_id: clientId,
-      scope: SCOPES.join(' ')
+      scope: getOutlookScopes().join(' ')
     })
   })
 
@@ -553,7 +622,7 @@ function startBackgroundPoll(
     while (Date.now() < deadline) {
       await new Promise((resolve) => setTimeout(resolve, pollInterval))
 
-      const response = await fetch(TOKEN_URL, {
+      const response = await fetch(tokenUrl(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
@@ -884,7 +953,7 @@ export async function deviceCodeAuth(email: string, clientId?: string): Promise<
   while (Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, pollInterval))
 
-    const tokenResponse = await fetch(TOKEN_URL, {
+    const tokenResponse = await fetch(tokenUrl(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({

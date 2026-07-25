@@ -45,6 +45,9 @@ export interface Env {
   MCP_DCR_SERVER_SECRET: string
   OUTLOOK_CLIENT_ID?: string
   OUTLOOK_EMAIL?: string
+  OUTLOOK_TENANT?: string
+  OUTLOOK_SCOPES?: string
+  OUTLOOK_EXTRA_DOMAINS?: string
 }
 
 // Keys forwarded from the Worker env (wrangler vars + secrets) into the
@@ -61,7 +64,10 @@ const CONTAINER_ENV_KEYS = [
   'MCP_RELAY_PASSWORD',
   'MCP_DCR_SERVER_SECRET',
   'OUTLOOK_CLIENT_ID',
-  'OUTLOOK_EMAIL'
+  'OUTLOOK_EMAIL',
+  'OUTLOOK_TENANT',
+  'OUTLOOK_SCOPES',
+  'OUTLOOK_EXTRA_DOMAINS'
 ] as const
 
 function pickContainerEnv(env: Env): Record<string, string> {

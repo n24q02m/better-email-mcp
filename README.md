@@ -259,6 +259,9 @@ In **stdio mode**, Outlook accounts use an **App Password** instead (Outlook Acc
 | `MCP_AUTH_DISABLE` | No (http) | - | Set to `1` to skip Bearer JWT verification when behind an external auth gateway |
 | `OUTLOOK_CLIENT_ID` | No | `d56f8c71-9f7c-43f4-9934-be29cb6e77b0` (bundled public client) | Override the bundled Azure AD public client for self-hosted Outlook OAuth2 (or `--client-id=<id>` on `auth`, which overrides this env var) |
 | `OUTLOOK_EMAIL` | No | - | Workaround when Microsoft device-code response omits the email field |
+| `OUTLOOK_TENANT` | No | `consumers` (stdio/CLI), `common` (http device-code) | Microsoft directory to sign in against, used for **both** the device-code and the token-refresh endpoint. Set `common` for a work/school (Entra ID) mailbox, or a tenant GUID / verified domain to pin one directory |
+| `OUTLOOK_SCOPES` | No | `https://outlook.office.com/IMAP.AccessAsUser.All https://outlook.office.com/SMTP.Send offline_access` | Space-separated scope list. Narrow it (e.g. drop `SMTP.Send`) for a read-only deployment — a grant consented with fewer scopes cannot be refreshed against the full list |
+| `OUTLOOK_EXTRA_DOMAINS` | No | - | Comma-separated domains routed to OAuth in addition to `outlook.com`/`hotmail.com`/`live.com`. Needed for a Microsoft 365 mailbox on your own domain, which otherwise looks like a password account |
 
 ### Multiple Accounts
 
@@ -282,6 +285,28 @@ EMAIL_CREDENTIALS=user@custom.com:password:localhost:1993
 Each account can use its own host and port. A non-993 port is treated as
 plaintext/STARTTLS -- the usual shape for a local IMAP proxy (for example
 [email-oauth2-proxy](https://github.com/simonrob/email-oauth2-proxy)).
+
+### Microsoft 365 work/school accounts
+
+A mailbox in a Microsoft 365 organisation -- including one on your own domain --
+signs in through Entra ID rather than the consumer directory, and Microsoft
+disabled basic auth for Exchange Online in 2024, so an App Password is not an
+option. Two settings make it work:
+
+```bash
+# Sign in against the directory that owns the mailbox
+OUTLOOK_TENANT=common                      # or a tenant GUID / verified domain
+
+# Route your own domain to OAuth instead of asking for a password
+OUTLOOK_EXTRA_DOMAINS=company.com
+```
+
+`OUTLOOK_TENANT` applies to the token refresh as well as the initial sign-in --
+refreshing a work/school token against the consumer directory fails with
+`AADSTS7000012: The grant was obtained for a different tenant`.
+
+If the mailbox was consented with a narrower grant (say IMAP but no SMTP), match
+it with `OUTLOOK_SCOPES` so the refresh does not ask for more than was granted.
 
 ### Search Query Language
 
@@ -357,7 +382,8 @@ survive scale-to-zero / container recreate with no re-auth.
    ```
    Optional Outlook overrides -- only to replace the bundled public Azure device-code client
    (default needs no user-side Azure app): `wrangler secret put OUTLOOK_CLIENT_ID` and
-   `wrangler secret put OUTLOOK_EMAIL`.
+   `wrangler secret put OUTLOOK_EMAIL`. For a Microsoft 365 organisation, also set
+   `OUTLOOK_TENANT` (and `OUTLOOK_EXTRA_DOMAINS` for mailboxes on your own domain).
 7. `wrangler deploy`, then open `<YOUR_PUBLIC_URL>/authorize` and complete the browser relay form.
 
 End-users supply their own email credentials -- an App Password via the paste form, or the

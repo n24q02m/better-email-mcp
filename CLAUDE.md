@@ -68,6 +68,10 @@ src/
 - **http mode** (opt-in via `--http`, `MCP_TRANSPORT=http`, or `TRANSPORT_MODE=http`): `PUBLIC_URL` (for relay/OAuth redirect URLs). Per-user credentials are held in an in-memory store (`auth/in-memory-cred-store.ts`, keyed by JWT `sub`, cleared on restart). `MCP_AUTH_DISABLE=1` skips Bearer JWT verification (for deploys behind an external auth gateway).
 - `PORT` (default `0` = OS-assigned random port), `HOST` (optional bind address)
 - `OUTLOOK_CLIENT_ID` -- tu chon, cho self-hosted OAuth2 client. CLI `auth --client-id=<id>` override env var (flag thang env, xem `auth-cli.ts:parseArgs`)
+- `OUTLOOK_TENANT` -- tu chon, tenant cho CA device-code LAN token refresh (`oauth2.ts:getOutlookTenant`). Default `consumers` (stdio/CLI) va `common` (http delegated, `auth/outlook-device-code.ts`). Work/school (Entra ID) can `common` hoac tenant GUID -- refresh token cua work/school danh vao `/consumers` se loi `AADSTS7000012`
+- `OUTLOOK_SCOPES` -- tu chon, danh sach scope cach nhau bang space (`oauth2.ts:getOutlookScopes`). Dung khi grant duoc consent hep hon default (vd IMAP-only, khong SMTP)
+- `OUTLOOK_EXTRA_DOMAINS` -- tu chon, domain cach nhau bang dau phay, gop them vao `OUTLOOK_DOMAINS` de mailbox M365 tren custom domain di duong OAuth thay vi doi password
+- CF deploy: 3 bien tren PHAI nam trong `worker.ts:CONTAINER_ENV_KEYS`, khong forward = set o Worker nhung container khong nhan
 
 ## Code conventions
 

@@ -55,3 +55,30 @@
 **Vulnerability:** The Cloudflare worker `fetch` handler added security headers (HSTS, X-Content-Type-Options, X-Frame-Options) only to the responses successfully proxied from the Durable Object. All other responses, such as 401 Unauthenticated, 404 Not Found, and 405 Method Not Allowed, were returned without any security headers, exposing these endpoints to MIME-sniffing or clickjacking risks.
 **Learning:** In edge routing patterns like Cloudflare Workers where the edge performs initial authentication or method checking before delegating to another service (like a Durable Object), it is a common blind spot to only secure the "happy path" proxy response. The edge router's own generated responses must also be secured.
 **Prevention:** Implement a global response wrapper function (e.g., `withSecurityHeaders(response: Response)`) that clones and sets standard security headers on *every* outbound response originating from the worker, regardless of the response's status code or source.
+
+## Rejected
+
+Proposals that were reviewed and turned down. They live here, not only in a
+closed PR comment, so the reasoning travels with the file the bot reads.
+
+### Security headers on the `kv.internal` outbound handler (PRs #1041, #1045, #1051 — 2026-07-25)
+
+**Proposed:** wrap every response from `kvOutbound` in `src/worker.ts` with
+`withSecurityHeaders` (`X-Content-Type-Options`, `X-Frame-Options`, HSTS).
+
+**Why not:** those headers are instructions to a *browser*. `kvOutbound` is not
+reachable by one. It is deliberately NOT dispatched from the public `fetch`
+entrypoint — a comment there explains that exposing it would let a caller
+spoofing the `kv.internal` hostname read, write and delete the credential KV
+namespace unauthenticated. It is reached only by the container through
+`@cloudflare/containers`' ContainerProxy, and its response is consumed by an HTTP
+client inside that container. Adding clickjacking/MIME-sniffing directives to
+that channel protects nothing.
+
+The browser-facing surface is already covered: every response returned from the
+`fetch` entrypoint — proxied, 401, 404 and 405 alike — goes through
+`withSecurityHeaders` (the 2026-07-09 and 2026-07-10 entries above).
+
+Note the recurrence pattern: #1041 and #1045 carried an identical diff, and #1051
+repeated it with the helper exported. Three PRs, one idea, because nothing in
+this file recorded that it had been considered and declined.
