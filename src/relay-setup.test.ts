@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { assembleEmailCredentials, formatCredentials } from './relay-setup.js'
+import { afterEach, describe, expect, it } from 'vitest'
+import { assembleEmailCredentials, findUnusableAccountCards, formatCredentials } from './relay-setup.js'
 
 describe('formatCredentials', () => {
   it('formats a single email:password pair (legacy format)', () => {
@@ -106,5 +106,58 @@ describe('assembleEmailCredentials', () => {
   it('returns an empty string for an empty or missing array', () => {
     expect(assembleEmailCredentials([])).toBe('')
     expect(assembleEmailCredentials(undefined)).toBe('')
+  })
+})
+
+describe('findUnusableAccountCards', () => {
+  afterEach(() => {
+    delete process.env.OUTLOOK_EXTRA_DOMAINS
+  })
+
+  it('flags a card that carries an email but no password', () => {
+    expect(findUnusableAccountCards([{ email: 'a@gmail.com' }])).toEqual(['a@gmail.com'])
+  })
+
+  it('does not flag Outlook cards — device code needs no password', () => {
+    expect(findUnusableAccountCards([{ email: 'a@outlook.com' }])).toEqual([])
+  })
+
+  it('does not flag a card that has a password', () => {
+    expect(findUnusableAccountCards([{ email: 'a@gmail.com', password: 'p' }])).toEqual([])
+  })
+
+  it('does not flag a custom domain routed to OAuth via OUTLOOK_EXTRA_DOMAINS', () => {
+    process.env.OUTLOOK_EXTRA_DOMAINS = 'company.com'
+    expect(findUnusableAccountCards([{ email: 'user@company.com' }])).toEqual([])
+  })
+
+  it('reports every unusable card, not just the first', () => {
+    expect(
+      findUnusableAccountCards([
+        { email: 'a@gmail.com' },
+        { email: 'b@gmail.com', password: 'p' },
+        { email: 'c@yahoo.com', password: '  ' }
+      ])
+    ).toEqual(['a@gmail.com', 'c@yahoo.com'])
+  })
+
+  it('ignores cards without an email — the form already requires one', () => {
+    expect(findUnusableAccountCards([{ password: 'p' }])).toEqual([])
+  })
+
+  it('returns an empty array for an empty or missing array', () => {
+    expect(findUnusableAccountCards([])).toEqual([])
+    expect(findUnusableAccountCards(undefined)).toEqual([])
+  })
+})
+
+describe('assembleEmailCredentials with OUTLOOK_EXTRA_DOMAINS', () => {
+  afterEach(() => {
+    delete process.env.OUTLOOK_EXTRA_DOMAINS
+  })
+
+  it('emits email-only for a custom domain listed as an OAuth domain', () => {
+    process.env.OUTLOOK_EXTRA_DOMAINS = 'company.com'
+    expect(assembleEmailCredentials([{ email: 'user@company.com' }])).toBe('user@company.com')
   })
 })

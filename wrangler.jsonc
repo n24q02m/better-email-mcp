@@ -33,6 +33,10 @@
   //   MCP_DCR_SERVER_SECRET - proof of intentional multi-user deploy.
   //   OUTLOOK_CLIENT_ID     - optional: override the bundled Azure AD public client.
   //   OUTLOOK_EMAIL         - optional: fallback email key for device-code tokens.
+  //   OUTLOOK_TENANT        - optional: directory for device-code AND token refresh
+  //                           ("common" or a tenant GUID for M365 work/school).
+  //   OUTLOOK_SCOPES        - optional: space-separated scope override.
+  //   OUTLOOK_EXTRA_DOMAINS - optional: comma-separated domains routed to OAuth.
   "vars": {
     "PUBLIC_URL": "<YOUR_PUBLIC_URL>",
     "MCP_STORAGE_BACKEND": "cf-kv",

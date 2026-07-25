@@ -217,4 +217,22 @@ describe('worker (KV-only)', () => {
     })
     expect(c.envVars).not.toHaveProperty('OUTLOOK_CLIENT_ID')
   })
+
+  test('envVars forwards the Outlook tenant/scope/domain overrides (#1049)', () => {
+    // Without forwarding, these are settable on the Worker but never reach the
+    // container, so an M365 deployment stays broken while looking configured.
+    const c = new EmailContainer(
+      undefined as never,
+      {
+        OUTLOOK_TENANT: 'common',
+        OUTLOOK_SCOPES: 'https://outlook.office.com/IMAP.AccessAsUser.All offline_access',
+        OUTLOOK_EXTRA_DOMAINS: 'company.com'
+      } as never
+    )
+    expect(c.envVars).toEqual({
+      OUTLOOK_TENANT: 'common',
+      OUTLOOK_SCOPES: 'https://outlook.office.com/IMAP.AccessAsUser.All offline_access',
+      OUTLOOK_EXTRA_DOMAINS: 'company.com'
+    })
+  })
 })

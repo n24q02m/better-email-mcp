@@ -36,7 +36,7 @@ import {
   setState
 } from '../credential-state.js'
 import { RELAY_SCHEMA } from '../relay-schema.js'
-import { assembleEmailCredentials, type EmailAccountCard } from '../relay-setup.js'
+import { assembleEmailCredentials, type EmailAccountCard, findUnusableAccountCards } from '../relay-setup.js'
 import { type AccountConfig, loadConfig, parseCredentials } from '../tools/helpers/config.js'
 import { initiateOutlookDeviceCode, isOutlookDomain, setOutlookTokenStore } from '../tools/helpers/oauth2.js'
 import { registerTools } from '../tools/registry.js'
@@ -176,6 +176,20 @@ function buildOptions(args: {
     // A direct `EMAIL_CREDENTIALS` string (legacy / non-form POST) is still
     // accepted so the credential contract stays backward-compatible.
     const submitted = creds as { EMAIL_CREDENTIALS?: string; accounts?: EmailAccountCard[] }
+    if (!submitted?.EMAIL_CREDENTIALS?.trim()) {
+      // Tell the submitter which card cannot be used instead of encoding around
+      // it — a password-less card on a non-OAuth domain used to vanish silently.
+      const unusable = findUnusableAccountCards(submitted?.accounts)
+      if (unusable.length > 0) {
+        return {
+          type: 'error',
+          text:
+            `No password given for ${unusable.join(', ')}. ` +
+            'Enter an App Password, or — for a Microsoft 365 mailbox on your own domain — ' +
+            'add the domain to OUTLOOK_EXTRA_DOMAINS so the server signs in with OAuth instead.'
+        }
+      }
+    }
     const raw = submitted?.EMAIL_CREDENTIALS?.trim() || assembleEmailCredentials(submitted?.accounts)
     if (!raw) {
       return { type: 'error', text: 'Email credentials are required. Format: email:app-password' }

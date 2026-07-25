@@ -84,3 +84,27 @@ export function assembleEmailCredentials(accounts: EmailAccountCard[] | undefine
   }
   return parts.join(',')
 }
+
+/**
+ * Emails of the cards `assembleEmailCredentials` would drop: an address was
+ * typed but no password, and the domain is not on the OAuth path. The encoder
+ * skips those silently — correct for an encoder, wrong as the end of the story,
+ * because the submitter sees no error and nothing happens (reported in #1049
+ * for an M365 custom domain). The transport calls this first and names them.
+ */
+export function findUnusableAccountCards(accounts: EmailAccountCard[] | undefined): string[] {
+  if (!Array.isArray(accounts)) {
+    return []
+  }
+  const unusable: string[] = []
+  for (const account of accounts) {
+    const email = (account?.email ?? '').trim()
+    if (!email || isOutlookDomain(email)) {
+      continue
+    }
+    if (!(account?.password ?? '').trim()) {
+      unusable.push(email)
+    }
+  }
+  return unusable
+}

@@ -495,6 +495,28 @@ describe('http transport', () => {
           text: 'Email credentials are required. Format: email:app-password'
         })
       })
+
+      it('names the card it cannot use instead of dropping it silently (#1049)', async () => {
+        vi.mocked(isOutlookDomain).mockReturnValue(false)
+
+        const result = await onCredentialsSaved({ accounts: [{ email: 'user@company.com' }] })
+
+        expect(result.type).toBe('error')
+        expect(result.text).toContain('user@company.com')
+        expect(result.text).toContain('OUTLOOK_EXTRA_DOMAINS')
+      })
+
+      it('still reports the unusable card when another card is valid', async () => {
+        vi.mocked(isOutlookDomain).mockReturnValue(false)
+
+        const result = await onCredentialsSaved({
+          accounts: [{ email: 'ok@gmail.com', password: 'p' }, { email: 'user@company.com' }]
+        })
+
+        expect(result.type).toBe('error')
+        expect(result.text).toContain('user@company.com')
+        expect(result.text).not.toContain('ok@gmail.com')
+      })
     })
   })
 })

@@ -52,6 +52,8 @@ import {
   deviceCodeAuth,
   ensureValidToken,
   getClientId,
+  getOutlookScopes,
+  getOutlookTenant,
   initiateOutlookDeviceCode,
   isOutlookDomain,
   isValidTokenStore,
@@ -1561,5 +1563,191 @@ describe('decodeIdTokenSubject', () => {
     const payload = Buffer.from(JSON.stringify({ other: 'claim' })).toString('base64url')
     const idToken = `header.${payload}.signature`
     expect(decodeIdTokenSubject(idToken)).toBeNull()
+  })
+})
+
+// ============================================================================
+// Configurable tenant / scopes / extra OAuth domains (#1049)
+// ============================================================================
+
+describe('getOutlookTenant', () => {
+  afterEach(() => {
+    delete process.env.OUTLOOK_TENANT
+  })
+
+  it('falls back to the caller default when OUTLOOK_TENANT is unset', () => {
+    expect(getOutlookTenant('consumers')).toBe('consumers')
+  })
+
+  it('returns OUTLOOK_TENANT when set', () => {
+    process.env.OUTLOOK_TENANT = 'common'
+    expect(getOutlookTenant('consumers')).toBe('common')
+  })
+
+  it('accepts a tenant GUID', () => {
+    process.env.OUTLOOK_TENANT = '72f988bf-86f1-41af-91ab-2d7cd011db47'
+    expect(getOutlookTenant('consumers')).toBe('72f988bf-86f1-41af-91ab-2d7cd011db47')
+  })
+
+  it('accepts a verified tenant domain', () => {
+    process.env.OUTLOOK_TENANT = 'contoso.onmicrosoft.com'
+    expect(getOutlookTenant('consumers')).toBe('contoso.onmicrosoft.com')
+  })
+
+  it('ignores a blank value', () => {
+    process.env.OUTLOOK_TENANT = '   '
+    expect(getOutlookTenant('consumers')).toBe('consumers')
+  })
+
+  it('rejects a value carrying path separators so it cannot reshape the endpoint URL', () => {
+    process.env.OUTLOOK_TENANT = '../../evil'
+    expect(getOutlookTenant('consumers')).toBe('consumers')
+  })
+})
+
+describe('getOutlookScopes', () => {
+  afterEach(() => {
+    delete process.env.OUTLOOK_SCOPES
+  })
+
+  it('defaults to IMAP + SMTP + offline_access', () => {
+    expect(getOutlookScopes()).toEqual([
+      'https://outlook.office.com/IMAP.AccessAsUser.All',
+      'https://outlook.office.com/SMTP.Send',
+      'offline_access'
+    ])
+  })
+
+  it('parses a space-separated OUTLOOK_SCOPES', () => {
+    process.env.OUTLOOK_SCOPES = 'https://outlook.office.com/IMAP.AccessAsUser.All offline_access'
+    expect(getOutlookScopes()).toEqual(['https://outlook.office.com/IMAP.AccessAsUser.All', 'offline_access'])
+  })
+
+  it('collapses extra whitespace between scopes', () => {
+    process.env.OUTLOOK_SCOPES = '  offline_access   https://outlook.office.com/IMAP.AccessAsUser.All  '
+    expect(getOutlookScopes()).toEqual(['offline_access', 'https://outlook.office.com/IMAP.AccessAsUser.All'])
+  })
+
+  it('ignores a blank value', () => {
+    process.env.OUTLOOK_SCOPES = '   '
+    expect(getOutlookScopes()).toEqual([
+      'https://outlook.office.com/IMAP.AccessAsUser.All',
+      'https://outlook.office.com/SMTP.Send',
+      'offline_access'
+    ])
+  })
+})
+
+describe('isOutlookDomain with OUTLOOK_EXTRA_DOMAINS', () => {
+  afterEach(() => {
+    delete process.env.OUTLOOK_EXTRA_DOMAINS
+  })
+
+  it('routes a listed custom domain to the OAuth path', () => {
+    process.env.OUTLOOK_EXTRA_DOMAINS = 'company.com'
+    expect(isOutlookDomain('user@company.com')).toBe(true)
+  })
+
+  it('accepts a comma-separated list with whitespace and mixed case', () => {
+    process.env.OUTLOOK_EXTRA_DOMAINS = ' Company.com , other.co.uk '
+    expect(isOutlookDomain('user@company.com')).toBe(true)
+    expect(isOutlookDomain('user@OTHER.CO.UK')).toBe(true)
+  })
+
+  it('leaves unlisted domains on the password path', () => {
+    process.env.OUTLOOK_EXTRA_DOMAINS = 'company.com'
+    expect(isOutlookDomain('user@gmail.com')).toBe(false)
+  })
+
+  it('keeps the built-in domains when the list is empty', () => {
+    process.env.OUTLOOK_EXTRA_DOMAINS = '   '
+    expect(isOutlookDomain('user@outlook.com')).toBe(true)
+    expect(isOutlookDomain('user@company.com')).toBe(false)
+  })
+})
+
+describe('tenant and scopes reach the Microsoft endpoints (#1049)', () => {
+  const mockFetch = vi.fn()
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', mockFetch)
+    _getPendingAuths().clear()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    _getPendingAuths().clear()
+    delete process.env.OUTLOOK_TENANT
+    delete process.env.OUTLOOK_SCOPES
+  })
+
+  it('refreshes against the configured tenant instead of /consumers', async () => {
+    process.env.OUTLOOK_TENANT = 'common'
+    mockFetch.mockResolvedValue({
+      json: async () => ({ access_token: 'at', refresh_token: 'rt', expires_in: 3600, token_type: 'Bearer' })
+    })
+
+    await refreshAccessToken('client-id', 'refresh-token')
+
+    expect(mockFetch.mock.calls[0]![0]).toBe('https://login.microsoftonline.com/common/oauth2/v2.0/token')
+  })
+
+  it('defaults the refresh endpoint to /consumers when no tenant is configured', async () => {
+    mockFetch.mockResolvedValue({
+      json: async () => ({ access_token: 'at', refresh_token: 'rt', expires_in: 3600, token_type: 'Bearer' })
+    })
+
+    await refreshAccessToken('client-id', 'refresh-token')
+
+    expect(mockFetch.mock.calls[0]![0]).toBe('https://login.microsoftonline.com/consumers/oauth2/v2.0/token')
+  })
+
+  it('sends the configured scopes when refreshing', async () => {
+    process.env.OUTLOOK_SCOPES = 'https://outlook.office.com/IMAP.AccessAsUser.All offline_access'
+    mockFetch.mockResolvedValue({
+      json: async () => ({ access_token: 'at', refresh_token: 'rt', expires_in: 3600, token_type: 'Bearer' })
+    })
+
+    await refreshAccessToken('client-id', 'refresh-token')
+
+    const body = mockFetch.mock.calls[0]![1].body as URLSearchParams
+    expect(body.get('scope')).toBe('https://outlook.office.com/IMAP.AccessAsUser.All offline_access')
+  })
+
+  it('requests the device code from the configured tenant', async () => {
+    process.env.OUTLOOK_TENANT = 'common'
+    mockFetch.mockResolvedValue({
+      json: async () => ({
+        device_code: 'dc',
+        user_code: 'UC-123',
+        verification_uri: 'https://microsoft.com/link',
+        expires_in: 900,
+        interval: 5,
+        message: ''
+      })
+    })
+
+    await initiateOutlookDeviceCode('user@company.com')
+
+    expect(mockFetch.mock.calls[0]![0]).toBe('https://login.microsoftonline.com/common/oauth2/v2.0/devicecode')
+  })
+
+  it('sends the configured scopes in the device-code request', async () => {
+    process.env.OUTLOOK_SCOPES = 'offline_access https://outlook.office.com/IMAP.AccessAsUser.All'
+    mockFetch.mockResolvedValue({
+      json: async () => ({
+        device_code: 'dc',
+        user_code: 'UC-456',
+        verification_uri: 'https://microsoft.com/link',
+        expires_in: 900,
+        interval: 5,
+        message: ''
+      })
+    })
+
+    await initiateOutlookDeviceCode('scoped@company.com')
+
+    const body = mockFetch.mock.calls[0]![1].body as URLSearchParams
+    expect(body.get('scope')).toBe('offline_access https://outlook.office.com/IMAP.AccessAsUser.All')
   })
 })
