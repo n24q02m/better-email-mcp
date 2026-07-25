@@ -2,19 +2,28 @@
  * Live MCP Protocol Tests
  *
  * Spawns the actual MCP server via stdio and communicates using JSON-RPC
- * through the official MCP SDK client. Tests work WITHOUT EMAIL_CREDENTIALS
- * to verify plug-and-play UX.
+ * through the official MCP SDK client.
+ *
+ * stdio mode REQUIRES credentials (`init-server.ts` exits with guidance when
+ * they are absent — spec `2026-05-01-stdio-pure-http-multiuser.md` §5.2.1), so
+ * the protocol suite runs with `EMAIL_CREDENTIALS` and is skipped without it.
+ * The unconfigured path is covered separately below, against the real exit.
  */
 
+import { spawn } from 'node:child_process'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-const EXPECTED_TOOLS = ['messages', 'folders', 'attachments', 'send', 'setup', 'help']
+/** Every tool the registry exposes (`src/tools/registry.ts` TOOLS). */
+const EXPECTED_TOOLS = ['messages', 'folders', 'attachments', 'send', 'config', 'config__open_relay', 'help']
 
-const EMAIL_DEPENDENT_TOOLS = ['messages', 'folders', 'attachments', 'send']
+/** Tools carrying their own documentation resource (`email://docs/<name>`). */
+const DOCUMENTED_TOOLS = ['messages', 'folders', 'attachments', 'send', 'config', 'help']
 
-describe('MCP Protocol - Live Server (no EMAIL_CREDENTIALS)', () => {
+const EMAIL_CREDS = process.env.EMAIL_CREDENTIALS ?? ''
+
+describe.skipIf(!EMAIL_CREDS)('MCP Protocol - Live Server (stdio)', () => {
   let client: Client
   let transport: StdioClientTransport
 
@@ -23,10 +32,9 @@ describe('MCP Protocol - Live Server (no EMAIL_CREDENTIALS)', () => {
       command: 'node',
       args: ['bin/cli.mjs'],
       env: {
-        PATH: process.env.PATH ?? '',
-        HOME: process.env.HOME ?? '',
+        ...(process.env as Record<string, string>),
+        EMAIL_CREDENTIALS: EMAIL_CREDS,
         NODE_ENV: 'test'
-        // Intentionally NO EMAIL_CREDENTIALS
       },
       stderr: 'pipe'
     })
@@ -42,7 +50,7 @@ describe('MCP Protocol - Live Server (no EMAIL_CREDENTIALS)', () => {
     it('should connect and report server info', () => {
       const serverVersion = client.getServerVersion()
       expect(serverVersion).toBeDefined()
-      expect(serverVersion?.name).toBe('@n24q02m/better-email-mcp')
+      expect(serverVersion?.name).toBe('better-email-mcp')
       expect(serverVersion?.version).toMatch(/^\d+\.\d+\.\d+/)
     })
 
@@ -59,10 +67,10 @@ describe('MCP Protocol - Live Server (no EMAIL_CREDENTIALS)', () => {
   })
 
   describe('tools/list', () => {
-    it('should return all 5 tools', async () => {
+    it('should return every registered tool', async () => {
       const result = await client.listTools()
       const toolNames = result.tools.map((t) => t.name)
-      expect(toolNames).toHaveLength(6)
+      expect(toolNames).toHaveLength(EXPECTED_TOOLS.length)
       for (const name of EXPECTED_TOOLS) {
         expect(toolNames).toContain(name)
       }
@@ -98,8 +106,8 @@ describe('MCP Protocol - Live Server (no EMAIL_CREDENTIALS)', () => {
   })
 
   describe('help tool', () => {
-    it('should return documentation for each tool', async () => {
-      for (const toolName of EXPECTED_TOOLS) {
+    it('should return documentation for each documented tool', async () => {
+      for (const toolName of DOCUMENTED_TOOLS) {
         const result = await client.callTool({ name: 'help', arguments: { tool_name: toolName } })
         expect(result.isError).toBeFalsy()
         const text = (result.content as Array<{ type: string; text: string }>)[0]?.text
@@ -114,29 +122,6 @@ describe('MCP Protocol - Live Server (no EMAIL_CREDENTIALS)', () => {
       const text = (result.content as Array<{ type: string; text: string }>)[0]?.text
       expect(text).toContain('Invalid tool name')
     })
-  })
-
-  describe('Email-dependent tools return setup hints without credentials', () => {
-    for (const toolName of EMAIL_DEPENDENT_TOOLS) {
-      it(`${toolName} should return no-accounts error with setup instructions`, async () => {
-        const actionMap: Record<string, Record<string, unknown>> = {
-          messages: { action: 'search' },
-          folders: { action: 'list' },
-          attachments: { action: 'list', account: 'test@test.com', uid: 1 },
-          send: { action: 'new', account: 'test@test.com', to: 'a@b.com', subject: 'test', body: 'test' }
-        }
-
-        const result = await client.callTool({
-          name: toolName,
-          arguments: actionMap[toolName]
-        })
-        expect(result.isError).toBe(true)
-        const text = (result.content as Array<{ type: string; text: string }>)[0]?.text
-        expect(text).toBeTruthy()
-        expect(text).toContain('No email accounts configured')
-        expect(text).toContain('EMAIL_CREDENTIALS')
-      })
-    }
   })
 
   describe('unknown tool handling', () => {
@@ -169,4 +154,31 @@ describe('MCP Protocol - Live Server (no EMAIL_CREDENTIALS)', () => {
       expect(result).toBeDefined()
     })
   })
+})
+
+describe('stdio mode without credentials', () => {
+  it('exits with actionable guidance instead of starting a server nobody can use', async () => {
+    const { code, stderr } = await new Promise<{ code: number | null; stderr: string }>((done, fail) => {
+      // Strip both credential shapes so the run is unconfigured regardless of
+      // what the developer has exported locally.
+      const { EMAIL_CREDENTIALS, EMAIL_USER, EMAIL_APP_PASSWORD, ...rest } = process.env
+      const proc = spawn(process.execPath, ['bin/cli.mjs'], {
+        env: { ...rest, NODE_ENV: 'test' },
+        stdio: ['pipe', 'pipe', 'pipe']
+      })
+      let err = ''
+      proc.stderr.on('data', (chunk: Buffer) => {
+        err += chunk.toString('utf8')
+      })
+      proc.once('error', fail)
+      proc.once('exit', (exitCode) => done({ code: exitCode, stderr: err }))
+    })
+
+    expect(code).toBe(1)
+    expect(stderr).toContain('Missing required env vars for stdio mode')
+    expect(stderr).toContain('EMAIL_CREDENTIALS')
+    expect(stderr).toContain('EMAIL_APP_PASSWORD')
+    // The alternative path must stay discoverable: HTTP mode needs no env creds.
+    expect(stderr).toContain('HTTP mode')
+  }, 30_000)
 })

@@ -11,7 +11,8 @@ import { spawn } from 'node:child_process'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const CLI_PATH = resolve(__dirname, '..', 'bin', 'cli.mjs')
+// This file lives in tests/live/, so the bundle is two levels up — not one.
+const CLI_PATH = resolve(__dirname, '..', '..', 'bin', 'cli.mjs')
 
 interface JsonRpcResponse {
   jsonrpc: '2.0'
@@ -24,10 +25,14 @@ interface JsonRpcResponse {
   error?: { code: number; message: string }
 }
 
-describe('stdio direct mode', () => {
+const EMAIL_CREDS = process.env.EMAIL_CREDENTIALS ?? ''
+
+// stdio mode refuses to start without credentials (init-server.ts), so this
+// suite needs them; the unconfigured exit is asserted in mcp-protocol.live.
+describe.skipIf(!EMAIL_CREDS)('stdio direct mode', () => {
   it('responds to initialize over stdio with correct serverInfo', async () => {
     const proc = spawn(process.execPath, [CLI_PATH], {
-      env: { ...process.env, MCP_TRANSPORT: 'stdio' },
+      env: { ...process.env, EMAIL_CREDENTIALS: EMAIL_CREDS, MCP_TRANSPORT: 'stdio' },
       stdio: ['pipe', 'pipe', 'pipe']
     })
 
