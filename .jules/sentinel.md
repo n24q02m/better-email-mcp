@@ -56,7 +56,7 @@
 **Learning:** In edge routing patterns like Cloudflare Workers where the edge performs initial authentication or method checking before delegating to another service (like a Durable Object), it is a common blind spot to only secure the "happy path" proxy response. The edge router's own generated responses must also be secured.
 **Prevention:** Implement a global response wrapper function (e.g., `withSecurityHeaders(response: Response)`) that clones and sets standard security headers on *every* outbound response originating from the worker, regardless of the response's status code or source.
 
-## 2026-07-11 - [Missing Global Security Headers in Internal Proxy Handlers]
-**Vulnerability:** The internal Cloudflare proxy handler `kvOutbound` returned HTTP responses without global security headers (such as `X-Content-Type-Options: nosniff` and `X-Frame-Options: DENY`), relying only on the edge routing logic to apply them.
-**Learning:** For defense-in-depth, security headers must be applied immediately to the outgoing responses constructed at any system boundary or proxy handler, rather than depending purely on edge ingress/egress layers which might be bypassed or incorrectly configured for internal routes.
-**Prevention:** Apply security wrappers (like `withSecurityHeaders`) universally across all outbound HTTP response handlers in Cloudflare Workers and similar environments, including internally routed proxy handlers like `kvOutbound`.
+## 2026-07-21 - [False Positive: Security Headers on Internal Proxy Handlers]
+**Vulnerability:** A previous patch attempted to wrap `kvOutbound` responses with `X-Frame-Options`, HSTS, and `nosniff` headers.
+**Learning:** This is a false positive and security theater. `withSecurityHeaders` on `kvOutbound` protects nothing because no browser ever sees that response. The handler is deliberately not dispatched from the public `fetch` entrypoint; it is reached only by the container through ContainerProxy, and its response is consumed by an HTTP client inside that container. Adding browser directives here is useless. The browser-facing surface already has them.
+**Prevention:** Before adding browser security headers, confirm that the HTTP response is actually served to a browser client rather than being consumed exclusively by internal, server-side network calls.
