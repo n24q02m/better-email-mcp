@@ -82,3 +82,11 @@ The browser-facing surface is already covered: every response returned from the
 Note the recurrence pattern: #1041 and #1045 carried an identical diff, and #1051
 repeated it with the helper exported. Three PRs, one idea, because nothing in
 this file recorded that it had been considered and declined.
+## 2025-02-14 - Fix missing security headers in edge outbound handler
+**Vulnerability:** Locally constructed proxy/edge HTTP responses (like those generated in the internal KV outbound handler for `kv.internal`) lacked security headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Strict-Transport-Security`). This is especially risky when returning binary credential blobs (`ArrayBuffer`), as missing `nosniff` could allow MIME-sniffing.
+**Learning:** Security header middlewares in Cloudflare Workers or serverless edge proxies must be applied globally to *all* return paths, including internal outbound interception handlers (like `kvOutbound`), not just the public inbound `fetch` method.
+**Prevention:** Always wrap constructed `new Response(...)` objects with the security header wrapper function (`withSecurityHeaders`) universally.
+## 2026-07-26 - XSS Vector via Null Bytes in isSafeUrl (XPIA Vector)
+**Vulnerability:** The `isSafeUrl` function used by the system correctly blocked `javascript:` and other unsafe schemes. However, it was vulnerable to bypasses using null bytes (`\0`) within or preceding the scheme. Attackers could craft URLs like `javascript\0:alert(1)` or `\0javascript:alert(1)` which might bypass the string matching or parsing checks while still being executed as active scripts by some contexts or engines downstream.
+**Learning:** Checking for exact string prefixes without accounting for control characters like null bytes that might be ignored or stripped by downstream consumers leaves parsing vulnerabilities. The `URL` constructor in JS may sometimes behave differently from browser navigation contexts when encountering control characters.
+**Prevention:** Explicitly check for and reject null bytes (`\0`) in user-provided URLs before parsing or validating them for security constraints.

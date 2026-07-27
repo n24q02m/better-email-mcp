@@ -109,6 +109,14 @@ describe('isSafeUrl', () => {
   it('blocks URLs with null bytes in protocol (XPIA vector)', () => {
     expect(isSafeUrl('ht\0tp://example.com')).toBe(false)
   })
+
+  it('blocks null bytes in protocol', () => {
+    expect(isSafeUrl('javascript\0:alert(1)')).toBe(false)
+  })
+
+  it('blocks null bytes before protocol', () => {
+    expect(isSafeUrl('\0javascript:alert(1)')).toBe(false)
+  })
 })
 
 // ============================================================================
