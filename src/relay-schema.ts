@@ -42,6 +42,7 @@ export const RELAY_SCHEMA: RelayConfigSchema = {
         label: 'Password',
         type: 'password',
         required: false,
+        placeholder: '16-digit App Password',
         helpText:
           'App Password for Gmail/Yahoo/iCloud (not your normal password). Leave blank for Outlook/Hotmail/Live — OAuth runs automatically after submit.'
       },
@@ -50,6 +51,7 @@ export const RELAY_SCHEMA: RelayConfigSchema = {
         label: 'IMAP Host',
         type: 'text',
         required: false,
+        placeholder: 'imap.mail.yahoo.com',
         helpText: 'Optional. Leave empty for auto-detection. Accepts localhost or a proxy host.'
       },
       {
@@ -58,6 +60,7 @@ export const RELAY_SCHEMA: RelayConfigSchema = {
         type: 'text',
         required: false,
         placeholder: '993',
+        validation: '^\\d+$',
         helpText: 'Optional. Default 993. Set a custom port for a local IMAP proxy.'
       }
     ]
