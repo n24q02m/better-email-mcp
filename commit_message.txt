@@ -1,7 +1,0 @@
-Fix XSS bypass via null bytes in isSafeUrl
-
-The `isSafeUrl` function was vulnerable to a protocol parsing bypass
-where null bytes (`\0`) within or preceding the scheme (e.g.,
-`javascript\0:alert(1)`) could bypass string prefix checks but still
-execute in some client contexts. Added an explicit check to reject
-any URL containing null bytes before parsing.
