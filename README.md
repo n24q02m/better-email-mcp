@@ -127,7 +127,7 @@ npx @n24q02m/better-email-mcp auth user@outlook.com
 npx @n24q02m/better-email-mcp logout user@outlook.com
 ```
 
-`auth`/`logout` are only for Outlook/Hotmail/Live addresses -- other providers use an App Password in `EMAIL_CREDENTIALS`. See [Remote (HTTP Mode)](#remote-http-mode) for the hosted endpoint and HTTP config.
+`auth`/`logout` are only for Outlook/Hotmail/Live addresses -- other providers use an App Password in `EMAIL_CREDENTIALS`. See [Remote (HTTP Mode)](#remote-http-mode) for the HTTP config.
 
 ## Smithery
 
@@ -199,7 +199,7 @@ Run as a multi-user HTTP server with OAuth 2.1 authentication:
   "mcpServers": {
     "better-email": {
       "type": "http",
-      "url": "https://email.n24q02m.com/mcp"
+      "url": "https://<your-host>/mcp"
     }
   }
 }
@@ -220,7 +220,7 @@ Users provide their own email credentials through the OAuth flow / paste form. N
 
 ### Cloudflare serverless mode (KV-only)
 
-Deploy a per-user serverless instance at `https://email.n24q02m.com`: each JWT `sub`
+Self-hostable as a per-user serverless instance on Cloudflare Workers + Containers: each JWT `sub`
 gets its own Container Durable Object, and all credentials AND Outlook OAuth tokens are
 AES-256-GCM encrypted into Workers KV (one `subs/<sub>/config` blob per user) so they
 **survive scale-to-zero / container recreate with no re-auth**. The JWT signing key is
