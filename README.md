@@ -1,5 +1,7 @@
 # Better Email MCP
 
+[![MCP Toplist](https://mcptoplist.com/badge/io.github.n24q02m%2Fbetter-email-mcp.svg)](https://mcptoplist.com/server/io.github.n24q02m%2Fbetter-email-mcp)
+
 mcp-name: io.github.n24q02m/better-email-mcp
 
 **IMAP/SMTP email for AI agents -- read, send, organize folders, and manage attachments across multiple accounts, with auto-discovery.**
