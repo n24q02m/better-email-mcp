@@ -103,3 +103,6 @@
 ## 2023-10-27 - Inline Validation and Context-Aware Errors
 **Learning:** Native form validation combined with generic error messages (e.g., "Invalid value") leaves users confused. Additionally, relying solely on "submit" for validation frustrates users, as they must complete the entire form before receiving any feedback.
 **Action:** Enhance native validation events by dynamically using the field's `label` in error messages to provide context. Introduce a `blur` event listener to trigger validation specifically on fields the user has touched, providing immediate feedback while maintaining accessibility.
+## 2025-07-28 - Schema-Driven Form Validation and Placeholders
+**Learning:** For dynamic or schema-driven forms, pushing validation patterns (like `^\d+$` for ports) and visual placeholders (like `imap.example.com` for hostnames) down to the schema level ensures immediate client-side feedback and clear guidance for the user. This improves form UX and reduces the chance of bad submissions that cause backend errors.
+**Action:** Always leverage available schema features (like `validation` and `placeholder` in `ConfigField`) to enhance native browser validation and provide in-context hints for complex inputs.
