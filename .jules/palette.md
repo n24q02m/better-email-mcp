@@ -103,3 +103,6 @@
 ## 2023-10-27 - Inline Validation and Context-Aware Errors
 **Learning:** Native form validation combined with generic error messages (e.g., "Invalid value") leaves users confused. Additionally, relying solely on "submit" for validation frustrates users, as they must complete the entire form before receiving any feedback.
 **Action:** Enhance native validation events by dynamically using the field's `label` in error messages to provide context. Introduce a `blur` event listener to trigger validation specifically on fields the user has touched, providing immediate feedback while maintaining accessibility.
+## 2025-05-24 - Declarative Form Validation
+**Learning:** Hardcoded validation logic inside form templates can be brittle and difficult to maintain. Using a declarative schema (like JSON or TS objects) to define validation rules (`pattern`) and placeholders allows for cleaner form generation and consistent UX across different environments (e.g., Python vs. TS servers).
+**Action:** Leverage the shared schema's `validation` and `placeholder` properties when configuring forms to provide immediate client-side feedback and guidance without writing custom JavaScript validation logic.
