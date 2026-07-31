@@ -58,6 +58,7 @@ export const RELAY_SCHEMA: RelayConfigSchema = {
         type: 'text',
         required: false,
         placeholder: '993',
+        validation: '^\\d*$',
         helpText: 'Optional. Default 993. Set a custom port for a local IMAP proxy.'
       }
     ]
