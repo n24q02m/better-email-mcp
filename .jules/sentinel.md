@@ -82,3 +82,8 @@ The browser-facing surface is already covered: every response returned from the
 Note the recurrence pattern: #1041 and #1045 carried an identical diff, and #1051
 repeated it with the helper exported. Three PRs, one idea, because nothing in
 this file recorded that it had been considered and declined.
+
+## 2026-07-25 - [DoS via URL Parsing]
+**Vulnerability:** The `isSafeUrl` function in `src/tools/helpers/security.ts` was relying exclusively on the native `URL` constructor without verifying the length of the input. Passing an extremely long string could cause a Denial of Service (DoS) due to CPU exhaustion during URL parsing or memory exhaustion.
+**Learning:** Functions evaluating untrusted or arbitrary input using complex parsers (like the native URL constructor) can be vulnerable to DoS attacks if the input is excessively large.
+**Prevention:** Always enforce strict length limits on strings before passing them to parsing mechanisms like `URL` or `RegExp`, ensuring bounded processing time and memory allocation.

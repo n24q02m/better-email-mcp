@@ -25,6 +25,10 @@ const VALID_TOOL_NAMES = new Set(['messages', 'folders', 'attachments', 'send', 
  * Prevents XSS attacks via javascript:, data:, vbscript:, etc.
  */
 export function isSafeUrl(url: string): boolean {
+  if (!url || url.length > 2048) {
+    return false
+  }
+
   try {
     // Try parsing as absolute URL
     const parsed = new URL(url)
