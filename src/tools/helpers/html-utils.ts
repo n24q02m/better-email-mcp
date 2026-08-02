@@ -39,7 +39,11 @@ export function escapeHtml(unsafe: unknown): string {
 // In hot paths like text processing, extracting these to module-scoped constants
 // reduces memory allocation and garbage collection overhead.
 const RE_WHITESPACE = /\s+/g
-const RE_STYLE_SCRIPT = /<(style|script)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi
+// ⚡ Bolt: Avoid backreferences (e.g. `\1`) in hot-path regular expressions.
+// Backreferences force V8 into a slow execution path.
+// When stripping symmetric elements, do not process them sequentially (which breaks left-to-right parsing).
+// Instead, combine specific patterns using the OR operator (`|`) to preserve correct parsing order.
+const RE_STYLE_SCRIPT = /<style\b[^>]*>[\s\S]*?(?:<\/style\s*>|$)|<script\b[^>]*>[\s\S]*?(?:<\/script\s*>|$)/gi
 const RE_BLOCK_TAGS = /<\/(p|div|br|tr|li|h[1-6])>/gi
 const RE_BR_TAGS = /<br\s*\/?>/gi
 const RE_ANY_TAG = /<[^>]+>/g
