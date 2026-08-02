@@ -82,3 +82,8 @@ The browser-facing surface is already covered: every response returned from the
 Note the recurrence pattern: #1041 and #1045 carried an identical diff, and #1051
 repeated it with the helper exported. Three PRs, one idea, because nothing in
 this file recorded that it had been considered and declined.
+
+## 2026-07-26 - DoS Vulnerability via Unbounded URL Parsing in isSafeUrl
+**Vulnerability:** The `isSafeUrl` function parsed user-provided URLs using the native `URL` constructor without any prior length validation. An attacker could potentially cause a Denial of Service (DoS) by passing an extremely long string, exhausting CPU or memory resources during parsing.
+**Learning:** Functions that parse complex data structures (like URLs or Regular Expressions) from untrusted input must always enforce strict length limits *before* passing the input to the parser, as these native implementations can be computationally expensive and vulnerable to exhaustion attacks.
+**Prevention:** Enforce a strict maximum length (e.g., 2048 characters) for untrusted strings before performing complex parsing operations like `new URL(url)`.

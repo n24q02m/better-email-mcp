@@ -109,6 +109,11 @@ describe('isSafeUrl', () => {
   it('blocks URLs with null bytes in protocol (XPIA vector)', () => {
     expect(isSafeUrl('ht\0tp://example.com')).toBe(false)
   })
+
+  it('blocks extremely long URLs (DoS vector)', () => {
+    const longUrl = `http://example.com/${'a'.repeat(2500)}`
+    expect(isSafeUrl(longUrl)).toBe(false)
+  })
 })
 
 // ============================================================================
