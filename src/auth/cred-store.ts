@@ -68,6 +68,7 @@ function isValidAccount(a: unknown): boolean {
   // id/email must be non-empty; password is a string but may be empty for OAuth2
   // accounts (no password). imap/smtp must be well-formed server configs.
   if (!isNonEmptyString(acc.id) || !isNonEmptyString(acc.email) || typeof acc.password !== 'string') return false
+  if (acc.authType !== undefined && acc.authType !== 'password' && acc.authType !== 'oauth2') return false
   if (!isValidServer(acc.imap) || !isValidServer(acc.smtp)) return false
   if (acc.oauth2 !== undefined && !isValidOAuth2(acc.oauth2)) return false
   return true

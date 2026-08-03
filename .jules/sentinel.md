@@ -82,3 +82,7 @@ The browser-facing surface is already covered: every response returned from the
 Note the recurrence pattern: #1041 and #1045 carried an identical diff, and #1051
 repeated it with the helper exported. Three PRs, one idea, because nothing in
 this file recorded that it had been considered and declined.
+## 2026-08-04 - Strict Type Guarding for Credential Authentication Types
+**Vulnerability:** The `isValidAccount` type guard in `src/auth/cred-store.ts` verified that the `password` field was a string (which is required by the TS type even when empty for OAuth2) but failed to validate the `authType` field. An attacker capable of modifying the encrypted KV credential blob could theoretically inject arbitrary string values into `authType` (e.g. `'admin'`, `'bypass'`), potentially confusing downstream authentication logic that branches on this type.
+**Learning:** Structural validation of JSON payloads must explicitly constrain literal string union types to their allowed values (e.g., `'password' | 'oauth2'`), as `typeof x === 'string'` is insufficient to prevent unexpected states in union-typed properties.
+**Prevention:** Extend the `isValidAccount` validation to explicitly check `if (acc.authType !== undefined && acc.authType !== 'password' && acc.authType !== 'oauth2') return false;` to guarantee runtime enforcement of the type schema.
