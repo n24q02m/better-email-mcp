@@ -26,6 +26,7 @@ const VALID_TOOL_NAMES = new Set(['messages', 'folders', 'attachments', 'send', 
  */
 export function isSafeUrl(url: string): boolean {
   try {
+    if (url.includes('\0')) return false
     // Try parsing as absolute URL
     const parsed = new URL(url)
     return ['http:', 'https:', 'mailto:', 'tel:'].includes(parsed.protocol)
