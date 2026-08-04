@@ -103,3 +103,6 @@
 ## 2023-10-27 - Inline Validation and Context-Aware Errors
 **Learning:** Native form validation combined with generic error messages (e.g., "Invalid value") leaves users confused. Additionally, relying solely on "submit" for validation frustrates users, as they must complete the entire form before receiving any feedback.
 **Action:** Enhance native validation events by dynamically using the field's `label` in error messages to provide context. Introduce a `blur` event listener to trigger validation specifically on fields the user has touched, providing immediate feedback while maintaining accessibility.
+## 2026-07-04 - Client-side Regex Validation for Optional Fields
+**Learning:** When adding `validation` patterns to form schemas (e.g., in `mcp-core` relay schemas) for optional fields, using a restrictive regex like `^\d+$` (which requires at least one character) can inadvertently block form submission if the field is left blank, as empty strings will fail the regex.
+**Action:** Always ensure that regex validation for optional fields explicitly allows empty strings by using `*` instead of `+` (e.g., `^\d*$`), or verify that the underlying form framework skips validation for empty non-required fields, to prevent blocking legitimate submissions.
