@@ -59,3 +59,7 @@
 ## 2024-07-17 - [Eliminate V8 Array Allocations in `for...of` loops]
 **Learning:** In V8 environments, initializing static array literals directly inside `for...of` loop definitions (e.g., `for (const key of ['A', 'B'])`) within frequently executed functions (hot paths like query parsing) forces the engine to reallocate the array on every invocation, adding unnecessary garbage collection overhead.
 **Action:** Extract these array literals into module-scoped static constants (e.g., `const KEYS = ['A', 'B'] as const`) to prevent repeated memory allocations and improve execution speed in hot paths.
+
+## 2025-02-12 - [V8 Backreference Performance Penalty in Regex]
+**Learning:** Using backreferences (e.g., `\1`) in hot-path regular expressions forces V8 into a slow execution path.
+**Action:** When stripping symmetric elements (like `<style>` and `<script>`), avoid splitting the regex into sequential passes (which breaks left-to-right parsing semantics). Instead, combine the specific patterns using the OR operator (`|`) to preserve correct parsing order while avoiding the backreference performance penalty.
