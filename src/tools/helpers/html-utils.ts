@@ -39,7 +39,7 @@ export function escapeHtml(unsafe: unknown): string {
 // In hot paths like text processing, extracting these to module-scoped constants
 // reduces memory allocation and garbage collection overhead.
 const RE_WHITESPACE = /\s+/g
-const RE_STYLE_SCRIPT = /<(style|script)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi
+const RE_STYLE_SCRIPT = /<(?:style\b[^>]*>[\s\S]*?(?:<\/style\s*>|$)|script\b[^>]*>[\s\S]*?(?:<\/script\s*>|$))/gi
 const RE_BLOCK_TAGS = /<\/(p|div|br|tr|li|h[1-6])>/gi
 const RE_BR_TAGS = /<br\s*\/?>/gi
 const RE_ANY_TAG = /<[^>]+>/g
