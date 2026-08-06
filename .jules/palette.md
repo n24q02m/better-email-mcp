@@ -103,3 +103,7 @@
 ## 2023-10-27 - Inline Validation and Context-Aware Errors
 **Learning:** Native form validation combined with generic error messages (e.g., "Invalid value") leaves users confused. Additionally, relying solely on "submit" for validation frustrates users, as they must complete the entire form before receiving any feedback.
 **Action:** Enhance native validation events by dynamically using the field's `label` in error messages to provide context. Introduce a `blur` event listener to trigger validation specifically on fields the user has touched, providing immediate feedback while maintaining accessibility.
+
+## 2024-05-18 - [Optional Field Regex Validation]
+**Learning:** When adding regex validation (`pattern` attribute on `<input>`) to optional fields to improve UX inline feedback, the regex *must* explicitly allow empty strings (e.g., using `^\d*$` instead of `^\d+$` or `^\S*$` instead of `^\S+$`). Otherwise, the native HTML form validation will block submission if the user intentionally skips the optional field, because the empty string fails the regex check.
+**Action:** Always test regex validations on optional fields with empty inputs. Ensure patterns are "tolerant" by using `*` instead of `+` where appropriate.
