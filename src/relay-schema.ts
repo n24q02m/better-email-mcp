@@ -50,7 +50,8 @@ export const RELAY_SCHEMA: RelayConfigSchema = {
         label: 'IMAP Host',
         type: 'text',
         required: false,
-        helpText: 'Optional. Leave empty for auto-detection. Accepts localhost or a proxy host.'
+        helpText: 'Optional. Leave empty for auto-detection. Accepts localhost or a proxy host.',
+        validation: '^\\S*$'
       },
       {
         key: 'imap_port',
@@ -58,7 +59,8 @@ export const RELAY_SCHEMA: RelayConfigSchema = {
         type: 'text',
         required: false,
         placeholder: '993',
-        helpText: 'Optional. Default 993. Set a custom port for a local IMAP proxy.'
+        helpText: 'Optional. Default 993. Set a custom port for a local IMAP proxy.',
+        validation: '^\\d*$'
       }
     ]
   }
