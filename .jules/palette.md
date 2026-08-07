@@ -103,3 +103,7 @@
 ## 2023-10-27 - Inline Validation and Context-Aware Errors
 **Learning:** Native form validation combined with generic error messages (e.g., "Invalid value") leaves users confused. Additionally, relying solely on "submit" for validation frustrates users, as they must complete the entire form before receiving any feedback.
 **Action:** Enhance native validation events by dynamically using the field's `label` in error messages to provide context. Introduce a `blur` event listener to trigger validation specifically on fields the user has touched, providing immediate feedback while maintaining accessibility.
+
+## 2025-07-28 - Regex Validation for Optional Schema-Driven Form Fields
+**Learning:** When using schema-driven forms (like `RELAY_SCHEMA`) to render inputs, applying standard regex validation to optional fields can inadvertently block form submission if the user leaves the field intentionally blank, causing a frustrating UX.
+**Action:** When adding validation regex patterns to optional fields (e.g., `^\d*$` for ports or `^\S*$` for hostnames), ensure the pattern explicitly allows an empty string so the field can be bypassed correctly.
