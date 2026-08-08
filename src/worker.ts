@@ -88,6 +88,9 @@ function pickContainerEnv(env: Env): Record<string, string> {
 // public internet (kv.internal -> NXDOMAIN).
 
 const kvOutbound: OutboundHandler<Env> = async (request, env) => {
+  if (request.url.length > 2048) {
+    return new Response('URI too long', { status: 414 })
+  }
   const url = new URL(request.url)
   const key = decodeURIComponent(url.pathname.replace(/^\//, ''))
   // Readiness probe (E.1): once this handler answers, outbound interception is
@@ -155,6 +158,9 @@ function withSecurityHeaders(response: Response): Response {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    if (request.url.length > 2048) {
+      return withSecurityHeaders(new Response('URI too long', { status: 414 }))
+    }
     // Public entrypoint: ONLY routes inbound requests to the per-user container
     // DO. The kv.internal outbound handler is deliberately NOT dispatched here —
     // exposing it on the public fetch surface would let an external caller

@@ -82,3 +82,8 @@ The browser-facing surface is already covered: every response returned from the
 Note the recurrence pattern: #1041 and #1045 carried an identical diff, and #1051
 repeated it with the helper exported. Three PRs, one idea, because nothing in
 this file recorded that it had been considered and declined.
+
+## 2026-07-29 - DoS Vulnerability via Unsanitized URI Length
+**Vulnerability:** The `fetch` entrypoint and `kvOutbound` handler in `src/worker.ts` passed inbound request URLs directly to the native `URL` constructor without any length limits. An attacker could exploit this by sending requests with extremely long URIs, causing high CPU/memory overhead or crashing the worker process due to URI parsing constraints.
+**Learning:** Native parsing functions like `URL` are susceptible to performance degradation and memory exhaustion when given excessively large inputs. This is a common attack vector for Denial of Service (DoS).
+**Prevention:** Always enforce strict length bounds (e.g., max 2048 characters) on untrusted request URIs before passing them into parsers. Return a 414 URI Too Long status code gracefully to prevent resource exhaustion.
