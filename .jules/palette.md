@@ -103,3 +103,7 @@
 ## 2023-10-27 - Inline Validation and Context-Aware Errors
 **Learning:** Native form validation combined with generic error messages (e.g., "Invalid value") leaves users confused. Additionally, relying solely on "submit" for validation frustrates users, as they must complete the entire form before receiving any feedback.
 **Action:** Enhance native validation events by dynamically using the field's `label` in error messages to provide context. Introduce a `blur` event listener to trigger validation specifically on fields the user has touched, providing immediate feedback while maintaining accessibility.
+
+## 2024-08-08 - Client-side validation in credential form
+**Learning:** Native HTML5 validation patterns via `mcp-core` relay schemas provide instant feedback, significantly improving the configuration UX by preventing users from submitting malformed data (like whitespace in hostnames or non-digits in ports) and having to wait for a backend failure.
+**Action:** When adding or maintaining `mcp-core` relay schemas, always include strict regex patterns in the `validation` property and contextual `placeholder` values for optional/technical fields to guide user input early.
