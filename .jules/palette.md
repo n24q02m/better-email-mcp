@@ -103,3 +103,7 @@
 ## 2023-10-27 - Inline Validation and Context-Aware Errors
 **Learning:** Native form validation combined with generic error messages (e.g., "Invalid value") leaves users confused. Additionally, relying solely on "submit" for validation frustrates users, as they must complete the entire form before receiving any feedback.
 **Action:** Enhance native validation events by dynamically using the field's `label` in error messages to provide context. Introduce a `blur` event listener to trigger validation specifically on fields the user has touched, providing immediate feedback while maintaining accessibility.
+
+## 2026-08-05 - Client-Side Validation for Optional Fields
+**Learning:** When adding declarative client-side validation (like `pattern` or `validation` properties that compile to regex) to optional form fields, simple regexes like `^\S+$` or `^\d+$` will inadvertently block form submission if the user intentionally leaves the field blank.
+**Action:** Always ensure that client-side validation regex patterns for optional fields allow empty strings (e.g., using `*` instead of `+` like `^\S*$` or `^\d*$`) so that empty values smoothly pass validation and the form can be submitted.
