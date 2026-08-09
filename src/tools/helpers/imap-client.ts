@@ -442,13 +442,20 @@ export async function searchEmails(
         const emails = await withConnection(account, async (client) => {
           const lock = await client.getMailboxLock(folder)
           try {
-            // Step 1: search to get UIDs (fast — server-side filtering)
-            const allUids = await client.search(criteria, { uid: true })
+            // Step 1: ask ESEARCH/PARTIAL for only the most recent matching UIDs.
+            // This keeps large mailboxes bounded on servers that support RFC 4731/9394.
+            const searchResult = await client.search(criteria, {
+              uid: true,
+              returnOptions: [{ partial: `-${limit}:-1` }]
+            })
 
-            if (!allUids || allUids.length === 0) return []
+            if (!searchResult) return []
 
-            // Step 2: take the most recent `limit` UIDs (highest UIDs = most recent)
-            const selectedUids = (allUids as number[]).slice(-limit)
+            const partial =
+              typeof searchResult === 'object' && !Array.isArray(searchResult) ? searchResult.partial : undefined
+            const selectedUids = partial?.messages ?? (Array.isArray(searchResult) ? searchResult.slice(-limit) : [])
+
+            if (!selectedUids || (Array.isArray(selectedUids) && selectedUids.length === 0)) return []
 
             // Step 3: fetch only those specific UIDs
             return await client.fetchAll(

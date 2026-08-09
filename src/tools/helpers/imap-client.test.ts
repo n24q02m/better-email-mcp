@@ -68,6 +68,11 @@ const account: AccountConfig = {
   smtp: { host: 'smtp.gmail.com', port: 465, secure: true }
 }
 
+const boundedSearchOptions = {
+  uid: true,
+  returnOptions: [{ partial: '-10:-1' }]
+}
+
 /** Create async iterable from array (for ImapFlow.fetch) */
 function _toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
   return {
@@ -902,92 +907,95 @@ describe('buildSearchCriteria', () => {
   it('maps READ to { seen: true }', async () => {
     setupSearch()
     await searchEmails([account], 'READ', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ seen: true }, { uid: true })
+    expect(mockClient.search).toHaveBeenCalledWith({ seen: true }, boundedSearchOptions)
   })
 
   it('maps SEEN to { seen: true }', async () => {
     setupSearch()
     await searchEmails([account], 'SEEN', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ seen: true }, { uid: true })
+    expect(mockClient.search).toHaveBeenCalledWith({ seen: true }, boundedSearchOptions)
   })
 
   it('maps FLAGGED to { flagged: true }', async () => {
     setupSearch()
     await searchEmails([account], 'FLAGGED', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ flagged: true }, { uid: true })
+    expect(mockClient.search).toHaveBeenCalledWith({ flagged: true }, boundedSearchOptions)
   })
 
   it('maps STARRED to { flagged: true }', async () => {
     setupSearch()
     await searchEmails([account], 'STARRED', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ flagged: true }, { uid: true })
+    expect(mockClient.search).toHaveBeenCalledWith({ flagged: true }, boundedSearchOptions)
   })
 
   it('maps UNFLAGGED to { flagged: false }', async () => {
     setupSearch()
     await searchEmails([account], 'UNFLAGGED', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ flagged: false }, { uid: true })
+    expect(mockClient.search).toHaveBeenCalledWith({ flagged: false }, boundedSearchOptions)
   })
 
   it('maps UNSTARRED to { flagged: false }', async () => {
     setupSearch()
     await searchEmails([account], 'UNSTARRED', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ flagged: false }, { uid: true })
+    expect(mockClient.search).toHaveBeenCalledWith({ flagged: false }, boundedSearchOptions)
   })
 
   it('maps ALL to {}', async () => {
     setupSearch()
     await searchEmails([account], 'ALL', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({}, { uid: true })
+    expect(mockClient.search).toHaveBeenCalledWith({}, boundedSearchOptions)
   })
 
   it('maps * to {}', async () => {
     setupSearch()
     await searchEmails([account], '*', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({}, { uid: true })
+    expect(mockClient.search).toHaveBeenCalledWith({}, boundedSearchOptions)
   })
 
   it('maps SINCE date to { since: Date }', async () => {
     setupSearch()
     await searchEmails([account], 'SINCE 2024-01-01', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ since: new Date('2024-01-01') }, { uid: true })
+    expect(mockClient.search).toHaveBeenCalledWith({ since: new Date('2024-01-01') }, boundedSearchOptions)
   })
 
   it('maps FROM to { from: string }', async () => {
     setupSearch()
     await searchEmails([account], 'FROM user@test.com', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ from: 'user@test.com' }, { uid: true })
+    expect(mockClient.search).toHaveBeenCalledWith({ from: 'user@test.com' }, boundedSearchOptions)
   })
 
   it('maps SUBJECT to { subject: string }', async () => {
     setupSearch()
     await searchEmails([account], 'SUBJECT hello', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ subject: 'hello' }, { uid: true })
+    expect(mockClient.search).toHaveBeenCalledWith({ subject: 'hello' }, boundedSearchOptions)
   })
 
   it('maps UNREAD SINCE to compound criteria', async () => {
     setupSearch()
     await searchEmails([account], 'UNREAD SINCE 2024-01-01', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ seen: false, since: new Date('2024-01-01') }, { uid: true })
+    expect(mockClient.search).toHaveBeenCalledWith({ seen: false, since: new Date('2024-01-01') }, boundedSearchOptions)
   })
 
   it('maps UNREAD FROM to compound criteria', async () => {
     setupSearch()
     await searchEmails([account], 'UNREAD FROM user@test.com', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ seen: false, from: 'user@test.com' }, { uid: true })
+    expect(mockClient.search).toHaveBeenCalledWith({ seen: false, from: 'user@test.com' }, boundedSearchOptions)
   })
 
   it('falls back to subject search for plain text', async () => {
     setupSearch()
     await searchEmails([account], 'meeting notes', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ subject: 'meeting notes' }, { uid: true })
+    expect(mockClient.search).toHaveBeenCalledWith({ subject: 'meeting notes' }, boundedSearchOptions)
   })
 
   // Compound queries (issue #298)
   it('maps FROM x SINCE date to compound criteria', async () => {
     setupSearch()
     await searchEmails([account], 'FROM sshrien SINCE 2026-03-01', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ from: 'sshrien', since: new Date('2026-03-01') }, { uid: true })
+    expect(mockClient.search).toHaveBeenCalledWith(
+      { from: 'sshrien', since: new Date('2026-03-01') },
+      boundedSearchOptions
+    )
   })
 
   it('maps FROM x SINCE date UNREAD to compound criteria', async () => {
@@ -995,7 +1003,7 @@ describe('buildSearchCriteria', () => {
     await searchEmails([account], 'FROM user@test.com SINCE 2024-01-01 UNREAD', 'INBOX', 10)
     expect(mockClient.search).toHaveBeenCalledWith(
       { from: 'user@test.com', since: new Date('2024-01-01'), seen: false },
-      { uid: true }
+      boundedSearchOptions
     )
   })
 
@@ -1004,14 +1012,14 @@ describe('buildSearchCriteria', () => {
     await searchEmails([account], 'SINCE 2024-01-01 BEFORE 2024-02-01', 'INBOX', 10)
     expect(mockClient.search).toHaveBeenCalledWith(
       { since: new Date('2024-01-01'), before: new Date('2024-02-01') },
-      { uid: true }
+      boundedSearchOptions
     )
   })
 
   it('maps FLAGGED FROM x to compound criteria', async () => {
     setupSearch()
     await searchEmails([account], 'FLAGGED FROM boss@company.com', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ flagged: true, from: 'boss@company.com' }, { uid: true })
+    expect(mockClient.search).toHaveBeenCalledWith({ flagged: true, from: 'boss@company.com' }, boundedSearchOptions)
   })
 
   it('maps TO x SINCE date to compound criteria', async () => {
@@ -1019,26 +1027,26 @@ describe('buildSearchCriteria', () => {
     await searchEmails([account], 'TO team@company.com SINCE 2024-06-01', 'INBOX', 10)
     expect(mockClient.search).toHaveBeenCalledWith(
       { to: 'team@company.com', since: new Date('2024-06-01') },
-      { uid: true }
+      boundedSearchOptions
     )
   })
 
   it('handles FROM with quoted value', async () => {
     setupSearch()
     await searchEmails([account], 'FROM "john@test.com"', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ from: 'john@test.com' }, { uid: true })
+    expect(mockClient.search).toHaveBeenCalledWith({ from: 'john@test.com' }, boundedSearchOptions)
   })
 
   it('handles SUBJECT with remaining text in compound query', async () => {
     setupSearch()
     await searchEmails([account], 'UNREAD SUBJECT meeting agenda', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ seen: false, subject: 'meeting agenda' }, { uid: true })
+    expect(mockClient.search).toHaveBeenCalledWith({ seen: false, subject: 'meeting agenda' }, boundedSearchOptions)
   })
 
   it('maps BEFORE date to { before: Date }', async () => {
     setupSearch()
     await searchEmails([account], 'BEFORE 2024-06-01', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({ before: new Date('2024-06-01') }, { uid: true })
+    expect(mockClient.search).toHaveBeenCalledWith({ before: new Date('2024-06-01') }, boundedSearchOptions)
   })
 
   it('throws on invalid BEFORE date format', async () => {
@@ -1052,7 +1060,7 @@ describe('buildSearchCriteria', () => {
   it('returns empty criteria for empty string', async () => {
     setupSearch()
     await searchEmails([account], '', 'INBOX', 10)
-    expect(mockClient.search).toHaveBeenCalledWith({}, { uid: true })
+    expect(mockClient.search).toHaveBeenCalledWith({}, boundedSearchOptions)
   })
 })
 
