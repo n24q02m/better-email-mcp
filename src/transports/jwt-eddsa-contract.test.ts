@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
+import { runHttpServer } from '@n24q02m/mcp-core'
 import { describe, expect, test } from 'vitest'
 
 // Contract guard: mcp-core's JWTIssuer selects EdDSA iff CREDENTIAL_SECRET is set,
@@ -7,9 +8,8 @@ import { describe, expect, test } from 'vitest'
 // recreate -> no re-auth storm. This asserts the upstream contract we depend on plus
 // the wrangler deploy invariant, so a future refactor cannot silently regress it.
 describe('JWT EdDSA contract (depended-upon mcp-core behavior)', () => {
-  test('mcp-core exposes runHttpServer (the OAuth AS entry that wires CREDENTIAL_SECRET)', async () => {
-    const core = await import('@n24q02m/mcp-core')
-    expect(typeof core.runHttpServer).toBe('function')
+  test('mcp-core exposes runHttpServer (the OAuth AS entry that wires CREDENTIAL_SECRET)', () => {
+    expect(typeof runHttpServer).toBe('function')
   })
 
   test('wrangler.jsonc documents CREDENTIAL_SECRET as a required deploy secret', () => {
