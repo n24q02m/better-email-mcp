@@ -82,3 +82,7 @@ The browser-facing surface is already covered: every response returned from the
 Note the recurrence pattern: #1041 and #1045 carried an identical diff, and #1051
 repeated it with the helper exported. Three PRs, one idea, because nothing in
 this file recorded that it had been considered and declined.
+## 2025-02-27 - [Enforce URI length limit to prevent DoS]
+**Vulnerability:** The native `URL` constructor in the `fetch` and `kvOutbound` handlers in `src/worker.ts` could be exploited by an attacker sending extremely long URLs, which could cause a Denial of Service (DoS) due to CPU/memory exhaustion during parsing.
+**Learning:** External or internal requests with unbounded URI lengths were not previously restricted before reaching complex string parsing methods like `new URL()`.
+**Prevention:** Always check and enforce a strict length limit (e.g., `< 2048`) on any URI or large string input before passing it to native parsing functions like `new URL` or regex processors.
