@@ -114,6 +114,10 @@ describe('isSafeUrl', () => {
     expect(isSafeUrl(`https://example.com/path${String.fromCharCode(0)}`)).toBe(false)
   })
 
+  it.each([1, 9, 10, 13, 31, 127])('blocks control characters in an allowed URL', (code) => {
+    expect(isSafeUrl(`https://example.com/path${String.fromCharCode(code)}`)).toBe(false)
+  })
+
   it('blocks URLs longer than 2048 characters before parsing', () => {
     const longUrl = `https://example.com/${'a'.repeat(2048)}`
 

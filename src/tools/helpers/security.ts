@@ -26,7 +26,15 @@ const MAX_SAFE_URL_LENGTH = 2048
  * Prevents XSS attacks via javascript:, data:, vbscript:, etc.
  */
 export function isSafeUrl(url: string): boolean {
-  if (url.includes('\0') || url.length > MAX_SAFE_URL_LENGTH) {
+  if (url.length > MAX_SAFE_URL_LENGTH) {
+    return false
+  }
+
+  const hasControlCharacter = [...url].some((character) => {
+    const code = character.charCodeAt(0)
+    return code <= 0x1f || code === 0x7f
+  })
+  if (hasControlCharacter) {
     return false
   }
 
