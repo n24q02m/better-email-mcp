@@ -130,6 +130,26 @@ describe('searchEmails large mailbox', () => {
     )
   })
 
+  it('returns fetched messages in UID order when fetchAll returns them shuffled', async () => {
+    const expectedUids = Array.from({ length: limit }, (_, index) => firstReturnedUid + index)
+    const messages = buildFixtureMessages()
+    const shuffledMessages = messages
+      .filter((_, index) => index % 2 === 1)
+      .concat(messages.filter((_, index) => index % 2 === 0))
+
+    fakeMailbox.fetchAll = vi.fn(async (range: number[] | string) => {
+      if (!Array.isArray(range) || range.join(',') !== expectedUids.join(',')) {
+        throw new Error(`expected bounded UID range ${expectedUids.join(',')}, got ${String(range)}`)
+      }
+
+      return shuffledMessages
+    })
+
+    const results = await searchEmails([account], 'ALL', 'INBOX', limit)
+
+    expect(results.map((result) => result.uid)).toEqual(expectedUids)
+  })
+
   it('uses ESEARCH RETURN (PARTIAL) as a single round trip when the server advertises ESEARCH', async () => {
     const selectedRange = `${firstReturnedUid}:${messageCount}`
     fakeMailbox.capabilities.set('ESEARCH', true)
@@ -178,13 +198,46 @@ describe('searchEmails large mailbox', () => {
     }
   })
 
-  it('continues through bounded UID windows when the newest window has no matches', async () => {
-    const olderFirstMatchUid = 9002
-    const olderMatches = Array.from({ length: limit }, (_, index) => olderFirstMatchUid + index)
+  it.each([
+    ['an oversized UID range', `${firstReturnedUid - 1}:${messageCount}`],
+    ['a UID range below the mailbox bounds', `0:1`],
+    ['a UID range above the newest mailbox UID', `${firstReturnedUid}:${messageCount + 1}`],
+    ['a UID range with duplicate values', `${firstReturnedUid},${firstReturnedUid}`],
+    ['an oversized UID array', Array.from({ length: limit + 1 }, (_, index) => messageCount - limit + index)],
+    ['a UID array above the newest mailbox UID', [messageCount + 1]],
+    ['a UID array with duplicate values', [firstReturnedUid, firstReturnedUid]]
+  ] as const)('falls back to bounded UID-window searches when ESEARCH returns %s', async (_label, partialMessages) => {
+    fakeMailbox.capabilities.set('ESEARCH', true)
+    fakeMailbox.search = vi.fn(
+      async (criteria: { uid?: unknown }, options: { uid?: boolean; returnOptions?: unknown[] } | undefined) => {
+        if (options?.returnOptions) {
+          return { partial: { range: `-${limit}:-1`, messages: partialMessages } }
+        }
+
+        return boundedWindowSearch(criteria, options)
+      }
+    )
+
+    const results = await searchEmails([account], 'ALL', 'INBOX', limit)
+
+    expect(results).toHaveLength(limit)
+    expect(results.map((result) => result.uid)).toEqual(
+      Array.from({ length: limit }, (_, index) => firstReturnedUid + index)
+    )
+    expect(fakeMailbox.search).toHaveBeenCalledTimes(2)
+  })
+
+  it('continues through multiple bounded UID windows when each window has sparse matches', async () => {
     const windowMatches: Record<string, number[]> = {
-      '9502:10001': [],
-      '9002:9501': olderMatches
+      '9502:10001': [9999, 10001],
+      '9002:9501': [9002, 9300, 9501],
+      '8502:9001': Array.from({ length: 15 }, (_, index) => 8502 + index)
     }
+    const expectedUids = [
+      ...windowMatches['8502:9001']!,
+      ...windowMatches['9002:9501']!,
+      ...windowMatches['9502:10001']!
+    ]
 
     fakeMailbox.search = vi.fn(async (criteria: { uid?: unknown }, options: { uid?: boolean } | undefined) => {
       if (options?.uid !== true || typeof criteria.uid !== 'string') {
@@ -196,21 +249,62 @@ describe('searchEmails large mailbox', () => {
       return matches
     })
     fakeMailbox.fetchAll = vi.fn(async (range: number[] | string) => {
-      if (!Array.isArray(range) || range.join(',') !== olderMatches.join(',')) {
-        throw new Error(`expected sparse-match UIDs ${olderMatches.join(',')}, got ${String(range)}`)
+      if (!Array.isArray(range) || range.join(',') !== expectedUids.join(',')) {
+        throw new Error(`expected sparse-match UIDs ${expectedUids.join(',')}, got ${String(range)}`)
       }
 
-      return buildFixtureMessages().map((message, index) => ({ ...message, uid: olderMatches[index]! }))
+      return buildFixtureMessages().map((message, index) => ({ ...message, uid: expectedUids[index]! }))
     })
 
     const results = await searchEmails([account], 'ALL', 'INBOX', limit)
 
-    expect(results.map((result) => result.uid)).toEqual(olderMatches)
-    expect(fakeMailbox.search).toHaveBeenCalledTimes(2)
+    expect(results.map((result) => result.uid)).toEqual(expectedUids)
+    expect(fakeMailbox.search).toHaveBeenCalledTimes(3)
     expect(fakeMailbox.search.mock.calls.map(([criteria]) => (criteria as { uid: string }).uid)).toEqual([
       '9502:10001',
-      '9002:9501'
+      '9002:9501',
+      '8502:9001'
     ])
+  })
+
+  it.each([
+    ['zero', [0]],
+    ['NaN', [Number.NaN]],
+    ['a negative value', [-1]],
+    ['a non-integer', [1.5]],
+    ['a safe-integer overflow', [Number.MAX_SAFE_INTEGER + 1]],
+    ['a duplicate UID', [firstReturnedUid, firstReturnedUid]],
+    ['a UID below the requested window', [firstReturnedUid - 1]],
+    ['a UID above the newest mailbox UID', [messageCount + 1]]
+  ] as const)('rejects %s from a bounded UID SEARCH response', async (_label, invalidUids) => {
+    fakeMailbox.search = vi.fn(async () => invalidUids)
+
+    const results = await searchEmails([account], 'ALL', 'INBOX', limit)
+
+    expect(results).toHaveLength(0)
+    expect(results.unavailableAccounts).toEqual([
+      expect.objectContaining({
+        code: 'IMAP_SEARCH_FAILED',
+        reason: expect.stringContaining('invalid UIDs')
+      })
+    ])
+    expect(fakeMailbox.fetchAll).not.toHaveBeenCalled()
+  })
+
+  it('keeps valid fallback matches within the requested limit', async () => {
+    const allMatches = Array.from({ length: 500 }, (_, index) => 9502 + index)
+    fakeMailbox.search = vi.fn(async () => allMatches)
+    fakeMailbox.fetchAll = vi.fn(async (range: number[] | string) => {
+      expect(range).toEqual(allMatches.slice(-limit))
+      return buildFixtureMessages()
+    })
+
+    const results = await searchEmails([account], 'ALL', 'INBOX', limit)
+
+    expect(results).toHaveLength(limit)
+    expect(results.map((result) => result.uid)).toEqual(
+      Array.from({ length: limit }, (_, index) => firstReturnedUid + index)
+    )
   })
 
   it.each([

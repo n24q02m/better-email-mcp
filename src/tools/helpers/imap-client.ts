@@ -242,12 +242,52 @@ function hasEsearchCapability(client: ImapFlow): boolean {
   )
 }
 
-function isValidPartialMessages(value: unknown): value is string | number[] {
-  if (Array.isArray(value)) {
-    return value.every((uid) => typeof uid === 'number' && Number.isSafeInteger(uid) && uid > 0)
+function isValidUid(value: unknown, minUid: number, maxUid: number): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= minUid && value <= maxUid
+}
+
+function isValidUidArray(value: unknown, minUid: number, maxUid: number, maxCount?: number): value is number[] {
+  if (!Array.isArray(value) || (maxCount !== undefined && value.length > maxCount)) return false
+
+  const seenUids = new Set<number>()
+  return value.every((uid) => {
+    if (!isValidUid(uid, minUid, maxUid) || seenUids.has(uid)) return false
+    seenUids.add(uid)
+    return true
+  })
+}
+
+function isValidUidSequenceSet(value: string, limit: number, newestUid: number): boolean {
+  if (!RE_UID_SEQUENCE_SET.test(value)) return false
+
+  const seenUids = new Set<number>()
+  for (const sequence of value.split(',')) {
+    const [startToken, endToken] = sequence.split(':')
+    const startUid = Number(startToken)
+    const endUid = endToken === undefined ? startUid : Number(endToken)
+    if (!isValidUid(startUid, 1, newestUid) || !isValidUid(endUid, 1, newestUid)) return false
+
+    const low = Math.min(startUid, endUid)
+    const high = Math.max(startUid, endUid)
+    const rangeLength = high - low + 1
+    if (!Number.isSafeInteger(rangeLength) || rangeLength > limit - seenUids.size) return false
+
+    for (let uid = low; uid <= high; uid += 1) {
+      if (seenUids.has(uid)) return false
+      seenUids.add(uid)
+    }
   }
 
-  return typeof value === 'string' && RE_UID_SEQUENCE_SET.test(value)
+  return true
+}
+
+function isValidPartialMessages(value: unknown, limit: number, newestUid: number): value is string | number[] {
+  if (Array.isArray(value)) return isValidUidArray(value, 1, newestUid, limit)
+  return typeof value === 'string' && isValidUidSequenceSet(value, limit, newestUid)
+}
+
+function isValidFallbackUids(value: unknown, low: number, high: number): value is number[] {
+  return isValidUidArray(value, low, high)
 }
 
 /**
@@ -273,14 +313,21 @@ async function searchNewestUidsInBoundedWindows(
   }
 
   const selectedUids: number[] = []
+  const seenUids = new Set<number>()
   for (let high = uidNext - 1; high >= 1 && selectedUids.length < limit; high -= UID_SEARCH_WINDOW_SIZE) {
     const low = Math.max(1, high - UID_SEARCH_WINDOW_SIZE + 1)
     const searchResult = await client.search({ ...criteria, uid: `${low}:${high}` }, { uid: true })
 
     if (searchResult === false) throw new Error('IMAP UID SEARCH returned no result')
-    if (!Array.isArray(searchResult)) throw new Error('IMAP UID SEARCH returned an invalid result')
+    if (!isValidFallbackUids(searchResult, low, high)) throw new Error('IMAP UID SEARCH returned invalid UIDs')
 
-    selectedUids.unshift(...searchResult)
+    for (const uid of searchResult) {
+      if (seenUids.has(uid)) throw new Error('IMAP UID SEARCH returned duplicate UIDs')
+      seenUids.add(uid)
+      selectedUids.push(uid)
+    }
+
+    selectedUids.sort((left, right) => left - right)
     if (selectedUids.length > limit) selectedUids.splice(0, selectedUids.length - limit)
   }
 
@@ -311,7 +358,10 @@ async function searchNewestUids(client: ImapFlow, criteria: SearchObject, limit:
         : undefined
 
     const partialMessages: unknown = partial?.messages
-    if (isValidPartialMessages(partialMessages)) return partialMessages
+    const mailbox = client.mailbox
+    const newestUid =
+      mailbox && Number.isSafeInteger(mailbox.uidNext) && mailbox.uidNext >= 1 ? mailbox.uidNext - 1 : null
+    if (newestUid !== null && isValidPartialMessages(partialMessages, limit, newestUid)) return partialMessages
   }
 
   return searchNewestUidsInBoundedWindows(client, criteria, limit)
