@@ -252,6 +252,8 @@ In **stdio mode**, Outlook accounts use an **App Password** instead (Outlook Acc
 
 ## Configuration
 
+To trust mise configuration automatically, set `trusted_config_paths` in the user-level config at `~/.config/mise/config.toml`; do not add it to this project's `.mise.toml`.
+
 | Variable | Required | Default | Description |
 |:---------|:---------|:--------|:------------|
 | `EMAIL_CREDENTIALS` | Yes (stdio) | - | Email credentials, `email:app-password` per account, comma-separated for multi-account. Optional custom IMAP host/port: `email:password:imap_host:imap_port` |
