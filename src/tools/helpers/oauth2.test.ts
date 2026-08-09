@@ -613,10 +613,13 @@ describe('ensureValidToken', () => {
     }
     mockFetch.mockRejectedValue(new Error('network details should not escape'))
 
-    await expect(ensureValidToken(account)).rejects.toMatchObject({
+    await expect(ensureValidToken(account, { allowInteractive: false })).rejects.toMatchObject({
       name: 'OAuth2AuthError',
       code: 'OAUTH_REFRESH_FAILED'
     })
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch.mock.calls[0]![0]).toContain('/oauth2/v2.0/token')
+    expect(mockFetch.mock.calls[0]![0]).not.toContain('/devicecode')
   })
 })
 
