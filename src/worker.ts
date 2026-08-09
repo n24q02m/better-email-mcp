@@ -15,6 +15,8 @@
 // vectorizeOutbound (no D1, no Vectorize). All five footguns are preserved.
 import { Container, ContainerProxy, type OutboundHandler } from '@cloudflare/containers'
 
+const MAX_REQUEST_URL_LENGTH = 2048
+
 // FOOTGUN 2: ContainerProxy MUST be re-exported from the Worker entrypoint —
 // the containers runtime discovers it via `ctx.exports.ContainerProxy` to route
 // the container's intercepted outbound traffic (kv.internal) back into the
@@ -88,6 +90,10 @@ function pickContainerEnv(env: Env): Record<string, string> {
 // public internet (kv.internal -> NXDOMAIN).
 
 const kvOutbound: OutboundHandler<Env> = async (request, env) => {
+  if (request.url.length > MAX_REQUEST_URL_LENGTH) {
+    return new Response('URI Too Long', { status: 414 })
+  }
+
   const url = new URL(request.url)
   const key = decodeURIComponent(url.pathname.replace(/^\//, ''))
   // Readiness probe (E.1): once this handler answers, outbound interception is
@@ -155,6 +161,10 @@ function withSecurityHeaders(response: Response): Response {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    if (request.url.length > MAX_REQUEST_URL_LENGTH) {
+      return withSecurityHeaders(new Response('URI Too Long', { status: 414 }))
+    }
+
     // Public entrypoint: ONLY routes inbound requests to the per-user container
     // DO. The kv.internal outbound handler is deliberately NOT dispatched here —
     // exposing it on the public fetch surface would let an external caller

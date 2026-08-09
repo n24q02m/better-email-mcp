@@ -16,6 +16,12 @@ vi.mock('@cloudflare/containers', () => ({
 
 import worker, { EmailContainer, OUTBOUND_BY_HOST } from '../src/worker.js'
 
+const MAX_REQUEST_URL_LENGTH = 2048
+
+function urlWithLength(prefix: string, length: number): string {
+  return `${prefix}${'a'.repeat(length - prefix.length)}`
+}
+
 describe('worker (KV-only)', () => {
   test('outbound registry has ONLY kv.internal (footgun 1 + KV-only: no d1/vectorize)', () => {
     const hosts = Object.keys(OUTBOUND_BY_HOST)
@@ -81,6 +87,62 @@ describe('worker (KV-only)', () => {
       {} as never
     )
     expect(miss?.status).toBe(404)
+  })
+
+  test('kvOutbound rejects request URLs longer than 2048 before parsing', async () => {
+    const env = { KV: { get: vi.fn(), put: vi.fn(), delete: vi.fn() } }
+    const request = new Request(urlWithLength('https://kv.internal/', MAX_REQUEST_URL_LENGTH + 1), {
+      method: 'GET'
+    })
+
+    expect(request.url.length).toBe(MAX_REQUEST_URL_LENGTH + 1)
+    const response = await OUTBOUND_BY_HOST['kv.internal']?.(request, env as never, {} as never)
+
+    expect(response?.status).toBe(414)
+    expect(await response?.text()).toBe('URI Too Long')
+    expect(env.KV.get).not.toHaveBeenCalled()
+  })
+
+  test('kvOutbound permits a request URL at the 2048-character limit', async () => {
+    const env = { KV: { get: vi.fn().mockResolvedValue(null), put: vi.fn(), delete: vi.fn() } }
+    const request = new Request(urlWithLength('https://kv.internal/', MAX_REQUEST_URL_LENGTH), {
+      method: 'GET'
+    })
+
+    expect(request.url.length).toBe(MAX_REQUEST_URL_LENGTH)
+    const response = await OUTBOUND_BY_HOST['kv.internal']?.(request, env as never, {} as never)
+
+    expect(response?.status).toBe(404)
+    expect(env.KV.get).toHaveBeenCalledOnce()
+  })
+
+  test('public fetch rejects request URLs longer than 2048 before routing', async () => {
+    const stub = { fetch: vi.fn().mockResolvedValue(new Response('ok')) }
+    const env = { EMAIL: { idFromName: vi.fn(), get: vi.fn().mockReturnValue(stub) } }
+    const request = new Request(urlWithLength('https://email.n24q02m.com/', MAX_REQUEST_URL_LENGTH + 1))
+
+    expect(request.url.length).toBe(MAX_REQUEST_URL_LENGTH + 1)
+    const response = await worker.fetch(request, env as never)
+
+    expect(response.status).toBe(414)
+    expect(await response.text()).toBe('URI Too Long')
+    expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff')
+    expect(response.headers.get('X-Frame-Options')).toBe('DENY')
+    expect(response.headers.get('Strict-Transport-Security')).toBe('max-age=31536000; includeSubDomains')
+    expect(stub.fetch).not.toHaveBeenCalled()
+  })
+
+  test('public fetch permits a request URL at the 2048-character limit', async () => {
+    const stub = { fetch: vi.fn().mockResolvedValue(new Response('ok')) }
+    const env = { EMAIL: { idFromName: vi.fn().mockReturnValue('id'), get: vi.fn().mockReturnValue(stub) } }
+    const request = new Request(urlWithLength('https://email.n24q02m.com/', MAX_REQUEST_URL_LENGTH))
+
+    expect(request.url.length).toBe(MAX_REQUEST_URL_LENGTH)
+    const response = await worker.fetch(request, env as never)
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('ok')
+    expect(stub.fetch).toHaveBeenCalledOnce()
   })
 
   test('fetch routes every sub to the single "default" DO (single-DO collapse)', async () => {
