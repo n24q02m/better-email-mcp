@@ -160,6 +160,7 @@ const RE_WHITESPACE = /\s+/g
 const DATE_KEYWORDS = ['SINCE', 'BEFORE'] as const
 const KV_KEYWORDS = ['FROM', 'TO'] as const
 const UID_SEARCH_WINDOW_SIZE = 500
+const RE_UID_SEQUENCE_SET = /^\d+(?::\d+)?(?:,\d+(?::\d+)?)*$/
 
 function buildSearchCriteria(query: string): SearchObject {
   const trimmed = query.trim()
@@ -241,6 +242,14 @@ function hasEsearchCapability(client: ImapFlow): boolean {
   )
 }
 
+function isValidPartialMessages(value: unknown): value is string | number[] {
+  if (Array.isArray(value)) {
+    return value.every((uid) => typeof uid === 'number' && Number.isSafeInteger(uid) && uid > 0)
+  }
+
+  return typeof value === 'string' && RE_UID_SEQUENCE_SET.test(value)
+}
+
 /**
  * Scans backward from the newest UID in fixed-size bounded windows, combining
  * the caller's criteria with a UID SEARCH range per window, until at least
@@ -301,7 +310,8 @@ async function searchNewestUids(client: ImapFlow, criteria: SearchObject, limit:
         ? searchResult.partial
         : undefined
 
-    if (partial) return partial.messages
+    const partialMessages: unknown = partial?.messages
+    if (isValidPartialMessages(partialMessages)) return partialMessages
   }
 
   return searchNewestUidsInBoundedWindows(client, criteria, limit)

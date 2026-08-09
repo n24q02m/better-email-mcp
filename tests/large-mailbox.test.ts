@@ -163,8 +163,61 @@ describe('searchEmails large mailbox', () => {
   })
 
   it.each([
+    ['a valid UID array', Array.from({ length: limit }, (_, index) => firstReturnedUid + index)],
+    ['a valid empty UID array', []]
+  ] as const)('accepts %s from ESEARCH without bounded fallback', async (_label, partialMessages) => {
+    fakeMailbox.capabilities.set('ESEARCH', true)
+    fakeMailbox.search = vi.fn(async () => ({ partial: { range: `-${limit}:-1`, messages: partialMessages } }))
+
+    const results = await searchEmails([account], 'ALL', 'INBOX', limit)
+
+    expect(results).toHaveLength(partialMessages.length)
+    expect(fakeMailbox.search).toHaveBeenCalledTimes(1)
+    if (partialMessages.length === 0) {
+      expect(fakeMailbox.fetchAll).not.toHaveBeenCalled()
+    }
+  })
+
+  it('continues through bounded UID windows when the newest window has no matches', async () => {
+    const olderFirstMatchUid = 9002
+    const olderMatches = Array.from({ length: limit }, (_, index) => olderFirstMatchUid + index)
+    const windowMatches: Record<string, number[]> = {
+      '9502:10001': [],
+      '9002:9501': olderMatches
+    }
+
+    fakeMailbox.search = vi.fn(async (criteria: { uid?: unknown }, options: { uid?: boolean } | undefined) => {
+      if (options?.uid !== true || typeof criteria.uid !== 'string') {
+        throw new Error(`expected bounded UID search, got ${JSON.stringify({ criteria, options })}`)
+      }
+
+      const matches = windowMatches[criteria.uid]
+      if (!matches) throw new Error(`unexpected UID window ${criteria.uid}`)
+      return matches
+    })
+    fakeMailbox.fetchAll = vi.fn(async (range: number[] | string) => {
+      if (!Array.isArray(range) || range.join(',') !== olderMatches.join(',')) {
+        throw new Error(`expected sparse-match UIDs ${olderMatches.join(',')}, got ${String(range)}`)
+      }
+
+      return buildFixtureMessages().map((message, index) => ({ ...message, uid: olderMatches[index]! }))
+    })
+
+    const results = await searchEmails([account], 'ALL', 'INBOX', limit)
+
+    expect(results.map((result) => result.uid)).toEqual(olderMatches)
+    expect(fakeMailbox.search).toHaveBeenCalledTimes(2)
+    expect(fakeMailbox.search.mock.calls.map(([criteria]) => (criteria as { uid: string }).uid)).toEqual([
+      '9502:10001',
+      '9002:9501'
+    ])
+  })
+
+  it.each([
     ['resolves false', false],
-    ['resolves an ESEARCH result with no partial field', {}]
+    ['resolves an ESEARCH result with no partial field', {}],
+    ['returns a non-array partial messages value', { partial: { range: `-${limit}:-1`, messages: 'invalid' } }],
+    ['returns partial messages with an invalid UID', { partial: { range: `-${limit}:-1`, messages: [0] } }]
   ])(
     'falls back to bounded UID-window searches when ESEARCH %s instead of silently returning no results',
     async (_label, esearchReply) => {
