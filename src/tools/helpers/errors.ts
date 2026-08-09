@@ -26,6 +26,16 @@ export class EmailMCPError extends Error {
 }
 
 /**
+ * Wrap an operation failure while preserving the underlying cause for diagnosis.
+ */
+export function wrapOperationError(operation: string, cause: unknown): Error {
+  const detail = cause instanceof Error ? cause.message || cause.name || String(cause) : String(cause)
+  const err = new Error(`${operation} failed: ${detail || 'no detail from underlying layer'}`)
+  ;(err as Error & { cause?: unknown }).cause = cause
+  return err
+}
+
+/**
  * Interface for raw error objects before enhancement
  */
 interface RawError {
