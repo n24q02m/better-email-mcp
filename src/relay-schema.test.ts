@@ -34,7 +34,9 @@ describe('RELAY_SCHEMA', () => {
 
     const imapHost = fields.find((f) => f.key === 'imap_host')
     expect(imapHost?.required).toBe(false)
+    expect(imapHost?.validation).toBe('^\\S*$')
     const imapPort = fields.find((f) => f.key === 'imap_port')
     expect(imapPort?.required).toBe(false)
+    expect(imapPort?.validation).toBe('^\\d*$')
   })
 })
