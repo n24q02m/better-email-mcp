@@ -1,0 +1,249 @@
+name: Bot governance
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  exact-duplicate-governance:
+    # Fork-triggered runs are skipped. The script repeats this boundary before every close.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+    steps:
+      - name: Close newer exact duplicates
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for command in gh jq sha256sum; do
+            if ! command -v "$command" >/dev/null 2>&1; then
+              echo "::error::Required runner command '$command' is unavailable."
+              exit 1
+            fi
+          done
+
+          if [[ ! "$REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+            echo "::error::GITHUB_REPOSITORY is not a valid owner/name pair."
+            exit 1
+          fi
+
+          # This allowlist is intentionally narrow. Only these branch families are bot-owned here.
+          # Human branches, actor names, rate thresholds, and file overlap are never governance signals.
+          BOT_BRANCH_REGEX='^(jules-|sentinel-|renovate/)'
+          work_dir="$(mktemp -d)"
+          trap 'rm -rf "$work_dir"' EXIT
+
+          open_prs="$work_dir/open-prs.json"
+          candidates="$work_dir/candidates.jsonl"
+          sorted_candidates="$work_dir/sorted-candidates.jsonl"
+
+          if ! gh pr list \
+            --repo "$REPOSITORY" \
+            --state open \
+            --limit 1000 \
+            --json number,headRefName,headRepository,createdAt,title,url \
+            >"$open_prs"; then
+            echo "::error::Unable to list open pull requests for $REPOSITORY."
+            exit 1
+          fi
+
+          if ! jq -e 'type == "array"' "$open_prs" >/dev/null; then
+            echo "::error::The open pull request response was not a JSON array."
+            exit 1
+          fi
+
+          open_count="$(jq 'length' "$open_prs")"
+          jq -c \
+            --arg repository "$REPOSITORY" \
+            --arg branch_regex "$BOT_BRANCH_REGEX" \
+            '
+              .[]
+              | select(.headRepository != null)
+              | select(.headRepository.nameWithOwner == $repository)
+              | select((.headRefName // "") | test($branch_regex))
+              | select((.number | type) == "number")
+              | select(.createdAt != null)
+            ' "$open_prs" >"$candidates"
+          jq -s 'sort_by([.createdAt, .number])[]' "$candidates" >"$sorted_candidates"
+
+          matched_count="$(jq -s 'length' "$candidates")"
+          fingerprints_computed=0
+          preserved_count=0
+          duplicate_count=0
+          closed_count=0
+          skipped_count=0
+          close_failures=0
+          declare -A oldest_pr_by_fingerprint=()
+          declare -A oldest_created_by_fingerprint=()
+
+          decimal_is_greater() {
+            local left="$1"
+            local right="$2"
+            if [[ "${#left}" != "${#right}" ]]; then
+              (( ${#left} > ${#right} ))
+            else
+              [[ "$left" > "$right" ]]
+            fi
+          }
+
+          is_newer_than() {
+            local candidate_created="$1"
+            local candidate_number="$2"
+            local oldest_created="$3"
+            local oldest_number="$4"
+            if [[ "$candidate_created" != "$oldest_created" ]]; then
+              [[ "$candidate_created" > "$oldest_created" ]]
+            else
+              decimal_is_greater "$candidate_number" "$oldest_number"
+            fi
+          }
+
+          while IFS= read -r pr_json; do
+            [[ -n "$pr_json" ]] || continue
+
+            number="$(jq -r '.number // empty' <<<"$pr_json")"
+            branch="$(jq -r '.headRefName // empty' <<<"$pr_json")"
+            created_at="$(jq -r '.createdAt // empty' <<<"$pr_json")"
+            if [[ ! "$number" =~ ^[1-9][0-9]*$ ]]; then
+              echo "::warning::Skipping a bot candidate with invalid pull request number: '$number'."
+              skipped_count=$((skipped_count + 1))
+              continue
+            fi
+
+            diff_path="$work_dir/pr-${number}.diff"
+            if ! gh api \
+              -H 'Accept: application/vnd.github.v3.diff' \
+              "repos/${REPOSITORY}/pulls/${number}" \
+              >"$diff_path"; then
+              echo "::warning::Skipping PR #$number ($branch): exact diff could not be read."
+              skipped_count=$((skipped_count + 1))
+              continue
+            fi
+
+            if ! fingerprint="$(sha256sum "$diff_path" | awk '{print $1}')"; then
+              echo "::warning::Skipping PR #$number ($branch): exact diff fingerprint could not be computed."
+              skipped_count=$((skipped_count + 1))
+              continue
+            fi
+            if [[ ! "$fingerprint" =~ ^[0-9a-f]{64}$ ]]; then
+              echo "::warning::Skipping PR #$number ($branch): invalid SHA-256 fingerprint '$fingerprint'."
+              skipped_count=$((skipped_count + 1))
+              continue
+            fi
+            fingerprints_computed=$((fingerprints_computed + 1))
+
+            oldest_number="${oldest_pr_by_fingerprint[$fingerprint]-}"
+            if [[ -z "$oldest_number" ]]; then
+              oldest_pr_by_fingerprint["$fingerprint"]="$number"
+              oldest_created_by_fingerprint["$fingerprint"]="$created_at"
+              preserved_count=$((preserved_count + 1))
+              echo "KEEP PR #$number ($branch): oldest exact diff fingerprint $fingerprint."
+              continue
+            fi
+
+            duplicate_count=$((duplicate_count + 1))
+            oldest_created="${oldest_created_by_fingerprint[$fingerprint]}"
+            if ! is_newer_than "$created_at" "$number" "$oldest_created" "$oldest_number"; then
+              echo "::warning::Skipping PR #$number ($branch): it is not newer than preserved PR #$oldest_number."
+              skipped_count=$((skipped_count + 1))
+              continue
+            fi
+
+            # Re-read the PR immediately before closing so a fork, closed PR, or changed diff cannot be closed.
+            current_metadata="$work_dir/current-${number}.json"
+            if ! gh api "repos/${REPOSITORY}/pulls/${number}" >"$current_metadata"; then
+              echo "::warning::Skipping PR #$number: current pull request state could not be read."
+              skipped_count=$((skipped_count + 1))
+              continue
+            fi
+            if ! current_fields="$(jq -r '[.state // "", .head.repo.full_name // ""] | @tsv' "$current_metadata")"; then
+              echo "::warning::Skipping PR #$number: current pull request metadata was invalid."
+              skipped_count=$((skipped_count + 1))
+              continue
+            fi
+            IFS=$'\t' read -r current_state current_head_repository <<<"$current_fields"
+            if [[ "$current_state" != "open" ]]; then
+              echo "::warning::Skipping PR #$number: it is no longer open."
+              skipped_count=$((skipped_count + 1))
+              continue
+            fi
+            if [[ "$current_head_repository" != "$REPOSITORY" ]]; then
+              echo "::warning::Skipping PR #$number: its head repository is not internal."
+              skipped_count=$((skipped_count + 1))
+              continue
+            fi
+
+            current_diff="$work_dir/current-${number}.diff"
+            if ! gh api \
+              -H 'Accept: application/vnd.github.v3.diff' \
+              "repos/${REPOSITORY}/pulls/${number}" \
+              >"$current_diff"; then
+              echo "::warning::Skipping PR #$number: current exact diff could not be read."
+              skipped_count=$((skipped_count + 1))
+              continue
+            fi
+            if ! current_fingerprint="$(sha256sum "$current_diff" | awk '{print $1}')"; then
+              echo "::warning::Skipping PR #$number: current exact diff fingerprint could not be computed."
+              skipped_count=$((skipped_count + 1))
+              continue
+            fi
+            if [[ "$current_fingerprint" != "$fingerprint" ]]; then
+              echo "::warning::Skipping PR #$number: its diff changed during this governance run."
+              skipped_count=$((skipped_count + 1))
+              continue
+            fi
+
+            comment="$(cat <<EOF
+          This pull request is an exact duplicate of older internal bot PR #${oldest_number}. Both pull requests have the same SHA-256 diff fingerprint: \`${fingerprint}\`.
+
+          The older PR is preserved and this newer duplicate is being closed. This policy closes only exact diff duplicates from explicitly allowed internal bot branches; it does not use rate limits or file-overlap matching.
+          EOF
+          )"
+            if gh pr close "$number" --repo "$REPOSITORY" --comment "$comment"; then
+              closed_count=$((closed_count + 1))
+              echo "CLOSED PR #$number ($branch): exact duplicate of older PR #$oldest_number."
+            else
+              close_failures=$((close_failures + 1))
+              echo "::error::Failed to close exact duplicate PR #$number (older PR #$oldest_number)."
+            fi
+          done <"$sorted_candidates"
+
+          echo
+          echo "Bot governance summary for $REPOSITORY"
+          echo "Open pull requests discovered: $open_count"
+          echo "Internal bot PRs matched by explicit branch policy: $matched_count"
+          echo "Exact diff fingerprints computed: $fingerprints_computed"
+          echo "Oldest exact-duplicate PRs preserved: $preserved_count"
+          echo "Newer exact duplicates identified: $duplicate_count"
+          echo "Newer exact duplicates closed: $closed_count"
+          echo "Candidates skipped for safety: $skipped_count"
+          echo "Close failures: $close_failures"
+
+          if (( close_failures > 0 )); then
+            echo "::error::Governance encountered close failures; no successful completion is reported."
+            exit 1
+          fi
+          if (( matched_count == 0 )); then
+            echo "No-op: no open internal bot PR matched the explicit branch policy."
+          elif (( closed_count == 0 )); then
+            echo "No-op: no newer exact diff duplicate was closed."
+          else
+            echo "Governance action: closed $closed_count newer exact duplicate(s); oldest PRs were preserved."
+          fi
+          if (( skipped_count > 0 )); then
+            echo "::error::Some candidates were skipped for safety; inspect the warnings before treating this run as complete."
+            exit 1
+          fi
