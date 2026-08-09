@@ -226,7 +226,33 @@ function buildSearchCriteria(query: string): SearchObject {
   return Object.keys(criteria).length > 0 ? criteria : {}
 }
 
-async function searchNewestUids(client: ImapFlow, criteria: SearchObject, limit: number): Promise<number[]> {
+/**
+ * ESEARCH (RFC 4731) is folded into the IMAP4rev2 baseline, so rev2-only
+ * servers often don't list it as a standalone capability string -- imapflow's
+ * own internal capability check applies the same fallback (see
+ * node_modules/imapflow/lib/tools.js hasCapability / IMAP4REV2_FOLDED_CAPABILITIES).
+ * Mirroring that here means rev2 servers still get the single-round-trip
+ * ESEARCH/PARTIAL fast path instead of always paying for windowed UID SEARCH.
+ */
+function hasEsearchCapability(client: ImapFlow): boolean {
+  if (client.capabilities.has('ESEARCH')) return true
+  return (
+    client.enabled.has('IMAP4REV2') || (client.capabilities.has('IMAP4rev2') && !client.capabilities.has('IMAP4rev1'))
+  )
+}
+
+/**
+ * Scans backward from the newest UID in fixed-size bounded windows, combining
+ * the caller's criteria with a UID SEARCH range per window, until at least
+ * `limit` matches are found or the scan reaches UID 1. Used when ESEARCH
+ * RETURN (PARTIAL) is unavailable or returns an unusable result, so a large
+ * mailbox is never asked to hand back every matching UID in one response.
+ */
+async function searchNewestUidsInBoundedWindows(
+  client: ImapFlow,
+  criteria: SearchObject,
+  limit: number
+): Promise<number[]> {
   if (limit <= 0) return []
 
   const mailbox = client.mailbox
@@ -250,6 +276,35 @@ async function searchNewestUids(client: ImapFlow, criteria: SearchObject, limit:
   }
 
   return selectedUids
+}
+
+/**
+ * Selects the UIDs of the newest `limit` messages matching criteria. Prefers
+ * ESEARCH RETURN (PARTIAL) -- a single round trip on capable servers -- and
+ * only falls back to bounded descending UID-window searches when the server
+ * has no ESEARCH capability, or its ESEARCH response resolves to `false` or
+ * an object with no usable `partial` result. Never issues a plain UID SEARCH
+ * with no UID range, which would ask the server to return every matching UID
+ * in the mailbox.
+ */
+async function searchNewestUids(client: ImapFlow, criteria: SearchObject, limit: number): Promise<string | number[]> {
+  if (limit <= 0) return []
+
+  if (hasEsearchCapability(client)) {
+    const searchResult = await client.search(criteria, {
+      uid: true,
+      returnOptions: [{ partial: `-${limit}:-1` }]
+    })
+
+    const partial =
+      typeof searchResult === 'object' && searchResult !== null && !Array.isArray(searchResult)
+        ? searchResult.partial
+        : undefined
+
+    if (partial) return partial.messages
+  }
+
+  return searchNewestUidsInBoundedWindows(client, criteria, limit)
 }
 
 /**

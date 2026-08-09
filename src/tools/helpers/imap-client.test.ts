@@ -8,6 +8,8 @@ const { mockClient, mockRelease } = vi.hoisted(() => {
     connect: vi.fn().mockResolvedValue(undefined),
     logout: vi.fn().mockResolvedValue(undefined),
     getMailboxLock: vi.fn().mockResolvedValue({ release: mockRelease }),
+    capabilities: new Map<string, boolean | number>(),
+    enabled: new Set<string>(),
     mailbox: { uidNext: 2 },
     search: vi.fn().mockResolvedValue([1]),
     fetch: vi.fn(),
@@ -93,6 +95,8 @@ beforeEach(() => {
   mockClient.connect.mockResolvedValue(undefined)
   mockClient.logout.mockResolvedValue(undefined)
   mockClient.getMailboxLock.mockResolvedValue({ release: mockRelease })
+  mockClient.capabilities = new Map()
+  mockClient.enabled = new Set()
   mockClient.mailbox.uidNext = 2
   mockClient.search.mockResolvedValue([1])
   mockClient.messageFlagsAdd.mockResolvedValue(undefined)
