@@ -159,6 +159,7 @@ const RE_WHITESPACE = /\s+/g
 // in this frequently executed query parsing hot path.
 const DATE_KEYWORDS = ['SINCE', 'BEFORE'] as const
 const KV_KEYWORDS = ['FROM', 'TO'] as const
+const UID_SEARCH_WINDOW_SIZE = 500
 
 function buildSearchCriteria(query: string): SearchObject {
   const trimmed = query.trim()
@@ -223,6 +224,32 @@ function buildSearchCriteria(query: string): SearchObject {
   }
 
   return Object.keys(criteria).length > 0 ? criteria : {}
+}
+
+async function searchNewestUids(client: ImapFlow, criteria: SearchObject, limit: number): Promise<number[]> {
+  if (limit <= 0) return []
+
+  const mailbox = client.mailbox
+  if (!mailbox) throw new Error('IMAP mailbox is not selected')
+
+  const { uidNext } = mailbox
+  if (!Number.isSafeInteger(uidNext) || uidNext < 1) {
+    throw new Error(`IMAP mailbox returned an invalid uidNext value: ${String(uidNext)}`)
+  }
+
+  const selectedUids: number[] = []
+  for (let high = uidNext - 1; high >= 1 && selectedUids.length < limit; high -= UID_SEARCH_WINDOW_SIZE) {
+    const low = Math.max(1, high - UID_SEARCH_WINDOW_SIZE + 1)
+    const searchResult = await client.search({ ...criteria, uid: `${low}:${high}` }, { uid: true })
+
+    if (searchResult === false) throw new Error('IMAP UID SEARCH returned no result')
+    if (!Array.isArray(searchResult)) throw new Error('IMAP UID SEARCH returned an invalid result')
+
+    selectedUids.unshift(...searchResult)
+    if (selectedUids.length > limit) selectedUids.splice(0, selectedUids.length - limit)
+  }
+
+  return selectedUids
 }
 
 /**
@@ -442,23 +469,10 @@ export async function searchEmails(
         const emails = await withConnection(account, async (client) => {
           const lock = await client.getMailboxLock(folder)
           try {
-            // Step 1: ask ESEARCH/PARTIAL for only the most recent matching UIDs.
-            // This keeps large mailboxes bounded on servers that support RFC 4731/9394.
-            const searchResult = await client.search(criteria, {
-              uid: true,
-              returnOptions: [{ partial: `-${limit}:-1` }]
-            })
+            const selectedUids = await searchNewestUids(client, criteria, limit)
+            if (selectedUids.length === 0) return []
 
-            if (!searchResult) return []
-
-            const partial =
-              typeof searchResult === 'object' && !Array.isArray(searchResult) ? searchResult.partial : undefined
-            const selectedUids = partial?.messages ?? (Array.isArray(searchResult) ? searchResult.slice(-limit) : [])
-
-            if (!selectedUids || (Array.isArray(selectedUids) && selectedUids.length === 0)) return []
-
-            // Step 3: fetch only those specific UIDs
-            return await client.fetchAll(
+            const messages = await client.fetchAll(
               selectedUids,
               {
                 uid: true,
@@ -469,6 +483,7 @@ export async function searchEmails(
               },
               { uid: true }
             )
+            return messages.sort((left, right) => left.uid - right.uid)
           } finally {
             lock.release()
           }

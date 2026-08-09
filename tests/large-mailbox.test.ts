@@ -1,27 +1,35 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AccountConfig } from '../src/tools/helpers/config.js'
 
-const { fakeMailbox } = vi.hoisted(() => {
+const { fakeMailbox, messageCount, limit, firstReturnedUid } = vi.hoisted(() => {
   const messageCount = 10_001
   const limit = 20
   const firstReturnedUid = messageCount - limit + 1
-  const selectedRange = `${firstReturnedUid}:${messageCount}`
 
   const fakeMailbox = {
     connect: vi.fn().mockResolvedValue(undefined),
     logout: vi.fn().mockResolvedValue(undefined),
     getMailboxLock: vi.fn().mockResolvedValue({ release: vi.fn() }),
-    search: vi.fn(async (_criteria: unknown, options: { returnOptions?: unknown[] } | undefined) => {
-      const partial = options?.returnOptions?.[0]
-      if (!partial || typeof partial !== 'object' || !('partial' in partial) || partial.partial !== `-${limit}:-1`) {
-        throw new Error(`legacy UID SEARCH would materialize ${messageCount} UIDs`)
+    mailbox: { uidNext: messageCount + 1 },
+    search: vi.fn(async (criteria: { uid?: unknown }, options: { uid?: boolean } | undefined) => {
+      if (options?.uid !== true || typeof criteria.uid !== 'string' || criteria.uid.includes(',')) {
+        throw new Error(`search must use a bounded UID window instead of materializing ${messageCount} UIDs`)
       }
 
-      return { partial: { range: `-${limit}:-1`, messages: selectedRange } }
+      const [low, high] = criteria.uid.split(':').map(Number)
+      if (!Number.isInteger(low) || !Number.isInteger(high) || high - low + 1 > 500) {
+        throw new Error(`search window must be at most 500 UIDs, got ${criteria.uid}`)
+      }
+
+      return Array.from(
+        { length: Math.max(0, Math.min(high, messageCount) - Math.max(low, firstReturnedUid) + 1) },
+        (_, index) => Math.max(low, firstReturnedUid) + index
+      )
     }),
-    fetchAll: vi.fn(async (range: string) => {
-      if (range !== selectedRange) {
-        throw new Error(`expected bounded UID range ${selectedRange}, got ${range}`)
+    fetchAll: vi.fn(async (range: number[] | string) => {
+      const expectedUids = Array.from({ length: limit }, (_, index) => firstReturnedUid + index)
+      if (!Array.isArray(range) || range.join(',') !== expectedUids.join(',')) {
+        throw new Error(`expected bounded UID list ${expectedUids.join(',')}, got ${String(range)}`)
       }
 
       return Array.from({ length: limit }, (_, index) => ({
@@ -39,7 +47,7 @@ const { fakeMailbox } = vi.hoisted(() => {
     })
   }
 
-  return { fakeMailbox }
+  return { fakeMailbox, messageCount, limit, firstReturnedUid }
 })
 
 vi.mock('imapflow', () => ({
@@ -72,6 +80,7 @@ beforeEach(() => {
   fakeMailbox.connect.mockResolvedValue(undefined)
   fakeMailbox.logout.mockResolvedValue(undefined)
   fakeMailbox.getMailboxLock.mockResolvedValue({ release: vi.fn() })
+  fakeMailbox.mailbox.uidNext = messageCount + 1
 })
 
 describe('searchEmails large mailbox', () => {
@@ -83,5 +92,12 @@ describe('searchEmails large mailbox', () => {
       9982, 9983, 9984, 9985, 9986, 9987, 9988, 9989, 9990, 9991, 9992, 9993, 9994, 9995, 9996, 9997, 9998, 9999,
       10_000, 10_001
     ])
+    expect(fakeMailbox.search).toHaveBeenCalledTimes(1)
+    expect(fakeMailbox.search).toHaveBeenCalledWith({ uid: '9502:10001' }, { uid: true })
+    expect(fakeMailbox.fetchAll).toHaveBeenCalledWith(
+      Array.from({ length: limit }, (_, index) => firstReturnedUid + index),
+      expect.any(Object),
+      { uid: true }
+    )
   })
 })
