@@ -39,7 +39,7 @@ export function escapeHtml(unsafe: unknown): string {
 // In hot paths like text processing, extracting these to module-scoped constants
 // reduces memory allocation and garbage collection overhead.
 const RE_WHITESPACE = /\s+/g
-const RE_STYLE_SCRIPT = /<(style|script)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi
+const RE_STYLE_SCRIPT = /<(?:style\b[^>]*>[\s\S]*?(?:<\/style\s*>|$)|script\b[^>]*>[\s\S]*?(?:<\/script\s*>|$))/gi
 const RE_BLOCK_TAGS = /<\/(p|div|br|tr|li|h[1-6])>/gi
 const RE_BR_TAGS = /<br\s*\/?>/gi
 const RE_ANY_TAG = /<[^>]+>/g
@@ -88,8 +88,9 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
     return `${cleaned.substring(0, maxLength)}...`
   }
 
-  // ⚡ Bolt: Iteratively remove style/script blocks using a combined regex with a backreference.
-  // This reduces string parsing overhead compared to running separate passes for style and script tags.
+  // Remove style/script blocks in one pass while pairing each opening tag with
+  // its own closing tag. Keeping the alternatives in one regex preserves
+  // trailing text for malformed cross-tag input such as `<script><style></script>X`.
   // We also avoid `if (pattern.test(text))` because V8's `.replace()` fast-path already performs
   // an O(N) scan without reallocation if the pattern is missing, making `.test()` a redundant check.
   let text = html

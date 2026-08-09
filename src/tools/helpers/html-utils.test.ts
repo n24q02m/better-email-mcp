@@ -156,6 +156,15 @@ describe('fastExtractSnippet', () => {
     expect(fastExtractSnippet(html)).toBe('Content')
   })
 
+  it.each([
+    ['<style type="text/css">.x{}</style><p>Style content</p>', 'Style content'],
+    ['<script type="application/json">{"ok":true}</script><p>Script content</p>', 'Script content'],
+    ['<script><style></script>X', 'X'],
+    ['<style><script></style>Y', 'Y']
+  ])('pairs style and script blocks without swallowing trailing text', (html, expected) => {
+    expect(fastExtractSnippet(html)).toBe(expected)
+  })
+
   it('removes unclosed style and script blocks', () => {
     const html = '<style>.x{color:red}<p>Content</p><script>alert(1)'
     expect(fastExtractSnippet(html)).toBe('')
