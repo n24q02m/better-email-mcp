@@ -59,3 +59,7 @@
 ## 2024-07-17 - [Eliminate V8 Array Allocations in `for...of` loops]
 **Learning:** In V8 environments, initializing static array literals directly inside `for...of` loop definitions (e.g., `for (const key of ['A', 'B'])`) within frequently executed functions (hot paths like query parsing) forces the engine to reallocate the array on every invocation, adding unnecessary garbage collection overhead.
 **Action:** Extract these array literals into module-scoped static constants (e.g., `const KEYS = ['A', 'B'] as const`) to prevent repeated memory allocations and improve execution speed in hot paths.
+
+## 2024-08-10 - [Avoid regex backreferences in V8]
+**Learning:** In V8 environments (Node.js/Bun), regular expressions that use backreferences (e.g. `\1`) are unable to be optimized by the fast-path regex engine. For parsing symmetrical elements where multiple tags are being stripped (like `<style>` and `<script>`), grouping them with a backreference incurs a significant performance penalty (nearly 2x slower in hot loops).
+**Action:** Always avoid backreferences in high-frequency string processing regexes. Instead of using capture groups and backreferences for similar tags, combine the specific patterns explicitly using the OR operator (`|`). This maintains parsing semantics and avoids the V8 slow-path.
