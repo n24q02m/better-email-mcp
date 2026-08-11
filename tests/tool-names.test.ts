@@ -1,8 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
-import { Server } from '@modelcontextprotocol/sdk/server/index.js'
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { afterEach, describe, expect, it } from 'vitest'
-import { registerTools } from '../src/tools/registry.js'
 
 const EXPECTED_TOOLS = ['messages', 'folders', 'attachments', 'config', 'config__open_relay', 'help']
 const EXPECTED_RESOURCES = [
@@ -30,31 +28,33 @@ const EXPECTED_HELP_TOPICS = ['messages', 'folders', 'attachments', 'config', 'h
 
 describe('public MCP tool surface', () => {
   let client: Client | undefined
-  let server: Server | undefined
 
   afterEach(async () => {
     await client?.close()
-    await server?.close()
     client = undefined
-    server = undefined
   })
 
-  async function connectRegistry() {
-    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
-    server = new Server(
-      { name: 'better-email-mcp-test', version: '0.0.0' },
-      { capabilities: { tools: {}, resources: {} } }
-    )
-    registerTools(server, [])
-    await server.connect(serverTransport)
-
+  async function connectServer() {
+    const transport = new StdioClientTransport({
+      command: 'node',
+      args: ['bin/cli.mjs'],
+      env: {
+        PATH: process.env.PATH ?? '',
+        HOME: process.env.HOME ?? process.env.USERPROFILE ?? '',
+        USERPROFILE: process.env.USERPROFILE ?? '',
+        APPDATA: process.env.APPDATA ?? '',
+        EMAIL_CREDENTIALS: 'test@gmail.com:fake_password',
+        NODE_ENV: 'test'
+      },
+      stderr: 'pipe'
+    })
     client = new Client({ name: 'better-email-mcp-test-client', version: '0.0.0' })
-    await client.connect(clientTransport)
+    await client.connect(transport)
     return client
   }
 
   it('exposes exactly the approved tools and merged messages actions through tools/list', async () => {
-    const connectedClient = await connectRegistry()
+    const connectedClient = await connectServer()
     const result = await connectedClient.listTools()
     const tools = result.tools.map((tool) => tool.name)
 
@@ -66,7 +66,7 @@ describe('public MCP tool surface', () => {
   })
 
   it('exposes only current documentation resources and help topics', async () => {
-    const connectedClient = await connectRegistry()
+    const connectedClient = await connectServer()
     const resources = await connectedClient.listResources()
     const help = (await connectedClient.listTools()).tools.find((tool) => tool.name === 'help')
 
@@ -76,7 +76,7 @@ describe('public MCP tool surface', () => {
   })
 
   it('documents outbound actions under messages and does not keep a send alias', async () => {
-    const connectedClient = await connectRegistry()
+    const connectedClient = await connectServer()
     const helpResult = await connectedClient.callTool({
       name: 'help',
       arguments: { tool_name: 'messages' }
