@@ -232,6 +232,15 @@ describe('searchEmails', () => {
     ])
   })
 
+  it('reports an invalid mailbox uidNext instead of scanning an unbounded range', async () => {
+    mockClient.mailbox.uidNext = 0
+
+    const results = await searchEmails([account], 'ALL', 'INBOX', 20)
+
+    expect(results).toHaveLength(0)
+    expect(results.unavailableAccounts?.[0]?.reason).toContain('invalid uidNext')
+  })
+
   it('uses source for snippet extraction', async () => {
     mockSimpleParser.mockResolvedValue({ text: 'Body content here' } as any)
     mockClient.search.mockResolvedValue([1])
@@ -301,6 +310,17 @@ describe('searchEmails', () => {
       code: 'IMAP_SEARCH_FAILED',
       reason: 'Unable to search this account: string error'
     })
+  })
+
+  it('stringifies circular diagnostics when formatting an unavailable account', async () => {
+    const circular: Record<string, unknown> = {}
+    circular.self = circular
+    mockClient.getMailboxLock.mockRejectedValueOnce(circular)
+
+    const res = await searchEmails([account], 'ALL', 'INBOX', 1)
+
+    expect(res).toHaveLength(0)
+    expect(res.unavailableAccounts?.[0]?.reason).toBe('Unable to search this account: [object Object]')
   })
 
   it('keeps generic diagnostics while removing URLs from unavailable account reason', async () => {

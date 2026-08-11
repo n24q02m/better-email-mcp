@@ -73,6 +73,28 @@ describe('PerSubCredStore', () => {
     expect(await cold.load('invalid-auth-type')).toBeNull()
   })
 
+  it('accepts OAuth2 account metadata and rejects malformed OAuth2 metadata', async () => {
+    const http = new FakeKvHttp()
+    await new PerSubCredStore({ http }).save('oauth2', {
+      accounts: [
+        {
+          ...acct('oauth@outlook.com'),
+          password: '',
+          authType: 'oauth2',
+          oauth2: { accessToken: '', refreshToken: '' }
+        }
+      ]
+    })
+
+    const cold = new PerSubCredStore({ http })
+    expect(await cold.load('oauth2')).not.toBeNull()
+
+    await new PerSubCredStore({ http }).save('invalid-oauth2', {
+      accounts: [{ ...acct('bad@outlook.com'), oauth2: { accessToken: 'only-access' } }]
+    })
+    expect(await new PerSubCredStore({ http }).load('invalid-oauth2')).toBeNull()
+  })
+
   it('serves the in-memory cache after a save (no cold round-trip needed)', async () => {
     const store = new PerSubCredStore({ http: new FakeKvHttp() })
     await store.save('alice', { accounts: [acct('a@example.com')] })
@@ -86,6 +108,18 @@ describe('PerSubCredStore', () => {
     await store.clear('alice')
     expect(await store.load('alice')).toBeNull()
     expect(await new PerSubCredStore({ http }).load('alice')).toBeNull()
+  })
+
+  it('lists the subjects currently present in the read cache', async () => {
+    const store = new PerSubCredStore({ http: new FakeKvHttp() })
+    expect(await store.listSubs()).toEqual([])
+    await store.save('alice', { accounts: [acct('a@example.com')] })
+    await store.save('bob', { accounts: [acct('b@example.com')] })
+    expect((await store.listSubs()).sort()).toEqual(['alice', 'bob'])
+  })
+
+  it('rejects unsupported KV methods instead of silently accepting them', async () => {
+    await expect(new FakeKvHttp().request('PATCH', 'http://kv.internal/key')).rejects.toThrow('unexpected method PATCH')
   })
 
   it('ready() resolves when the kv.internal outbound path is reachable, rejects when broken', async () => {

@@ -18,7 +18,7 @@ vi.mock('../src/init-server.js', () => ({
 
 // Dynamic CLI imports can contend with the full Vitest worker pool. Keep this
 // suite bounded, but allow the real startup path more than the 5s unit default.
-describe('start-server (buildCli wiring)', { timeout: 15_000 }, () => {
+describe('start-server (buildCli wiring)', { timeout: 30_000 }, () => {
   const originalArgv = process.argv
   const originalExit = process.exit
   const originalConsoleError = console.error

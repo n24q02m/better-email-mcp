@@ -227,6 +227,31 @@ describe('send - reply', () => {
 
     expect(result.subject).toBe('Re: Original')
   })
+
+  it('requires an explicit recipient when the original has no sender', async () => {
+    mockReadEmail.mockResolvedValue({
+      account_id: 'user1_gmail_com',
+      account_email: 'user1@gmail.com',
+      uid: 2,
+      message_id: '<missing-from@test>',
+      subject: 'Missing sender',
+      from: '',
+      to: 'user1@gmail.com',
+      date: '2025-01-01',
+      flags: [],
+      body_text: 'body',
+      attachments: []
+    })
+
+    await expect(
+      send(gmailAccounts, {
+        action: 'reply',
+        account: 'user1@gmail.com',
+        body: 'reply',
+        uid: 2
+      })
+    ).rejects.toThrow('Could not determine reply-to address')
+  })
 })
 
 // ============================================================================
@@ -275,6 +300,19 @@ describe('send - forward', () => {
         body: 'B'
       })
     ).rejects.toThrow('uid is required')
+  })
+
+  it('requires a recipient for forward', async () => {
+    await expect(
+      send(gmailAccounts, {
+        action: 'forward',
+        account: 'user1@gmail.com',
+        to: '',
+        subject: 'T',
+        body: 'B',
+        uid: 50
+      })
+    ).rejects.toThrow('to is required for forward action')
   })
 })
 

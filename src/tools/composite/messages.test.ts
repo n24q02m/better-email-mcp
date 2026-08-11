@@ -16,7 +16,7 @@ vi.mock('./send.js', () => ({
 }))
 
 import { listFolders, modifyFlags, moveEmails, readEmail, searchEmails, trashEmails } from '../helpers/imap-client.js'
-import { messages } from './messages.js'
+import { clearArchiveFolderCache, messages } from './messages.js'
 import { send } from './send.js'
 
 const mockSearchEmails = vi.mocked(searchEmails)
@@ -507,6 +507,21 @@ describe('messages - archive (extended)', () => {
 
     // listFolders should only be called once due to caching
     expect(mockListFolders).toHaveBeenCalledTimes(1)
+  })
+
+  it('clears the archive folder cache and reports the number of removed entries', async () => {
+    clearArchiveFolderCache()
+    const cacheAccount: AccountConfig = {
+      ...accounts[0]!,
+      id: 'clear_archive_cache_account',
+      email: 'clear-cache@gmail.com'
+    }
+    mockListFolders.mockResolvedValue([])
+    mockMoveEmails.mockResolvedValue({ success: true, moved: 1 })
+
+    await messages([cacheAccount], { action: 'archive', uid: 1 })
+    expect(clearArchiveFolderCache()).toBe(1)
+    expect(clearArchiveFolderCache()).toBe(0)
   })
 
   it('throws when no uid or uids provided', async () => {

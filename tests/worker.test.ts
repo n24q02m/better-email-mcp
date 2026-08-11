@@ -116,6 +116,21 @@ describe('worker (KV-only)', () => {
     expect(env.KV.get).toHaveBeenCalledOnce()
   })
 
+  test('kvOutbound rejects unsupported methods without touching KV', async () => {
+    const env = { KV: { get: vi.fn(), put: vi.fn(), delete: vi.fn() } }
+    const response = await OUTBOUND_BY_HOST['kv.internal']?.(
+      new Request('https://kv.internal/better-email/key', { method: 'PATCH' }),
+      env as never,
+      {} as never
+    )
+
+    expect(response?.status).toBe(405)
+    expect(await response?.text()).toBe('method not allowed')
+    expect(env.KV.get).not.toHaveBeenCalled()
+    expect(env.KV.put).not.toHaveBeenCalled()
+    expect(env.KV.delete).not.toHaveBeenCalled()
+  })
+
   test('public fetch rejects request URLs longer than 2048 before routing', async () => {
     const stub = { fetch: vi.fn().mockResolvedValue(new Response('ok')) }
     const env = { EMAIL: { idFromName: vi.fn(), get: vi.fn().mockReturnValue(stub) } }

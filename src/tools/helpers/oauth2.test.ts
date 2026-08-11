@@ -187,6 +187,17 @@ describe('loadStoredTokens', () => {
 
     expect(await loadStoredTokens('user@outlook.com')).toBeNull()
   })
+  it('returns null when the embedded token store fails to load', async () => {
+    const store = new InMemoryCredStore()
+    vi.spyOn(store, 'load').mockRejectedValue(new Error('KV unavailable'))
+    setOutlookTokenStore(store)
+
+    try {
+      expect(await loadStoredTokens('user@outlook.com', 'broken-sub')).toBeNull()
+    } finally {
+      setOutlookTokenStore(null)
+    }
+  })
   it('throws if email is missing', async () => {
     await expect(loadStoredTokens(null as any)).rejects.toThrow('Email is required')
     await expect(loadStoredTokens(undefined as any)).rejects.toThrow('Email is required')
@@ -260,6 +271,16 @@ describe('saveTokens', () => {
     const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
     expect(written['other@hotmail.com']).toBeDefined()
     expect(written['user@outlook.com']).toEqual(tokens)
+  })
+
+  it('starts fresh when the existing token file is malformed', () => {
+    mockExistsSync.mockReturnValue(true)
+    mockReadFileSync.mockReturnValue('not-json')
+
+    saveTokens('user@outlook.com', tokens)
+
+    const written = JSON.parse(mockWriteFileSync.mock.calls[0]![1] as string)
+    expect(written).toEqual({ 'user@outlook.com': tokens })
   })
 
   it('normalizes email to lowercase', () => {
@@ -1583,6 +1604,28 @@ describe('Outlook token embed (per-sub config blob)', () => {
     await saveTokens('b@hotmail.com', TOK('b'), 'sub-1')
 
     expect((await loadOutlookEmails('sub-1')).sort()).toEqual(['a@outlook.com', 'b@hotmail.com'])
+  })
+})
+
+describe('loadOutlookEmails file store', () => {
+  it('lists valid email keys from the single-user token file', async () => {
+    setOutlookTokenStore(null)
+    mockReadFile.mockResolvedValue(
+      JSON.stringify({
+        'a@outlook.com': TOK('a'),
+        'b@hotmail.com': TOK('b'),
+        unrelated: TOK('other')
+      })
+    )
+
+    expect((await loadOutlookEmails(null)).sort()).toEqual(['a@outlook.com', 'b@hotmail.com'])
+  })
+
+  it('returns an empty list when the single-user token file cannot be read', async () => {
+    setOutlookTokenStore(null)
+    mockReadFile.mockRejectedValue({ code: 'EACCES' })
+
+    expect(await loadOutlookEmails(null)).toEqual([])
   })
 })
 

@@ -24,6 +24,13 @@ describe('parseCredentials', () => {
     })
   })
 
+  it('auto-discovers provider settings for a matching subdomain', async () => {
+    const result = await parseCredentials('user@work.gmail.com:password')
+    expect(result).toHaveLength(1)
+    expect(result[0]!.imap.host).toBe('imap.gmail.com')
+    expect(result[0]!.smtp.host).toBe('smtp.gmail.com')
+  })
+
   it('parses multiple accounts separated by comma', async () => {
     const result = await parseCredentials('user1@gmail.com:pass1,user2@outlook.com:pass2')
     expect(result).toHaveLength(2)
@@ -239,6 +246,30 @@ describe('parseCredentials — custom IMAP host and port (issue #610)', () => {
     expect(result).toHaveLength(1)
     expect(result[0]!.password).toBe('mypass')
     expect(result[0]!.imap).toEqual({ host: 'localhost', port: 993, secure: true })
+  })
+
+  it('parses an explicit SMTP host with TLS security', async () => {
+    const result = await parseCredentials('user@custom.com:pass:imap.custom.com:1993:smtp.custom.com:465:tls')
+    expect(result[0]!.imap).toEqual({ host: 'imap.custom.com', port: 1993, secure: false })
+    expect(result[0]!.smtp).toEqual({ host: 'smtp.custom.com', port: 465, secure: true })
+  })
+
+  it('uses the default SMTP port for a security-only override', async () => {
+    const result = await parseCredentials('user@custom.com:pass:imap.custom.com:993:smtp.custom.com:tls')
+    expect(result[0]!.smtp).toEqual({ host: 'smtp.custom.com', port: 465, secure: true })
+  })
+
+  it('supports plaintext and STARTTLS SMTP overrides', async () => {
+    const plain = await parseCredentials('plain@custom.com:pass:imap.custom.com:993:smtp.custom.com:none')
+    const starttls = await parseCredentials('starttls@custom.com:pass:imap.custom.com:993:smtp.custom.com:starttls')
+    expect(plain[0]!.smtp).toEqual({ host: 'smtp.custom.com', port: 25, secure: false })
+    expect(starttls[0]!.smtp).toEqual({ host: 'smtp.custom.com', port: 587, secure: false })
+  })
+
+  it('keeps a trailing security-looking password segment without a SMTP host', async () => {
+    const result = await parseCredentials('user@gmail.com:pass:with:colon:none')
+    expect(result[0]!.password).toBe('pass:with:colon:none')
+    expect(result[0]!.smtp.host).toBe('smtp.gmail.com')
   })
 })
 
