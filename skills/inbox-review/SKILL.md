@@ -13,8 +13,8 @@ Systematic morning inbox review with email-specific intelligence.
 Always iterate ALL configured accounts, not just the default:
 
 ```
-# List accounts first
-messages(action="list_accounts")
+# List folders for all accounts first
+folders(action="list")
 
 # Then search each account
 messages(action="search", query="UNSEEN", account="work@company.com")

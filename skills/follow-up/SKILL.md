@@ -65,7 +65,7 @@ For each follow-up candidate:
 Check all accounts, same as inbox-review:
 
 ```
-messages(action="list_accounts")
+folders(action="list")
 # Iterate each account's Sent folder
 ```
 
