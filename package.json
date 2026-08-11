@@ -31,7 +31,7 @@
     "test": "vitest --passWithNoTests",
     "test:watch": "vitest watch",
     "test:coverage": "vitest --coverage",
-    "test:full": "vitest run tests/live/*.full.test.ts",
+    "test:full": "vitest run --config tests/live/vitest.live.config.ts tests/live/*.full.test.ts",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
