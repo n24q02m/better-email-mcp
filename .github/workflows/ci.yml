@@ -99,6 +99,9 @@ jobs:
       - name: Run Biome check
         run: bun run check
 
+      - name: Build project
+        run: bun run build
+
       - name: Run tests with coverage
         run: bun run test -- --coverage
 
@@ -107,9 +110,6 @@ jobs:
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           files: coverage/lcov.info
-
-      - name: Build project
-        run: bun run build
 
   dependency-review:
     name: Dependency Review
