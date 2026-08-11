@@ -47,7 +47,6 @@ jobs:
           trap 'rm -rf "$work_dir"' EXIT
 
           open_prs="$work_dir/open-prs.json"
-          candidates="$work_dir/candidates.jsonl"
           sorted_candidates="$work_dir/sorted-candidates.jsonl"
 
           if ! gh pr list \
@@ -70,16 +69,28 @@ jobs:
             --arg repository "$REPOSITORY" \
             --arg branch_regex "$BOT_BRANCH_REGEX" \
             '
+              [
+                .[]
+                | select(.headRepository != null)
+                | select(.headRepository.nameWithOwner == $repository)
+                | select((.headRefName // "") | test($branch_regex))
+                | select((.number | type) == "number")
+                | select(.createdAt != null)
+              ]
+              | sort_by([.createdAt, .number])[]
+            ' "$open_prs" >"$sorted_candidates"
+
+          matched_count="$(jq \
+            --arg repository "$REPOSITORY" \
+            --arg branch_regex "$BOT_BRANCH_REGEX" \
+            '[
               .[]
               | select(.headRepository != null)
               | select(.headRepository.nameWithOwner == $repository)
               | select((.headRefName // "") | test($branch_regex))
               | select((.number | type) == "number")
               | select(.createdAt != null)
-            ' "$open_prs" >"$candidates"
-          jq -s 'sort_by([.createdAt, .number])[]' "$candidates" >"$sorted_candidates"
-
-          matched_count="$(jq -s 'length' "$candidates")"
+            ] | length' "$open_prs")"
           fingerprints_computed=0
           preserved_count=0
           duplicate_count=0

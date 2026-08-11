@@ -40,10 +40,7 @@ describe('public MCP tool surface', { timeout: MCP_PROTOCOL_TEST_TIMEOUT_MS }, (
       command: 'node',
       args: ['bin/cli.mjs'],
       env: {
-        PATH: process.env.PATH ?? '',
-        HOME: process.env.HOME ?? process.env.USERPROFILE ?? '',
-        USERPROFILE: process.env.USERPROFILE ?? '',
-        APPDATA: process.env.APPDATA ?? '',
+        ...process.env,
         EMAIL_CREDENTIALS: 'test@gmail.com:fake_password',
         NODE_ENV: 'test'
       },
