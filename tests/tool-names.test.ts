@@ -27,7 +27,10 @@ const EXPECTED_MESSAGE_ACTIONS = [
   'forward'
 ]
 const EXPECTED_HELP_TOPICS = ['messages', 'folders', 'attachments', 'config', 'help']
-const MCP_PROTOCOL_TEST_TIMEOUT_MS = 15_000
+// Each case launches a fresh CLI process over stdio. On Windows with the
+// current MCP SDK, cold module startup can exceed 15 seconds even though the
+// protocol exchange itself completes normally.
+const MCP_PROTOCOL_TEST_TIMEOUT_MS = 30_000
 
 describe('public MCP tool surface', { timeout: MCP_PROTOCOL_TEST_TIMEOUT_MS }, () => {
   let client: Client | undefined

@@ -20,12 +20,16 @@ describe('error propagation', () => {
     expect(wrapped.message).toContain('fetchFolder')
   })
 
-  it('has no source file that throws a bare "Command failed"', async () => {
-    const { execSync } = await import('node:child_process')
-    const hits = execSync('git grep -n "Command failed" -- "src/*.ts" || true', {
-      encoding: 'utf8'
-    }).trim()
+  it(
+    'has no source file that throws a bare "Command failed"',
+    async () => {
+      const { execSync } = await import('node:child_process')
+      const hits = execSync('git grep -n "Command failed" -- "src/*.ts" || true', {
+        encoding: 'utf8'
+      }).trim()
 
-    expect(hits).toBe('')
-  })
+      expect(hits).toBe('')
+    },
+    15_000
+  )
 })

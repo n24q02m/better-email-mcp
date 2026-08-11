@@ -23,6 +23,7 @@ const EXPECTED_TOOLS = ['messages', 'folders', 'attachments', 'config', 'config_
 const DOCUMENTED_TOOLS = ['messages', 'folders', 'attachments', 'config', 'help']
 
 const EMAIL_CREDS = process.env.EMAIL_CREDENTIALS ?? ''
+const LIVE_STDIO_STARTUP_TIMEOUT_MS = 30_000
 
 describe.skipIf(!EMAIL_CREDS)('MCP Protocol - Live Server (stdio)', () => {
   let client: Client
@@ -41,7 +42,7 @@ describe.skipIf(!EMAIL_CREDS)('MCP Protocol - Live Server (stdio)', () => {
     })
     client = new Client({ name: 'live-test', version: '1.0.0' })
     await client.connect(transport)
-  }, 15_000)
+  }, LIVE_STDIO_STARTUP_TIMEOUT_MS)
 
   afterAll(async () => {
     await transport.close()

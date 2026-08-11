@@ -59,8 +59,8 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "@n24q02m/mcp-core": "1.22.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@n24q02m/mcp-core": "1.23.0",
     "html-to-text": "^10.0.0",
     "imapflow": "^1.5.0",
     "mailparser": "^3.9.14",

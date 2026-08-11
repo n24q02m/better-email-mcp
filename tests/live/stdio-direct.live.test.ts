@@ -26,6 +26,7 @@ interface JsonRpcResponse {
 }
 
 const EMAIL_CREDS = process.env.EMAIL_CREDENTIALS ?? ''
+const LIVE_STDIO_STARTUP_TIMEOUT_MS = 30_000
 
 // stdio mode refuses to start without credentials (init-server.ts), so this
 // suite needs them; the unconfigured exit is asserted in mcp-protocol.live.
@@ -52,7 +53,10 @@ describe.skipIf(!EMAIL_CREDS)('stdio direct mode', () => {
 
       const responseLine = await new Promise<string>((resolveLine, rejectLine) => {
         let buf = ''
-        const timer = setTimeout(() => rejectLine(new Error('timeout waiting for stdio response')), 15_000)
+        const timer = setTimeout(
+          () => rejectLine(new Error('timeout waiting for stdio response')),
+          LIVE_STDIO_STARTUP_TIMEOUT_MS
+        )
         proc.stdout.on('data', (chunk: Buffer) => {
           buf += chunk.toString('utf8')
           const newlineIdx = buf.indexOf('\n')
