@@ -239,11 +239,35 @@ def _assert_account_resolved(txt: str | None) -> None:
 
 async def _session(endpoint: str, token: str):
     from mcp import ClientSession  # lazy
-    from mcp.client.streamable_http import streamablehttp_client
+
+    try:
+        from mcp.client.streamable_http import streamablehttp_client
+    except ImportError:
+        # MCP SDK 2.0 renamed the client and accepts a configured httpx2 client.
+        from contextlib import asynccontextmanager
+
+        from mcp.client.streamable_http import streamable_http_client
+        import httpx2
+
+        @asynccontextmanager
+        async def authenticated_transport():
+            async with httpx2.AsyncClient(
+                headers={"Authorization": f"Bearer {token}"}
+            ) as client:
+                async with streamable_http_client(
+                    f"{endpoint}/mcp", http_client=client
+                ) as streams:
+                    yield streams
+
+        return authenticated_transport(), ClientSession
 
     return streamablehttp_client(
         f"{endpoint}/mcp", headers={"Authorization": f"Bearer {token}"}
     ), ClientSession
+
+
+def _client_streams(streams):
+    return streams[0], streams[1]
 
 
 def _token_file() -> Path:
@@ -254,7 +278,7 @@ async def run_full(endpoint: str) -> None:
     token = get_token(endpoint, {"EMAIL_CREDENTIALS": _email_credentials()})
     print("TOKEN OK len=", len(token), "sub=", _sub_of(token))
     transport, ClientSession = await _session(endpoint, token)
-    async with transport as (r, w, _), ClientSession(r, w) as s:
+    async with transport as streams, ClientSession(*_client_streams(streams)) as s:
         await s.initialize()
         tools = await s.list_tools()
         print("TOOLS:", [t.name for t in tools.tools])
@@ -283,7 +307,7 @@ async def run_auth_only(endpoint: str) -> None:
     token = tok_path.read_text().strip()
     print("AUTH-ONLY: replaying saved token for sub=", _sub_of(token), "(no re-save)")
     transport, ClientSession = await _session(endpoint, token)
-    async with transport as (r, w, _), ClientSession(r, w) as s:
+    async with transport as streams, ClientSession(*_client_streams(streams)) as s:
         await s.initialize()
         await _call(s, "CONFIG_STATUS", "config", {"action": "status"})
         txt = await _call(s, "FOLDERS_LIST", "folders", {"action": "list"})
@@ -301,7 +325,7 @@ async def run_tools(endpoint: str) -> None:
     token = get_token(endpoint, {"EMAIL_CREDENTIALS": _email_credentials()})
     print("TOKEN OK len=", len(token), "sub=", _sub_of(token))
     transport, ClientSession = await _session(endpoint, token)
-    async with transport as (r, w, _), ClientSession(r, w) as s:
+    async with transport as streams, ClientSession(*_client_streams(streams)) as s:
         await s.initialize()
         print("TOOLS:", [t.name for t in (await s.list_tools()).tools])
         status = await _call(s, "CONFIG_STATUS", "config", {"action": "status"})
