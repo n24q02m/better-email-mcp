@@ -153,6 +153,7 @@ describe('searchEmails', () => {
       },
       source: Buffer.from('text')
     }))
+    mockClient.mailbox.uidNext = msgs[msgs.length - 1]!.uid + 1
     mockClient.search.mockResolvedValue([1, 2, 3, 4, 5])
     mockClient.fetchAll.mockResolvedValue(msgs.slice(2))
 
