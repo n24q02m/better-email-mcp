@@ -25,8 +25,9 @@ const EXPECTED_MESSAGE_ACTIONS = [
   'forward'
 ]
 const EXPECTED_HELP_TOPICS = ['messages', 'folders', 'attachments', 'config', 'help']
+const MCP_PROTOCOL_TEST_TIMEOUT_MS = 15_000
 
-describe('public MCP tool surface', () => {
+describe('public MCP tool surface', { timeout: MCP_PROTOCOL_TEST_TIMEOUT_MS }, () => {
   let client: Client | undefined
 
   afterEach(async () => {
