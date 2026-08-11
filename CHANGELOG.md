@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## Unreleased
+
+### Breaking Changes
+
+The public `send` tool is replaced by `messages` with `action: new`, `reply`, or `forward`.
+This follows the MCP N+2 standard: outbound mail belongs to the `messages` domain, so retaining
+`send` would duplicate the domain in `tools/list` and keep the retired name in the help-topic
+union. The old name is removed directly; there is no compatibility alias.
+
+| Old public name | New public name | Reason | Alias removal |
+|:----------------|:----------------|:-------|:---------------|
+| `send` | `messages` (`action: new \| reply \| forward`) | N+2 domain-tool rule: outbound mail is part of the `messages` mega-tool, not a second action-level tool. | Removed directly in the Unreleased release; no alias |
+
 ## v1.37.0 (2026-07-25)
 
 ### Bug Fixes

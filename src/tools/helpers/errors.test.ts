@@ -263,7 +263,7 @@ describe('findClosestMatch', () => {
   })
 
   it('finds exact prefix match (option starts with input)', () => {
-    expect(findClosestMatch('mes', ['messages', 'folders', 'send'])).toBe('messages')
+    expect(findClosestMatch('mes', ['messages', 'folders', 'config'])).toBe('messages')
   })
 
   it('finds exact prefix match (input starts with option)', () => {
@@ -272,16 +272,16 @@ describe('findClosestMatch', () => {
 
   it('finds match by bigram similarity', () => {
     // "mesages" is similar to "messages" (missing one 's')
-    expect(findClosestMatch('mesages', ['messages', 'folders', 'send'])).toBe('messages')
+    expect(findClosestMatch('mesages', ['messages', 'folders', 'config'])).toBe('messages')
   })
 
   it('returns null when bigram score is too low', () => {
-    expect(findClosestMatch('xyz', ['messages', 'folders', 'send'])).toBeNull()
+    expect(findClosestMatch('xyz', ['messages', 'folders', 'config'])).toBeNull()
   })
 
   it('selects the best scoring match', () => {
-    // "attach" should match "attachments" better than "send"
-    expect(findClosestMatch('attach', ['send', 'attachments', 'folders'])).toBe('attachments')
+    // "attach" should match "attachments" better than "config"
+    expect(findClosestMatch('attach', ['config', 'attachments', 'folders'])).toBe('attachments')
   })
 })
 

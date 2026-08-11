@@ -8,7 +8,7 @@ Get full documentation for any email MCP tool. Returns detailed usage instructio
 
 - Use when the compressed tool description is insufficient
 - Returns markdown documentation for the requested tool
-- Available for: messages, folders, attachments, send, config, help
+- Available for: messages, folders, attachments, config, help
 
 ## Actions
 
@@ -25,7 +25,6 @@ This tool has no `action` parameter — it takes only `tool_name`.
 - `messages` — Search, read, and manage email messages
 - `folders` — List mailbox folders
 - `attachments` — List and download email attachments
-- `send` — Send, reply, and forward emails
 - `config` — Credential setup and runtime configuration
 - `help` — This documentation
 
@@ -39,11 +38,11 @@ This tool has no `action` parameter — it takes only `tool_name`.
 }
 ```
 
-### Get documentation for the send tool
+### Get documentation for outbound message actions
 
 ```json
 {
-  "tool_name": "send"
+  "tool_name": "messages"
 }
 ```
 

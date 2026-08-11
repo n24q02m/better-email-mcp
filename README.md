@@ -75,7 +75,7 @@ mcp-name: io.github.n24q02m/better-email-mcp
 
 - **Multi-account support** -- manage 6+ email accounts (Gmail, Outlook, Yahoo, iCloud, Zoho, ProtonMail, custom IMAP)
 - **App Passwords** -- no OAuth2 setup required for most providers; clone and run in 1 minute
-- **5 composite tools** with 21 actions (plus `help` + `config__open_relay`) -- search, read, send, reply, forward, organize, and credential setup in single calls
+- **4 composite tools** with 22 actions (plus `help` + `config__open_relay`) -- search, read, send, reply, forward, organize, and credential setup in single calls
 - **Auto-discovery** -- provider settings detected from email address, custom IMAP host supported
 - **Thread-aware** -- reply/forward maintains In-Reply-To and References headers
 - **Tiered token optimization** -- compressed descriptions + on-demand `help` tool + MCP Resources
@@ -155,12 +155,22 @@ Full docs at **[mcp.n24q02m.com/servers/better-email-mcp/setup/](https://mcp.n24
 
 ## Tools
 
+### Public tool rename
+
+The public `send` tool is replaced by `messages` with `action: new`, `reply`, or `forward`.
+This follows the MCP N+2 standard: sending is an action in the messages domain, so keeping a
+separate `send` entry would duplicate that domain and add redundant tool-list and help-topic
+surface. The old name is removed directly; there is no compatibility alias.
+
+| Old public name | New public name | Reason | Alias removal |
+|:----------------|:----------------|:-------|:---------------|
+| `send` | `messages` (`action: new \| reply \| forward`) | N+2 domain-tool rule: outbound mail is part of the `messages` mega-tool, not a second action-level tool. | Removed directly in the Unreleased release; no alias |
+
 | Tool | Actions | Description |
 |:-----|:--------|:------------|
-| `messages` | `search`, `read`, `mark_read`, `mark_unread`, `flag`, `unflag`, `move`, `archive`, `trash` | Search, read, and organize emails |
+| `messages` | `search`, `read`, `mark_read`, `mark_unread`, `flag`, `unflag`, `move`, `archive`, `trash`, `new`, `reply`, `forward` | Search, read, organize, compose, reply to, and forward emails |
 | `folders` | `list` | List mailbox folders |
 | `attachments` | `list`, `download` | List and download email attachments |
-| `send` | `new`, `reply`, `forward` | Compose, reply, and forward emails |
 | `config` | `status`, `setup_status`, `setup_start`, `setup_reset`, `setup_complete`, `set`, `cache_clear` | Credential setup via browser relay, status check, reset, re-resolve, cache clear |
 | `config__open_relay` | - | Open the relay configuration form in the browser and return the relay URL |
 | `help` | - | Get full documentation for any tool |
@@ -172,9 +182,8 @@ Full docs at **[mcp.n24q02m.com/servers/better-email-mcp/setup/](https://mcp.n24
 | `email://docs/messages` | Message operations reference |
 | `email://docs/folders` | Folder operations reference |
 | `email://docs/attachments` | Attachment operations reference |
-| `email://docs/send` | Send/compose reference |
-| `email://docs/config` | Credential setup and runtime configuration reference |
 | `email://docs/help` | Full documentation |
+| `email://docs/config` | Credential setup and runtime configuration reference |
 
 ## Comparison
 

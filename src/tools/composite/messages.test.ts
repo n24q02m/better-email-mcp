@@ -11,8 +11,13 @@ vi.mock('../helpers/imap-client.js', () => ({
   listFolders: vi.fn()
 }))
 
+vi.mock('./send.js', () => ({
+  send: vi.fn()
+}))
+
 import { listFolders, modifyFlags, moveEmails, readEmail, searchEmails, trashEmails } from '../helpers/imap-client.js'
 import { messages } from './messages.js'
+import { send } from './send.js'
 
 const mockSearchEmails = vi.mocked(searchEmails)
 const mockReadEmail = vi.mocked(readEmail)
@@ -20,6 +25,7 @@ const mockModifyFlags = vi.mocked(modifyFlags)
 const mockMoveEmails = vi.mocked(moveEmails)
 const mockTrashEmails = vi.mocked(trashEmails)
 const mockListFolders = vi.mocked(listFolders)
+const mockSend = vi.mocked(send)
 
 const accounts: AccountConfig[] = [
   {
@@ -343,6 +349,42 @@ describe('messages - trash', () => {
 describe('messages - unknown action', () => {
   it('throws for unknown action', async () => {
     await expect(messages(accounts, { action: 'unknown_action' as any })).rejects.toThrow()
+  })
+})
+
+// ============================================================================
+// outbound actions
+// ============================================================================
+
+describe('messages - outbound actions', () => {
+  it.each([
+    {
+      action: 'new',
+      account: 'user1@gmail.com',
+      to: 'recipient@test.com',
+      subject: 'Hello',
+      body: 'Message body'
+    },
+    {
+      action: 'reply',
+      account: 'user1@gmail.com',
+      uid: 42,
+      body: 'Reply body'
+    },
+    {
+      action: 'forward',
+      account: 'user1@gmail.com',
+      uid: 42,
+      to: 'recipient@test.com',
+      body: 'Forward body'
+    }
+  ])('routes $action to the internal SMTP implementation', async (input) => {
+    mockSend.mockResolvedValue({ action: input.action, success: true })
+
+    const result = await messages(accounts, input as any)
+
+    expect(result).toEqual({ action: input.action, success: true })
+    expect(mockSend).toHaveBeenCalledWith(accounts, input)
   })
 })
 

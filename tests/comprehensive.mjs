@@ -6,6 +6,7 @@
  * Usage: EMAIL_CREDENTIALS=a@gmail.com:pass1,b@gmail.com:pass2 node tests/comprehensive.mjs
  */
 
+import { resolve } from 'node:path'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
@@ -40,6 +41,7 @@ function parseResult(r) {
 const t = new StdioClientTransport({
   command: 'node',
   args: ['bin/cli.mjs'],
+  cwd: resolve(import.meta.dirname, '..'),
   env: {
     EMAIL_CREDENTIALS: process.env.EMAIL_CREDENTIALS,
     PATH: process.env.PATH
@@ -60,7 +62,7 @@ const fail = (label, err) => {
 }
 
 // --- help ---
-for (const toolName of ['messages', 'folders', 'attachments', 'send', 'help']) {
+for (const toolName of ['messages', 'folders', 'attachments', 'config', 'help']) {
   try {
     const r = await client.callTool({ name: 'help', arguments: { tool_name: toolName } }, undefined, TIMEOUT)
     const d = parseResult(r)
@@ -79,12 +81,12 @@ try {
   fail('folders.list', e)
 }
 
-// --- send.new (Gmail — saved_to_sent should be false, Gmail auto-saves) ---
+// --- messages.new (Gmail — saved_to_sent should be false, Gmail auto-saves) ---
 let testUid = null
 try {
   const s = await client.callTool(
     {
-      name: 'send',
+      name: 'messages',
       arguments: {
         action: 'new',
         account: PRIMARY,
@@ -98,12 +100,12 @@ try {
   )
   const sd = parseResult(s)
   if (PRIMARY.includes('gmail') && sd.saved_to_sent !== false) {
-    fail('send.new saved_to_sent', new Error(`Gmail should skip, got ${sd.saved_to_sent}`))
+    fail('messages.new saved_to_sent', new Error(`Gmail should skip, got ${sd.saved_to_sent}`))
   } else {
-    pass(`send.new (saved_to_sent: ${sd.saved_to_sent}, msg_id: ${sd.message_id || 'none'})`)
+    pass(`messages.new (saved_to_sent: ${sd.saved_to_sent}, msg_id: ${sd.message_id || 'none'})`)
   }
 } catch (e) {
-  fail('send.new', e)
+  fail('messages.new', e)
 }
 
 await sleep(3000)
@@ -211,7 +213,7 @@ if (testUid) {
   try {
     const r = await client.callTool(
       {
-        name: 'send',
+        name: 'messages',
         arguments: {
           action: 'reply',
           account: PRIMARY,
@@ -224,16 +226,16 @@ if (testUid) {
       TIMEOUT
     )
     const d = parseResult(r)
-    pass(`send.reply (success: ${d.success}, to: ${d.to})`)
+    pass(`messages.reply (success: ${d.success}, to: ${d.to})`)
   } catch (e) {
-    fail('send.reply', e)
+    fail('messages.reply', e)
   }
 
   await sleep(DELAY)
   try {
     const r = await client.callTool(
       {
-        name: 'send',
+        name: 'messages',
         arguments: {
           action: 'forward',
           account: PRIMARY,
@@ -247,9 +249,9 @@ if (testUid) {
       TIMEOUT
     )
     const d = parseResult(r)
-    pass(`send.forward (success: ${d.success})`)
+    pass(`messages.forward (success: ${d.success})`)
   } catch (e) {
-    fail('send.forward', e)
+    fail('messages.forward', e)
   }
 
   await sleep(DELAY)

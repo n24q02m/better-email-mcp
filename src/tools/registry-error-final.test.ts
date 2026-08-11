@@ -7,7 +7,6 @@ import { registerTools } from './registry.js'
 vi.mock('./composite/messages.js', () => ({ messages: vi.fn() }))
 vi.mock('./composite/folders.js', () => ({ folders: vi.fn() }))
 vi.mock('./composite/attachments.js', () => ({ attachments: vi.fn() }))
-vi.mock('./composite/send.js', () => ({ send: vi.fn() }))
 vi.mock('./composite/config.js', () => ({ handleConfig: vi.fn() }))
 vi.mock('./helpers/config.js', () => ({ loadConfig: vi.fn() }))
 

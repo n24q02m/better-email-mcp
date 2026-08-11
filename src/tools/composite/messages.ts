@@ -7,6 +7,7 @@ import type { AccountConfig } from '../helpers/config.js'
 import { resolveAccounts, resolveSingleAccount } from '../helpers/config.js'
 import { createUnknownActionError, EmailMCPError, withErrorHandling } from '../helpers/errors.js'
 import { listFolders, modifyFlags, moveEmails, readEmail, searchEmails, trashEmails } from '../helpers/imap-client.js'
+import { type SendInput, send } from './send.js'
 
 // Simple in-memory cache for archive folder paths to avoid repeated IMAP calls
 const archiveFolderCache = new Map<string, Promise<string>>()
@@ -19,7 +20,17 @@ export function clearArchiveFolderCache(): number {
 }
 
 export interface MessagesInput {
-  action: 'search' | 'read' | 'mark_read' | 'mark_unread' | 'flag' | 'unflag' | 'move' | 'archive' | 'trash'
+  action:
+    | 'search'
+    | 'read'
+    | 'mark_read'
+    | 'mark_unread'
+    | 'flag'
+    | 'unflag'
+    | 'move'
+    | 'archive'
+    | 'trash'
+    | SendInput['action']
 
   // Target account (optional - defaults to all for search, first for others)
   account?: string
@@ -35,6 +46,14 @@ export interface MessagesInput {
 
   // Move params
   destination?: string
+
+  // Send params
+  to?: string
+  subject?: string
+  body?: string
+  cc?: string
+  bcc?: string
+  attachments?: SendInput['attachments']
 }
 
 /**
@@ -43,6 +62,11 @@ export interface MessagesInput {
 export async function messages(accounts: AccountConfig[], input: MessagesInput): Promise<any> {
   return withErrorHandling(async () => {
     switch (input.action) {
+      case 'new':
+      case 'reply':
+      case 'forward':
+        return await send(accounts, input as unknown as SendInput)
+
       case 'search':
         return await handleSearch(accounts, input)
 
@@ -73,7 +97,7 @@ export async function messages(accounts: AccountConfig[], input: MessagesInput):
       default:
         throw createUnknownActionError(
           input.action,
-          'search, read, mark_read, mark_unread, flag, unflag, move, archive, trash'
+          'new, reply, forward, search, read, mark_read, mark_unread, flag, unflag, move, archive, trash'
         )
     }
   })()

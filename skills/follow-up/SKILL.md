@@ -51,9 +51,9 @@ For each follow-up candidate:
    - If original was received and you haven't replied: draft a response to their message
 3. **Use reply (not new message)** when following up on existing threads:
    ```
-   send(action="reply", message_id="<original_msg_id>", body="<follow-up text>")
+   messages(action="reply", uid="<original_uid>", body="<follow-up text>")
    ```
-   Only use `send(action="send")` for new conversations.
+   Use `messages(action="new")` for new conversations.
 
 4. **Follow-up tone guidelines**:
    - First follow-up (3-5 days): "Just checking in on this..."

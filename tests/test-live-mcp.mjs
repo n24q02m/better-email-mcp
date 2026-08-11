@@ -12,6 +12,7 @@
  * EMAIL_CREDENTIALS is required. Tests all operations including real email.
  */
 
+import { resolve } from 'node:path'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
@@ -66,7 +67,7 @@ const transport = new StdioClientTransport({
   command: 'node',
   args: ['bin/cli.mjs'],
   env: { EMAIL_CREDENTIALS, PATH: process.env.PATH },
-  cwd: import.meta.dirname || process.cwd()
+  cwd: resolve(import.meta.dirname, '..')
 })
 
 const client = new Client({ name: 'live-test', version: '1.0.0' })
@@ -74,17 +75,17 @@ await client.connect(transport)
 console.log(`Server connected. EMAIL_CREDENTIALS: ${HAS_REAL_CREDS ? 'real' : 'fake (limited tests)'}\n`)
 
 // ---------------------------------------------------------------------------
-// 1. listTools — verify 5 tools returned
+// 1. listTools — verify the approved public tool surface
 // ---------------------------------------------------------------------------
 console.log('--- Meta ---')
 
 const toolsResult = await client.listTools()
 const toolNames = toolsResult.tools.map((t) => t.name).sort()
-const expected = ['attachments', 'folders', 'help', 'messages', 'send']
+const expected = ['attachments', 'config', 'config__open_relay', 'folders', 'help', 'messages']
 
 try {
   if (JSON.stringify(toolNames) === JSON.stringify(expected)) {
-    ok('listTools returns 5 tools', toolNames.join(', '))
+    ok('listTools returns approved tools', toolNames.join(', '))
   } else {
     fail('listTools mismatch', `got: ${toolNames.join(', ')}`)
   }
@@ -111,21 +112,28 @@ for (const tool of toolsResult.tools) {
 try {
   const res = await client.listResources()
   const uris = res.resources.map((r) => r.uri).sort()
-  if (uris.length === 5) {
-    ok('listResources returns 5 docs', uris.join(', '))
+  const expectedUris = [
+    'email://docs/attachments',
+    'email://docs/config',
+    'email://docs/folders',
+    'email://docs/help',
+    'email://docs/messages'
+  ]
+  if (JSON.stringify(uris) === JSON.stringify(expectedUris)) {
+    ok('listResources returns current docs', uris.join(', '))
   } else {
-    fail('listResources count', `expected 5, got ${uris.length}: ${uris.join(', ')}`)
+    fail('listResources mismatch', `expected ${expectedUris.join(', ')}, got ${uris.join(', ')}`)
   }
 } catch (e) {
   fail('listResources', e.message)
 }
 
 // ---------------------------------------------------------------------------
-// 3. Help tool — all 5 tools
+// 3. Help tool — all documented tools
 // ---------------------------------------------------------------------------
 console.log('\n--- Help Tests ---')
 
-const helpTools = ['messages', 'folders', 'attachments', 'send', 'help']
+const helpTools = ['messages', 'folders', 'attachments', 'config', 'help']
 for (const toolName of helpTools) {
   try {
     const r = await client.callTool({ name: 'help', arguments: { tool_name: toolName } }, undefined, TIMEOUT)
@@ -194,16 +202,16 @@ try {
   ok('attachments: missing account/uid → error', e.message.slice(0, 60))
 }
 
-// Missing required fields for send
+// Missing required fields for messages.new
 try {
-  const r = await client.callTool({ name: 'send', arguments: { action: 'new' } }, undefined, TIMEOUT)
+  const r = await client.callTool({ name: 'messages', arguments: { action: 'new' } }, undefined, TIMEOUT)
   if (r.isError) {
-    ok('send: missing required → error', r.content[0].text.slice(0, 60))
+    ok('messages.new: missing required → error', r.content[0].text.slice(0, 60))
   } else {
-    fail('send: missing fields', 'Did not error')
+    fail('messages.new: missing fields', 'Did not error')
   }
 } catch (e) {
-  ok('send: missing required → error', e.message.slice(0, 60))
+  ok('messages.new: missing required → error', e.message.slice(0, 60))
 }
 
 // Invalid tool_name for help
@@ -227,7 +235,20 @@ console.log('\n--- Validation Tests ---')
 try {
   const msgTool = toolsResult.tools.find((t) => t.name === 'messages')
   const actions = msgTool.inputSchema.properties.action.enum
-  const expectedActions = ['search', 'read', 'mark_read', 'mark_unread', 'flag', 'unflag', 'move', 'archive', 'trash']
+  const expectedActions = [
+    'search',
+    'read',
+    'mark_read',
+    'mark_unread',
+    'flag',
+    'unflag',
+    'move',
+    'archive',
+    'trash',
+    'new',
+    'reply',
+    'forward'
+  ]
   if (JSON.stringify(actions) === JSON.stringify(expectedActions)) {
     ok('messages actions enum correct', actions.join(', '))
   } else {
@@ -237,17 +258,17 @@ try {
   fail('messages actions enum', e.message)
 }
 
-// Send tool has correct action enum
+// Outbound message actions are exposed through messages
 try {
-  const sendTool = toolsResult.tools.find((t) => t.name === 'send')
-  const actions = sendTool.inputSchema.properties.action.enum
+  const messagesTool = toolsResult.tools.find((t) => t.name === 'messages')
+  const actions = messagesTool.inputSchema.properties.action.enum
   if (actions.includes('new') && actions.includes('reply') && actions.includes('forward')) {
-    ok('send actions enum correct', actions.join(', '))
+    ok('messages outbound actions enum correct', actions.join(', '))
   } else {
-    fail('send actions enum', `got: ${actions}`)
+    fail('messages outbound actions enum', `got: ${actions}`)
   }
 } catch (e) {
-  fail('send actions enum', e.message)
+  fail('messages outbound actions enum', e.message)
 }
 
 // Folders tool has list action
@@ -276,11 +297,11 @@ try {
   fail('attachments actions enum', e.message)
 }
 
-// Help tool_name has all 5 tools
+// Help tool_name has all current documented tools
 try {
   const helpTool = toolsResult.tools.find((t) => t.name === 'help')
   const validNames = helpTool.inputSchema.properties.tool_name.enum
-  if (validNames.length === 5 && validNames.includes('messages') && validNames.includes('send')) {
+  if (validNames.length === 5 && validNames.includes('messages') && !validNames.includes('send')) {
     ok('help tool_name enum correct', validNames.join(', '))
   } else {
     fail('help tool_name enum', `got: ${validNames}`)
@@ -415,7 +436,7 @@ if (HAS_REAL_CREDS) {
     try {
       const r = await client.callTool(
         {
-          name: 'send',
+          name: 'messages',
           arguments: {
             action: 'new',
             account: from,
@@ -428,9 +449,9 @@ if (HAS_REAL_CREDS) {
         TIMEOUT
       )
       const text = parse(r)
-      ok(`send.new(${from} → ${to})`, text.slice(0, 80))
+      ok(`messages.new(${from} → ${to})`, text.slice(0, 80))
     } catch (e) {
-      fail(`send.new(${from} → ${to})`, e.message)
+      fail(`messages.new(${from} → ${to})`, e.message)
     }
   } else if (gmailAccounts.length === 1) {
     // Self-send
@@ -438,7 +459,7 @@ if (HAS_REAL_CREDS) {
     try {
       const r = await client.callTool(
         {
-          name: 'send',
+          name: 'messages',
           arguments: {
             action: 'new',
             account: from,
@@ -451,12 +472,12 @@ if (HAS_REAL_CREDS) {
         TIMEOUT
       )
       const text = parse(r)
-      ok(`send.new(self: ${from})`, text.slice(0, 80))
+      ok(`messages.new(self: ${from})`, text.slice(0, 80))
     } catch (e) {
-      fail(`send.new(self: ${from})`, e.message)
+      fail(`messages.new(self: ${from})`, e.message)
     }
   } else {
-    skip('send.new', 'No Gmail accounts for send test')
+    skip('messages.new', 'No Gmail accounts for send test')
   }
 
   // 6h. Test Outlook account if available
@@ -517,7 +538,7 @@ if (HAS_REAL_CREDS) {
     'attachments.list',
     'messages.flag/unflag',
     'messages.mark_read/unread',
-    'send.new',
+    'messages.new',
     'outlook.folders',
     'outlook.search',
     'cross-account search',

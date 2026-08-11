@@ -11,15 +11,16 @@
  */
 
 import { spawn } from 'node:child_process'
+import { resolve } from 'node:path'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 /** Every tool the registry exposes (`src/tools/registry.ts` TOOLS). */
-const EXPECTED_TOOLS = ['messages', 'folders', 'attachments', 'send', 'config', 'config__open_relay', 'help']
+const EXPECTED_TOOLS = ['messages', 'folders', 'attachments', 'config', 'config__open_relay', 'help']
 
 /** Tools carrying their own documentation resource (`email://docs/<name>`). */
-const DOCUMENTED_TOOLS = ['messages', 'folders', 'attachments', 'send', 'config', 'help']
+const DOCUMENTED_TOOLS = ['messages', 'folders', 'attachments', 'config', 'help']
 
 const EMAIL_CREDS = process.env.EMAIL_CREDENTIALS ?? ''
 
@@ -70,10 +71,7 @@ describe.skipIf(!EMAIL_CREDS)('MCP Protocol - Live Server (stdio)', () => {
     it('should return every registered tool', async () => {
       const result = await client.listTools()
       const toolNames = result.tools.map((t) => t.name)
-      expect(toolNames).toHaveLength(EXPECTED_TOOLS.length)
-      for (const name of EXPECTED_TOOLS) {
-        expect(toolNames).toContain(name)
-      }
+      expect(toolNames).toEqual(EXPECTED_TOOLS)
     })
 
     it('should have valid inputSchema for each tool', async () => {
@@ -97,7 +95,13 @@ describe.skipIf(!EMAIL_CREDS)('MCP Protocol - Live Server (stdio)', () => {
   describe('resources/list', () => {
     it('should return documentation resources', async () => {
       const result = await client.listResources()
-      expect(result.resources.length).toBeGreaterThanOrEqual(5)
+      expect(result.resources.map((resource) => resource.uri)).toEqual([
+        'email://docs/messages',
+        'email://docs/folders',
+        'email://docs/attachments',
+        'email://docs/help',
+        'email://docs/config'
+      ])
       for (const resource of result.resources) {
         expect(resource.uri).toMatch(/^email:\/\/docs\//)
         expect(resource.mimeType).toBe('text/markdown')
@@ -162,9 +166,10 @@ describe('stdio mode without credentials', () => {
       // Strip both credential shapes so the run is unconfigured regardless of
       // what the developer has exported locally.
       const { EMAIL_CREDENTIALS, EMAIL_USER, EMAIL_APP_PASSWORD, ...rest } = process.env
-      const proc = spawn(process.execPath, ['bin/cli.mjs'], {
+      const proc = spawn(process.execPath, [resolve(import.meta.dirname, '../../bin/cli.mjs')], {
+        cwd: resolve(import.meta.dirname, '../..'),
         env: { ...rest, NODE_ENV: 'test' },
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['ignore', 'pipe', 'pipe']
       })
       let err = ''
       proc.stderr.on('data', (chunk: Buffer) => {

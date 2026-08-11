@@ -12,6 +12,7 @@
  * connecting to a real IMAP/SMTP server.
  */
 
+import { resolve } from 'node:path'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
@@ -48,7 +49,7 @@ const transport = new StdioClientTransport({
     EMAIL_CREDENTIALS: 'test@gmail.com:fake_password',
     PATH: process.env.PATH
   },
-  cwd: import.meta.dirname || process.cwd()
+  cwd: resolve(import.meta.dirname, '..')
 })
 
 const client = new Client({ name: 'live-test', version: '1.0.0' })
@@ -62,7 +63,7 @@ console.log('--- Meta ---')
 
 const toolsResult = await client.listTools()
 const toolNames = toolsResult.tools.map((t) => t.name).sort()
-const expectedTools = ['attachments', 'folders', 'help', 'messages', 'send']
+const expectedTools = ['attachments', 'config', 'config__open_relay', 'folders', 'help', 'messages']
 if (JSON.stringify(toolNames) === JSON.stringify(expectedTools)) {
   ok('listTools', `tools=${JSON.stringify(toolNames)}`)
 } else {
@@ -76,10 +77,10 @@ const resourcesResult = await client.listResources()
 const resourceUris = resourcesResult.resources.map((r) => r.uri).sort()
 const expectedUris = [
   'email://docs/attachments',
+  'email://docs/config',
   'email://docs/folders',
   'email://docs/help',
-  'email://docs/messages',
-  'email://docs/send'
+  'email://docs/messages'
 ]
 if (JSON.stringify(resourceUris) === JSON.stringify(expectedUris)) {
   ok('listResources', `uris=${JSON.stringify(resourceUris)}`)
@@ -88,11 +89,11 @@ if (JSON.stringify(resourceUris) === JSON.stringify(expectedUris)) {
 }
 
 // ---------------------------------------------------------------------------
-// 3-6. help(topic) for each of 4 help topics
+// 3-7. help(topic) for each documented tool
 // ---------------------------------------------------------------------------
 console.log('\n--- help ---')
 
-const helpTopics = ['messages', 'folders', 'attachments', 'send']
+const helpTopics = ['messages', 'folders', 'attachments', 'config', 'help']
 
 for (const topic of helpTopics) {
   try {
@@ -146,25 +147,30 @@ await expectError('folders(no action)', 'folders', {})
 // attachments: no action
 await expectError('attachments(no action)', 'attachments', {})
 
-// send: no action
-await expectError('send(no action)', 'send', {})
-
 // help: invalid tool_name
 await expectError('help(nonexistent)', 'help', { tool_name: 'nonexistent' })
 
 // ---------------------------------------------------------------------------
-// 8. messages with invalid args (search without query -> tries IMAP, fails)
+// 8. messages default behavior
 // ---------------------------------------------------------------------------
-console.log('\n--- Validation errors ---')
+console.log('\n--- Default behavior ---')
 
-await expectError('messages(search, no query)', 'messages', {
-  action: 'search'
-})
+try {
+  const r = await client.callTool({ name: 'messages', arguments: { action: 'search' } }, undefined, TIMEOUT)
+  const text = r.content[0].text
+  if (!r.isError && /"query":\s*"UNSEEN"/.test(text)) {
+    ok('messages(search, default query)', 'query=UNSEEN')
+  } else {
+    fail('messages(search, default query)', `Expected default query, got: ${text.slice(0, 60)}`)
+  }
+} catch (e) {
+  fail('messages(search, default query)', e.message)
+}
 
 // ---------------------------------------------------------------------------
-// 9. send without required fields
+// 9. messages new without required fields
 // ---------------------------------------------------------------------------
-await expectError('send(new, missing fields)', 'send', { action: 'new' })
+await expectError('messages(new, missing fields)', 'messages', { action: 'new' })
 
 // ---------------------------------------------------------------------------
 // 10. Security: XSS in help tool_name
@@ -198,12 +204,12 @@ await expectError('attachments(list, no uid)', 'attachments', { action: 'list' }
 await expectError('attachments(download, no uid)', 'attachments', { action: 'download' })
 
 // ---------------------------------------------------------------------------
-// 13. Action validation - send (missing uid for reply/forward)
+// 13. Action validation - messages outbound (missing uid for reply/forward)
 // ---------------------------------------------------------------------------
-console.log('\n--- Send action validation ---')
+console.log('\n--- Messages outbound action validation ---')
 
-await expectError('send(reply, no uid)', 'send', { action: 'reply' })
-await expectError('send(forward, no uid)', 'send', { action: 'forward' })
+await expectError('messages(reply, no uid)', 'messages', { action: 'reply' })
+await expectError('messages(forward, no uid)', 'messages', { action: 'forward' })
 
 // ---------------------------------------------------------------------------
 // 14. Action validation - folders

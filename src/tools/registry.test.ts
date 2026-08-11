@@ -25,7 +25,20 @@ describe('TOOLS structure', () => {
     {
       name: 'messages',
       requiredFields: ['action'],
-      actions: ['search', 'read', 'mark_read', 'mark_unread', 'flag', 'unflag', 'move', 'archive', 'trash'],
+      actions: [
+        'search',
+        'read',
+        'mark_read',
+        'mark_unread',
+        'flag',
+        'unflag',
+        'move',
+        'archive',
+        'trash',
+        'new',
+        'reply',
+        'forward'
+      ],
       readOnly: false
     },
     {
@@ -39,12 +52,6 @@ describe('TOOLS structure', () => {
       requiredFields: ['action', 'account', 'uid'],
       actions: ['list', 'download'],
       readOnly: true
-    },
-    {
-      name: 'send',
-      requiredFields: ['action', 'account', 'to', 'body'],
-      actions: ['new', 'reply', 'forward'],
-      readOnly: false
     },
     {
       name: 'config',
@@ -66,18 +73,18 @@ describe('TOOLS structure', () => {
     }
   ]
 
-  it('has exactly 7 tools', () => {
-    expect(EXPECTED_TOOLS).toHaveLength(7)
+  it('has exactly 6 tools', () => {
+    expect(EXPECTED_TOOLS).toHaveLength(6)
   })
 
   it('has correct tool names', () => {
     const names = EXPECTED_TOOLS.map((t) => t.name)
-    expect(names).toEqual(['messages', 'folders', 'attachments', 'send', 'config', 'config__open_relay', 'help'])
+    expect(names).toEqual(['messages', 'folders', 'attachments', 'config', 'config__open_relay', 'help'])
   })
 
-  it('messages tool has 9 actions', () => {
+  it('messages tool has 12 actions', () => {
     const messages = EXPECTED_TOOLS.find((t) => t.name === 'messages')!
-    expect(messages.actions).toHaveLength(9)
+    expect(messages.actions).toHaveLength(12)
     expect(messages.actions).toContain('search')
     expect(messages.actions).toContain('read')
     expect(messages.actions).toContain('mark_read')
@@ -87,6 +94,9 @@ describe('TOOLS structure', () => {
     expect(messages.actions).toContain('move')
     expect(messages.actions).toContain('archive')
     expect(messages.actions).toContain('trash')
+    expect(messages.actions).toContain('new')
+    expect(messages.actions).toContain('reply')
+    expect(messages.actions).toContain('forward')
   })
 
   it('folders tool has 1 action', () => {
@@ -97,11 +107,6 @@ describe('TOOLS structure', () => {
   it('attachments tool has 2 actions', () => {
     const attachments = EXPECTED_TOOLS.find((t) => t.name === 'attachments')!
     expect(attachments.actions).toEqual(['list', 'download'])
-  })
-
-  it('send tool has 3 actions', () => {
-    const send = EXPECTED_TOOLS.find((t) => t.name === 'send')!
-    expect(send.actions).toEqual(['new', 'reply', 'forward'])
   })
 
   it('config tool has 6 actions', () => {
@@ -127,7 +132,7 @@ describe('TOOLS structure', () => {
 
   it('non-read-only tools are correctly marked', () => {
     const writeTools = EXPECTED_TOOLS.filter((t) => !t.readOnly)
-    expect(writeTools.map((t) => t.name)).toEqual(['messages', 'send', 'config', 'config__open_relay'])
+    expect(writeTools.map((t) => t.name)).toEqual(['messages', 'config', 'config__open_relay'])
   })
 })
 
@@ -140,11 +145,12 @@ describe('RESOURCES structure', () => {
     { uri: 'email://docs/messages', name: 'Messages Tool Docs', file: 'messages.md' },
     { uri: 'email://docs/folders', name: 'Folders Tool Docs', file: 'folders.md' },
     { uri: 'email://docs/attachments', name: 'Attachments Tool Docs', file: 'attachments.md' },
-    { uri: 'email://docs/send', name: 'Send Tool Docs', file: 'send.md' }
+    { uri: 'email://docs/help', name: 'Help Tool Docs', file: 'help.md' },
+    { uri: 'email://docs/config', name: 'Config Tool Docs', file: 'config.md' }
   ]
 
-  it('has exactly 4 resources', () => {
-    expect(EXPECTED_RESOURCES).toHaveLength(4)
+  it('has exactly 5 resources', () => {
+    expect(EXPECTED_RESOURCES).toHaveLength(5)
   })
 
   it('all resources have email:// URI scheme', () => {
@@ -160,7 +166,7 @@ describe('RESOURCES structure', () => {
   })
 
   it('resource URIs match tool names', () => {
-    const toolNames = ['messages', 'folders', 'attachments', 'send']
+    const toolNames = ['messages', 'folders', 'attachments', 'help', 'config']
     for (const name of toolNames) {
       const resource = EXPECTED_RESOURCES.find((r) => r.uri === `email://docs/${name}`)
       expect(resource).toBeDefined()
@@ -174,11 +180,12 @@ describe('RESOURCES structure', () => {
 // ============================================================================
 
 describe('help tool enum', () => {
-  const HELP_ENUM = ['messages', 'folders', 'attachments', 'send', 'config', 'help']
+  const HELP_ENUM = ['messages', 'folders', 'attachments', 'config', 'help']
 
   it('help enum lists all documented tools', () => {
-    expect(HELP_ENUM).toHaveLength(6)
+    expect(HELP_ENUM).toHaveLength(5)
     expect(HELP_ENUM).toContain('config')
+    expect(HELP_ENUM).not.toContain('send')
   })
 
   it('help enum excludes the relay helper', () => {

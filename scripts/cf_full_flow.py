@@ -294,8 +294,9 @@ async def run_auth_only(endpoint: str) -> None:
 async def run_tools(endpoint: str) -> None:
     """Exercise the read-only tool surface end-to-end on the live deployment
     (beyond folders/config): save creds, then drive messages(search), help, and
-    config(status) through the real per-sub IMAP path. send/attachments(download)
-    are skipped here -- send is an OUTWARD action and attachments(download) needs a
+    config(status) through the real per-sub IMAP path. messages(new/reply/forward)
+    and attachments(download) are skipped here -- outbound messages are OUTWARD
+    actions and attachments(download) needs a
     real uid; the IMAP read path they share is already exercised by search."""
     token = get_token(endpoint, {"EMAIL_CREDENTIALS": _email_credentials()})
     print("TOKEN OK len=", len(token), "sub=", _sub_of(token))

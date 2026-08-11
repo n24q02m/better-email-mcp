@@ -2,7 +2,7 @@
  * Consolidated E2E Tests for better-email-mcp
  *
  * Spawns the actual MCP server via stdio and communicates using JSON-RPC
- * through the official MCP SDK client. Covers ALL 5 tools and ALL 15 actions.
+ * through the official MCP SDK client. Covers ALL 6 public tools and ALL 22 actions.
  *
  * Four setup modes controlled by E2E_SETUP env var:
  *   - 'env'    (default) : node bin/cli.mjs with EMAIL_CREDENTIALS env var
@@ -65,8 +65,9 @@ const HAS_CREDS = !!EMAIL_CREDS || E2E_SETUP === 'relay' || E2E_SETUP === 'http'
 // Mutable: set from env var initially, updated by probe if relay/saved tokens provide it
 let TEST_ACCOUNT = EMAIL_CREDS.split(',')[0]?.split(':')[0] ?? ''
 
-const EXPECTED_TOOLS = ['messages', 'folders', 'attachments', 'send', 'setup', 'help'] as const
-const _EMAIL_DEPENDENT_TOOLS = ['messages', 'folders', 'attachments', 'send'] as const
+const EXPECTED_TOOLS = ['messages', 'folders', 'attachments', 'config', 'config__open_relay', 'help'] as const
+const EXPECTED_HELP_TOPICS = ['messages', 'folders', 'attachments', 'config', 'help'] as const
+const _EMAIL_DEPENDENT_TOOLS = ['messages', 'folders', 'attachments'] as const
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -561,13 +562,10 @@ describe('Server initialization', () => {
 // ===========================================================================
 
 describe('tools/list', () => {
-  it('should return all 5 tools', async () => {
+  it('should return exactly the 6 public tools', async () => {
     const result = await client.listTools()
     const names = result.tools.map((t) => t.name)
-    expect(names).toHaveLength(6)
-    for (const name of EXPECTED_TOOLS) {
-      expect(names).toContain(name)
-    }
+    expect(names).toEqual(EXPECTED_TOOLS)
   })
 
   it('should have valid inputSchema for each tool', async () => {
@@ -593,7 +591,7 @@ describe('tools/list', () => {
 // ===========================================================================
 
 describe('help', () => {
-  for (const toolName of EXPECTED_TOOLS) {
+  for (const toolName of EXPECTED_HELP_TOPICS) {
     it(`should return documentation for ${toolName}`, async () => {
       const result = await client.callTool({
         name: 'help',
@@ -643,17 +641,17 @@ describe.skipIf(!HAS_CREDS)('folders', () => {
 })
 
 // ===========================================================================
-// 5. messages -- send + lifecycle (requires EMAIL_CREDENTIALS)
+// 5. messages -- outbound + lifecycle (requires EMAIL_CREDENTIALS)
 // ===========================================================================
 
-describe.skipIf(!HAS_CREDS)('messages -- send + lifecycle', () => {
+describe.skipIf(!HAS_CREDS)('messages -- outbound + lifecycle', () => {
   const LIFECYCLE_SUBJECT = testSubject('LIFECYCLE')
   let sentUid: number
 
-  // 5.1 send.new
-  it('send.new -- send email to self', async () => {
+  // 5.1 messages.new
+  it('messages.new -- send email to self', async () => {
     const result = await client.callTool({
-      name: 'send',
+      name: 'messages',
       arguments: {
         action: 'new',
         account: TEST_ACCOUNT,
@@ -863,7 +861,7 @@ describe.skipIf(!HAS_CREDS)('messages -- send + lifecycle', () => {
 
     // Send a fresh email
     const sendResult = await client.callTool({
-      name: 'send',
+      name: 'messages',
       arguments: {
         action: 'new',
         account: TEST_ACCOUNT,
@@ -948,7 +946,7 @@ describe.skipIf(!HAS_CREDS)('messages -- send + lifecycle', () => {
     const trashSubject = testSubject('TRASH')
 
     await client.callTool({
-      name: 'send',
+      name: 'messages',
       arguments: {
         action: 'new',
         account: TEST_ACCOUNT,
@@ -991,17 +989,17 @@ describe.skipIf(!HAS_CREDS)('messages -- send + lifecycle', () => {
 })
 
 // ===========================================================================
-// 6. send.reply (requires EMAIL_CREDENTIALS)
+// 6. messages.reply (requires EMAIL_CREDENTIALS)
 // ===========================================================================
 
-describe.skipIf(!HAS_CREDS)('send.reply', () => {
+describe.skipIf(!HAS_CREDS)('messages.reply', () => {
   const replySubject = testSubject('REPLY')
   let originalUid: number
 
   it('should send original, find it, reply, and verify Re: prefix', async () => {
     // Step 1: Send original
     const sendResult = await client.callTool({
-      name: 'send',
+      name: 'messages',
       arguments: {
         action: 'new',
         account: TEST_ACCOUNT,
@@ -1033,7 +1031,7 @@ describe.skipIf(!HAS_CREDS)('send.reply', () => {
 
     // Step 3: Reply to it
     const replyResult = await client.callTool({
-      name: 'send',
+      name: 'messages',
       arguments: {
         action: 'reply',
         account: TEST_ACCOUNT,
@@ -1070,17 +1068,17 @@ describe.skipIf(!HAS_CREDS)('send.reply', () => {
 })
 
 // ===========================================================================
-// 7. send.forward (requires EMAIL_CREDENTIALS)
+// 7. messages.forward (requires EMAIL_CREDENTIALS)
 // ===========================================================================
 
-describe.skipIf(!HAS_CREDS)('send.forward', () => {
+describe.skipIf(!HAS_CREDS)('messages.forward', () => {
   const fwdSubject = testSubject('FWD')
   let originalUid: number
 
   it('should send original, find it, forward, and verify Fwd: prefix', async () => {
     // Step 1: Send original
     const sendResult = await client.callTool({
-      name: 'send',
+      name: 'messages',
       arguments: {
         action: 'new',
         account: TEST_ACCOUNT,
@@ -1112,7 +1110,7 @@ describe.skipIf(!HAS_CREDS)('send.forward', () => {
 
     // Step 3: Forward to self
     const fwdResult = await client.callTool({
-      name: 'send',
+      name: 'messages',
       arguments: {
         action: 'forward',
         account: TEST_ACCOUNT,
@@ -1157,9 +1155,9 @@ describe.skipIf(!HAS_CREDS)('attachments', () => {
   let emailUid: number
 
   it('attachments.list -- list attachments on a text email (0 expected)', async () => {
-    // Send an email to self (no attachment support in send tool)
+    // Send an email to self (no attachment support in messages tool)
     const sendResult = await client.callTool({
-      name: 'send',
+      name: 'messages',
       arguments: {
         action: 'new',
         account: TEST_ACCOUNT,
@@ -1304,9 +1302,9 @@ describe('error handling', () => {
       ).toBe(true)
     })
 
-    it('send should return error when no accounts exist or account not found', async () => {
+    it('messages.new should return error when no accounts exist or account not found', async () => {
       const result = await client.callTool({
-        name: 'send',
+        name: 'messages',
         arguments: {
           action: 'new',
           account: 'nonexistent-e2e@example.invalid',
@@ -1358,7 +1356,7 @@ describe('connection stability', () => {
   it('should handle rapid sequential calls without failure', async () => {
     // Fire 5 rapid help calls to verify stability under load
     const results = await Promise.all(
-      EXPECTED_TOOLS.map((toolName) => client.callTool({ name: 'help', arguments: { tool_name: toolName } }))
+      EXPECTED_HELP_TOPICS.map((toolName) => client.callTool({ name: 'help', arguments: { tool_name: toolName } }))
     )
 
     for (const result of results) {

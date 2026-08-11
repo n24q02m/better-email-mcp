@@ -8,7 +8,6 @@ import { registerTools } from './registry.js'
 vi.mock('./composite/messages.js', () => ({ messages: vi.fn(), clearArchiveFolderCache: vi.fn() }))
 vi.mock('./composite/folders.js', () => ({ folders: vi.fn() }))
 vi.mock('./composite/attachments.js', () => ({ attachments: vi.fn() }))
-vi.mock('./composite/send.js', () => ({ send: vi.fn() }))
 vi.mock('./composite/config.js', () => ({ handleConfig: vi.fn() }))
 vi.mock('./helpers/config.js', () => ({ loadConfig: vi.fn() }))
 
@@ -177,11 +176,11 @@ describe('registry.ts coverage - error and edge paths', () => {
     it('should call other tool handlers', async () => {
       const { callToolHandler } = setupHandler([{ email: 'test@example.com' }])
       const { attachments } = await import('./composite/attachments.js')
-      const { send } = await import('./composite/send.js')
+      const { messages } = await import('./composite/messages.js')
       const { handleConfig } = await import('./composite/config.js')
 
       vi.mocked(attachments).mockResolvedValue({ ok: true, action: 'list', attachments: [] } as any)
-      vi.mocked(send).mockResolvedValue({ ok: true, action: 'new', messageId: '1' } as any)
+      vi.mocked(messages).mockResolvedValue({ ok: true, action: 'new', messageId: '1' } as any)
       vi.mocked(handleConfig).mockResolvedValue({ ok: true, action: 'cache_clear', cleared: 0 } as any)
 
       await callToolHandler({
@@ -189,14 +188,14 @@ describe('registry.ts coverage - error and edge paths', () => {
       })
       await callToolHandler({
         params: {
-          name: 'send',
+          name: 'messages',
           arguments: { action: 'new', account: 'test@example.com', to: 'a@b.com', body: 'hi' }
         }
       })
       await callToolHandler({ params: { name: 'config', arguments: { action: 'status' } } })
 
       expect(attachments).toHaveBeenCalled()
-      expect(send).toHaveBeenCalled()
+      expect(messages).toHaveBeenCalled()
       expect(handleConfig).toHaveBeenCalled()
     })
 

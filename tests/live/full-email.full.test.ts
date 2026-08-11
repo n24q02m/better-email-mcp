@@ -96,14 +96,14 @@ describe('Full Email MCP Protocol Tests (live Gmail)', () => {
   })
 
   // -------------------------------------------------------------------------
-  // send + messages lifecycle
+  // messages outbound + lifecycle
   // -------------------------------------------------------------------------
-  describe('send + messages lifecycle', () => {
+  describe('messages outbound + lifecycle', () => {
     let sentUid: number
 
-    it('send.new -- send email to self', async () => {
+    it('messages.new -- send email to self', async () => {
       const result = await client.callTool({
-        name: 'send',
+        name: 'messages',
         arguments: {
           action: 'new',
           account: TEST_ACCOUNT,
@@ -302,7 +302,7 @@ describe('Full Email MCP Protocol Tests (live Gmail)', () => {
 
       // Send a fresh email to trash
       await client.callTool({
-        name: 'send',
+        name: 'messages',
         arguments: {
           action: 'new',
           account: TEST_ACCOUNT,
@@ -345,16 +345,16 @@ describe('Full Email MCP Protocol Tests (live Gmail)', () => {
   })
 
   // -------------------------------------------------------------------------
-  // send.reply
+  // messages.reply
   // -------------------------------------------------------------------------
-  describe('send.reply', () => {
+  describe('messages.reply', () => {
     let originalUid: number
     const replySubject = `[MCP-TEST-REPLY-${Date.now()}]`
 
     it('should send and reply to an email', async () => {
       // Step 1: Send original
       const sendResult = await client.callTool({
-        name: 'send',
+        name: 'messages',
         arguments: {
           action: 'new',
           account: TEST_ACCOUNT,
@@ -386,7 +386,7 @@ describe('Full Email MCP Protocol Tests (live Gmail)', () => {
 
       // Step 3: Reply to it
       const replyResult = await client.callTool({
-        name: 'send',
+        name: 'messages',
         arguments: {
           action: 'reply',
           account: TEST_ACCOUNT,
@@ -423,16 +423,16 @@ describe('Full Email MCP Protocol Tests (live Gmail)', () => {
   })
 
   // -------------------------------------------------------------------------
-  // send.forward
+  // messages.forward
   // -------------------------------------------------------------------------
-  describe('send.forward', () => {
+  describe('messages.forward', () => {
     let originalUid: number
     const fwdSubject = `[MCP-TEST-FWD-${Date.now()}]`
 
     it('should send and forward an email', async () => {
       // Step 1: Send original
       const sendResult = await client.callTool({
-        name: 'send',
+        name: 'messages',
         arguments: {
           action: 'new',
           account: TEST_ACCOUNT,
@@ -464,7 +464,7 @@ describe('Full Email MCP Protocol Tests (live Gmail)', () => {
 
       // Step 3: Forward to self
       const fwdResult = await client.callTool({
-        name: 'send',
+        name: 'messages',
         arguments: {
           action: 'forward',
           account: TEST_ACCOUNT,
@@ -508,9 +508,9 @@ describe('Full Email MCP Protocol Tests (live Gmail)', () => {
     const attSubject = `[MCP-TEST-ATT-${Date.now()}]`
 
     it('attachments.list -- list attachments on a sent email (no attachments expected)', async () => {
-      // Send an email to self (no attachment support in send tool)
+      // Send an email to self (no attachment support in messages tool)
       const sendResult = await client.callTool({
-        name: 'send',
+        name: 'messages',
         arguments: {
           action: 'new',
           account: TEST_ACCOUNT,
@@ -582,8 +582,8 @@ describe('Full Email MCP Protocol Tests (live Gmail)', () => {
   // help
   // -------------------------------------------------------------------------
   describe('help', () => {
-    it('should return documentation for all 5 tools', async () => {
-      const toolNames = ['messages', 'folders', 'attachments', 'send', 'help']
+    it('should return documentation for all public help topics', async () => {
+      const toolNames = ['messages', 'folders', 'attachments', 'config', 'help']
 
       for (const toolName of toolNames) {
         const result = await client.callTool({

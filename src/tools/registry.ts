@@ -1,5 +1,5 @@
 /**
- * Tool Registry - 6 Composite Tools
+ * Tool Registry - 6 Public Tools
  * Consolidated registration for maximum coverage with minimal tools
  *
  * Credential-aware: when state is 'awaiting_setup', tools return setup
@@ -23,7 +23,6 @@ import { type AttachmentsInput, attachments } from './composite/attachments.js'
 import { type ConfigInput, handleConfig } from './composite/config.js'
 import { type FoldersInput, folders } from './composite/folders.js'
 import { type MessagesInput, messages } from './composite/messages.js'
-import { type SendInput, send } from './composite/send.js'
 // Import mega tools
 import { type AccountConfig, loadConfig } from './helpers/config.js'
 import { aiReadableMessage, EmailMCPError, enhanceError, findClosestMatch } from './helpers/errors.js'
@@ -45,7 +44,6 @@ const RESOURCES = [
   { uri: 'email://docs/messages', name: 'Messages Tool Docs', file: 'messages.md' },
   { uri: 'email://docs/folders', name: 'Folders Tool Docs', file: 'folders.md' },
   { uri: 'email://docs/attachments', name: 'Attachments Tool Docs', file: 'attachments.md' },
-  { uri: 'email://docs/send', name: 'Send Tool Docs', file: 'send.md' },
   { uri: 'email://docs/help', name: 'Help Tool Docs', file: 'help.md' },
   { uri: 'email://docs/config', name: 'Config Tool Docs', file: 'config.md' }
 ]
@@ -58,20 +56,33 @@ const TOOLS = [
   {
     name: 'messages',
     description:
-      'Search, read, and manage email messages.\n\nActions (required params -> optional):\n- search (-> account, query="UNSEEN", folder="INBOX", limit=20)\n- read (account, uid -> folder)\n- mark_read / mark_unread / flag / unflag (account, uid|uids -> folder)\n- move (account, uid|uids, destination -> folder)\n- archive / trash (account, uid|uids -> folder)\n\nQuery examples: "UNREAD", "FROM user@example.com", "SINCE 2026-01-01", "UNREAD FROM boss@company.com". Date format MUST be YYYY-MM-DD.',
+      'Search, read, manage, compose, and send email messages.\n\nActions (required params -> optional):\n- search (-> account, query="UNSEEN", folder="INBOX", limit=20)\n- read (account, uid -> folder)\n- mark_read / mark_unread / flag / unflag (account, uid|uids -> folder)\n- move (account, uid|uids, destination -> folder)\n- archive / trash (account, uid|uids -> folder)\n- new (account, to, subject, body -> cc, bcc, attachments)\n- reply (account, uid, body -> to, folder, attachments)\n- forward (account, uid, to, body -> folder, attachments)\n\nQuery examples: "UNREAD", "FROM user@example.com", "SINCE 2026-01-01", "UNREAD FROM boss@company.com". Date format MUST be YYYY-MM-DD.\n\nOutbound bodies support plain text or HTML. Attachments use base64 content, max 10 files and 25MB decoded total.',
     annotations: {
       title: 'Messages',
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: false,
-      openWorldHint: false
+      openWorldHint: true
     },
     inputSchema: {
       type: 'object',
       properties: {
         action: {
           type: 'string',
-          enum: ['search', 'read', 'mark_read', 'mark_unread', 'flag', 'unflag', 'move', 'archive', 'trash'],
+          enum: [
+            'search',
+            'read',
+            'mark_read',
+            'mark_unread',
+            'flag',
+            'unflag',
+            'move',
+            'archive',
+            'trash',
+            'new',
+            'reply',
+            'forward'
+          ],
           description: 'Action to perform'
         },
         account: { type: 'string', description: 'Account email filter (optional, defaults to all for search)' },
@@ -84,7 +95,32 @@ const TOOLS = [
         limit: { type: 'number', description: 'Max results for search (default: 20)' },
         uid: { type: 'number', description: 'Email UID (for read/modify single email)' },
         uids: { type: 'array', items: { type: 'number' }, description: 'Multiple UIDs for batch operations' },
-        destination: { type: 'string', description: 'Target folder for move action' }
+        destination: { type: 'string', description: 'Target folder for move action' },
+        to: {
+          type: 'string',
+          description:
+            'Recipient email address (required for new/forward, optional for reply - auto-derived from original sender)'
+        },
+        subject: { type: 'string', description: 'Email subject (required for new)' },
+        body: {
+          type: 'string',
+          description: 'Email body (required for new/reply/forward). Use plain text or HTML, not both.'
+        },
+        cc: { type: 'string', description: 'CC recipients (comma-separated)' },
+        bcc: { type: 'string', description: 'BCC recipients (comma-separated)' },
+        attachments: {
+          type: 'array',
+          description: 'File attachments to include (optional). Max 10 files, total decoded size <= 25MB.',
+          items: {
+            type: 'object',
+            properties: {
+              filename: { type: 'string', description: 'Attachment filename' },
+              content_base64: { type: 'string', description: 'File content encoded as base64' },
+              content_type: { type: 'string', description: 'MIME type (optional, e.g. application/pdf)' }
+            },
+            required: ['filename', 'content_base64']
+          }
+        }
       },
       required: ['action']
     },
@@ -147,59 +183,6 @@ const TOOLS = [
     outputSchema: { type: 'object', additionalProperties: true }
   },
   {
-    name: 'send',
-    description:
-      'Compose and send emails.\n\nActions (required params -> optional):\n- new (account, to, subject, body -> cc, bcc, attachments)\n- reply (account, uid, body -> to, folder, attachments): auto-derives recipient, prepends "Re:"\n- forward (account, uid, to, body -> folder, attachments): includes original, prepends "Fwd:"\n\nBody: plain text (default) or HTML (<b>, <a href>, <table>). Do NOT mix.\n\nAttachments: base64 content, same shape as attachments download (filename, content_base64, content_type). Max 10 files, total decoded size <= 25MB.',
-    annotations: {
-      title: 'Send',
-      readOnlyHint: false,
-      destructiveHint: false,
-      idempotentHint: false,
-      openWorldHint: true
-    },
-    inputSchema: {
-      type: 'object',
-      properties: {
-        action: {
-          type: 'string',
-          enum: ['new', 'reply', 'forward'],
-          description: 'Action to perform'
-        },
-        account: { type: 'string', description: 'Sender account email (required)' },
-        to: {
-          type: 'string',
-          description:
-            'Recipient email address (required for new/forward, optional for reply - auto-derived from original sender)'
-        },
-        subject: { type: 'string', description: 'Email subject (required for new)' },
-        body: {
-          type: 'string',
-          description:
-            'Email body (required). Use plain text for simple messages. Use HTML tags (<b>, <i>, <a href="...">, <br>, <table>) for rich formatting. Do NOT mix: send either plain text or HTML, not both.'
-        },
-        cc: { type: 'string', description: 'CC recipients (comma-separated)' },
-        bcc: { type: 'string', description: 'BCC recipients (comma-separated)' },
-        uid: { type: 'number', description: 'Original email UID (required for reply/forward)' },
-        folder: { type: 'string', description: 'Folder of original email (default: INBOX)' },
-        attachments: {
-          type: 'array',
-          description: 'File attachments to include (optional). Max 10 files, total decoded size <= 25MB.',
-          items: {
-            type: 'object',
-            properties: {
-              filename: { type: 'string', description: 'Attachment filename' },
-              content_base64: { type: 'string', description: 'File content encoded as base64' },
-              content_type: { type: 'string', description: 'MIME type (optional, e.g. application/pdf)' }
-            },
-            required: ['filename', 'content_base64']
-          }
-        }
-      },
-      required: ['action', 'account', 'body']
-    },
-    outputSchema: { type: 'object', additionalProperties: true }
-  },
-  {
     name: 'config',
     description:
       'Manage email credential setup and runtime configuration.\n\nSetup actions (credential lifecycle):\n- status: Show current credential state, setup URL, and configured accounts\n- setup_status: Show credential state and setup URL only (no accounts list; cross-server parity action)\n- setup_start (-> force): Trigger relay setup session and return the setup URL. Set force=true to restart even if already in progress\n- setup_reset: Clear all saved credentials and reset to awaiting_setup state\n- setup_complete: Re-check credential state after external config changes (e.g. relay submission)\n\nRuntime actions:\n- set: Update runtime settings (email has no runtime settings; returns ok=false)\n- cache_clear: Clear in-memory account and OAuth token caches',
@@ -256,7 +239,7 @@ const TOOLS = [
       properties: {
         tool_name: {
           type: 'string',
-          enum: ['messages', 'folders', 'attachments', 'send', 'config', 'help'],
+          enum: ['messages', 'folders', 'attachments', 'config', 'help'],
           description: 'Tool to get documentation for'
         }
       },
@@ -275,7 +258,7 @@ async function handleHelp(args: unknown): Promise<{ tool: string; documentation:
     throw new EmailMCPError(
       `Invalid tool name: ${toolName}`,
       'VALIDATION_ERROR',
-      'Valid: messages, folders, attachments, send, config, help'
+      'Valid: messages, folders, attachments, config, help'
     )
   }
   const resource = RESOURCES.find((r) => r.uri === `email://docs/${toolName}`)
@@ -296,7 +279,6 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
   messages: (accounts, args) => messages(accounts, args as unknown as MessagesInput),
   folders: (accounts, args) => folders(accounts, args as unknown as FoldersInput),
   attachments: (accounts, args) => attachments(accounts, args as unknown as AttachmentsInput),
-  send: (accounts, args) => send(accounts, args as unknown as SendInput),
   config: (accounts, args) => handleConfig(accounts, args as unknown as ConfigInput),
   help: (_, args) => handleHelp(args)
 }

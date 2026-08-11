@@ -6,7 +6,6 @@ import { registerTools } from './registry.js'
 vi.mock('./composite/attachments.js', () => ({ attachments: vi.fn() }))
 vi.mock('./composite/folders.js', () => ({ folders: vi.fn() }))
 vi.mock('./composite/messages.js', () => ({ messages: vi.fn(), clearArchiveFolderCache: vi.fn() }))
-vi.mock('./composite/send.js', () => ({ send: vi.fn() }))
 vi.mock('./composite/config.js', () => ({ handleConfig: vi.fn() }))
 
 // Mock credential state to return 'configured' so tools execute normally
@@ -61,7 +60,7 @@ describe('CallToolRequestSchema handler coverage', () => {
     expect(result.isError).toBe(true)
     expect(result.content[0].text).toContain("Unknown tool: message. Did you mean 'messages'?")
     expect(result.content[0].text).toContain(
-      'Available tools: messages, folders, attachments, send, config, config__open_relay, help'
+      'Available tools: messages, folders, attachments, config, config__open_relay, help'
     )
   })
 

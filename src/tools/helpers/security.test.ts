@@ -135,7 +135,7 @@ describe('isValidToolName', () => {
     expect(isValidToolName('messages')).toBe(true)
     expect(isValidToolName('folders')).toBe(true)
     expect(isValidToolName('attachments')).toBe(true)
-    expect(isValidToolName('send')).toBe(true)
+    expect(isValidToolName('send')).toBe(false)
     expect(isValidToolName('help')).toBe(true)
   })
 
@@ -177,7 +177,7 @@ describe('wrapToolResult', () => {
 
   it('does not wrap safe tools', () => {
     expect(wrapToolResult('folders', '{"folders": []}')).toBe('{"folders": []}')
-    expect(wrapToolResult('send', '{"success": true}')).toBe('{"success": true}')
+    expect(wrapToolResult('config', '{"success": true}')).toBe('{"success": true}')
     expect(wrapToolResult('help', '{"docs": ""}')).toBe('{"docs": ""}')
   })
 })
@@ -203,7 +203,6 @@ describe('markStructuredContent', () => {
   it('does not add a marker for non-external tools', () => {
     const payload = { success: true }
     expect(markStructuredContent('folders', payload)).toEqual(payload)
-    expect(markStructuredContent('send', payload)).toEqual(payload)
     expect(markStructuredContent('config', payload)).toEqual(payload)
     expect(markStructuredContent('help', payload)).toEqual(payload)
   })

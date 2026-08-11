@@ -106,7 +106,7 @@ import { searchEmails, readEmail } from '../helpers/imap-client.js'
 
 ### Architecture Pattern
 
-- **Composite/Mega Tool**: Each domain (messages, folders, attachments, send, config) is one function
+- **Composite/Mega Tool**: Each public domain (messages, folders, attachments, config) is one function. Outbound `new`/`reply`/`forward` actions live under `messages` and delegate to the internal `src/tools/composite/send.ts` implementation.
 - Input: `{ action, ...params }`, dispatch via `switch(input.action)`
 - Every composite tool exports: 1 async function + 1 interface
 - Signature: `async function toolName(accounts: AccountConfig[], input: TypedInput): Promise<any>`
@@ -120,7 +120,7 @@ src/
   docs/                       # Markdown docs served as MCP resources
   tools/
     registry.ts               # Tool registration + routing
-    composite/                 # One file per domain (messages, folders, attachments, send, config)
+    composite/                 # Public domains: messages, folders, attachments, config; internal outbound helper: send.ts
     helpers/                   # errors, config, html-utils, imap-client, smtp-client
 ```
 

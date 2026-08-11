@@ -162,7 +162,7 @@ better-email-mcp/
 │   ├── docs/                 # Markdown docs served as MCP resources
 │   └── tools/
 │       ├── registry.ts       # Tool registration + routing
-│       ├── composite/        # One file per domain (messages, folders, attachments, send)
+│       ├── composite/        # Public domains: messages, folders, attachments, config; internal outbound helper: send.ts
 │       └── helpers/          # errors, config, html-utils, imap-client, smtp-client
 ├── tests/
 ├── biome.json

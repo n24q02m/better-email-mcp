@@ -7,7 +7,6 @@ import { registerTools } from './registry.js'
 vi.mock('./composite/messages.js', () => ({ messages: vi.fn() }))
 vi.mock('./composite/folders.js', () => ({ folders: vi.fn() }))
 vi.mock('./composite/attachments.js', () => ({ attachments: vi.fn() }))
-vi.mock('./composite/send.js', () => ({ send: vi.fn() }))
 vi.mock('./composite/config.js', () => ({ handleConfig: vi.fn() }))
 vi.mock('./helpers/config.js', () => ({ loadConfig: vi.fn() }))
 
@@ -82,14 +81,14 @@ describe('registry.ts catch block coverage', () => {
   })
 
   it('handles SMTP error (enhanced) in catch block', async () => {
-    const { send } = await import('./composite/send.js')
+    const { messages } = await import('./composite/messages.js')
     const smtpError = new Error('SMTP failed')
     ;(smtpError as any).responseCode = 535
-    vi.mocked(send).mockRejectedValue(smtpError)
+    vi.mocked(messages).mockRejectedValue(smtpError)
 
     const { callToolHandler } = setupHandler()
     const result = await callToolHandler({
-      params: { name: 'send', arguments: { action: 'new', account: 't@e.com', body: 'hi' } }
+      params: { name: 'messages', arguments: { action: 'new', account: 't@e.com', body: 'hi' } }
     })
 
     expect(result.isError).toBe(true)
