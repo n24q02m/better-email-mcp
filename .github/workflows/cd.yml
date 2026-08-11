@@ -59,7 +59,7 @@ jobs:
       # BEFORE the real run creates a git tag or GitHub Release. Same action + SHA and
       # same prerelease inputs as the real step, run against the same untouched checkout,
       # so the computed version is identical.
-      - uses: n24q02m/better-semantic-release@9b8ee6275b7dae995bac090282ccb1cabc99ae0f # v1.2.3
+      - uses: n24q02m/better-semantic-release@c6051539169a3434b4739ddce1a88a56c50f2b53 # v1.3.0
         id: dryrun
         with:
           github_token: ${{ steps.app-token.outputs.token }}
@@ -136,7 +136,7 @@ jobs:
           echo "::error::Could not verify whether ${PKG}@${COMPUTED_VERSION} exists on npm: 'npm view' failed without an E404 (likely a transient registry/network error, rate limit, or outage). Refusing to proceed so a genuine collision cannot slip through as a false 'free'. Re-run the release once the registry is reachable. npm output: ${output}"
           exit 1
 
-      - uses: n24q02m/better-semantic-release@9b8ee6275b7dae995bac090282ccb1cabc99ae0f # v1.2.3
+      - uses: n24q02m/better-semantic-release@c6051539169a3434b4739ddce1a88a56c50f2b53 # v1.3.0
         id: release
         with:
           github_token: ${{ steps.app-token.outputs.token }}
@@ -211,12 +211,12 @@ jobs:
 
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
 
-      - uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4.5.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4.5.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -259,12 +259,12 @@ jobs:
           path: ${{ runner.temp }}/digests
           merge-multiple: true
 
-      - uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4.5.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - uses: docker/login-action@abd2ef45e78c5afb21d64d4ca52ee8550d9572c7 # v4.5.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
