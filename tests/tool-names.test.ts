@@ -48,8 +48,22 @@ describe('public MCP tool surface', { timeout: MCP_PROTOCOL_TEST_TIMEOUT_MS }, (
       },
       stderr: 'pipe'
     })
+    const stderrChunks: Buffer[] = []
+    transport.stderr?.on('data', (chunk: Buffer | string) => {
+      stderrChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+    })
     client = new Client({ name: 'better-email-mcp-test-client', version: '0.0.0' })
-    await client.connect(transport)
+    try {
+      await client.connect(transport)
+    } catch (error) {
+      const serverStderr = Buffer.concat(stderrChunks).toString('utf8').trim()
+      if (serverStderr) {
+        throw new Error(`${error instanceof Error ? error.message : String(error)}\nServer stderr:\n${serverStderr}`, {
+          cause: error
+        })
+      }
+      throw error
+    }
     return client
   }
 
