@@ -1,6 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { afterEach, describe, expect, it } from 'vitest'
+import { resolve } from 'node:path'
 
 const EXPECTED_TOOLS = ['messages', 'folders', 'attachments', 'config', 'config__open_relay', 'help']
 const EXPECTED_RESOURCES = [
@@ -37,8 +38,8 @@ describe('public MCP tool surface', { timeout: MCP_PROTOCOL_TEST_TIMEOUT_MS }, (
 
   async function connectServer() {
     const transport = new StdioClientTransport({
-      command: 'node',
-      args: ['bin/cli.mjs'],
+      command: process.execPath,
+      args: [resolve(process.cwd(), 'bin/cli.mjs')],
       env: {
         ...process.env,
         EMAIL_CREDENTIALS: 'test@gmail.com:fake_password',
