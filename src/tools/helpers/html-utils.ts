@@ -118,7 +118,8 @@ export function fastExtractSnippet(html: string, maxLength = 200): string {
   if (text.indexOf('&') !== -1) {
     text = text.replace(RE_ENTITIES, (entity, p1) => {
       const lower = entity.toLowerCase()
-      if (lower in ENTITY_MAP) return ENTITY_MAP[lower]
+      const mapped = ENTITY_MAP[lower]
+      if (mapped !== undefined) return mapped
 
       // Check if it's a numeric entity starting with '#'
       if (p1[0] === '#') {

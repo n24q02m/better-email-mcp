@@ -59,3 +59,6 @@
 ## 2024-07-17 - [Eliminate V8 Array Allocations in `for...of` loops]
 **Learning:** In V8 environments, initializing static array literals directly inside `for...of` loop definitions (e.g., `for (const key of ['A', 'B'])`) within frequently executed functions (hot paths like query parsing) forces the engine to reallocate the array on every invocation, adding unnecessary garbage collection overhead.
 **Action:** Extract these array literals into module-scoped static constants (e.g., `const KEYS = ['A', 'B'] as const`) to prevent repeated memory allocations and improve execution speed in hot paths.
+## 2026-08-12 - [Optimize entity decoding fast path]
+**Learning:** The `in` operator (e.g. `lower in ENTITY_MAP`) iterates the prototype chain, causing measurable V8 deoptimization during property lookups in hot paths.
+**Action:** Replace `in` checks with direct property assignment and a `!== undefined` check to eliminate prototype traversal overhead.
