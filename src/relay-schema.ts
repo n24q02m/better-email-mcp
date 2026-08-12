@@ -51,6 +51,7 @@ export const RELAY_SCHEMA: RelayConfigSchema = {
         type: 'text',
         required: false,
         validation: '^\\S*$',
+        placeholder: 'imap.example.com',
         helpText: 'Optional. Leave empty for auto-detection. Accepts localhost or a proxy host.'
       },
       {

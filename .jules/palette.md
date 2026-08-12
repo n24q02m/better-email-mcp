@@ -107,3 +107,7 @@
 ## 2023-10-25 - [Declarative Form Validation for Optional Fields]
 **Learning:** When configuring declarative regex validation (e.g. `validation` in `RELAY_SCHEMA`) for optional form fields, the pattern must explicitly allow empty strings (e.g. `^\d*$` instead of `^\d+$`). Otherwise, the client-side validation logic will incorrectly block form submission if the user intentionally leaves the optional field blank.
 **Action:** Always test regex patterns against empty strings when applying validation to optional fields.
+
+## 2026-08-12 - Consistent Placeholders in Form Fields
+**Learning:** Having placeholders for some text fields but omitting them for others in the same form group (e.g. `imap_port` and `email` vs `imap_host`) creates inconsistency and leaves users guessing the expected input format for the un-hinted field.
+**Action:** Always provide placeholder examples for all user-facing text inputs in a form sequence to establish a consistent pattern and explicitly guide the required input format.
