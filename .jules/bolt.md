@@ -59,6 +59,6 @@
 ## 2024-07-17 - [Eliminate V8 Array Allocations in `for...of` loops]
 **Learning:** In V8 environments, initializing static array literals directly inside `for...of` loop definitions (e.g., `for (const key of ['A', 'B'])`) within frequently executed functions (hot paths like query parsing) forces the engine to reallocate the array on every invocation, adding unnecessary garbage collection overhead.
 **Action:** Extract these array literals into module-scoped static constants (e.g., `const KEYS = ['A', 'B'] as const`) to prevent repeated memory allocations and improve execution speed in hot paths.
-## 2026-08-12 - [Optimize entity decoding fast path]
-**Learning:** The `in` operator (e.g. `lower in ENTITY_MAP`) iterates the prototype chain, causing measurable V8 deoptimization during property lookups in hot paths.
-**Action:** Replace `in` checks with direct property assignment and a `!== undefined` check to eliminate prototype traversal overhead.
+## 2026-08-12 - [Avoid a redundant entity-map lookup]
+**Learning:** For a mapped entity, `lower in ENTITY_MAP` followed by `ENTITY_MAP[lower]` performs a membership check and then a separate value lookup. Reading `ENTITY_MAP[lower]` directly still uses ordinary property-access semantics, including prototype-chain lookup, and the isolated Node.js 24.19.0 V8 trace showed no deoptimization in either lookup variant. The change should therefore be described narrowly as caching one value lookup instead of checking membership and then looking the value up.
+**Action:** Cache `ENTITY_MAP[lower]` and compare it with `undefined`, which is valid while every entry in this map has a defined string value. Re-run `node scripts/benchmark-entity-map-lookup.mjs` on the target Node runtime before citing performance, and treat the result as runtime- and workload-specific rather than a fixed speedup range.
