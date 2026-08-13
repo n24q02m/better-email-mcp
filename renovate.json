@@ -15,6 +15,10 @@
   },
   "packageRules": [
     {
+      "matchCategories": ["golang"],
+      "postUpdateOptions": ["gomodTidy"]
+    },
+    {
       "description": "Group minor updates for review (prod scope by default)",
       "matchUpdateTypes": ["minor"],
       "groupName": "minor dependencies",
@@ -61,7 +65,7 @@
     },
     {
       "description": "Pin PSR to v10 — block Renovate downgrades",
-      "matchPackagePatterns": ["^python-semantic-release/"],
+      "matchPackageNames": ["/^python-semantic-release//"],
       "matchManagers": ["github-actions"],
       "allowedVersions": ">=10.0.0"
     },
@@ -92,8 +96,5 @@
   "commitMessageAction": "update",
   "commitMessageTopic": "{{depName}}",
   "semanticCommitType": "fix",
-  "semanticCommitScope": "deps",
-  "golang": {
-    "postUpdateOptions": ["gomodTidy"]
-  }
+  "semanticCommitScope": "deps"
 }
