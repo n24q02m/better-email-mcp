@@ -29,11 +29,16 @@
 
 import { spawnSync } from 'node:child_process'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const projectRoot = join(__dirname, '..')
+const require = createRequire(import.meta.url)
+const wranglerPackagePath = require.resolve('wrangler/package.json')
+const wranglerPackage = require(wranglerPackagePath)
+const wranglerCli = join(dirname(wranglerPackagePath), wranglerPackage.bin.wrangler)
 
 const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
 if (!accountId) {
@@ -88,9 +93,16 @@ const tempConfig = join(projectRoot, 'wrangler.deploy.jsonc')
 writeFileSync(tempConfig, resolved)
 
 const passthrough = process.argv.slice(2)
-const args = ['wrangler', 'deploy', '-c', tempConfig, ...passthrough]
-console.log(`cf:deploy: running npx ${args.join(' ')}`)
+while (passthrough[0] === '--') {
+  passthrough.shift()
+}
+const args = [wranglerCli, 'deploy', '-c', tempConfig, ...passthrough]
+console.log(`cf:deploy: running wrangler ${args.slice(1).join(' ')}`)
 
-const result = spawnSync('npx', args, { cwd: projectRoot, stdio: 'inherit', shell: process.platform === 'win32' })
-rmSync(tempConfig, { force: true })
+let result
+try {
+  result = spawnSync(process.execPath, args, { cwd: projectRoot, stdio: 'inherit' })
+} finally {
+  rmSync(tempConfig, { force: true })
+}
 process.exit(result.status ?? 1)
