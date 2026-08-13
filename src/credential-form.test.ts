@@ -38,6 +38,11 @@ describe('email credential form (core card-group renderer)', () => {
     expect(html).toContain('"imap_port"')
   })
 
+  it('renders the IMAP host placeholder on the imap_host field', () => {
+    const html = render('/auth')
+    expect(html).toMatch(/"key":"imap_host"[^{}]*"placeholder":"imap\.example\.com"/)
+  })
+
   it('titles each card by the email field', () => {
     const html = render('/auth')
     // titleField is threaded into the card-group script as TITLE_FIELD.
