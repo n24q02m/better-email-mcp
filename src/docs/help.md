@@ -23,7 +23,7 @@ This tool has no `action` parameter — it takes only `tool_name`.
 ## Valid tool_name values
 
 - `messages` — Search, read, and manage email messages
-- `folders` — List mailbox folders
+- `folders` — List mailbox folders or read targeted IMAP STATUS metadata
 - `attachments` — List and download email attachments
 - `config` — Credential setup and runtime configuration
 - `help` — This documentation

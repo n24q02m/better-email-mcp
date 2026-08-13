@@ -4,15 +4,18 @@
  */
 
 import type { AccountConfig } from '../helpers/config.js'
-import { resolveAccounts } from '../helpers/config.js'
-import { createUnknownActionError, withErrorHandling } from '../helpers/errors.js'
-import { listFolders } from '../helpers/imap-client.js'
+import { resolveAccounts, resolveSingleAccount } from '../helpers/config.js'
+import { createUnknownActionError, EmailMCPError, withErrorHandling } from '../helpers/errors.js'
+import { getFolderStatus, listFolders } from '../helpers/imap-client.js'
 
 export interface FoldersInput {
-  action: 'list'
+  action: 'list' | 'status'
 
   // Target account (optional - defaults to all)
   account?: string
+
+  // Exact mailbox path (required for status)
+  folder?: string
 }
 
 /**
@@ -24,10 +27,44 @@ export async function folders(accounts: AccountConfig[], input: FoldersInput): P
       case 'list':
         return await handleList(accounts, input)
 
+      case 'status':
+        return await handleStatus(accounts, input)
+
       default:
-        throw createUnknownActionError(input.action, 'list')
+        throw createUnknownActionError(input.action, 'list, status')
     }
   })()
+}
+
+/**
+ * Read STATUS metadata for one exact account and mailbox.
+ */
+async function handleStatus(accounts: AccountConfig[], input: FoldersInput): Promise<any> {
+  if (!input.account?.trim()) {
+    throw new EmailMCPError(
+      'account is required for status action',
+      'VALIDATION_ERROR',
+      'Provide exactly one configured account email or account ID'
+    )
+  }
+  if (!input.folder?.trim()) {
+    throw new EmailMCPError(
+      'folder is required for status action',
+      'VALIDATION_ERROR',
+      'Provide one exact mailbox path, such as INBOX'
+    )
+  }
+
+  const account = resolveSingleAccount(accounts, input.account)
+  const status = await getFolderStatus(account, input.folder)
+
+  return {
+    action: 'status',
+    account_id: account.id,
+    account_email: account.email,
+    folder: input.folder,
+    ...status
+  }
 }
 
 /**

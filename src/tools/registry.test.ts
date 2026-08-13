@@ -45,7 +45,7 @@ describe('TOOLS structure', () => {
     {
       name: 'folders',
       requiredFields: ['action'],
-      actions: ['list'],
+      actions: ['list', 'status'],
       readOnly: true
     },
     {
@@ -100,9 +100,9 @@ describe('TOOLS structure', () => {
     expect(messages.actions).toContain('forward')
   })
 
-  it('folders tool has 1 action', () => {
+  it('folders tool has 2 actions', () => {
     const folders = EXPECTED_TOOLS.find((t) => t.name === 'folders')!
-    expect(folders.actions).toEqual(['list'])
+    expect(folders.actions).toEqual(['list', 'status'])
   })
 
   it('attachments tool has 2 actions', () => {

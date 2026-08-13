@@ -3,12 +3,14 @@ import type { AccountConfig } from '../helpers/config.js'
 
 // --- Mocks ---
 vi.mock('../helpers/imap-client.js', () => ({
+  getFolderStatus: vi.fn(),
   listFolders: vi.fn()
 }))
 
-import { listFolders } from '../helpers/imap-client.js'
+import { getFolderStatus, listFolders } from '../helpers/imap-client.js'
 import { folders } from './folders.js'
 
+const mockGetFolderStatus = vi.mocked(getFolderStatus)
 const mockListFolders = vi.mocked(listFolders)
 
 const accounts: AccountConfig[] = [
@@ -75,5 +77,40 @@ describe('folders - list', () => {
 
   it('throws for unknown action', async () => {
     await expect(folders(accounts, { action: 'unknown' as any })).rejects.toThrow()
+  })
+})
+
+describe('folders - status', () => {
+  it('returns read-only STATUS metadata for one exact account and folder', async () => {
+    mockGetFolderStatus.mockResolvedValue({ messages: 10_025, unseen: 17, uid_next: 10_026 })
+
+    const result = await folders(accounts, {
+      action: 'status',
+      account: 'user1@gmail.com',
+      folder: 'INBOX'
+    })
+
+    expect(mockGetFolderStatus).toHaveBeenCalledWith(accounts[0], 'INBOX')
+    expect(result).toEqual({
+      action: 'status',
+      account_id: 'user1_gmail_com',
+      account_email: 'user1@gmail.com',
+      folder: 'INBOX',
+      messages: 10_025,
+      unseen: 17,
+      uid_next: 10_026
+    })
+  })
+
+  it('requires an explicit account', async () => {
+    await expect(folders(accounts, { action: 'status', folder: 'INBOX' })).rejects.toThrow(
+      'account is required for status action'
+    )
+  })
+
+  it('requires an explicit folder', async () => {
+    await expect(folders(accounts, { action: 'status', account: 'user1@gmail.com' })).rejects.toThrow(
+      'folder is required for status action'
+    )
   })
 })

@@ -26,11 +26,12 @@ const EXPECTED_MESSAGE_ACTIONS = [
   'reply',
   'forward'
 ]
+const EXPECTED_FOLDER_ACTIONS = ['list', 'status']
 const EXPECTED_HELP_TOPICS = ['messages', 'folders', 'attachments', 'config', 'help']
 // Each case launches a fresh CLI process over stdio. On Windows with the
-// current MCP SDK, cold module startup can exceed 15 seconds even though the
-// protocol exchange itself completes normally.
-const MCP_PROTOCOL_TEST_TIMEOUT_MS = 30_000
+// current MCP SDK, cold module startup under concurrent transform load can
+// exceed 30 seconds even though the protocol exchange itself completes normally.
+const MCP_PROTOCOL_TEST_TIMEOUT_MS = 60_000
 
 describe('public MCP tool surface', { timeout: MCP_PROTOCOL_TEST_TIMEOUT_MS }, () => {
   let client: Client | undefined
@@ -80,6 +81,10 @@ describe('public MCP tool surface', { timeout: MCP_PROTOCOL_TEST_TIMEOUT_MS }, (
 
     const messages = result.tools.find((tool) => tool.name === 'messages')
     expect(messages?.inputSchema.properties?.action).toMatchObject({ enum: EXPECTED_MESSAGE_ACTIONS })
+
+    const folders = result.tools.find((tool) => tool.name === 'folders')
+    expect(folders?.inputSchema.properties?.action).toMatchObject({ enum: EXPECTED_FOLDER_ACTIONS })
+    expect(folders?.inputSchema.properties).toHaveProperty('folder')
   })
 
   it('exposes only current documentation resources and help topics', async () => {

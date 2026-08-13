@@ -72,6 +72,12 @@ export interface FolderInfo {
   delimiter: string
 }
 
+export interface FolderStatusInfo {
+  messages: number
+  unseen: number
+  uid_next: number
+}
+
 /**
  * Create an ImapFlow client for the given account.
  * Uses XOAUTH2 for OAuth2 accounts, plain password otherwise.
@@ -776,6 +782,46 @@ export async function listFolders(account: AccountConfig): Promise<FolderInfo[]>
       flags: Array.from(mb.flags || []),
       delimiter: mb.delimiter || '/'
     }))
+  })
+}
+
+/**
+ * Read STATUS metadata for one mailbox without selecting or enumerating it.
+ */
+export async function getFolderStatus(account: AccountConfig, folder: string): Promise<FolderStatusInfo> {
+  return withConnection(account, async (client) => {
+    const status = await client.status(folder, {
+      messages: true,
+      unseen: true,
+      uidNext: true
+    })
+    const messages = status?.messages
+    const unseen = status?.unseen
+    const uidNext = status?.uidNext
+
+    if (
+      typeof messages !== 'number' ||
+      !Number.isSafeInteger(messages) ||
+      messages < 0 ||
+      typeof unseen !== 'number' ||
+      !Number.isSafeInteger(unseen) ||
+      unseen < 0 ||
+      typeof uidNext !== 'number' ||
+      !Number.isSafeInteger(uidNext) ||
+      uidNext < 0
+    ) {
+      throw new EmailMCPError(
+        'IMAP STATUS returned incomplete metadata',
+        'IMAP_STATUS_FAILED',
+        'Verify that the folder exists and the IMAP server supports MESSAGES, UNSEEN, and UIDNEXT status items'
+      )
+    }
+
+    return {
+      messages,
+      unseen,
+      uid_next: uidNext
+    }
   })
 }
 

@@ -20,6 +20,7 @@ const { mockClient, mockRelease } = vi.hoisted(() => {
     messageMove: vi.fn().mockResolvedValue(undefined),
     messageDelete: vi.fn().mockResolvedValue(undefined),
     list: vi.fn(),
+    status: vi.fn(),
     append: vi.fn().mockResolvedValue({ destination: 'Sent', uid: 1 })
   }
   return { mockClient, mockRelease }
@@ -51,6 +52,7 @@ import {
   appendToFolder,
   clearSentFolderCache,
   getAttachment,
+  getFolderStatus,
   listFolders,
   modifyFlags,
   moveEmails,
@@ -103,6 +105,7 @@ beforeEach(() => {
   mockClient.messageFlagsRemove.mockResolvedValue(undefined)
   mockClient.messageMove.mockResolvedValue(undefined)
   mockClient.messageDelete.mockResolvedValue(undefined)
+  mockClient.status.mockResolvedValue({ path: 'INBOX', messages: 10_025, unseen: 17, uidNext: 10_026 })
 })
 
 // ============================================================================
@@ -636,6 +639,35 @@ describe('listFolders', () => {
     const folders = await listFolders(account)
     expect(folders[0].flags).toEqual([])
     expect(folders[0].delimiter).toBe('/')
+  })
+})
+
+// ============================================================================
+// getFolderStatus
+// ============================================================================
+
+describe('getFolderStatus', () => {
+  it('requests targeted IMAP STATUS metadata for exactly one folder', async () => {
+    const result = await getFolderStatus(account, 'INBOX')
+
+    expect(mockClient.status).toHaveBeenCalledWith('INBOX', {
+      messages: true,
+      unseen: true,
+      uidNext: true
+    })
+    expect(result).toEqual({ messages: 10_025, unseen: 17, uid_next: 10_026 })
+  })
+
+  it('rejects an incomplete IMAP STATUS response', async () => {
+    mockClient.status.mockResolvedValue({ path: 'INBOX', messages: 10_025, uidNext: 10_026 })
+
+    await expect(getFolderStatus(account, 'INBOX')).rejects.toThrow('IMAP STATUS returned incomplete metadata')
+  })
+
+  it('rejects negative IMAP STATUS counters', async () => {
+    mockClient.status.mockResolvedValue({ path: 'INBOX', messages: -1, unseen: 0, uidNext: 1 })
+
+    await expect(getFolderStatus(account, 'INBOX')).rejects.toThrow('IMAP STATUS returned incomplete metadata')
   })
 })
 

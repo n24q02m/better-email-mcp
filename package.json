@@ -28,6 +28,9 @@
   "scripts": {
     "build": "tsc --build tsconfig.build.json && node scripts/build-cli.js",
     "dev": "tsx watch scripts/start-server.ts",
+    "provider:accept": "uv run --with mcp==2.0.0 python -B scripts/provider_acceptance.py",
+    "provider:accept:lint": "uv run --with ruff==0.16.2 ruff check scripts/provider_acceptance.py scripts/test_provider_acceptance.py",
+    "provider:accept:test": "uv run --with mcp==2.0.0 --with pytest==9.1.1 pytest -q scripts/test_provider_acceptance.py",
     "test": "vitest --passWithNoTests",
     "test:watch": "vitest watch",
     "test:coverage": "vitest --coverage",

@@ -6,7 +6,7 @@
 #   2. Install hooks: pre-commit install
 #   3. Run manually: pre-commit run --all-files
 #
-# Bypass checks: git commit --no-verify (use only in emergency)
+# Hooks are mandatory. Fix the root cause and rerun the full hook set on failure.
 
 repos:
   # ============================================================================
@@ -50,6 +50,23 @@ repos:
         entry: bun run test
         language: system
         types: [ts]
+        pass_filenames: false
+
+  # Python provider-acceptance harness
+  - repo: local
+    hooks:
+      - id: provider-acceptance-lint
+        name: provider acceptance lint
+        entry: bun run provider:accept:lint
+        language: system
+        files: ^scripts/(provider_acceptance|test_provider_acceptance)\.py$
+        pass_filenames: false
+
+      - id: provider-acceptance-test
+        name: provider acceptance test
+        entry: bun run provider:accept:test
+        language: system
+        files: ^scripts/(provider_acceptance|test_provider_acceptance)\.py$
         pass_filenames: false
 
   # ============================================================================

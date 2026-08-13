@@ -169,7 +169,7 @@ surface. The old name is removed directly; there is no compatibility alias.
 | Tool | Actions | Description |
 |:-----|:--------|:------------|
 | `messages` | `search`, `read`, `mark_read`, `mark_unread`, `flag`, `unflag`, `move`, `archive`, `trash`, `new`, `reply`, `forward` | Search, read, organize, compose, reply to, and forward emails |
-| `folders` | `list` | List mailbox folders |
+| `folders` | `list`, `status` | List mailbox folders or read targeted IMAP STATUS metadata |
 | `attachments` | `list`, `download` | List and download email attachments |
 | `config` | `status`, `setup_status`, `setup_start`, `setup_reset`, `setup_complete`, `set`, `cache_clear` | Credential setup via browser relay, status check, reset, re-resolve, cache clear |
 | `config__open_relay` | - | Open the relay configuration form in the browser and return the relay URL |

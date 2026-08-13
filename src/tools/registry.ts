@@ -129,7 +129,7 @@ const TOOLS = [
   {
     name: 'folders',
     description:
-      'List mailbox folders.\n\nActions (required params -> optional):\n- list (-> account): folder names, paths, and flags for one or all accounts',
+      'List mailbox folders or read targeted mailbox status metadata.\n\nActions (required params -> optional):\n- list (-> account): folder names, paths, and flags for one or all accounts\n- status (account, folder): IMAP STATUS messages, unseen, and uid_next for exactly one mailbox',
     annotations: {
       title: 'Folders',
       readOnlyHint: true,
@@ -142,10 +142,14 @@ const TOOLS = [
       properties: {
         action: {
           type: 'string',
-          enum: ['list'],
+          enum: ['list', 'status'],
           description: 'Action to perform'
         },
-        account: { type: 'string', description: 'Account email filter (optional, defaults to all)' }
+        account: {
+          type: 'string',
+          description: 'Account email or ID (required for status; optional list filter, defaults to all)'
+        },
+        folder: { type: 'string', description: 'Exact mailbox path (required for status, for example INBOX)' }
       },
       required: ['action']
     },
