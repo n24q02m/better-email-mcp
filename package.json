@@ -30,7 +30,7 @@
     "dev": "tsx watch scripts/start-server.ts",
     "provider:accept": "uv run --with mcp==2.0.0 python -B scripts/provider_acceptance.py",
     "provider:accept:lint": "uv run --with ruff==0.16.2 ruff check scripts/provider_acceptance.py scripts/test_provider_acceptance.py",
-    "provider:accept:test": "uv run --with mcp==2.0.0 --with pytest==9.1.1 pytest -q scripts/test_provider_acceptance.py",
+    "provider:accept:test": "uv run --with mcp==2.0.0 --with pytest==9.1.1 --with coverage==7.10.6 coverage run --include=scripts/provider_acceptance.py -m pytest -q scripts/test_provider_acceptance.py && uv run --with coverage==7.10.6 coverage report --show-missing --fail-under=95",
     "test": "vitest --passWithNoTests",
     "test:watch": "vitest watch",
     "test:coverage": "vitest --coverage",

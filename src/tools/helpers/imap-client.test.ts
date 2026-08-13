@@ -669,6 +669,18 @@ describe('getFolderStatus', () => {
 
     await expect(getFolderStatus(account, 'INBOX')).rejects.toThrow('IMAP STATUS returned incomplete metadata')
   })
+
+  it('rejects UIDNEXT zero because IMAP UIDs start at one', async () => {
+    mockClient.status.mockResolvedValue({ path: 'INBOX', messages: 0, unseen: 0, uidNext: 0 })
+
+    await expect(getFolderStatus(account, 'INBOX')).rejects.toThrow('IMAP STATUS returned incomplete metadata')
+  })
+
+  it('rejects UIDNEXT values above the unsigned 32-bit range', async () => {
+    mockClient.status.mockResolvedValue({ path: 'INBOX', messages: 0, unseen: 0, uidNext: 0x1_0000_0000 })
+
+    await expect(getFolderStatus(account, 'INBOX')).rejects.toThrow('IMAP STATUS returned incomplete metadata')
+  })
 })
 
 // ============================================================================

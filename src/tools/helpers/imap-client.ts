@@ -808,7 +808,8 @@ export async function getFolderStatus(account: AccountConfig, folder: string): P
       unseen < 0 ||
       typeof uidNext !== 'number' ||
       !Number.isSafeInteger(uidNext) ||
-      uidNext < 0
+      uidNext < 1 ||
+      uidNext > 0xffff_ffff
     ) {
       throw new EmailMCPError(
         'IMAP STATUS returned incomplete metadata',

@@ -66,7 +66,7 @@ repos:
         name: provider acceptance test
         entry: bun run provider:accept:test
         language: system
-        files: ^scripts/(provider_acceptance|test_provider_acceptance)\.py$
+        files: ^(?:package\.json|bun\.lock|tsconfig(?:\.build)?\.json|scripts/(?:provider_acceptance|test_provider_acceptance)\.py|scripts/start-server\.ts|src/.*\.ts)$
         pass_filenames: false
 
   # ============================================================================

@@ -120,6 +120,40 @@ def test_explicit_selector_must_name_an_account_for_the_requested_provider() -> 
     assert acceptance.select_provider_accounts("gmail", environment) == []
 
 
+def test_account_discovery_supports_single_input_and_legacy_outlook_selector() -> None:
+    single_environment = {
+        "EMAIL_USER": "single@gmail.com",
+        "EMAIL_PROVIDER": "gmail",
+    }
+
+    assert acceptance.discover_accounts(single_environment) == [
+        acceptance.AccountInput(account="single@gmail.com", provider="gmail")
+    ]
+    assert acceptance._provider_for_account("unknown@example.test", {}) is None
+
+    outlook_environment = {
+        "EMAIL_CREDENTIALS": "legacy@outlook.com",
+        "PROVIDER_ACCEPTANCE_OUTLOOK_EXPIRED_ACCOUNT": "legacy@outlook.com",
+    }
+    assert acceptance.select_provider_accounts("outlook", outlook_environment) == [
+        acceptance.AccountInput(account="legacy@outlook.com", provider="outlook")
+    ]
+
+
+def test_raw_gmail_credential_requires_a_matching_gmail_input() -> None:
+    with pytest.raises(acceptance.ProviderCallError, match="not Gmail"):
+        acceptance._raw_credential_for_account(
+            acceptance.AccountInput(account="user@yahoo.com", provider="yahoo"),
+            {"EMAIL_CREDENTIALS": "user@yahoo.com:password"},
+        )
+
+    with pytest.raises(acceptance.ProviderCallError, match="no raw credential"):
+        acceptance._raw_credential_for_account(
+            acceptance.AccountInput(account="missing@gmail.com", provider="gmail"),
+            {"EMAIL_CREDENTIALS": "other@gmail.com:password"},
+        )
+
+
 def test_read_only_guard_rejects_mutating_and_setup_calls() -> None:
     acceptance.validate_read_only_call(
         "messages",
@@ -152,6 +186,25 @@ def test_read_only_guard_rejects_mutating_and_setup_calls() -> None:
     ]:
         with pytest.raises(acceptance.UnsafeOperation):
             acceptance.validate_read_only_call(tool, arguments)
+
+
+@pytest.mark.parametrize(
+    ("arguments", "require_account"),
+    [
+        ({"action": "search", "query": "ALL", "limit": 3, "extra": True}, False),
+        ({"action": "search", "query": "ALL", "limit": 3}, True),
+        ({"action": "search", "query": "ALL", "limit": 3, "account": 7}, False),
+        ({"action": "search", "query": "ALL", "limit": 4}, False),
+        ({"action": "search", "limit": 3}, False),
+    ],
+)
+def test_read_only_guard_rejects_unbounded_or_malformed_searches(
+    arguments: dict[str, Any], require_account: bool
+) -> None:
+    with pytest.raises(acceptance.UnsafeOperation):
+        acceptance.validate_read_only_call(
+            "messages", arguments, require_account=require_account
+        )
 
 
 def test_source_session_uses_a_subprocess_compatible_redacted_stderr_file(
@@ -293,6 +346,55 @@ def test_gmail_missing_input_and_provider_failure_are_failed_never_user_gate() -
     assert exit_code != 0
     assert records[0]["verdict"] == "FAILED"
     assert records[0]["verdict"] != "USER_GATE"
+
+
+def test_gmail_single_account_without_raw_credential_fails_before_spawn() -> None:
+    def forbidden_factory(*args: Any, **kwargs: Any) -> Any:
+        del args, kwargs
+        raise AssertionError("Missing raw credential must fail before spawning")
+
+    records, exit_code = acceptance.run_acceptance(
+        "gmail",
+        env={"EMAIL_USER": "single@gmail.com", "EMAIL_PROVIDER": "gmail"},
+        session_factory=forbidden_factory,
+    )
+
+    assert exit_code == 1
+    assert records[0]["code"] == "GMAIL_INPUT_MISSING"
+
+
+@pytest.mark.parametrize(
+    ("transcript", "unavailable", "expected_code"),
+    [
+        ("Enter device code ABCD", [], "INTERACTIVE_AUTH_ATTEMPT"),
+        ("", [{"account_email": "gmail.acceptance@gmail.com"}], "PROVIDER_AUTH_FAILED"),
+    ],
+)
+def test_gmail_rejects_interactive_or_unavailable_provider_results(
+    transcript: str,
+    unavailable: list[dict[str, str]],
+    expected_code: str,
+) -> None:
+    session = FakeSession(
+        [
+            FakeResult(
+                {
+                    "action": "search",
+                    "messages": [],
+                    "unavailable_accounts": unavailable,
+                }
+            )
+        ]
+    )
+
+    records, exit_code = acceptance.run_acceptance(
+        "gmail",
+        env=gmail_environment(),
+        session_factory=session_factory(session, transcript),
+    )
+
+    assert exit_code == 1
+    assert records[0]["code"] == expected_code
 
 
 def test_gmail_runs_real_protocol_shape_with_explicit_bounded_account_call() -> None:
@@ -461,6 +563,54 @@ def test_yahoo_count_evidence_accepts_only_folders_status_messages() -> None:
         )
 
 
+def test_yahoo_failure_verdicts_cover_each_acceptance_boundary() -> None:
+    message = {"uid": 10_025, "account_email": acceptance.YAHOO_FIXTURE_ACCOUNT}
+    cases = [
+        (10_025, [message], [], "Enter device code ABCD", "INTERACTIVE_AUTH_ATTEMPT"),
+        (10_025, [message], [{"code": "AUTH_FAILED"}], "", "PROVIDER_AUTH_FAILED"),
+        (9_999, [message], [], "", "MAILBOX_THRESHOLD_UNPROVEN"),
+        (10_025, [], [], "", "BOUNDED_RESULTS_UNPROVEN"),
+    ]
+
+    for mailbox_count, messages, unavailable, transcript, expected_code in cases:
+        session = FakeSession(
+            [
+                FakeResult(
+                    {
+                        "action": "status",
+                        "folder": "INBOX",
+                        "messages": mailbox_count,
+                    }
+                ),
+                FakeResult(
+                    {
+                        "action": "search",
+                        "messages": messages,
+                        "unavailable_accounts": unavailable,
+                    }
+                ),
+            ]
+        )
+
+        records, exit_code = acceptance.run_acceptance(
+            "yahoo-large",
+            env={},
+            session_factory=session_factory(session, transcript),
+        )
+
+        assert exit_code == 1
+        assert records[0]["code"] == expected_code
+
+    failed_session = FakeSession([FakeResult(is_error=True)])
+    records, exit_code = acceptance.run_acceptance(
+        "yahoo-large",
+        env={},
+        session_factory=session_factory(failed_session),
+    )
+    assert exit_code == 1
+    assert records[0]["code"] == "PROVIDER_CALL_FAILED"
+
+
 def outlook_success(healthy_account: str) -> FakeResult:
     return FakeResult(
         {
@@ -594,6 +744,67 @@ def test_outlook_interactive_auth_output_is_failed() -> None:
     assert records[0]["code"] == "INTERACTIVE_AUTH_ATTEMPT"
 
 
+def test_outlook_single_account_without_raw_credential_fails_before_spawn() -> None:
+    def forbidden_factory(*args: Any, **kwargs: Any) -> Any:
+        del args, kwargs
+        raise AssertionError("Missing raw credential must fail before spawning")
+
+    records, exit_code = acceptance.run_acceptance(
+        "outlook-expired",
+        env={"EMAIL_USER": "single@gmail.com", "EMAIL_PROVIDER": "gmail"},
+        session_factory=forbidden_factory,
+    )
+
+    assert exit_code == 1
+    assert records[0]["code"] == "GMAIL_INPUT_MISSING"
+
+
+def test_outlook_failure_verdicts_cover_protocol_and_replay_evidence() -> None:
+    healthy_account = "healthy.acceptance@gmail.com"
+    environment = {"EMAIL_CREDENTIALS": f"{healthy_account}:app-password"}
+    cases = [
+        (
+            FakeResult(is_error=True),
+            "PROVIDER_CALL_FAILED",
+        ),
+        (
+            FakeResult(
+                {
+                    "action": "search",
+                    "messages": [{"account_email": healthy_account}],
+                    "unavailable_accounts": [],
+                }
+            ),
+            "EXPIRED_TARGET_NOT_SKIPPED",
+        ),
+        (
+            FakeResult(
+                {
+                    "action": "search",
+                    "messages": [],
+                    "unavailable_accounts": [
+                        {
+                            "account_email": acceptance.OUTLOOK_FIXTURE_ACCOUNT,
+                            "code": "OAUTH_REFRESH_FAILED",
+                        }
+                    ],
+                }
+            ),
+            "HEALTHY_RESULTS_MISSING",
+        ),
+    ]
+
+    for result, expected_code in cases:
+        records, exit_code = acceptance.run_acceptance(
+            "outlook-expired",
+            env=environment,
+            session_factory=session_factory(FakeSession([result])),
+        )
+
+        assert exit_code == 1
+        assert records[0]["code"] == expected_code
+
+
 def test_outlook_fixture_expires_only_a_copy_and_cleans_every_temp_file() -> None:
     captured: dict[str, Path] = {}
     environment = gmail_environment()
@@ -699,3 +910,76 @@ def test_all_is_nonzero_when_gmail_input_is_missing() -> None:
     assert exit_code != 0
     assert records[2]["code"] == "GMAIL_INPUT_MISSING"
     assert factory.calls == ["yahoo-large"]
+
+
+def test_fixture_parsers_handle_missing_windows_and_mixed_uid_sets() -> None:
+    assert acceptance._search_window("A1 SEARCH ALL") is None
+    assert acceptance._expand_uid_set("3:1,bad:2,7") == [3, 2, 1, 7]
+
+
+def test_protocol_payload_fallback_skips_non_json_content() -> None:
+    decoded_result = FakeResult()
+    decoded_result.content = [
+        SimpleNamespace(),
+        SimpleNamespace(text="not-json {broken"),
+        SimpleNamespace(text='prefix {"messages":[]} suffix'),
+    ]
+    decoded = asyncio.run(
+        acceptance._call_read_only(
+            FakeSession([decoded_result]),
+            "messages",
+            {"action": "search", "query": "ALL", "limit": 3},
+        )
+    )
+    assert decoded == {"messages": []}
+
+    invalid_result = FakeResult()
+    invalid_result.content = [SimpleNamespace(), SimpleNamespace(text="{broken")]
+    with pytest.raises(acceptance.ProviderCallError, match="structured payload"):
+        asyncio.run(
+            acceptance._call_read_only(
+                FakeSession([invalid_result]),
+                "messages",
+                {"action": "search", "query": "ALL", "limit": 3},
+            )
+        )
+
+
+def test_protocol_validators_reject_missing_tools_and_invalid_payload_lists() -> None:
+    class MissingToolSession:
+        async def initialize(self) -> None:
+            return None
+
+        async def list_tools(self) -> Any:
+            return SimpleNamespace(tools=[SimpleNamespace(name="messages")])
+
+    with pytest.raises(acceptance.ProviderCallError, match="public tool"):
+        asyncio.run(acceptance._initialize_and_check_tools(MissingToolSession()))
+    with pytest.raises(acceptance.ProviderCallError, match="messages payload"):
+        acceptance._messages({"messages": "invalid"})
+    with pytest.raises(acceptance.ProviderCallError, match="unavailable-account"):
+        acceptance._unavailable_accounts({"unavailable_accounts": "invalid"})
+
+
+def test_run_acceptance_rejects_unknown_scenario_and_main_serializes_records(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(ValueError, match="Unsupported scenario"):
+        acceptance.run_acceptance("unknown", env={})
+
+    expected_record = {
+        "scenario": "gmail",
+        "provider": "gmail",
+        "verdict": "FAILED",
+        "operation": "preflight",
+        "code": "GMAIL_INPUT_MISSING",
+    }
+    monkeypatch.setattr(
+        acceptance,
+        "run_acceptance",
+        lambda scenario: ([expected_record], 1),
+    )
+
+    assert acceptance.main(["--scenario", "gmail"]) == 1
+    assert capsys.readouterr().out.strip() == acceptance.serialize_record(expected_record)
