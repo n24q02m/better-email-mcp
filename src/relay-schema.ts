@@ -42,6 +42,7 @@ export const RELAY_SCHEMA: RelayConfigSchema = {
         label: 'Password',
         type: 'password',
         required: false,
+        placeholder: 'Enter app password',
         helpText:
           'App Password for Gmail/Yahoo/iCloud (not your normal password). Leave blank for Outlook/Hotmail/Live — OAuth runs automatically after submit.'
       },

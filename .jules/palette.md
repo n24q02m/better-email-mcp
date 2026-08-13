@@ -111,3 +111,6 @@
 ## 2026-08-12 - Consistent Placeholders in Form Fields
 **Learning:** Having placeholders for some text fields but omitting them for others in the same form group (e.g. `imap_port` and `email` vs `imap_host`) creates inconsistency and leaves users guessing the expected input format for the un-hinted field.
 **Action:** Always provide placeholder examples for all user-facing text inputs in a form sequence to establish a consistent pattern and explicitly guide the required input format.
+## 2025-05-18 - App Password Field Placeholder
+**Learning:** Avoid using mask characters (e.g., '••••••••') as a placeholder for password fields. This is an anti-pattern as it visually mimics a pre-filled or saved password, potentially confusing users into skipping the field.
+**Action:** Use a descriptive placeholder (e.g., 'Enter app password') or leave it blank, relying on existing contextual help text to guide the user without falsely implying pre-filled state.
