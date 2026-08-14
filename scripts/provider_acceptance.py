@@ -800,6 +800,8 @@ async def _run_gmail(
     token_path: Path | None,
     factory: SessionFactory,
 ) -> dict[str, Any]:
+    if not environment.get(SELECTOR_ENV["gmail"], "").strip():
+        return _record("gmail", "FAILED", "GMAIL_INPUT_MISSING")
     accounts = select_provider_accounts("gmail", environment)
     if not accounts:
         return _record("gmail", "FAILED", "GMAIL_INPUT_MISSING")
@@ -945,6 +947,8 @@ async def _run_outlook(
     environment: dict[str, str],
     factory: SessionFactory,
 ) -> dict[str, Any]:
+    if not environment.get(SELECTOR_ENV["gmail"], "").strip():
+        return _record("outlook-expired", "FAILED", "GMAIL_INPUT_MISSING")
     gmail_accounts = select_provider_accounts("gmail", environment)
     if not gmail_accounts:
         return _record("outlook-expired", "FAILED", "GMAIL_INPUT_MISSING")

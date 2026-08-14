@@ -76,7 +76,10 @@ def session_factory(session: FakeSession, transcript: str = "") -> Any:
 
 
 def gmail_environment() -> dict[str, str]:
-    return {"EMAIL_CREDENTIALS": "gmail.acceptance@gmail.com:app-password"}
+    return {
+        "EMAIL_CREDENTIALS": "gmail.acceptance@gmail.com:app-password",
+        "PROVIDER_ACCEPTANCE_GMAIL_ACCOUNT": "gmail.acceptance@gmail.com",
+    }
 
 
 def gmail_success() -> FakeResult:
@@ -326,6 +329,78 @@ def test_redacted_jsonl_has_a_strict_field_allowlist() -> None:
     assert "https://" not in line
 
 
+def test_gmail_requires_explicit_selector_when_multiple_accounts_are_discovered() -> None:
+    def forbidden_factory(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("Missing Gmail selector must fail before spawning the server")
+
+    records, exit_code = acceptance.run_acceptance(
+        "gmail",
+        env={
+            "EMAIL_CREDENTIALS": (
+                "first@gmail.com:first-app-password,"
+                "second@gmail.com:second-app-password"
+            )
+        },
+        session_factory=forbidden_factory,
+    )
+
+    assert exit_code == 1
+    assert records[0]["code"] == "GMAIL_INPUT_MISSING"
+
+
+def test_gmail_explicit_selector_without_matching_candidate_fails_before_spawn() -> None:
+    def forbidden_factory(*args: Any, **kwargs: Any) -> Any:
+        del args, kwargs
+        raise AssertionError("An unmatched Gmail selector must fail before spawning")
+
+    records, exit_code = acceptance.run_acceptance(
+        "gmail",
+        env={
+            "EMAIL_CREDENTIALS": "available@gmail.com:app-password",
+            "PROVIDER_ACCEPTANCE_GMAIL_ACCOUNT": "missing@gmail.com",
+        },
+        session_factory=forbidden_factory,
+    )
+
+    assert exit_code == 1
+    assert records == [
+        {
+            "scenario": "gmail",
+            "provider": "gmail",
+            "verdict": "FAILED",
+            "operation": "preflight",
+            "code": "GMAIL_INPUT_MISSING",
+        }
+    ]
+
+
+def test_gmail_explicit_selected_account_without_raw_credential_fails_before_spawn() -> None:
+    def forbidden_factory(*args: Any, **kwargs: Any) -> Any:
+        del args, kwargs
+        raise AssertionError("A missing Gmail raw credential must fail before spawning")
+
+    records, exit_code = acceptance.run_acceptance(
+        "gmail",
+        env={
+            "EMAIL_USER": "selected@gmail.com",
+            "EMAIL_PROVIDER": "gmail",
+            "PROVIDER_ACCEPTANCE_GMAIL_ACCOUNT": "selected@gmail.com",
+        },
+        session_factory=forbidden_factory,
+    )
+
+    assert exit_code == 1
+    assert records == [
+        {
+            "scenario": "gmail",
+            "provider": "gmail",
+            "verdict": "FAILED",
+            "operation": "preflight",
+            "code": "GMAIL_INPUT_MISSING",
+        }
+    ]
+
+
 def test_gmail_missing_input_and_provider_failure_are_failed_never_user_gate() -> None:
     def forbidden_factory(*args: Any, **kwargs: Any) -> Any:
         raise AssertionError("Missing Gmail input must fail before spawning the server")
@@ -550,6 +625,72 @@ def test_yahoo_large_uses_targeted_status_before_bounded_search() -> None:
     ]
 
 
+def test_yahoo_unbounded_fixture_search_fails_before_acceptance() -> None:
+    session = FakeSession(
+        [
+            FakeResult(
+                {
+                    "action": "status",
+                    "account_email": acceptance.YAHOO_FIXTURE_ACCOUNT,
+                    "folder": "INBOX",
+                    "messages": 10_025,
+                }
+            ),
+            FakeResult(
+                {
+                    "action": "search",
+                    "messages": [
+                        {
+                            "uid": 10_025,
+                            "account_email": acceptance.YAHOO_FIXTURE_ACCOUNT,
+                        }
+                    ],
+                    "unavailable_accounts": [],
+                }
+            ),
+        ]
+    )
+
+    @asynccontextmanager
+    async def unbounded_factory(
+        scenario: str, environment: dict[str, str], token_path: Path | None
+    ) -> Any:
+        del scenario, token_path
+        credential = environment["EMAIL_CREDENTIALS"]
+        _, host, port_text = credential.rsplit(":", 2)
+        reader, writer = await asyncio.open_connection(host, int(port_text))
+        try:
+            await asyncio.wait_for(reader.readline(), timeout=5)
+            writer.write(b"a001 STATUS INBOX (MESSAGES)\r\n")
+            await writer.drain()
+            await asyncio.wait_for(reader.readline(), timeout=5)
+            await asyncio.wait_for(reader.readline(), timeout=5)
+            writer.write(b"a002 UID SEARCH ALL\r\n")
+            await writer.drain()
+            await asyncio.wait_for(reader.readline(), timeout=5)
+            yield session, io.StringIO()
+        finally:
+            writer.close()
+            await asyncio.wait_for(writer.wait_closed(), timeout=5)
+
+    records, exit_code = acceptance.run_acceptance(
+        "yahoo-large",
+        env={},
+        session_factory=unbounded_factory,
+    )
+
+    assert exit_code == 1
+    assert records == [
+        {
+            "scenario": "yahoo-large",
+            "provider": "yahoo",
+            "verdict": "FAILED",
+            "operation": "messages.search",
+            "code": "PROVIDER_CALL_FAILED",
+        }
+    ]
+
+
 def test_yahoo_count_evidence_accepts_only_folders_status_messages() -> None:
     assert acceptance._status_message_count(
         {"action": "status", "folder": "INBOX", "messages": 10_025}
@@ -726,13 +867,43 @@ def test_outlook_missing_or_unmatched_gmail_is_failed_before_server_spawn() -> N
         assert "USER_GATE" not in acceptance.serialize_record(records[0])
 
 
+def test_outlook_explicit_selected_gmail_account_without_raw_credential_fails_before_spawn() -> None:
+    def forbidden_factory(*args: Any, **kwargs: Any) -> Any:
+        del args, kwargs
+        raise AssertionError("A missing Gmail raw credential must fail before spawning")
+
+    records, exit_code = acceptance.run_acceptance(
+        "outlook-expired",
+        env={
+            "EMAIL_USER": "selected@gmail.com",
+            "EMAIL_PROVIDER": "gmail",
+            "PROVIDER_ACCEPTANCE_GMAIL_ACCOUNT": "selected@gmail.com",
+        },
+        session_factory=forbidden_factory,
+    )
+
+    assert exit_code == 1
+    assert records == [
+        {
+            "scenario": "outlook-expired",
+            "provider": "outlook",
+            "verdict": "FAILED",
+            "operation": "preflight",
+            "code": "GMAIL_INPUT_MISSING",
+        }
+    ]
+
+
 def test_outlook_interactive_auth_output_is_failed() -> None:
     healthy_account = "healthy.acceptance@gmail.com"
     session = FakeSession([outlook_success(healthy_account)])
 
     records, exit_code = acceptance.run_acceptance(
         "outlook-expired",
-        env={"EMAIL_CREDENTIALS": f"{healthy_account}:app-password"},
+        env={
+            "EMAIL_CREDENTIALS": f"{healthy_account}:app-password",
+            "PROVIDER_ACCEPTANCE_GMAIL_ACCOUNT": healthy_account,
+        },
         session_factory=session_factory(
             session,
             transcript="Open https://microsoft.com/devicelogin and enter device code ABCD",
@@ -761,7 +932,10 @@ def test_outlook_single_account_without_raw_credential_fails_before_spawn() -> N
 
 def test_outlook_failure_verdicts_cover_protocol_and_replay_evidence() -> None:
     healthy_account = "healthy.acceptance@gmail.com"
-    environment = {"EMAIL_CREDENTIALS": f"{healthy_account}:app-password"}
+    environment = {
+        "EMAIL_CREDENTIALS": f"{healthy_account}:app-password",
+        "PROVIDER_ACCEPTANCE_GMAIL_ACCOUNT": healthy_account,
+    }
     cases = [
         (
             FakeResult(is_error=True),
