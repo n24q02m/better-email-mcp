@@ -183,7 +183,8 @@ function buildSearchCriteria(query: string): SearchObject {
   for (const { pattern, key, value } of FLAG_MATCHERS) {
     const nextRemaining = remaining.replace(pattern, ' ')
     if (nextRemaining !== remaining) {
-      Object.assign(criteria, { [key]: value })
+      // ⚡ Bolt: Direct assignment avoids intermediate object allocation in this hot path
+      ;(criteria as Record<string, unknown>)[key] = value
       remaining = nextRemaining.trim()
     }
   }
@@ -194,7 +195,8 @@ function buildSearchCriteria(query: string): SearchObject {
     const dateMatch = remaining.match(valid)
     if (dateMatch) {
       const criteriaKey = keyword.toLowerCase() as keyof SearchObject
-      Object.assign(criteria, { [criteriaKey]: new Date(dateMatch[1]!) })
+      // ⚡ Bolt: Direct assignment avoids intermediate object allocation
+      criteria[criteriaKey] = new Date(dateMatch[1]!) as any
       remaining = remaining.replace(dateMatch[0], ' ').trim()
     } else {
       const nextRemaining = remaining.replace(invalid, ' ')
@@ -213,7 +215,8 @@ function buildSearchCriteria(query: string): SearchObject {
     const kvMatch = remaining.match(KV_MATCHERS[keyword])
     if (kvMatch) {
       const criteriaKey = keyword.toLowerCase() as keyof SearchObject
-      Object.assign(criteria, { [criteriaKey]: kvMatch[1]!.replace(RE_QUOTES, '') })
+      // ⚡ Bolt: Direct assignment avoids intermediate object allocation
+      criteria[criteriaKey] = kvMatch[1]!.replace(RE_QUOTES, '') as any
       remaining = remaining.replace(kvMatch[0], ' ').trim()
     }
   }
