@@ -37,6 +37,10 @@ vi.mock('mailparser', () => ({
   simpleParser: vi.fn()
 }))
 
+vi.mock('node:fs', () => ({
+  writeFileSync: vi.fn()
+}))
+
 vi.mock('./html-utils.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./html-utils.js')>()),
   htmlToCleanText: vi.fn((html: string) => `cleaned: ${html}`)
@@ -46,6 +50,7 @@ vi.mock('./oauth2.js', () => ({
   ensureValidToken: vi.fn().mockResolvedValue('mock-access-token')
 }))
 
+import { writeFileSync } from 'node:fs'
 import { ImapFlow } from 'imapflow'
 import { simpleParser } from 'mailparser'
 import {
@@ -64,6 +69,7 @@ import {
 import { ensureValidToken } from './oauth2.js'
 
 const mockSimpleParser = vi.mocked(simpleParser)
+const mockWriteFileSync = vi.mocked(writeFileSync)
 
 const account: AccountConfig = {
   id: 'test_gmail_com',
@@ -711,7 +717,7 @@ describe('getAttachment', () => {
     expect(result.filename).toBe('report.pdf')
     expect(result.content_type).toBe('application/pdf')
     expect(result.size).toBe(12345)
-    expect(result.content_base64).toBe(content.toString('base64'))
+    expect((result as { content_base64: string }).content_base64).toBe(content.toString('base64'))
   })
 
   it('matches attachment filename case-insensitively', async () => {
@@ -768,6 +774,50 @@ describe('getAttachment', () => {
       attachments: null
     } as any)
     await expect(getAttachment(account, 1, 'INBOX', 'f')).rejects.toThrow('not found')
+  })
+
+  it('writes to savePath and returns saved_to instead of content_base64 when provided', async () => {
+    const content = Buffer.from('file content')
+    mockClient.fetchOne.mockResolvedValue({ uid: 10, source: Buffer.from('raw email') })
+    mockSimpleParser.mockResolvedValue({
+      attachments: [{ filename: 'report.pdf', contentType: 'application/pdf', size: 12345, content }]
+    } as any)
+
+    const result = await getAttachment(account, 10, 'INBOX', 'report.pdf', '/tmp/report.pdf')
+
+    expect(mockWriteFileSync).toHaveBeenCalledWith('/tmp/report.pdf', content)
+    expect(result.filename).toBe('report.pdf')
+    expect(result.content_type).toBe('application/pdf')
+    expect(result.size).toBe(12345)
+    expect((result as { saved_to: string }).saved_to).toBe('/tmp/report.pdf')
+    expect('content_base64' in result).toBe(false)
+  })
+
+  it('does not call writeFileSync when savePath is omitted', async () => {
+    mockClient.fetchOne.mockResolvedValue({ uid: 10, source: Buffer.from('raw email') })
+    mockSimpleParser.mockResolvedValue({
+      attachments: [{ filename: 'report.pdf', contentType: 'application/pdf', size: 100, content: Buffer.from('x') }]
+    } as any)
+
+    const result = await getAttachment(account, 10, 'INBOX', 'report.pdf')
+
+    expect(mockWriteFileSync).not.toHaveBeenCalled()
+    expect((result as { content_base64: string }).content_base64).toBeDefined()
+    expect('saved_to' in result).toBe(false)
+  })
+
+  it('throws EmailMCPError with SAVE_PATH_ERROR when writing to savePath fails', async () => {
+    mockClient.fetchOne.mockResolvedValue({ uid: 10, source: Buffer.from('raw email') })
+    mockSimpleParser.mockResolvedValue({
+      attachments: [{ filename: 'report.pdf', contentType: 'application/pdf', size: 100, content: Buffer.from('x') }]
+    } as any)
+    mockWriteFileSync.mockImplementationOnce(() => {
+      throw new Error('ENOENT: no such file or directory')
+    })
+
+    await expect(getAttachment(account, 10, 'INBOX', 'report.pdf', '/nonexistent/report.pdf')).rejects.toThrow(
+      'Failed to write attachment'
+    )
   })
 })
 
