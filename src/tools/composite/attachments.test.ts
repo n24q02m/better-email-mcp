@@ -111,6 +111,27 @@ describe('attachments - download', () => {
     expect(result.filename).toBe('report.pdf')
   })
 
+  it('forwards save_to to getAttachment and returns saved_to without content_base64', async () => {
+    mockGetAttachment.mockResolvedValue({
+      filename: 'report.pdf',
+      content_type: 'application/pdf',
+      size: 5000,
+      saved_to: '/tmp/report.pdf'
+    } as any)
+
+    const result = await attachments(accounts, {
+      action: 'download',
+      account: 'user1@gmail.com',
+      uid: 10,
+      filename: 'report.pdf',
+      save_to: '/tmp/report.pdf'
+    })
+
+    expect(mockGetAttachment).toHaveBeenCalledWith(accounts[0], 10, 'INBOX', 'report.pdf', '/tmp/report.pdf')
+    expect(result.saved_to).toBe('/tmp/report.pdf')
+    expect(result.content_base64).toBeUndefined()
+  })
+
   it('throws when filename is missing', async () => {
     await expect(
       attachments(accounts, {

@@ -18,6 +18,11 @@ export interface AttachmentsInput {
   // Optional
   folder?: string
   filename?: string
+
+  // Optional (download only): write the attachment to this filesystem path
+  // server-side instead of returning content_base64. Keeps the response
+  // small for large attachments.
+  save_to?: string
 }
 
 /**
@@ -75,7 +80,8 @@ async function handleList(accounts: AccountConfig[], input: AttachmentsInput): P
 }
 
 /**
- * Download a specific attachment (returns base64)
+ * Download a specific attachment. Returns base64-encoded content by default,
+ * or writes to `input.save_to` server-side and returns `saved_to` instead.
  */
 async function handleDownload(accounts: AccountConfig[], input: AttachmentsInput): Promise<any> {
   if (!input.filename) {
@@ -89,7 +95,7 @@ async function handleDownload(accounts: AccountConfig[], input: AttachmentsInput
   const account = resolveSingleAccount(accounts, input.account)
   const folder = input.folder || 'INBOX'
 
-  const attachment = await getAttachment(account, input.uid, folder, input.filename)
+  const attachment = await getAttachment(account, input.uid, folder, input.filename, input.save_to)
 
   return {
     action: 'download',

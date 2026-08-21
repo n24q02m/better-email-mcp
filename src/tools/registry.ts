@@ -158,7 +158,7 @@ const TOOLS = [
   {
     name: 'attachments',
     description:
-      'List and download email attachments.\n\nActions (required params -> optional):\n- list (account, uid -> folder): show attachments with filename, content_type, size\n- download (account, uid, filename -> folder): get base64-encoded content\n\nUse list first to get exact filenames. Case-sensitive. Max 25MB per provider.',
+      'List and download email attachments.\n\nActions (required params -> optional):\n- list (account, uid -> folder): show attachments with filename, content_type, size\n- download (account, uid, filename -> folder, save_to): get base64-encoded content, or write to save_to server-side and get saved_to instead\n\nUse list first to get exact filenames. Case-sensitive. Max 25MB per provider.',
     annotations: {
       title: 'Attachments',
       readOnlyHint: true,
@@ -180,6 +180,11 @@ const TOOLS = [
         filename: {
           type: 'string',
           description: 'Exact attachment filename from list action (required for download). Case-sensitive.'
+        },
+        save_to: {
+          type: 'string',
+          description:
+            'Download only. Absolute filesystem path to write the attachment to server-side, instead of returning content_base64. Response returns saved_to (the path) in place of content_base64. Parent directory must already exist.'
         }
       },
       required: ['action', 'account', 'uid']

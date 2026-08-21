@@ -3,6 +3,7 @@
  * Manages connections to multiple IMAP servers with connection pooling
  */
 
+import { writeFileSync } from 'node:fs'
 import { type FetchMessageObject, ImapFlow, type ListResponse, type SearchObject } from 'imapflow'
 import {
   type AddressObject,
@@ -12,7 +13,7 @@ import {
   simpleParser
 } from 'mailparser'
 import type { AccountConfig } from './config.js'
-import { EmailMCPError } from './errors.js'
+import { EmailMCPError, sanitizeErrorDetails } from './errors.js'
 import { fastExtractSnippet, htmlToCleanText } from './html-utils.js'
 import { ensureValidToken } from './oauth2.js'
 
@@ -826,15 +827,36 @@ export async function getFolderStatus(account: AccountConfig, folder: string): P
   })
 }
 
+export interface AttachmentDownload {
+  filename: string
+  content_type: string
+  size: number
+  content_base64: string
+}
+
+export interface AttachmentSaved {
+  filename: string
+  content_type: string
+  size: number
+  saved_to: string
+}
+
 /**
- * Get attachment content by filename
+ * Get attachment content by filename.
+ *
+ * Pass `savePath` to write the decoded bytes directly to that filesystem path
+ * server-side instead of returning `content_base64`. This keeps the response
+ * small regardless of attachment size -- useful for callers (e.g. an MCP
+ * client's LLM context) where a large base64 payload would otherwise have to
+ * pass through as tool-call output.
  */
 export async function getAttachment(
   account: AccountConfig,
   uid: number,
   folder: string,
-  filename: string
-): Promise<{ filename: string; content_type: string; size: number; content_base64: string }> {
+  filename: string,
+  savePath?: string
+): Promise<AttachmentDownload | AttachmentSaved> {
   const fetchResult = await withConnection(account, async (client) => {
     const lock = await client.getMailboxLock(folder)
     try {
@@ -865,10 +887,34 @@ export async function getAttachment(
     )
   }
 
+  const resolvedFilename = attachment.filename || 'unnamed'
+  const resolvedContentType = attachment.contentType || 'application/octet-stream'
+  const resolvedSize = attachment.size || 0
+
+  if (savePath) {
+    try {
+      writeFileSync(savePath, attachment.content)
+    } catch (error) {
+      throw new EmailMCPError(
+        `Failed to write attachment to "${savePath}"`,
+        'SAVE_PATH_ERROR',
+        'Ensure the parent directory exists and is writable, then try again.',
+        sanitizeErrorDetails(error)
+      )
+    }
+
+    return {
+      filename: resolvedFilename,
+      content_type: resolvedContentType,
+      size: resolvedSize,
+      saved_to: savePath
+    }
+  }
+
   return {
-    filename: attachment.filename || 'unnamed',
-    content_type: attachment.contentType || 'application/octet-stream',
-    size: attachment.size || 0,
+    filename: resolvedFilename,
+    content_type: resolvedContentType,
+    size: resolvedSize,
     content_base64: attachment.content.toString('base64')
   }
 }
