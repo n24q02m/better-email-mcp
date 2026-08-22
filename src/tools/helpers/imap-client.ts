@@ -175,7 +175,8 @@ function buildSearchCriteria(query: string): SearchObject {
   const upper = trimmed.toUpperCase()
   if (upper === 'ALL' || upper === '*') return {}
 
-  const criteria: SearchObject = {}
+  // ⚡ Bolt: Use a Record to allow direct property assignment and avoid Object.assign
+  const criteria: Record<string, any> = {}
   let remaining = trimmed
 
   // 1. Extract standalone flag keywords (no arguments).
@@ -183,7 +184,8 @@ function buildSearchCriteria(query: string): SearchObject {
   for (const { pattern, key, value } of FLAG_MATCHERS) {
     const nextRemaining = remaining.replace(pattern, ' ')
     if (nextRemaining !== remaining) {
-      Object.assign(criteria, { [key]: value })
+      // ⚡ Bolt: Direct assignment avoids intermediate object allocation overhead
+      criteria[key] = value
       remaining = nextRemaining.trim()
     }
   }
@@ -194,7 +196,7 @@ function buildSearchCriteria(query: string): SearchObject {
     const dateMatch = remaining.match(valid)
     if (dateMatch) {
       const criteriaKey = keyword.toLowerCase() as keyof SearchObject
-      Object.assign(criteria, { [criteriaKey]: new Date(dateMatch[1]!) })
+      criteria[criteriaKey as string] = new Date(dateMatch[1]!)
       remaining = remaining.replace(dateMatch[0], ' ').trim()
     } else {
       const nextRemaining = remaining.replace(invalid, ' ')
@@ -213,7 +215,7 @@ function buildSearchCriteria(query: string): SearchObject {
     const kvMatch = remaining.match(KV_MATCHERS[keyword])
     if (kvMatch) {
       const criteriaKey = keyword.toLowerCase() as keyof SearchObject
-      Object.assign(criteria, { [criteriaKey]: kvMatch[1]!.replace(RE_QUOTES, '') })
+      criteria[criteriaKey as string] = kvMatch[1]!.replace(RE_QUOTES, '')
       remaining = remaining.replace(kvMatch[0], ' ').trim()
     }
   }
@@ -230,7 +232,7 @@ function buildSearchCriteria(query: string): SearchObject {
     criteria.subject = remaining
   }
 
-  return Object.keys(criteria).length > 0 ? criteria : {}
+  return Object.keys(criteria).length > 0 ? (criteria as SearchObject) : {}
 }
 
 /**
