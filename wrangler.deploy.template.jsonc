@@ -25,6 +25,7 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["EmailContainer"] }],
   "kv_namespaces": [{ "binding": "KV", "id": "${CF_KV_ID}" }],
   "vars": {
+    "DEHOSTED": "true",
     "PUBLIC_URL": "${PUBLIC_URL}",
     "MCP_STORAGE_BACKEND": "cf-kv",
     "MCP_KV_BASE_URL": "http://kv.internal",

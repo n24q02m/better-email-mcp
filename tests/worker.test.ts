@@ -313,3 +313,55 @@ describe('worker (KV-only)', () => {
     })
   })
 })
+
+describe('tombstone contract (W4 dehost preparation & drill)', () => {
+  test('returns 410 Gone with non-sensitive successor message and security headers before edge auth when DEHOSTED is true', async () => {
+    const doFetch = vi.fn()
+    const env = {
+      EMAIL: { idFromName: vi.fn(() => 'stub-id'), get: vi.fn(() => ({ fetch: doFetch })) },
+      DEHOSTED: 'true'
+    }
+
+    const res = await worker.fetch(
+      new Request('https://email.n24q02m.com/mcp', {
+        method: 'POST'
+      }),
+      env as never
+    )
+
+    expect(res.status).toBe(410)
+    expect(res.headers.get('Content-Type')).toBe('application/json')
+    expect(res.headers.get('X-Dehosted-Successor')).toBe('https://mcp.n24q02m.com/servers/better-email-mcp/')
+    expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff')
+
+    const body = await res.json()
+    expect(body).toMatchObject({
+      error: 'hosted_runtime_dehosted',
+      status: 410,
+      successor: 'https://mcp.n24q02m.com/servers/better-email-mcp/'
+    })
+    expect(body.message).toContain('retired')
+    expect(body.message).toContain('stdio')
+
+    // CRITICAL: 0 requests reach the Container DO
+    expect(doFetch).not.toHaveBeenCalled()
+  })
+
+  test('returns 410 Gone on all routes before auth/DO for DEHOSTED and the existing TOMBSTONE drill alias', async () => {
+    for (const flag of ['DEHOSTED', 'TOMBSTONE'] as const) {
+      const doFetch = vi.fn()
+      const env = {
+        EMAIL: { idFromName: vi.fn(() => 'stub-id'), get: vi.fn(() => ({ fetch: doFetch })) },
+        [flag]: 'true'
+      }
+
+      for (const path of ['/authorize', '/health', '/.well-known/jwks.json', '/mcp/v1']) {
+        const res = await worker.fetch(new Request(`https://email.n24q02m.com${path}`, { method: 'GET' }), env as never)
+        expect(res.status).toBe(410)
+        expect(res.headers.get('X-Dehosted-Successor')).toBe('https://mcp.n24q02m.com/servers/better-email-mcp/')
+      }
+
+      expect(doFetch).not.toHaveBeenCalled()
+    }
+  })
+})

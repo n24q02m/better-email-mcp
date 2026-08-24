@@ -50,6 +50,9 @@ export interface Env {
   OUTLOOK_TENANT?: string
   OUTLOOK_SCOPES?: string
   OUTLOOK_EXTRA_DOMAINS?: string
+  // Dehost / tombstone drill flag (W4)
+  DEHOSTED?: string
+  TOMBSTONE?: string
 }
 
 // Keys forwarded from the Worker env (wrangler vars + secrets) into the
@@ -159,8 +162,30 @@ function withSecurityHeaders(response: Response): Response {
   })
 }
 
+function tombstoneResponse(): Response {
+  return new Response(
+    JSON.stringify({
+      error: 'hosted_runtime_dehosted',
+      status: 410,
+      message:
+        'The hosted Cloudflare endpoint for better-email-mcp has been retired. The package remains active via local stdio (npx @n24q02m/better-email-mcp / docker run -i n24q02m/better-email-mcp) and self-hosted HTTP. See https://mcp.n24q02m.com/servers/better-email-mcp/ for instructions.',
+      successor: 'https://mcp.n24q02m.com/servers/better-email-mcp/'
+    }),
+    {
+      status: 410,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Dehosted-Successor': 'https://mcp.n24q02m.com/servers/better-email-mcp/'
+      }
+    }
+  )
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    if (env.DEHOSTED === 'true' || env.TOMBSTONE === 'true') {
+      return withSecurityHeaders(tombstoneResponse())
+    }
     if (request.url.length > MAX_REQUEST_URL_LENGTH) {
       return withSecurityHeaders(new Response('URI Too Long', { status: 414 }))
     }
