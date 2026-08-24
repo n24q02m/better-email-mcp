@@ -103,7 +103,7 @@ PSR v10 (workflow_dispatch) -> npm + Docker (amd64+arm64) + GHCR + MCP Registry.
 Two transports, selected in `init-server.ts:52-53`. There is no `MCP_MODE` env var; the old `remote-relay` / `local-relay` distinction was removed (see `transports/http.ts:5`).
 
 - **stdio (default)**: MCP SDK `StdioServerTransport` directly. Reads credentials from `EMAIL_CREDENTIALS` OR `EMAIL_USER` + `EMAIL_APP_PASSWORD`. Outlook accounts use an App Password in this mode.
-- **http (opt-in)**: enabled via `--http`, `MCP_TRANSPORT=http`, or `TRANSPORT_MODE=http`. Single multi-user relay: `/authorize` form for App-Password providers (paste `email:app-password`) plus bundled Outlook device-code OAuth. Per-user credentials keyed by JWT `sub`. Outlook token file: `~/.better-email-mcp/tokens.json`. Deploy at `https://email.n24q02m.com`.
+- **http (opt-in, self-hosted)**: enabled via `--http`, `MCP_TRANSPORT=http`, or `TRANSPORT_MODE=http`. Single multi-user relay: `/authorize` form for App-Password providers (paste `email:app-password`) plus bundled Outlook device-code OAuth. Per-user credentials are keyed by JWT `sub`; the Outlook token file is `~/.better-email-mcp/tokens.json`. The project no longer operates a public n24q02m HTTP deployment.
 
 ## Known bugs (phat hien 2026-04-18 E2E)
 
