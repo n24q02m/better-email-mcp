@@ -67,7 +67,7 @@
     "html-to-text": "^10.0.0",
     "imapflow": "^1.7.1",
     "mailparser": "^3.9.15",
-    "marked": "^18.0.9",
+    "marked": "^18.0.10",
     "nodemailer": "^9.0.5",
     "sanitize-html": "^2.17.7"
   },
@@ -75,18 +75,18 @@
     "esbuild"
   ],
   "devDependencies": {
-    "@biomejs/biome": "^2.5.8",
+    "@biomejs/biome": "^2.5.9",
     "@cloudflare/containers": "^0.3.7",
     "@types/html-to-text": "^9.0.4",
     "@types/mailparser": "^3.4.6",
     "@types/node": "^26.2.0",
     "@types/nodemailer": "^8.0.1",
     "@types/sanitize-html": "^2.16.1",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.11",
     "esbuild": "^0.28.2",
     "tsx": "^4.23.12",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.10",
+    "vitest": "^4.1.11",
     "wrangler": "^4.123.0"
   },
   "description": "Better MCP server for Email (IMAP/SMTP) with composite tools optimized for AI agents",
