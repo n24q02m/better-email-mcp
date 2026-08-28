@@ -97,7 +97,12 @@ const kvOutbound: OutboundHandler<Env> = async (request, env) => {
     return new Response('URI Too Long', { status: 414 })
   }
 
-  const url = new URL(request.url)
+  let url: URL
+  try {
+    url = new URL(request.url)
+  } catch {
+    return new Response('Bad Request', { status: 400 })
+  }
   const key = decodeURIComponent(url.pathname.replace(/^\//, ''))
   // Readiness probe (E.1): once this handler answers, outbound interception is
   // wired, so the container's first credential PUT is safe. Reserved key,
@@ -206,7 +211,12 @@ export default {
     // 401 (empty body + RFC 9728 WWW-Authenticate). Token VALIDITY is never judged
     // here -- the container remains the sole authority, so no mcp-core auth logic is
     // duplicated at the edge.
-    const url = new URL(request.url)
+    let url: URL
+    try {
+      url = new URL(request.url)
+    } catch {
+      return withSecurityHeaders(new Response('Bad Request', { status: 400 }))
+    }
     if (url.pathname === '/mcp' || url.pathname.startsWith('/mcp/')) {
       if (!BEARER.test(request.headers.get('authorization') ?? '')) {
         return withSecurityHeaders(unauthenticated(request))
