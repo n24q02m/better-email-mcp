@@ -3,7 +3,7 @@ import { runHttpServer, writeConfig } from '@n24q02m/mcp-core'
 import { ImapFlow } from 'imapflow'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { getMarkSetupComplete, resolveCredentialState, setSetupUrl, setState } from '../credential-state.js'
-import { loadConfig, parseCredentials } from '../tools/helpers/config.js'
+import { type AccountConfig, loadConfig, parseCredentials } from '../tools/helpers/config.js'
 import { initiateOutlookDeviceCode, isOutlookDomain } from '../tools/helpers/oauth2.js'
 import { registerTools } from '../tools/registry.js'
 
