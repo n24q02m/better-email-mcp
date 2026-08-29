@@ -234,16 +234,18 @@ function buildOptions(args: {
 
     // Persistence is mode-dependent to avoid cross-user credential bleed.
     //
-    // Multi-user (JWT `sub` present): write ONLY to the per-user store, keyed by
+    // Multi-user (JWT `sub` present AND auth is enabled): write ONLY to the per-user store, keyed by
     // `sub`. We must NOT touch the shared `config.enc`, `process.env`, or the
     // single-user `currentAccounts` closure — those are process-global and would
     // leak one subject's mailboxes into every other subject's tool calls.
     //
-    // Single-user (no `sub`: stdio self-host / auth-disabled gateway): exactly
-    // one caller, so persist to the shared `config.enc` + env + closure so
-    // credentials survive restarts and are visible to non-HTTP-scoped calls.
+    // Single-user / auth-disabled (no `sub` OR MCP_AUTH_DISABLE=1): unauthenticated
+    // deployments have no per-request `sub` routing tool calls (#1144).
+    // Persist to the shared `config.enc` + env + closure so credentials survive
+    // restarts and are immediately active for unauthenticated tool calls.
     const sub = context?.sub
-    if (sub) {
+    const authDisabled = process.env.MCP_AUTH_DISABLE === '1'
+    if (sub && !authDisabled) {
       try {
         await credStore.save(sub, { accounts })
       } catch (err) {
@@ -261,7 +263,6 @@ function buildOptions(args: {
       onAccountsLoaded(accounts)
       console.error(`[${SERVER_NAME}] ${accounts.length} email account(s) configured via /authorize`)
     }
-
     const outlookResult = await initiateOutlookOAuth(outlookAccounts, sub)
     if (outlookResult) return outlookResult
 
@@ -409,6 +410,11 @@ export async function startHttp(): Promise<void> {
   const setupUrl = `${baseUrl}/authorize`
   setSetupUrl(setupUrl)
   console.error(`[${SERVER_NAME}] HTTP mode on ${baseUrl}/mcp`)
+  if (authDisabled && process.env.EMAIL_CREDENTIALS) {
+    console.error(
+      `[${SERVER_NAME}] Notice: MCP_AUTH_DISABLE=1 in HTTP mode with pre-set EMAIL_CREDENTIALS. Submissions via ${setupUrl} will update the active credentials (#1144).`
+    )
+  }
   if (currentAccounts.length === 0) {
     console.error(`[${SERVER_NAME}] Open ${setupUrl} to configure your email accounts`)
   }
