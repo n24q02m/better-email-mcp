@@ -112,6 +112,9 @@ jobs:
 
       - name: Build project
         run: bun run build
+      - name: Build stdio Docker target
+        if: matrix.os == 'ubuntu-latest'
+        run: docker build --target stdio --tag better-email-mcp:ci-stdio .
 
       - name: Run tests with coverage
         run: bun run test -- --coverage
