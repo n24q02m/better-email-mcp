@@ -142,7 +142,12 @@ export const OUTBOUND_BY_HOST: Record<string, OutboundHandler<Env>> = {
 const BEARER = /^Bearer\s+\S/i
 
 function unauthenticated(request: Request): Response {
-  const { origin } = new URL(request.url)
+  let origin: string
+  try {
+    origin = new URL(request.url).origin
+  } catch {
+    return new Response('Bad Request', { status: 400 })
+  }
   return new Response(null, {
     status: 401,
     headers: {
