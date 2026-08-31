@@ -2,6 +2,26 @@
 
 <!-- version list -->
 
+## v1.40.1-beta.1 (2026-08-31)
+
+### Bug Fixes
+
+- Align Docker builder with lockfile v2
+  ([`37aa9be`](https://github.com/n24q02m/better-email-mcp/commit/37aa9be482b36cd41b8a48dabd6a848e54daff2d))
+
+- Handle malformed unauthenticated request URLs
+  ([`8a3ec9c`](https://github.com/n24q02m/better-email-mcp/commit/8a3ec9cf8eea9adfb46c4c3c03f2f2d422febdd0))
+
+- 🛡️ Sentinel: handle invalid URL in unauthenticated
+  ([`8a3ec9c`](https://github.com/n24q02m/better-email-mcp/commit/8a3ec9cf8eea9adfb46c4c3c03f2f2d422febdd0))
+
+- **deps**: Bump better-semantic-release to v1.5.0
+  ([`dfd590b`](https://github.com/n24q02m/better-email-mcp/commit/dfd590b12332f69e0e9a11b860d33382ca1e239e))
+
+- **deps**: Lock file maintenance ([#1160](https://github.com/n24q02m/better-email-mcp/pull/1160),
+  [`f689b58`](https://github.com/n24q02m/better-email-mcp/commit/f689b588bfdd40768bc5792d32ecb25049fa69e7))
+
+
 ## v1.40.0 (2026-08-29)
 
 ### Bug Fixes
