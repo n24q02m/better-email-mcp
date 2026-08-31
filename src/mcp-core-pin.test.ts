@@ -4,17 +4,9 @@ import { describe, expect, test } from 'vitest'
 describe('mcp-core dependency pin', () => {
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8'))
 
-  test('depends on a >=1.18.1 stable release that ships the storage backends + EdDSA', () => {
+  test('pins the stable 1.23.1 release', () => {
     const dep: string = pkg.dependencies['@n24q02m/mcp-core']
-    // Storage backends (CfKvBackend/backendFromEnv) + EdDSA-from-CREDENTIAL_SECRET
-    // shipped in the 1.18.0-beta line and are stable as of 1.18.1; the old exact
-    // 1.17.4 pin lacks them, and beta pins should not reach the stable build.
-    const [major, minor, patch] = dep
-      .replace(/^[^\d]*/, '')
-      .split('.')
-      .map(Number)
-    const meetsFloor = major > 1 || (major === 1 && minor > 18) || (major === 1 && minor === 18 && patch >= 1)
-    expect(meetsFloor).toBe(true)
+    expect(dep).toBe('1.23.1')
   })
 
   test('does not use a path/workspace source for mcp-core (npm dependency only)', () => {

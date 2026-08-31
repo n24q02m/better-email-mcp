@@ -3,7 +3,7 @@ import { runHttpServer, writeConfig } from '@n24q02m/mcp-core'
 import { ImapFlow } from 'imapflow'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { getMarkSetupComplete, resolveCredentialState, setSetupUrl, setState } from '../credential-state.js'
-import { loadConfig, parseCredentials } from '../tools/helpers/config.js'
+import { type AccountConfig, loadConfig, parseCredentials } from '../tools/helpers/config.js'
 import { initiateOutlookDeviceCode, isOutlookDomain } from '../tools/helpers/oauth2.js'
 import { registerTools } from '../tools/registry.js'
 
@@ -276,6 +276,46 @@ describe('http transport', () => {
       expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('per-user scope'))
       expect(setState).toHaveBeenCalledWith('configured')
       expect(result).toBeNull()
+    })
+
+    it('updates shared credentials when MCP_AUTH_DISABLE=1 even if context.sub is present (#1144)', async () => {
+      const mockAccounts = [
+        {
+          email: 'gateway-user@gmail.com',
+          imap: { host: 'imap.gmail.com', port: 993, secure: true },
+          authType: 'password'
+        }
+      ] as unknown as AccountConfig[]
+      vi.mocked(parseCredentials).mockResolvedValue(mockAccounts)
+      vi.mocked(isOutlookDomain).mockReturnValue(false)
+      process.env.MCP_AUTH_DISABLE = '1'
+      delete process.env.EMAIL_CREDENTIALS
+
+      const mockConnect = vi.fn().mockResolvedValue(undefined)
+      const mockLogout = vi.fn().mockResolvedValue(undefined)
+      ;(ImapFlow as unknown as Mock).mockImplementation(function (this: {
+        connect: unknown
+        logout: unknown
+        close: unknown
+      }) {
+        this.connect = mockConnect
+        this.logout = mockLogout
+        this.close = vi.fn()
+      })
+
+      const result = await onCredentialsSaved(
+        { EMAIL_CREDENTIALS: 'gateway-user@gmail.com:newpass' },
+        { sub: 'relay-session-123' }
+      )
+
+      expect(writeConfig).toHaveBeenCalledWith('better-email-mcp', {
+        EMAIL_CREDENTIALS: 'gateway-user@gmail.com:newpass'
+      })
+      expect(process.env.EMAIL_CREDENTIALS).toBe('gateway-user@gmail.com:newpass')
+      expect(setState).toHaveBeenCalledWith('configured')
+      expect(result).toBeNull()
+
+      delete process.env.MCP_AUTH_DISABLE
     })
 
     it('returns error if IMAP connection fails', async () => {

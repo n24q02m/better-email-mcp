@@ -2,6 +2,82 @@
 
 <!-- version list -->
 
+## v1.40.0 (2026-08-29)
+
+### Bug Fixes
+
+- Document Email hosted runtime removal
+  ([#1141](https://github.com/n24q02m/better-email-mcp/pull/1141),
+  [`d0d6942`](https://github.com/n24q02m/better-email-mcp/commit/d0d6942e8ae959868c4acc1fee176129e60d0c98))
+
+- Pin CI workflow actions ([#1139](https://github.com/n24q02m/better-email-mcp/pull/1139),
+  [`74e6579`](https://github.com/n24q02m/better-email-mcp/commit/74e657971a3ee2993d797439d9926e6a7f31805b))
+
+- 🛡️ Sentinel: Catch unhandled URL exceptions in worker fetch handlers
+  ([#1152](https://github.com/n24q02m/better-email-mcp/pull/1152),
+  [`efdc330`](https://github.com/n24q02m/better-email-mcp/commit/efdc3306ba454c9dd783a386bf4ff75ded310f9d))
+
+- **deps**: Lock file maintenance ([#1129](https://github.com/n24q02m/better-email-mcp/pull/1129),
+  [`85740a1`](https://github.com/n24q02m/better-email-mcp/commit/85740a14a3144b615a4ee783846b51f2e95975b8))
+
+- **deps**: Update html-to-text to ^10.0.1
+  ([#1148](https://github.com/n24q02m/better-email-mcp/pull/1148),
+  [`7d5e608`](https://github.com/n24q02m/better-email-mcp/commit/7d5e608a9782eb738eeaa14b5a057082f491f2fe))
+
+- **deps**: Update imapflow to ^1.7.1
+  ([#1136](https://github.com/n24q02m/better-email-mcp/pull/1136),
+  [`9018996`](https://github.com/n24q02m/better-email-mcp/commit/9018996ed0900d1dce9894cd49697f78b066de24))
+
+- **deps**: Update minor dependencies
+  ([#1127](https://github.com/n24q02m/better-email-mcp/pull/1127),
+  [`4d38074`](https://github.com/n24q02m/better-email-mcp/commit/4d380749c3a62233253a466373c645f6fbc85287))
+
+- **deps**: Update patch dependencies
+  ([#1151](https://github.com/n24q02m/better-email-mcp/pull/1151),
+  [`3766567`](https://github.com/n24q02m/better-email-mcp/commit/37665679c675e3783b0f1799362c1b26644f1933))
+
+- **deps**: Update patch dependencies
+  ([#1145](https://github.com/n24q02m/better-email-mcp/pull/1145),
+  [`4b9abf0`](https://github.com/n24q02m/better-email-mcp/commit/4b9abf061988fe5f312fa00e16d4cd05bbd37917))
+
+- **deps**: Update sanitize-html to ^2.17.7
+  ([#1132](https://github.com/n24q02m/better-email-mcp/pull/1132),
+  [`86a07e3`](https://github.com/n24q02m/better-email-mcp/commit/86a07e3f7056fcd2bf522bbe6543d364d9ffe7e5))
+
+- **deps**: Update wrangler to ^4.123.0
+  ([#1133](https://github.com/n24q02m/better-email-mcp/pull/1133),
+  [`bae78c5`](https://github.com/n24q02m/better-email-mcp/commit/bae78c57a703f0498b786ea1d6354cf8c6540d46))
+
+- **deps**: Update wrangler to ^4.124.0
+  ([#1146](https://github.com/n24q02m/better-email-mcp/pull/1146),
+  [`29b6841`](https://github.com/n24q02m/better-email-mcp/commit/29b6841f225a6f716f7c11970718889063d0e72c))
+
+- **deps**: Update wrangler to ^4.125.0
+  ([#1150](https://github.com/n24q02m/better-email-mcp/pull/1150),
+  [`54095c7`](https://github.com/n24q02m/better-email-mcp/commit/54095c7947bcdd943b42abc0df29a4c9c8ce4d59))
+
+- **governance**: Preserve release bypass actors
+  ([`be40637`](https://github.com/n24q02m/better-email-mcp/commit/be4063794a53250a15922eebcf684607cfb6a537))
+
+- **http**: Update active credentials on authorize when MCP_AUTH_DISABLE=1 (fixes #1144)
+  ([#1153](https://github.com/n24q02m/better-email-mcp/pull/1153),
+  [`a17028c`](https://github.com/n24q02m/better-email-mcp/commit/a17028c03e07d45f1e21e64e01a620fdc248085f))
+
+### Chores
+
+- Bump better-semantic-release to v1.4.0
+  ([#1143](https://github.com/n24q02m/better-email-mcp/pull/1143),
+  [`b0230f0`](https://github.com/n24q02m/better-email-mcp/commit/b0230f005b7e9ab780a5ca46fa55ecc6f2efaffe))
+
+### Features
+
+- Add hosted runtime tombstone ([#1141](https://github.com/n24q02m/better-email-mcp/pull/1141),
+  [`d0d6942`](https://github.com/n24q02m/better-email-mcp/commit/d0d6942e8ae959868c4acc1fee176129e60d0c98))
+
+- Dehost managed Cloudflare runtime ([#1141](https://github.com/n24q02m/better-email-mcp/pull/1141),
+  [`d0d6942`](https://github.com/n24q02m/better-email-mcp/commit/d0d6942e8ae959868c4acc1fee176129e60d0c98))
+
+
 ## v1.39.0 (2026-08-15)
 
 
