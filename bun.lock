@@ -11,7 +11,7 @@
         "imapflow": "^1.7.6",
         "mailparser": "^3.9.16",
         "marked": "^18.0.11",
-        "nodemailer": "^9.1.1",
+        "nodemailer": "^10.0.0",
         "sanitize-html": "^2.17.7",
       },
       "devDependencies": {
@@ -567,7 +567,7 @@
 
     "node-addon-api": ["node-addon-api@8.9.2", "", {}, "sha512-VijLXbi3UACN69I0JVXJsX4tjACjNoQDgv2gTF6sx2wWEi8tkSg2eX8p5gSIFi8z2+DL3oHmY6OyKce38SDolg=="],
 
-    "nodemailer": ["nodemailer@9.1.1", "", {}, "sha512-izw9mVKFix6YSnC9eLgV6g1opl9DUlRio9ZNcq+Wu9Ujn2UwF+8Nl0B8nz22kEC+CTZCvinkxwJ0DeFbb6NwcQ=="],
+    "nodemailer": ["nodemailer@10.0.0", "", {}, "sha512-wdv+hXBg0iIPIOf108FaZyTxqjQpCvQeAJt9pHHTooPy/y3vQtI9eiImM9AIVKR3e/0FeMA1oueNfBjFJcaK+Q=="],
 
     "object-assign": ["object-assign@4.1.1", "", {}, "sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg=="],
 

@@ -68,7 +68,7 @@
     "imapflow": "^1.7.6",
     "mailparser": "^3.9.16",
     "marked": "^18.0.11",
-    "nodemailer": "^9.1.1",
+    "nodemailer": "^10.0.0",
     "sanitize-html": "^2.17.7"
   },
   "trustedDependencies": [
