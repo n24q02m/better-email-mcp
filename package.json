@@ -79,7 +79,7 @@
     "@cloudflare/containers": "^0.3.7",
     "@types/html-to-text": "^9.0.4",
     "@types/mailparser": "^3.4.6",
-    "@types/node": "^26.3.0",
+    "@types/node": "^26.4.0",
     "@types/nodemailer": "^8.0.1",
     "@types/sanitize-html": "^2.16.1",
     "@vitest/coverage-v8": "^4.1.11",
@@ -87,7 +87,7 @@
     "tsx": "^4.23.12",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11",
-    "wrangler": "^4.126.0"
+    "wrangler": "^4.127.1"
   },
   "description": "Better MCP server for Email (IMAP/SMTP) with composite tools optimized for AI agents",
   "main": "build/src/init-server.js",
