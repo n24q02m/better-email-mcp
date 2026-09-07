@@ -82,11 +82,11 @@
     "@types/node": "^26.4.0",
     "@types/nodemailer": "^8.0.1",
     "@types/sanitize-html": "^2.16.1",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^5.0.0",
     "esbuild": "^0.28.2",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.11",
+    "vitest": "^5.0.0",
     "wrangler": "^4.127.1"
   },
   "description": "Better MCP server for Email (IMAP/SMTP) with composite tools optimized for AI agents",
