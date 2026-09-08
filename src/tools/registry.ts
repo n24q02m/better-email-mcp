@@ -56,7 +56,7 @@ const TOOLS = [
   {
     name: 'messages',
     description:
-      'Search, read, manage, compose, and send email messages.\n\nActions (required params -> optional):\n- search (-> account, query="UNSEEN", folder="INBOX", limit=20)\n- read (account, uid -> folder)\n- mark_read / mark_unread / flag / unflag (account, uid|uids -> folder)\n- move (account, uid|uids, destination -> folder)\n- archive / trash (account, uid|uids -> folder)\n- new (account, to, subject, body -> cc, bcc, attachments)\n- reply (account, uid, body -> to, folder, attachments)\n- forward (account, uid, to, body -> folder, attachments)\n\nQuery examples: "UNREAD", "FROM user@example.com", "SINCE 2026-01-01", "UNREAD FROM boss@company.com". Date format MUST be YYYY-MM-DD.\n\nOutbound bodies support plain text or HTML. Attachments use base64 content, max 10 files and 25MB decoded total.',
+      'Search, read, manage, compose, and send email messages.\n\nActions (required params -> optional):\n- search (-> account, query="UNSEEN", folder="INBOX", limit=20)\n- read (account, uid -> folder, preview, max_chars)\n- mark_read / mark_unread / flag / unflag (account, uid|uids -> folder)\n- move (account, uid|uids, destination -> folder)\n- archive / trash (account, uid|uids -> folder)\n- new (account, to, subject, body -> cc, bcc, attachments)\n- reply (account, uid, body -> to, folder, attachments)\n- forward (account, uid, to, body -> folder, attachments)\n\nRead preview mode returns at most max_chars (default 4000) and includes truncation metadata; omit preview for the full body.\n\nQuery examples: "UNREAD", "FROM user@example.com", "SINCE 2026-01-01", "UNREAD FROM boss@company.com". Date format MUST be YYYY-MM-DD.\n\nOutbound bodies support plain text or HTML. Attachments use base64 content, max 10 files and 25MB decoded total.',
     annotations: {
       title: 'Messages',
       readOnlyHint: false,
@@ -94,6 +94,11 @@ const TOOLS = [
         folder: { type: 'string', description: 'Mailbox folder (default: INBOX)' },
         limit: { type: 'number', description: 'Max results for search (default: 20)' },
         uid: { type: 'number', description: 'Email UID (for read/modify single email)' },
+        preview: { type: 'boolean', description: 'Read at most max_chars and return truncation metadata' },
+        max_chars: {
+          type: 'number',
+          description: 'Preview body limit, integer 1-100000; defaults to 4000 when preview is true'
+        },
         uids: { type: 'array', items: { type: 'number' }, description: 'Multiple UIDs for batch operations' },
         destination: { type: 'string', description: 'Target folder for move action' },
         to: {

@@ -57,7 +57,7 @@ vi.mock('../auth/outlook-device-code.js', () => ({
 }))
 
 // We need to import startHttp AFTER mocks are set up
-import { resolveSetupBaseUrl, startHttp } from './http.js'
+import { resolveSetupBaseUrl, selectCredStore, startHttp } from './http.js'
 
 describe('resolveSetupBaseUrl', () => {
   it('prefers PUBLIC_URL over the bind address', () => {
@@ -78,6 +78,16 @@ describe('resolveSetupBaseUrl', () => {
 
   it('treats an empty PUBLIC_URL as unset', () => {
     expect(resolveSetupBaseUrl('', '0.0.0.0', 8080)).toBe('http://localhost:8080')
+  })
+})
+
+describe('credential store selection', () => {
+  it('fails closed for an unknown backend instead of using ephemeral storage', () => {
+    const previous = process.env.MCP_STORAGE_BACKEND
+    process.env.MCP_STORAGE_BACKEND = 'sqlite'
+    expect(() => selectCredStore()).toThrow('refusing ephemeral credentials')
+    if (previous === undefined) delete process.env.MCP_STORAGE_BACKEND
+    else process.env.MCP_STORAGE_BACKEND = previous
   })
 })
 
@@ -146,6 +156,44 @@ describe('http transport', () => {
         expect(loadConfig).toHaveBeenCalled()
         expect(runHttpServer).toHaveBeenCalled()
       })
+    })
+
+    it('binds HTTP to all interfaces by default', async () => {
+      const originalHost = process.env.HOST
+      delete process.env.HOST
+
+      try {
+        await runStartHttpAndTriggerShutdown(async () => {
+          expect(runHttpServer).toHaveBeenCalledWith(
+            expect.any(Function),
+            expect.objectContaining({
+              host: '0.0.0.0'
+            })
+          )
+        })
+      } finally {
+        if (originalHost === undefined) delete process.env.HOST
+        else process.env.HOST = originalHost
+      }
+    })
+
+    it('preserves an explicit HTTP bind host', async () => {
+      const originalHost = process.env.HOST
+      process.env.HOST = '127.0.0.1'
+
+      try {
+        await runStartHttpAndTriggerShutdown(async () => {
+          expect(runHttpServer).toHaveBeenCalledWith(
+            expect.any(Function),
+            expect.objectContaining({
+              host: '127.0.0.1'
+            })
+          )
+        })
+      } finally {
+        if (originalHost === undefined) delete process.env.HOST
+        else process.env.HOST = originalHost
+      }
     })
 
     it('uses PORT from environment if available', async () => {

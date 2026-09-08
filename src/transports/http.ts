@@ -45,20 +45,25 @@ const SERVER_NAME = 'better-email-mcp'
 const IMAP_CONNECT_TIMEOUT_MS = 15_000
 
 /**
- * Select the per-sub credential store. cf-kv backend -> KV write-through
- * PerSubCredStore (durable across container recreate; the Cloudflare deploy
- * store). Any other backend (stdio / local single-process) -> ephemeral
- * in-memory store. Read once at module load; on CF, MCP_STORAGE_BACKEND=cf-kv is
- * set by wrangler vars, so the durable KV store is selected there.
+ * `cf-kv` uses the Worker's KV outbound bridge. `local` and `local-fs` use
+ * mcp-core's encrypted filesystem backend, which is the durable option for
+ * self-hosted Docker when its credential directory is mounted as a volume.
+ * An unset backend preserves the single-process in-memory fallback for
+ * development; production Docker configuration must set `MCP_STORAGE_BACKEND=local`.
+ * Stdio keeps its single-user env/file flow and never calls startHttp.
  */
-function selectCredStore(): CredStoreLike {
-  if ((process.env.MCP_STORAGE_BACKEND ?? '').toLowerCase() === 'cf-kv') {
+export function selectCredStore(): CredStoreLike {
+  const backend = (process.env.MCP_STORAGE_BACKEND ?? '').toLowerCase()
+  if (backend === 'cf-kv' || backend === 'local' || backend === 'local-fs') {
     return new PerSubCredStore()
   }
-  return new InMemoryCredStore()
+  if (backend === '') return new InMemoryCredStore()
+  throw new Error(
+    `Unsupported MCP_STORAGE_BACKEND "${backend}". Use "local", "local-fs", or "cf-kv"; refusing ephemeral credentials.`
+  )
 }
 
-/** Module-singleton per-user credential store (KV on CF, in-memory otherwise). */
+/** Module-singleton per-user credential store (encrypted KV or filesystem). */
 const credStore = selectCredStore()
 
 /**
@@ -348,7 +353,7 @@ export async function startHttp(): Promise<void> {
     : process.env.MCP_PORT
       ? Number.parseInt(process.env.MCP_PORT, 10)
       : 0
-  const host = process.env.HOST
+  const host = process.env.HOST || '0.0.0.0'
 
   const baseOptions = buildOptions({
     serverFactory,
@@ -388,12 +393,10 @@ export async function startHttp(): Promise<void> {
     }
   }
 
-  // Startup KV readiness probe (cf-kv / PerSubCredStore only). Confirms the
-  // container -> Worker `kv.internal` outbound path is wired BEFORE the first
-  // credential write, so a broken binding fails loudly at boot instead of
-  // silently dropping the first user's credentials. InMemoryCredStore has no
-  // `ready`, so this is a no-op for stdio / local single-process deploys.
-  if (credStore.ready) {
+  // Only the Cloudflare KV backend needs the internal-host readiness probe.
+  // Local filesystem storage is already available through the mounted volume;
+  // probing it with the KV sentinel would reject the key as invalid.
+  if ((process.env.MCP_STORAGE_BACKEND ?? '').toLowerCase() === 'cf-kv' && credStore.ready) {
     try {
       await credStore.ready()
       console.error(`[${SERVER_NAME}] KV store reachable (kv.internal outbound OK)`)
