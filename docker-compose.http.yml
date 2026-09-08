@@ -4,9 +4,6 @@ services:
   better-email-mcp:
     environment:
       - TRANSPORT_MODE=http
-      - MCP_STORAGE_BACKEND=local
-      - CREDENTIAL_SECRET=${CREDENTIAL_SECRET:?Set a stable encryption secret}
-      - HOME=/data
       - MCP_RELAY_PASSWORD=${MCP_RELAY_PASSWORD}
     ports:
       - "8082:8080"

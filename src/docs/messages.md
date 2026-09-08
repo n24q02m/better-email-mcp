@@ -4,8 +4,8 @@
 Email messages: search, read, mark_read, mark_unread, flag, unflag, move, archive, trash, new, reply, forward.
 
 ## Important
-- **read** returns the full clean plain-text body by default (HTML stripped for LLM token savings)
-- Set `preview: true` for a bounded body preview. Preview responses include `body_truncated`, `body_char_count`, and `body_limit`; `max_chars` defaults to 4000 and is capped at 100000.
+- **search** defaults to all configured accounts. Filter with `account` param.
+- **read** returns clean plain text body (HTML stripped for LLM token savings)
 - **UIDs are per-account and per-folder** - always specify account for modify operations
 - Query language supports compound filters: `UNREAD SINCE 2024-01-01`
 - **reply** automatically sets In-Reply-To and References headers for threading
@@ -39,17 +39,10 @@ Query shortcuts:
 - Any other text is treated as subject search
 
 ### read
-Read a single email by UID. Omit `preview` for the full clean body, or set `preview: true` for a bounded response.
+Read a single email by UID. Returns full body as clean text.
 ```json
 {"action": "read", "account": "user@gmail.com", "uid": 12345, "folder": "INBOX"}
 ```
-```json
-{"action": "read", "account": "user@gmail.com", "uid": 12345, "preview": true, "max_chars": 4000}
-```
-Preview responses retain the message metadata and return:
-- `body_truncated` - whether the body was shortened
-- `body_char_count` - full body length in characters
-- `body_limit` - applied preview limit
 
 ### mark_read
 ```json
@@ -115,14 +108,13 @@ Forward an email. The original body is appended with a separator.
 {"action": "forward", "account": "user@gmail.com", "to": "colleague@example.com", "body": "FYI, see below.", "uid": 12345}
 ```
 
+## Parameters
 - `action` - Action to perform (required)
 - `account` - Account email filter (optional for search, required for modify)
 - `query` - Search query string (default: UNSEEN)
 - `folder` - Mailbox folder (default: INBOX)
 - `limit` - Max search results (default: 20)
 - `uid` - Single email UID
-- `preview` - Return a bounded body preview for read (default: false)
-- `max_chars` - Preview body limit, integer 1-100000 (default: 4000 when preview is true)
 - `uids` - Multiple email UIDs for batch operations
 - `destination` - Target folder for move action
 - `to` - Recipient email address (required for new/forward, optional for reply)

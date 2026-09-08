@@ -219,17 +219,13 @@ Run as a multi-user HTTP server with OAuth 2.1 authentication:
 Single multi-user mode (relay form for App-Password providers + bundled Outlook OAuth device-code):
 
 ```bash
-export CREDENTIAL_SECRET='replace-with-a-stable-secret'
 docker run -p 8080:8080 \
   -e PORT=8080 \
   -e PUBLIC_URL=https://your-domain.com \
-  -e MCP_STORAGE_BACKEND=local \
-  -e HOME=/data \
-  -e CREDENTIAL_SECRET="$CREDENTIAL_SECRET" \
-  -v email-data:/data \
   n24q02m/better-email-mcp:latest
 ```
-Users provide their own email credentials through the OAuth flow / paste form. No server-side `EMAIL_CREDENTIALS` is needed. The stable `CREDENTIAL_SECRET` encrypts the local per-user credential files; the mounted `/data` volume survives container restarts. Without that volume, the container filesystem remains ephemeral. Cloudflare deployments use Workers KV instead.
+
+Users provide their own email credentials through the OAuth flow / paste form. No server-side `EMAIL_CREDENTIALS` needed. With the default Docker self-host, per-user credentials are held in an in-memory store (cleared on restart); users re-submit after a restart. Outlook OAuth uses the bundled public Azure client (`d56f8c71-9f7c-43f4-9934-be29cb6e77b0`, Thunderbird-pattern) -- no user-side Azure app registration needed.
 
 ### Cloudflare serverless mode (KV-only)
 
@@ -418,8 +414,9 @@ This plugin implements **TC-NearZK**. Storage durability depends on the deployme
 | Mode | Storage | Encryption | Who can read your data? |
 |---|---|---|---|
 | HTTP remote (Cloudflare) | Encrypted Workers KV `subs/<sub>/config` | AES-256-GCM | Server operator (admin = user) |
-| HTTP local Docker | Encrypted local files under `$HOME/.better-email-mcp/subs/<sub>/config.json` | AES-256-GCM | Server operator (admin = user) |
+| HTTP local Docker | In-memory `Map<sub, CredentialPayload>` | In-process only | Server process (cleared on restart) |
 | stdio | platformdirs `mcp` config dir (`config.enc`; e.g. `%APPDATA%\mcp\Config\config.enc` on Windows) | AES-GCM, machine-bound key | Only your OS user (file perm 0600) |
+
 ## License
 
 Apache-2.0 -- See [LICENSE](LICENSE).

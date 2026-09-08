@@ -34,11 +34,8 @@ COPY --from=builder /app/README.md /usr/local/lib/node_modules/@n24q02m/better-e
 COPY --from=builder /app/LICENSE /usr/local/lib/node_modules/@n24q02m/better-email-mcp/
 COPY --from=builder /app/node_modules /usr/local/lib/node_modules/@n24q02m/better-email-mcp/node_modules
 
-# Create symlink for CLI and grant the non-root runtime user access to the
-# self-hosted HTTP credential volume.
-RUN ln -s /usr/local/lib/node_modules/@n24q02m/better-email-mcp/bin/cli.mjs /usr/local/bin/better-email-mcp \
-  && mkdir -p /data \
-  && chown node:node /data
+# Create symlink for CLI
+RUN ln -s /usr/local/lib/node_modules/@n24q02m/better-email-mcp/bin/cli.mjs /usr/local/bin/better-email-mcp
 
 # Set default environment variables
 ENV NODE_ENV=production
@@ -55,9 +52,6 @@ ENTRYPOINT ["node", "/usr/local/lib/node_modules/@n24q02m/better-email-mcp/bin/c
 # http target: HTTP daemon (runLocalServer). Self-hosted deployment.
 FROM base AS http
 ENV MCP_TRANSPORT=http \
-    MCP_PORT=8080 \
-    MCP_STORAGE_BACKEND=local \
-    HOME=/data
-VOLUME ["/data"]
+    MCP_PORT=8080
 EXPOSE 8080
 ENTRYPOINT ["node", "/usr/local/lib/node_modules/@n24q02m/better-email-mcp/bin/cli.mjs"]

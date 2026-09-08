@@ -1,6 +1,3 @@
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { setHomeDirForTesting } from '@n24q02m/mcp-core/storage'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { PerSubCredStore } from './cred-store.js'
 import { applyCfEnv, clearCfEnv, FakeKvHttp } from './test-helpers.js'
@@ -135,44 +132,5 @@ describe('PerSubCredStore', () => {
       }
     })
     await expect(broken.ready()).rejects.toThrow(/kv\.internal/)
-  })
-
-  it('persists encrypted accounts and Outlook tokens across local-store restart with subject isolation', async () => {
-    const home = await mkdtemp(`${tmpdir()}/better-email-local-`)
-    const previousBackend = process.env.MCP_STORAGE_BACKEND
-    const previousSecret = process.env.CREDENTIAL_SECRET
-    process.env.MCP_STORAGE_BACKEND = 'local'
-    process.env.CREDENTIAL_SECRET = 'test-local-secret'
-    setHomeDirForTesting(home)
-
-    try {
-      const store = new PerSubCredStore()
-      await store.save('alice', {
-        accounts: [acct('alice@outlook.com')],
-        outlookTokens: {
-          'alice@outlook.com': { accessToken: 'access', refreshToken: 'refresh', expiresAt: 1 }
-        }
-      })
-
-      const coldStore = new PerSubCredStore()
-      const alice = await coldStore.load('alice')
-      const bob = await coldStore.load('bob')
-
-      expect(alice).not.toBeNull()
-      const aliceAccounts = alice?.accounts as Array<{ email: string }>
-      const aliceTokens = alice?.outlookTokens as Record<string, { refreshToken: string }>
-      expect(aliceAccounts?.[0]?.email).toBe('alice@outlook.com')
-      expect(aliceTokens?.['alice@outlook.com']?.refreshToken).toBe('refresh')
-      expect(bob).toBeNull()
-      await coldStore.clear('alice')
-      expect(await new PerSubCredStore().load('alice')).toBeNull()
-    } finally {
-      setHomeDirForTesting(null)
-      await rm(home, { recursive: true, force: true })
-      if (previousBackend === undefined) delete process.env.MCP_STORAGE_BACKEND
-      else process.env.MCP_STORAGE_BACKEND = previousBackend
-      if (previousSecret === undefined) delete process.env.CREDENTIAL_SECRET
-      else process.env.CREDENTIAL_SECRET = previousSecret
-    }
   })
 })
