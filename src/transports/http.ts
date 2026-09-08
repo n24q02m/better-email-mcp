@@ -353,7 +353,7 @@ export async function startHttp(): Promise<void> {
     : process.env.MCP_PORT
       ? Number.parseInt(process.env.MCP_PORT, 10)
       : 0
-  const host = process.env.HOST
+  const host = process.env.HOST || '0.0.0.0'
 
   const baseOptions = buildOptions({
     serverFactory,

@@ -158,6 +158,25 @@ describe('http transport', () => {
       })
     })
 
+    it('binds HTTP to all interfaces by default', async () => {
+      const originalHost = process.env.HOST
+      delete process.env.HOST
+
+      try {
+        await runStartHttpAndTriggerShutdown(async () => {
+          expect(runHttpServer).toHaveBeenCalledWith(
+            expect.any(Function),
+            expect.objectContaining({
+              host: '0.0.0.0'
+            })
+          )
+        })
+      } finally {
+        if (originalHost === undefined) delete process.env.HOST
+        else process.env.HOST = originalHost
+      }
+    })
+
     it('uses PORT from environment if available', async () => {
       process.env.PORT = '4000'
       await runStartHttpAndTriggerShutdown(async () => {
