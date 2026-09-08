@@ -163,7 +163,7 @@ describe('messages - read', () => {
       date: '2025-01-01',
       flags: ['\\Seen'],
       body_text: '0123456789',
-      attachments: []
+      attachments: [{ filename: 'report.pdf', content_type: 'application/pdf', size: 123 }]
     })
 
     const result = await messages(accounts, {
@@ -179,6 +179,7 @@ describe('messages - read', () => {
     expect(result.body_truncated).toBe(true)
     expect(result.body_char_count).toBe(10)
     expect(result.body_limit).toBe(5)
+    expect(result.attachments).toEqual([{ filename: 'report.pdf', content_type: 'application/pdf', size: 123 }])
   })
 
   it('returns untruncated preview metadata when the body fits the limit', async () => {
