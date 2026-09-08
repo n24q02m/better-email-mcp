@@ -9,8 +9,10 @@ import { createUnknownActionError, EmailMCPError, withErrorHandling } from '../h
 import { listFolders, modifyFlags, moveEmails, readEmail, searchEmails, trashEmails } from '../helpers/imap-client.js'
 import { type SendInput, send } from './send.js'
 
-// Simple in-memory cache for archive folder paths to avoid repeated IMAP calls
+// Archive folder paths are cached per account to avoid repeated IMAP calls.
 const archiveFolderCache = new Map<string, Promise<string>>()
+const DEFAULT_PREVIEW_MAX_CHARS = 4_000
+const MAX_PREVIEW_MAX_CHARS = 100_000
 
 /** Clear the archive folder path cache */
 export function clearArchiveFolderCache(): number {
@@ -40,10 +42,11 @@ export interface MessagesInput {
   folder?: string
   limit?: number
 
-  // Read/modify params
+  // Read params
   uid?: number
+  preview?: boolean
+  max_chars?: number
   uids?: number[]
-
   // Move params
   destination?: string
 
@@ -126,21 +129,48 @@ async function handleSearch(accounts: AccountConfig[], input: MessagesInput): Pr
 }
 
 /**
- * Read a single email by UID
+ * Read a single email by UID.
  */
 async function handleRead(accounts: AccountConfig[], input: MessagesInput): Promise<any> {
   if (!input.uid) {
     throw new EmailMCPError('uid is required for read action', 'VALIDATION_ERROR', 'Provide the email UID from search')
   }
 
+  let previewLimit: number | undefined
+  if (input.preview) {
+    const limit = input.max_chars ?? DEFAULT_PREVIEW_MAX_CHARS
+    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_PREVIEW_MAX_CHARS) {
+      throw new EmailMCPError(
+        `max_chars must be an integer between 1 and ${MAX_PREVIEW_MAX_CHARS}`,
+        'VALIDATION_ERROR',
+        'Use a positive bounded max_chars value for preview mode'
+      )
+    }
+    previewLimit = limit
+  }
+
   const account = resolveSingleAccount(accounts, input.account)
   const folder = input.folder || 'INBOX'
-
   const email = await readEmail(account, input.uid, folder)
+
+  if (previewLimit === undefined) {
+    return {
+      action: 'read',
+      ...email
+    }
+  }
+
+  const bodyCharCount = email.body_text.length
+  const truncated = bodyCharCount > previewLimit
 
   return {
     action: 'read',
-    ...email
+    ...email,
+    body_text: truncated ? email.body_text.slice(0, previewLimit) : email.body_text,
+    preview: true,
+    body_truncated: truncated,
+    body_char_count: bodyCharCount,
+    body_limit: previewLimit
   }
 }
 

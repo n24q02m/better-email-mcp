@@ -152,6 +152,40 @@ describe('messages - read', () => {
     expect(result.uid).toBe(42)
     expect(result.subject).toBe('Test')
   })
+  it('returns a bounded preview with truncation metadata', async () => {
+    mockReadEmail.mockResolvedValue({
+      account_id: 'user1_gmail_com',
+      account_email: 'user1@gmail.com',
+      uid: 42,
+      subject: 'Test',
+      from: 'sender@test.com',
+      to: 'user1@gmail.com',
+      date: '2025-01-01',
+      flags: ['\\Seen'],
+      body_text: '0123456789',
+      attachments: []
+    })
+
+    const result = await messages(accounts, {
+      action: 'read',
+      uid: 42,
+      account: 'user1@gmail.com',
+      preview: true,
+      max_chars: 5
+    })
+
+    expect(result.body_text).toBe('01234')
+    expect(result.preview).toBe(true)
+    expect(result.body_truncated).toBe(true)
+    expect(result.body_char_count).toBe(10)
+    expect(result.body_limit).toBe(5)
+  })
+
+  it('rejects an unbounded preview limit', async () => {
+    await expect(
+      messages(accounts, { action: 'read', uid: 42, account: 'user1@gmail.com', preview: true, max_chars: 0 })
+    ).rejects.toThrow('max_chars must be an integer')
+  })
 
   it('throws when uid is missing', async () => {
     await expect(messages(accounts, { action: 'read', account: 'user1@gmail.com' })).rejects.toThrow('uid is required')
