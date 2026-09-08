@@ -181,6 +181,35 @@ describe('messages - read', () => {
     expect(result.body_limit).toBe(5)
   })
 
+  it('returns untruncated preview metadata when the body fits the limit', async () => {
+    mockReadEmail.mockResolvedValue({
+      account_id: 'user1_gmail_com',
+      account_email: 'user1@gmail.com',
+      uid: 42,
+      subject: 'Test',
+      from: 'sender@test.com',
+      to: 'user1@gmail.com',
+      date: '2025-01-01',
+      flags: ['\\Seen'],
+      body_text: 'short body',
+      attachments: [{ filename: 'report.pdf', content_type: 'application/pdf', size: 123 }]
+    })
+
+    const result = await messages(accounts, {
+      action: 'read',
+      uid: 42,
+      account: 'user1@gmail.com',
+      preview: true,
+      max_chars: 100
+    })
+
+    expect(result.body_text).toBe('short body')
+    expect(result.body_truncated).toBe(false)
+    expect(result.body_char_count).toBe(10)
+    expect(result.body_limit).toBe(100)
+    expect(result.attachments).toEqual([{ filename: 'report.pdf', content_type: 'application/pdf', size: 123 }])
+  })
+
   it('rejects an unbounded preview limit', async () => {
     await expect(
       messages(accounts, { action: 'read', uid: 42, account: 'user1@gmail.com', preview: true, max_chars: 0 })
