@@ -2,6 +2,101 @@
 
 <!-- version list -->
 
+## v1.41.0 (2026-09-11)
+
+### Bug Fixes
+
+- Bump mcp-core to 1.23.2 ([#1162](https://github.com/n24q02m/better-email-mcp/pull/1162),
+  [`6f5ef73`](https://github.com/n24q02m/better-email-mcp/commit/6f5ef7395514aba069c1ec5a43c809cbe2a60f29))
+
+- **deps**: Lock file maintenance ([#1169](https://github.com/n24q02m/better-email-mcp/pull/1169),
+  [`3dd711c`](https://github.com/n24q02m/better-email-mcp/commit/3dd711c288f1c2320078aed815d79c15a4264d65))
+
+- **deps**: Lock file maintenance ([#1168](https://github.com/n24q02m/better-email-mcp/pull/1168),
+  [`63c95e6`](https://github.com/n24q02m/better-email-mcp/commit/63c95e69471efe18bdd6b45696b03ca499d61446))
+
+- **deps**: Update @types/node to ^26.3.0
+  ([#1164](https://github.com/n24q02m/better-email-mcp/pull/1164),
+  [`f524953`](https://github.com/n24q02m/better-email-mcp/commit/f5249531c0225a43743f1c94ff7c4a08caa52513))
+
+- **deps**: Update n24q02m/better-semantic-release action to v1.6.0
+  ([#1171](https://github.com/n24q02m/better-email-mcp/pull/1171),
+  [`49bb439`](https://github.com/n24q02m/better-email-mcp/commit/49bb4399a4c4af446b624db292b6f0df64b6cf37))
+
+- **deps**: Update nodemailer to ^9.1.1
+  ([#1165](https://github.com/n24q02m/better-email-mcp/pull/1165),
+  [`e411256`](https://github.com/n24q02m/better-email-mcp/commit/e4112569b05e6733caf3ec7957fcb87f6b7d94a9))
+
+- **deps**: Update nodemailer to v10
+  ([#1174](https://github.com/n24q02m/better-email-mcp/pull/1174),
+  [`ec7142f`](https://github.com/n24q02m/better-email-mcp/commit/ec7142fc8ac718aa7be94debff5d91ed64726017))
+
+- **deps**: Update non-major dev dependencies
+  ([#1173](https://github.com/n24q02m/better-email-mcp/pull/1173),
+  [`9e7f6d0`](https://github.com/n24q02m/better-email-mcp/commit/9e7f6d0401746a053b0b610d5e30c9e96be1b9d1))
+
+- **deps**: Update oven/bun:1-alpine Docker digest to d888c0a
+  ([#1131](https://github.com/n24q02m/better-email-mcp/pull/1131),
+  [`76961ed`](https://github.com/n24q02m/better-email-mcp/commit/76961ed67b8dc233475100258dab7ec6a19dda01))
+
+- **deps**: Update patch dependencies
+  ([#1181](https://github.com/n24q02m/better-email-mcp/pull/1181),
+  [`46a577d`](https://github.com/n24q02m/better-email-mcp/commit/46a577d9276a79fd63c1b23471c7170146e8965b))
+
+- **deps**: Update patch dependencies
+  ([#1178](https://github.com/n24q02m/better-email-mcp/pull/1178),
+  [`fdf8aa4`](https://github.com/n24q02m/better-email-mcp/commit/fdf8aa4879a799402482557f5a955ec3fb7e316e))
+
+- **deps**: Update patch dependencies
+  ([#1177](https://github.com/n24q02m/better-email-mcp/pull/1177),
+  [`518e0f6`](https://github.com/n24q02m/better-email-mcp/commit/518e0f61bdcb391340e0f47b07176de2d7cb3a8d))
+
+- **deps**: Update patch dependencies
+  ([#1172](https://github.com/n24q02m/better-email-mcp/pull/1172),
+  [`9490154`](https://github.com/n24q02m/better-email-mcp/commit/9490154b8931f4b1be65d14d9c8d4c6e672742a8))
+
+- **deps**: Update patch dependencies
+  ([#1163](https://github.com/n24q02m/better-email-mcp/pull/1163),
+  [`c66f577`](https://github.com/n24q02m/better-email-mcp/commit/c66f5775fd7a498951bb8da32314580a1bce5590))
+
+- **deps**: Update python-semantic-release/publish-action action to v10.6.2
+  ([#1175](https://github.com/n24q02m/better-email-mcp/pull/1175),
+  [`df67720`](https://github.com/n24q02m/better-email-mcp/commit/df67720456673e4a4b8559bca112cece2daa8ae8))
+
+- **deps**: Update vitest monorepo to v5
+  ([#1176](https://github.com/n24q02m/better-email-mcp/pull/1176),
+  [`c54a1ad`](https://github.com/n24q02m/better-email-mcp/commit/c54a1ad9f660e2b567cc525e6db13fcbfd65a1f7))
+
+- **deps**: Update wrangler to ^4.126.0
+  ([#1167](https://github.com/n24q02m/better-email-mcp/pull/1167),
+  [`34aed17`](https://github.com/n24q02m/better-email-mcp/commit/34aed17ae308e782f2bab4552b3c200648df2454))
+
+### Chores
+
+- Trigger CI for renovate major #1174
+  ([#1174](https://github.com/n24q02m/better-email-mcp/pull/1174),
+  [`ec7142f`](https://github.com/n24q02m/better-email-mcp/commit/ec7142fc8ac718aa7be94debff5d91ed64726017))
+
+### Continuous Integration
+
+- Fix duplicate env key in ladder wiring
+  ([`417e1c7`](https://github.com/n24q02m/better-email-mcp/commit/417e1c7e709157812a489b379dcb20673a424ed1))
+
+- Wire unified merge=release ladder (push staging=beta, main=stable)
+  ([`32640a5`](https://github.com/n24q02m/better-email-mcp/commit/32640a5bc7b1b2dacc759c6b1214b091525cf8dd))
+
+### Features
+
+- **email**: Persist HTTP credentials and bound reads
+  ([`daf2c32`](https://github.com/n24q02m/better-email-mcp/commit/daf2c32ae356766be3ef3b7cd9bcb484968795c2))
+
+### Testing
+
+- Update mcp-core stable pin assertion
+  ([#1162](https://github.com/n24q02m/better-email-mcp/pull/1162),
+  [`6f5ef73`](https://github.com/n24q02m/better-email-mcp/commit/6f5ef7395514aba069c1ec5a43c809cbe2a60f29))
+
+
 ## v1.40.1 (2026-08-31)
 
 
