@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v1.41.2 (2026-09-11)
+
+### Bug Fixes
+
+- **deps**: Update @biomejs/biome to ^2.5.12
+  ([#1184](https://github.com/n24q02m/better-email-mcp/pull/1184),
+  [`db63855`](https://github.com/n24q02m/better-email-mcp/commit/db6385534c274de9f44b5ccb21210c274ff6c058))
+
+
 ## v1.41.1 (2026-09-11)
 
 ### Bug Fixes
