@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v1.41.1 (2026-09-11)
+
+### Bug Fixes
+
+- Pin better-semantic-release action to v1.6.1
+  ([#1182](https://github.com/n24q02m/better-email-mcp/pull/1182),
+  [`e32ab30`](https://github.com/n24q02m/better-email-mcp/commit/e32ab300dc98eba74199596ff523f06f016d8d49))
+
+
 ## v1.41.0 (2026-09-11)
 
 ### Bug Fixes
