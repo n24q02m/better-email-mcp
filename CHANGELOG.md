@@ -2,6 +2,26 @@
 
 <!-- version list -->
 
+## v1.41.3 (2026-09-12)
+
+### Bug Fixes
+
+- **deps**: Update wrangler to ^4.129.0
+  ([#1186](https://github.com/n24q02m/better-email-mcp/pull/1186),
+  [`16dc4d9`](https://github.com/n24q02m/better-email-mcp/commit/16dc4d9234a95297fdef125e2b2d3aea7e7d9380))
+
+### Chores
+
+- **release**: Single-main release lane (staging branch retired)
+  ([`ee37b2d`](https://github.com/n24q02m/better-email-mcp/commit/ee37b2db273dd35169c10ea2c366c821edc7810b))
+
+- **rulesets**: Align IaC with repo-bootstrap template
+  ([`cc47f1d`](https://github.com/n24q02m/better-email-mcp/commit/cc47f1dfbd62c0619def9e928216c43a686e303b))
+
+- **rulesets**: Align IaC with repo-bootstrap template
+  ([`24ae07d`](https://github.com/n24q02m/better-email-mcp/commit/24ae07d0ff2bcd4766b977d4a264da74068bacd4))
+
+
 ## v1.41.2 (2026-09-11)
 
 ### Bug Fixes
