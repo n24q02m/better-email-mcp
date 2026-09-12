@@ -4,9 +4,9 @@ import { describe, expect, test } from 'vitest'
 describe('mcp-core dependency pin', () => {
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8'))
 
-  test('pins the stable 1.23.2 release', () => {
+  test('pins the stable 1.24.0 release', () => {
     const dep: string = pkg.dependencies['@n24q02m/mcp-core']
-    expect(dep).toBe('1.23.2')
+    expect(dep).toBe('1.24.0')
   })
 
   test('does not use a path/workspace source for mcp-core (npm dependency only)', () => {
