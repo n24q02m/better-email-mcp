@@ -19,7 +19,7 @@
     "codex",
     "opencode"
   ],
-  "version": "1.41.3",
+  "version": "1.41.4",
   "license": "Apache-2.0",
   "type": "module",
   "publishConfig": {

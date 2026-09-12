@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v1.41.4 (2026-09-12)
+
+### Bug Fixes
+
+- Update mcp-core stable pin to 1.24.0
+  ([#1185](https://github.com/n24q02m/better-email-mcp/pull/1185),
+  [`8f99f92`](https://github.com/n24q02m/better-email-mcp/commit/8f99f9275ffe16e7dafc44bed80dd3f39ae8c565))
+
+- **deps**: Update minor dependencies
+  ([#1185](https://github.com/n24q02m/better-email-mcp/pull/1185),
+  [`8f99f92`](https://github.com/n24q02m/better-email-mcp/commit/8f99f9275ffe16e7dafc44bed80dd3f39ae8c565))
+
+### Chores
+
+- **release**: Fix stale two-branch comment (single-main lane)
+  ([`5cf98d5`](https://github.com/n24q02m/better-email-mcp/commit/5cf98d5d5db5bdc92a2e433e0d26079c738aeb8a))
+
+
 ## v1.41.3 (2026-09-12)
 
 ### Bug Fixes
