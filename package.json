@@ -53,7 +53,7 @@
     "better-email-mcp": "bin/cli.mjs"
   },
   "engines": {
-    "node": ">=24.20.0"
+    "node": ">=24.21.0"
   },
   "files": [
     "build/",
@@ -63,7 +63,7 @@
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "@n24q02m/mcp-core": "1.23.2",
+    "@n24q02m/mcp-core": "1.24.0",
     "html-to-text": "^10.0.1",
     "imapflow": "^1.7.8",
     "mailparser": "^3.9.20",
