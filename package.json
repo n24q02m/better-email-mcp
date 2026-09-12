@@ -87,7 +87,7 @@
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "vitest": "^5.0.0",
-    "wrangler": "^4.127.1"
+    "wrangler": "^4.129.0"
   },
   "description": "Better MCP server for Email (IMAP/SMTP) with composite tools optimized for AI agents",
   "main": "build/src/init-server.js",
