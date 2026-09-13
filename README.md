@@ -5,6 +5,7 @@ mcp-name: io.github.n24q02m/better-email-mcp
 **IMAP/SMTP email for AI agents -- read, send, organize folders, and manage attachments across multiple accounts, with auto-discovery.**
 
 <!-- Badge Row 1: Status -->
+[![Mode](https://img.shields.io/badge/mode:-http_remote_relay_%C2%B7_http_local_relay_%C2%B7_stdio_proxy-5C6BC0)](https://mcp.n24q02m.com/get-started/modes-overview/)
 [![CI](https://github.com/n24q02m/better-email-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/n24q02m/better-email-mcp/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/n24q02m/better-email-mcp/graph/badge.svg?token=O2GWBWCZGF)](https://codecov.io/gh/n24q02m/better-email-mcp)
 [![npm](https://img.shields.io/npm/v/@n24q02m/better-email-mcp?logo=npm&logoColor=white)](https://www.npmjs.com/package/@n24q02m/better-email-mcp)
@@ -75,7 +76,7 @@ mcp-name: io.github.n24q02m/better-email-mcp
 
 - **Multi-account support** -- manage 6+ email accounts (Gmail, Outlook, Yahoo, iCloud, Zoho, ProtonMail, custom IMAP)
 - **App Passwords** -- no OAuth2 setup required for most providers; clone and run in 1 minute
-- **4 composite tools** with 22 actions (plus `help` + `config__open_relay`) -- search, read, send, reply, forward, organize, and credential setup in single calls
+- **4 composite tools** with 23 actions (plus `help` + `config__open_relay`) -- search, read, send, reply, forward, organize, and credential setup in single calls
 - **Auto-discovery** -- provider settings detected from email address, custom IMAP host supported
 - **Thread-aware** -- reply/forward maintains In-Reply-To and References headers
 - **Tiered token optimization** -- compressed descriptions + on-demand `help` tool + MCP Resources
@@ -101,6 +102,17 @@ The server runs in two modes: **stdio** (default, single-user, credentials from 
 Multiple accounts are comma-separated: `user1@gmail.com:pass1,user2@outlook.com:pass2`. See [Configuration](#configuration) for all env vars, and [Remote (HTTP Mode)](#remote-http-mode) to run a hosted multi-user server.
 
 Most providers use an **App Password** (no OAuth setup); Outlook/Hotmail/Live use a bundled OAuth device-code flow in HTTP mode. Settings (IMAP/SMTP host, port) are auto-discovered from the email domain.
+
+### Install matrix
+
+| Client | Install |
+|:-------|:--------|
+| Claude Code | `/plugin marketplace add n24q02m/claude-plugins` + `/plugin install better-email-mcp@n24q02m-plugins` (stdio; prompts for `EMAIL_CREDENTIALS`), or an `mcpServers` entry in `.mcp.json` / client settings |
+| Codex CLI | `[mcp_servers.better-email-mcp]` block in `~/.codex/config.toml` (stdio `command`/`args` or HTTP `type`/`url`) |
+| OpenCode | `mcpServers` block in `opencode.json` |
+| Cursor / Windsurf / Gemini CLI / any MCP client | `mcpServers` JSON in the client's config — same shape as the example above |
+
+Full per-client walkthroughs: [mcp.n24q02m.com/servers/better-email-mcp/setup/](https://mcp.n24q02m.com/servers/better-email-mcp/setup/).
 
 ## CLI
 
@@ -142,7 +154,7 @@ startCommand:
 
 ## Documentation
 
-Full docs at **[mcp.n24q02m.com/servers/better-email-mcp/setup/](https://mcp.n24q02m.com/servers/better-email-mcp/setup/)**:
+Full docs at **[mcp.n24q02m.com/servers/better-email-mcp/](https://mcp.n24q02m.com/servers/better-email-mcp/)**:
 
 - [Setup](https://mcp.n24q02m.com/servers/better-email-mcp/setup/) -- install methods for Claude Code, Codex, Gemini CLI, Cursor, Windsurf, mcp.json
 - [Modes overview](https://mcp.n24q02m.com/get-started/modes-overview/) -- stdio (default) and HTTP (opt-in, multi-user with OAuth 2.1)
@@ -374,6 +386,21 @@ Run your own multi-user better-email instance serverless on Cloudflare (Containe
 Each JWT `sub` gets its own Container Durable Object, and every user's email credentials and
 Outlook OAuth tokens are AES-256-GCM encrypted into a single Workers KV blob per user, so they
 survive scale-to-zero / container recreate with no re-auth.
+
+### Deployment (CD-managed)
+
+Managed deployments go through CI, never by hand: the `deploy-cf` job in
+[.github/workflows/cd.yml](.github/workflows/cd.yml) runs after a release,
+checks out the released tag, builds the immutable `http-slim` image at the
+released version, pushes it to the Cloudflare managed registry, deploys, and
+gates on a canary check — a managed instance can therefore only ever run an
+exact release tag. Manual `wrangler deploy` against a managed/operated
+instance is not permitted: it breaks the release-tag ↔ live-image
+correspondence, and the next CD run would overwrite it.
+
+The job is gated by the `CF_HOSTED_ENABLED` repository Actions variable —
+currently `false`, so releases do not publish a hosted endpoint. To run your
+own instance, use the self-host steps below.
 
 **Prerequisites:** a Cloudflare account on the **Workers Paid plan** — required for Containers (the Cloudflare free tier does not include Containers) — and the `wrangler` CLI.
 
