@@ -2,7 +2,7 @@
   "schema_version": 1,
   "tier": 1,
   "description": "IMAP/SMTP email for AI agents -- read, send, organize folders, and manage attachments across multiple accounts, with auto-discovery.",
-  "homepage": "https://mcp.n24q02m.com/servers/better-email-mcp/",
+  "homepage": "https://docs.n24q02m.com/servers/email/",
   "topics": [
     "ai-agents",
     "ai-coding",
