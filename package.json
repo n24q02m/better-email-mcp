@@ -45,9 +45,7 @@
     "prepublishOnly": "bun run build",
     "docker:build": "docker build -t n24q02m/email:latest .",
     "docker:push": "docker push n24q02m/email:latest",
-    "docker:run": "docker run --rm -i -e EMAIL_CREDENTIALS n24q02m/email:latest",
-    "cf:dryrun": "node scripts/cf-deploy.js --dry-run",
-    "cf:deploy": "node scripts/cf-deploy.js"
+    "docker:run": "docker run --rm -i -e EMAIL_CREDENTIALS n24q02m/email:latest"
   },
   "bin": {
     "email": "bin/cli.mjs",
@@ -77,7 +75,6 @@
   ],
   "devDependencies": {
     "@biomejs/biome": "^2.5.12",
-    "@cloudflare/containers": "^0.3.7",
     "@types/html-to-text": "^9.0.4",
     "@types/mailparser": "^3.4.6",
     "@types/node": "^26.4.1",
@@ -87,8 +84,7 @@
     "esbuild": "^0.28.2",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.0",
-    "wrangler": "^4.129.0"
+    "vitest": "^5.0.0"
   },
   "description": "Better MCP server for Email (IMAP/SMTP) with composite tools optimized for AI agents",
   "main": "build/src/init-server.js",

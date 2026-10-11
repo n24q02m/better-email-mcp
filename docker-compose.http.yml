@@ -1,15 +1,20 @@
-# HTTP mode overlay — use with:
-# docker compose -f docker-compose.yml -f docker-compose.http.yml up
+# HTTP mode (self-hosted) — use with:
+# docker compose -f docker-compose.http.yml up
 services:
   email:
+    build:
+      context: .
+      target: http
     environment:
       - TRANSPORT_MODE=http
       - MCP_STORAGE_BACKEND=local
       - CREDENTIAL_SECRET=${CREDENTIAL_SECRET:?Set a stable encryption secret}
       - HOME=/data
       - MCP_RELAY_PASSWORD=${MCP_RELAY_PASSWORD}
+    # Published on host loopback only: reach it as http://localhost:8082, or put
+    # your own TLS reverse proxy on the same host in front of it.
     ports:
-      - "8082:8080"
+      - "127.0.0.1:8082:8080"
     volumes:
       - email-data:/data
 volumes:

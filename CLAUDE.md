@@ -49,7 +49,7 @@ src/
   credential-state.ts            # Single-user / stdio credential resolution from env
   auth/                          # Per-user credential store + Outlook OAuth (HTTP mode)
     in-memory-cred-store.ts      # Local per-user store fallback; ephemeral, keyed by JWT sub
-    cred-store.ts                # Cloudflare KV write-through store, keyed by JWT sub
+    cred-store.ts                # KV write-through store (cf-kv backend, only set by the removed CF deploy; dead-code candidate), keyed by JWT sub
     outlook-device-code.ts       # Microsoft device-code OAuth flow
     subject-context.ts           # Per-request JWT-sub scope (AsyncLocalStorage)
   transports/
@@ -68,13 +68,12 @@ src/
   - Custom IMAP host: `user@custom.com:password:imap.custom.com`
   - Custom IMAP host + port: `user@custom.com:password:imap.custom.com:1993`
   - Local IMAP proxy: `user@custom.com:password:localhost:1993` (`localhost` accepted as host; per-account port)
-- **http mode** (opt-in via `--http`, `MCP_TRANSPORT=http`, or `TRANSPORT_MODE=http`): `PUBLIC_URL` (for relay/OAuth redirect URLs). With `MCP_STORAGE_BACKEND=cf-kv`, per-user credentials are encrypted in the KV-backed store (`auth/cred-store.ts`, keyed by JWT `sub`) and survive container recreation; local HTTP falls back to the process-local store (`auth/in-memory-cred-store.ts`). `MCP_AUTH_DISABLE=1` skips Bearer JWT verification (for deploys behind an external auth gateway).
+- **http mode** (opt-in via `--http`, `MCP_TRANSPORT=http`, or `TRANSPORT_MODE=http`): `PUBLIC_URL` (for relay/OAuth redirect URLs). Self-host qua `docker-compose.http.yml` (`MCP_STORAGE_BACKEND=local`, volume `/data`, publish loopback `127.0.0.1:8082`). Nhanh `MCP_STORAGE_BACKEND=cf-kv` (`auth/cred-store.ts`) chi duoc set boi CF deploy da go, nay la dead-code candidate; local HTTP dung process-local store (`auth/in-memory-cred-store.ts`). `MCP_AUTH_DISABLE=1` skips Bearer JWT verification (for deploys behind an external auth gateway).
 - `PORT` (default `0` = OS-assigned random port), `HOST` (optional bind address)
 - `OUTLOOK_CLIENT_ID` -- tu chon, cho self-hosted OAuth2 client. CLI `auth --client-id=<id>` override env var (flag thang env, xem `auth-cli.ts:parseArgs`)
 - `OUTLOOK_TENANT` -- tu chon, tenant cho CA device-code LAN token refresh (`oauth2.ts:getOutlookTenant`). Default `consumers` (stdio/CLI) va `common` (http delegated, `auth/outlook-device-code.ts`). Work/school (Entra ID) can `common` hoac tenant GUID -- refresh token cua work/school danh vao `/consumers` se loi `AADSTS7000012`
 - `OUTLOOK_SCOPES` -- tu chon, danh sach scope cach nhau bang space (`oauth2.ts:getOutlookScopes`). Dung khi grant duoc consent hep hon default (vd IMAP-only, khong SMTP)
 - `OUTLOOK_EXTRA_DOMAINS` -- tu chon, domain cach nhau bang dau phay, gop them vao `OUTLOOK_DOMAINS` de mailbox M365 tren custom domain di duong OAuth thay vi doi password
-- CF deploy: 3 bien tren PHAI nam trong `worker.ts:CONTAINER_ENV_KEYS`, khong forward = set o Worker nhung container khong nhan
 
 ## Code conventions
 
@@ -135,6 +134,6 @@ Tier policy:
 - **T2 non-interaction** (`make e2e-config CONFIG=<id>` locally) - driver pre-fills relay form from skret AWS SSM `/better-email-mcp/prod` (`ap-southeast-1`). No user gate.
 - **T2 interaction** - driver fills relay form, then prints upstream user-gate URL; user signs in / types OTP at provider. Driver enforces per-flow timeouts (device-code 900s, oauth-redirect 300s, browser-form 600s) and emits `[poll] elapsed=Xs remaining=Ys status=<body>` every 30s. On timeout, container logs + last `setup-status` are saved to `<tmp>/e2e-diag/` BEFORE teardown for post-mortem.
 
-Multi-user remote mode (deployment property; not a separate config) keys per-user credentials by JWT `sub`. Cloudflare deployments use the encrypted KV-backed store (`auth/cred-store.ts`) and survive container recreation; local HTTP deployments use the in-memory fallback (`auth/in-memory-cred-store.ts`) and require re-authentication after restart.
+Multi-user remote mode (deployment property; not a separate config) keys per-user credentials by JWT `sub`. Self-hosted HTTP deployments (`docker-compose.http.yml`) use the local store on the `/data` volume; the in-memory fallback (`auth/in-memory-cred-store.ts`) requires re-authentication after restart. The Cloudflare Workers hosting surface was removed; the `cf-kv` store branch (`auth/cred-store.ts`) is a dead-code candidate.
 
 References: `mcp-core/scripts/e2e/matrix.yaml`, `~/.claude/skills/mcp-dev/references/e2e-full-matrix.md` (harness-readiness gate), `~/.claude/skills/mcp-dev/references/secrets-skret.md` (per-server credential layout), `~/.claude/skills/mcp-dev/references/multi-user-pattern.md` (per-JWT-sub isolation).

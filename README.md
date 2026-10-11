@@ -62,7 +62,6 @@ mcp-name: io.github.n24q02m/better-email-mcp
 - [Configuration](#configuration)
 - [Security](#security)
 - [Build from Source](#build-from-source)
-- [Deploy to Cloudflare](#deploy-to-cloudflare)
 - [Trust Model](#trust-model)
 - [License](#license)
 
@@ -246,26 +245,27 @@ docker run -p 8080:8080 \
   -v email-data:/data \
   n24q02m/email:latest
 ```
-Users provide their own email credentials through the OAuth flow / paste form. No server-side `EMAIL_CREDENTIALS` is needed. The stable `CREDENTIAL_SECRET` encrypts the local per-user credential files; the mounted `/data` volume survives container restarts. Without that volume, the container filesystem remains ephemeral. Cloudflare deployments use Workers KV instead.
+Users provide their own email credentials through the OAuth flow / paste form. No server-side `EMAIL_CREDENTIALS` is needed. The stable `CREDENTIAL_SECRET` encrypts the local per-user credential files; the mounted `/data` volume survives container restarts. Without that volume, the container filesystem remains ephemeral.
 
-### Cloudflare serverless mode (KV-only)
+### Self-Hosting with Docker Compose
 
-Self-hostable as a per-user serverless instance on Cloudflare Workers + Containers: each JWT `sub`
-gets its own Container Durable Object, and all credentials AND Outlook OAuth tokens are
-AES-256-GCM encrypted into Workers KV (one `subs/<sub>/config` blob per user) so they
-**survive scale-to-zero / container recreate with no re-auth**. The JWT signing key is
-derived deterministically from `CREDENTIAL_SECRET` (EdDSA), so the user's identity is
-stable across recreate. Required secrets: `CREDENTIAL_SECRET` (per-sub vault + EdDSA),
-`MCP_RELAY_PASSWORD` (form gate), `MCP_DCR_SERVER_SECRET` (intentional multi-user
-deploy). See `wrangler.jsonc`.
+The repository ships `docker-compose.http.yml`, which builds the `http` image target and
+publishes it on host loopback only (`127.0.0.1:8082`):
 
-> Keying Outlook tokens by JWT `sub` (in the per-sub KV blob) resolves the former
-> email-keyed `tokens.json` ambiguity (CLAUDE.md Known Bug #4): two users' Outlook
-> accounts can no longer collide.
+```bash
+export CREDENTIAL_SECRET='replace-with-a-stable-secret'   # per-user vault key + deterministic EdDSA JWT signing (required)
+export MCP_RELAY_PASSWORD='replace-with-a-form-password'  # gate for the /authorize setup form
+docker compose -f docker-compose.http.yml up
+```
 
-> Caveat: `localhost` IMAP accounts (`email:pass:localhost:1993`) are valid for
-> local / VM deployments but CANNOT work on Cloudflare — there is no co-located IMAP
-> proxy inside the container. Use a publicly-reachable IMAP host on CF.
+The server is then reachable at `http://localhost:8082`. To serve other machines, put your own
+TLS reverse proxy on the same host in front of the loopback port and set `PUBLIC_URL` to the
+public HTTPS origin. Prebuilt multi-arch images are published to Docker Hub (`n24q02m/email`)
+and GHCR (`ghcr.io/n24q02m/email`).
+
+The JWT signing key is derived deterministically from `CREDENTIAL_SECRET` (EdDSA), so user
+identity stays stable across container recreation. Per-user credentials and Outlook tokens are
+keyed by JWT `sub`, so two users' Outlook accounts cannot collide.
 
 ## Outlook OAuth Device Code (HTTP mode)
 
@@ -274,7 +274,7 @@ In HTTP mode, Outlook/Hotmail/Live accounts use OAuth2 device-code automatically
 1. The server prints a device code and a Microsoft login URL
 2. Open the URL in a browser and enter the code
 3. Sign in and authorize the app
-4. Tokens are persisted per JWT sub — in the encrypted Cloudflare KV credential blob (`subs/<sub>/config`) on the serverless deploy, in the local in-memory store for local HTTP, or in `~/.better-email-mcp/tokens.json` for single-user / stdio
+4. Tokens are persisted per JWT sub — in the encrypted local credential files (`$HOME/.better-email-mcp/subs/<sub>/config.json`) on a self-hosted HTTP deploy with a `/data` volume, in the local in-memory store otherwise, or in `~/.better-email-mcp/tokens.json` for single-user / stdio
 
 OAuth uses the bundled public Azure client (`d56f8c71-9f7c-43f4-9934-be29cb6e77b0`, Thunderbird-pattern) -- no user-side Azure registration needed.
 
@@ -383,73 +383,12 @@ bun install
 bun run dev
 ```
 
-## Deploy to Cloudflare
-
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/n24q02m/better-email-mcp)
-
-Run your own multi-user better-email instance serverless on Cloudflare (Containers + KV).
-Each JWT `sub` gets its own Container Durable Object, and every user's email credentials and
-Outlook OAuth tokens are AES-256-GCM encrypted into a single Workers KV blob per user, so they
-survive scale-to-zero / container recreate with no re-auth.
-
-### Deployment (CD-managed)
-
-Managed deployments go through CI, never by hand: the `deploy-cf` job in
-[.github/workflows/cd.yml](.github/workflows/cd.yml) runs after a release,
-checks out the released tag, builds the immutable `http-slim` image at the
-released version, pushes it to the Cloudflare managed registry, deploys, and
-gates on a canary check — a managed instance can therefore only ever run an
-exact release tag. Manual `wrangler deploy` against a managed/operated
-instance is not permitted: it breaks the release-tag ↔ live-image
-correspondence, and the next CD run would overwrite it.
-
-The job is gated by the `CF_HOSTED_ENABLED` repository Actions variable —
-currently `false`, so releases do not publish a hosted endpoint. To run your
-own instance, use the self-host steps below.
-
-**Prerequisites:** a Cloudflare account on the **Workers Paid plan** — required for Containers (the Cloudflare free tier does not include Containers) — and the `wrangler` CLI.
-
-1. `git clone https://github.com/n24q02m/better-email-mcp && cd better-email-mcp`
-2. `wrangler login`
-3. Create the KV namespace (better-email is KV-only -- no D1 / Vectorize):
-   ```
-   wrangler kv namespace create better-email-kv
-   ```
-   Paste the returned id into `<better-email-kv-namespace-id>` in `wrangler.jsonc`.
-4. Push the container image to your Cloudflare managed registry (CF Containers cannot pull
-   from external registries directly), then set `<YOUR_ACCOUNT_ID>` in `wrangler.jsonc`:
-   ```
-   docker pull ghcr.io/n24q02m/better-email-mcp:beta
-   docker tag ghcr.io/n24q02m/better-email-mcp:beta better-email-mcp:beta
-   wrangler containers push better-email-mcp:beta   # prints registry.cloudflare.com/<ACCOUNT_ID>/better-email-mcp:beta
-   ```
-5. Point `wrangler.jsonc` at your own domain: set `<YOUR_PUBLIC_URL>` (e.g.
-   `https://email.example.com`) and `<YOUR_WORKER_DOMAIN>` (e.g. `email.example.com`).
-6. Set the deploy secrets:
-   ```
-   wrangler secret put CREDENTIAL_SECRET      # per-sub vault key + deterministic EdDSA signing (required)
-   wrangler secret put MCP_RELAY_PASSWORD     # gate for the /authorize setup form
-   wrangler secret put MCP_DCR_SERVER_SECRET  # proof of an intentional multi-user deploy
-   ```
-   Optional Outlook overrides -- only to replace the bundled public Azure device-code client
-   (default needs no user-side Azure app): `wrangler secret put OUTLOOK_CLIENT_ID` and
-   `wrangler secret put OUTLOOK_EMAIL`. For a Microsoft 365 organisation, also set
-   `OUTLOOK_TENANT` (and `OUTLOOK_EXTRA_DOMAINS` for mailboxes on your own domain).
-7. `wrangler deploy`, then open `<YOUR_PUBLIC_URL>/authorize` and complete the browser relay form.
-
-End-users supply their own email credentials -- an App Password via the paste form, or the
-bundled Outlook device-code sign-in -- through that relay form; there is no server-side
-`EMAIL_CREDENTIALS`. Storage maps to Cloudflare via `MCP_STORAGE_BACKEND=cf-kv` (already set in
-`wrangler.jsonc`); see [Cloudflare serverless mode (KV-only)](#cloudflare-serverless-mode-kv-only)
-for the encryption and trust details.
-
 ## Trust Model
 
 This plugin implements **TC-NearZK**. Storage durability depends on the deployment mode; see the [mcp-core trust model](https://mcp.n24q02m.com/servers/mcp-core/trust-model/) for full classification.
 
 | Mode | Storage | Encryption | Who can read your data? |
 |---|---|---|---|
-| HTTP remote (Cloudflare) | Encrypted Workers KV `subs/<sub>/config` | AES-256-GCM | Server operator (admin = user) |
 | HTTP local Docker | Encrypted local files under `$HOME/.better-email-mcp/subs/<sub>/config.json` | AES-256-GCM | Server operator (admin = user) |
 | stdio | platformdirs `mcp` config dir (`config.enc`; e.g. `%APPDATA%\mcp\Config\config.enc` on Windows) | AES-GCM, machine-bound key | Only your OS user (file perm 0600) |
 ## License

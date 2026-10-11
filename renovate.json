@@ -15,8 +15,10 @@
   },
   "packageRules": [
     {
+      "description": "Run go mod tidy after every Go module update",
       "matchCategories": ["golang"],
-      "postUpdateOptions": ["gomodTidy"]
+      "postUpdateOptions": ["gomodTidy"],
+      "minimumReleaseAge": "7 days"
     },
     {
       "description": "Group minor updates for review (prod scope by default)",
