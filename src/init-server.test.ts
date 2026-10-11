@@ -95,7 +95,7 @@ describe('initServer', () => {
     const { initServer } = await import('./init-server.js')
     await initServer()
     expect(ServerCtorMock).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'better-email-mcp' }),
+      expect.objectContaining({ name: 'email' }),
       expect.objectContaining({ capabilities: expect.any(Object) })
     )
     expect(registerToolsMock).toHaveBeenCalled()

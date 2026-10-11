@@ -44,7 +44,7 @@ export function getOutlookTenant(fallback: string = DEFAULT_TENANT): string {
   if (!TENANT_PATTERN.test(configured)) {
     if (warnedInvalidTenant !== configured) {
       warnedInvalidTenant = configured
-      console.error(`[better-email-mcp] Ignoring malformed OUTLOOK_TENANT; falling back to "${fallback}".`)
+      console.error(`[email] Ignoring malformed OUTLOOK_TENANT; falling back to "${fallback}".`)
     }
     return fallback
   }
@@ -91,7 +91,10 @@ const DEFAULT_POLLING_INTERVAL_SECONDS = 5
 const SLOW_DOWN_BACKOFF_MS = 5000
 const TOKEN_REFRESH_BUFFER_SECONDS = 300
 
-// Persistent token storage
+// Persistent token storage. The directory keeps its pre-rename name on purpose:
+// it is the same ~/.better-email-mcp that mcp-core's PerPluginStore uses for the
+// 'better-email' slug, and moving it would strand saved Outlook tokens. It moves
+// together with the store once mcp-core storage has a base-dir option.
 const CONFIG_DIR = join(homedir(), '.better-email-mcp')
 const TOKEN_FILE = join(CONFIG_DIR, 'tokens.json')
 
@@ -242,7 +245,7 @@ export function isOutlookDomain(email: string): boolean {
   return OUTLOOK_DOMAINS.has(domain) || extraOutlookDomains().includes(domain)
 }
 
-// Bundled Azure AD public client ID for better-email-mcp.
+// Bundled Azure AD public client ID for email.
 // Public clients have no secret — this is safe to embed (like Thunderbird's client ID).
 // Override with OUTLOOK_CLIENT_ID env var if you want to use your own Azure AD app.
 const DEFAULT_CLIENT_ID = 'd56f8c71-9f7c-43f4-9934-be29cb6e77b0'
@@ -978,7 +981,7 @@ export async function saveOutlookTokens(tokens: Record<string, unknown>): Promis
 /**
  * Interactive Device Code flow for CLI-based OAuth2 authentication.
  * Prints instructions to stderr and polls until user authorizes or timeout.
- * Used by `npx @n24q02m/better-email-mcp auth <email>`.
+ * Used by `npx @n24q02m/email auth <email>`.
  */
 export async function deviceCodeAuth(email: string, clientId?: string): Promise<OAuth2Tokens> {
   if (!email?.trim()) throw new Error('Email is required')

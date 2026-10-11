@@ -1,7 +1,7 @@
 # HTTP mode overlay — use with:
 # docker compose -f docker-compose.yml -f docker-compose.http.yml up
 services:
-  better-email-mcp:
+  email:
     environment:
       - TRANSPORT_MODE=http
       - MCP_STORAGE_BACKEND=local

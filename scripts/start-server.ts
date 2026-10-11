@@ -1,5 +1,5 @@
 /**
- * Better Email MCP Server Starter
+ * email MCP Server Starter
  *
  * Wired via mcp-core's buildCli: `auth`/`logout` subcommands route to the
  * OAuth2 device-code CLI (extra handlers); bare/flag argv starts the MCP
@@ -10,7 +10,12 @@ import { buildCli } from '@n24q02m/mcp-core'
 import { runAuth, runLogout } from '../src/auth-cli.js'
 import { getVersion, initServer } from '../src/init-server.js'
 
-const SERVER_NAME = 'better-email-mcp'
+const SERVER_NAME = 'email'
+// Credential storage slug for `config status|delete` and `doctor` (PerPluginStore,
+// on disk ~/.better-email-mcp). Passed explicitly because buildCli would otherwise
+// derive it from SERVER_NAME ('email'), which would read an empty store. It keeps
+// its pre-rename value until the data-dir migration.
+const STORE_PLUGIN = 'better-email'
 
 /**
  * `serve` entry point for `buildCli` (bare/flag argv routes here).
@@ -38,7 +43,7 @@ async function serve(): Promise<number | undefined> {
 
   await new Promise<void>((resolve) => {
     const shutdown = () => {
-      console.error('\nShutting down Better Email MCP Server')
+      console.error('\nShutting down email MCP Server')
       resolve()
     }
     process.once('SIGINT', shutdown)
@@ -50,6 +55,7 @@ async function serve(): Promise<number | undefined> {
 buildCli(SERVER_NAME, {
   serve,
   version: getVersion(),
+  pluginName: STORE_PLUGIN,
   extra: {
     auth: async () => {
       await runAuth()

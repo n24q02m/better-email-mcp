@@ -2,8 +2,8 @@
  * CLI for OAuth2 authentication (Device Code flow) + local session logout.
  *
  * Usage:
- *   npx @n24q02m/better-email-mcp auth [outlook] user@outlook.com [--client-id=<id>]
- *   npx @n24q02m/better-email-mcp logout [user@outlook.com]
+ *   npx @n24q02m/email auth [outlook] user@outlook.com [--client-id=<id>]
+ *   npx @n24q02m/email logout [user@outlook.com]
  *
  * The leading `outlook` provider positional is optional (email has a single
  * OAuth2 provider today) -- kept for CLI naming parity with wet/mnemo's
@@ -50,8 +50,8 @@ export async function runAuth(): Promise<void> {
   const email = stripProvider(positionals)[0]?.trim()
 
   if (!email) {
-    console.error('Usage: better-email-mcp auth [outlook] <email> [--client-id=<id>]')
-    console.error('Example: better-email-mcp auth user@outlook.com')
+    console.error('Usage: email auth [outlook] <email> [--client-id=<id>]')
+    console.error('Example: email auth user@outlook.com')
     console.error('')
     console.error('Authenticates an Outlook/Hotmail/Live account via OAuth2 Device Code flow.')
     console.error('Tokens are saved to ~/.better-email-mcp/tokens.json')

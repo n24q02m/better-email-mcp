@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Phase 5 Live Comprehensive Test for better-email-mcp.
+ * Phase 5 Live Comprehensive Test for email.
  *
  * Spawns the server via MCP SDK Client (StdioClientTransport),
  * communicates over JSON-RPC stdio, and tests all accessible operations.

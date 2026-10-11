@@ -1,5 +1,5 @@
 {
-  "name": "better-email-mcp",
+  "name": "email",
   "description": "Email management via IMAP/SMTP — multi-account",
   "version": "1.41.5",
   "userConfig": {
@@ -15,11 +15,11 @@
     "name": "n24q02m",
     "url": "https://github.com/n24q02m"
   },
-  "homepage": "https://github.com/n24q02m/better-email-mcp",
+  "homepage": "https://github.com/n24q02m/email",
   "mcpServers": {
-    "better-email-mcp": {
+    "email": {
       "command": "npx",
-      "args": ["--yes", "@n24q02m/better-email-mcp@latest"],
+      "args": ["--yes", "@n24q02m/email@latest"],
       "env": {
         "MCP_TRANSPORT": "stdio",
         "EMAIL_CREDENTIALS": "${user_config.EMAIL_CREDENTIALS}"

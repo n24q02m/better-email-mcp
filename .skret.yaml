@@ -1,6 +1,6 @@
 version: "1"
 default_env: prod
-project: better-email-mcp
+project: email
 environments:
   prod:
     provider: aws

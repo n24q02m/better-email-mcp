@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
@@ -56,7 +57,7 @@ describe('public MCP tool surface', { timeout: MCP_PROTOCOL_TEST_TIMEOUT_MS }, (
     transport.stderr?.on('data', (chunk: Buffer | string) => {
       stderrChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
     })
-    client = new Client({ name: 'better-email-mcp-test-client', version: '0.0.0' })
+    client = new Client({ name: 'email-test-client', version: '0.0.0' })
     try {
       await client.connect(transport)
     } catch (error) {
@@ -70,6 +71,17 @@ describe('public MCP tool surface', { timeout: MCP_PROTOCOL_TEST_TIMEOUT_MS }, (
     }
     return client
   }
+
+  it('identifies itself as `email` in the initialize handshake', async () => {
+    const connectedClient = await connectServer()
+    const info = connectedClient.getServerVersion()
+    const pkg = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8')) as { version: string }
+
+    expect(info?.name).toBe('email')
+    // getVersion() only accepts the package.json whose name is @n24q02m/email, so a
+    // stale name check would silently report 0.0.0 here instead of the real version.
+    expect(info?.version).toBe(pkg.version)
+  })
 
   it('exposes exactly the approved tools and merged messages actions through tools/list', async () => {
     const connectedClient = await connectServer()

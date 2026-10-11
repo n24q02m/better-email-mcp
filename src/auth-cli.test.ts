@@ -35,8 +35,8 @@ describe('runAuth', () => {
   it('should exit with 1 and print usage if no email is provided', async () => {
     await expect(runAuth()).rejects.toThrow('process.exit called with 1')
 
-    expect(console.error).toHaveBeenCalledWith('Usage: better-email-mcp auth [outlook] <email> [--client-id=<id>]')
-    expect(console.error).toHaveBeenCalledWith('Example: better-email-mcp auth user@outlook.com')
+    expect(console.error).toHaveBeenCalledWith('Usage: email auth [outlook] <email> [--client-id=<id>]')
+    expect(console.error).toHaveBeenCalledWith('Example: email auth user@outlook.com')
     expect(console.error).toHaveBeenCalledWith('')
     expect(console.error).toHaveBeenCalledWith(
       'Authenticates an Outlook/Hotmail/Live account via OAuth2 Device Code flow.'

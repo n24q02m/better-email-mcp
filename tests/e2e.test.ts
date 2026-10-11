@@ -1,12 +1,12 @@
 /**
- * Consolidated E2E Tests for better-email-mcp
+ * Consolidated E2E Tests for email
  *
  * Spawns the actual MCP server via stdio and communicates using JSON-RPC
  * through the official MCP SDK client. Covers ALL 6 public tools and ALL 22 actions.
  *
  * Four setup modes controlled by E2E_SETUP env var:
  *   - 'env'    (default) : node bin/cli.mjs with EMAIL_CREDENTIALS env var
- *   - 'plugin' :           npx -y @n24q02m/better-email-mcp with EMAIL_CREDENTIALS
+ *   - 'plugin' :           npx -y @n24q02m/email with EMAIL_CREDENTIALS
  *   - 'relay'  :           node bin/cli.mjs WITHOUT env, relay browser config
  *   - 'http'   :           HTTP server with OAuth 2.1 + DCR + relay credential form
  *
@@ -103,7 +103,7 @@ function createStdioTransport(): StdioClientTransport {
   switch (E2E_SETUP) {
     case 'plugin':
       return new StdioClientTransport({
-        ...pluginCommand('@n24q02m/better-email-mcp'),
+        ...pluginCommand('@n24q02m/email'),
         env: {
           ...process.env,
           EMAIL_CREDENTIALS: EMAIL_CREDS,
@@ -544,7 +544,7 @@ describe('Server initialization', () => {
   it('should connect and report server info', () => {
     const info = client.getServerVersion()
     expect(info).toBeDefined()
-    expect(info?.name).toBe('better-email-mcp')
+    expect(info?.name).toBe('email')
     expect(info?.version).toMatch(/^\d+\.\d+\.\d+/)
   })
 

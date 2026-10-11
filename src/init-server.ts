@@ -1,5 +1,5 @@
 /**
- * Better Email MCP Server — Entry point
+ * email MCP Server — Entry point
  *
  * Transport selection (default flipped 2026-05-01 per spec
  * 2026-05-01-stdio-pure-http-multiuser.md §5.2.1):
@@ -19,7 +19,7 @@ import { resolveCredentialState } from './credential-state.js'
 import { loadConfig } from './tools/helpers/config.js'
 import { registerTools } from './tools/registry.js'
 
-const SERVER_NAME = 'better-email-mcp'
+const SERVER_NAME = 'email'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -36,7 +36,7 @@ export function getVersion(): string {
       const pkgPath = join(dir, 'package.json')
       if (existsSync(pkgPath)) {
         const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
-        if (pkg.name === '@n24q02m/better-email-mcp') {
+        if (pkg.name === '@n24q02m/email') {
           return pkg.version ?? '0.0.0'
         }
       }

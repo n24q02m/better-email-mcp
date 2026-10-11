@@ -1,7 +1,7 @@
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { setHomeDirForTesting } from '@n24q02m/mcp-core/storage'
+import { PerPluginStore, setHomeDirForTesting } from '@n24q02m/mcp-core/storage'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { runAuth, runLogout } from '../src/auth-cli.js'
 import { initServer } from '../src/init-server.js'
@@ -27,7 +27,7 @@ describe('start-server (buildCli wiring)', { timeout: 30_000 }, () => {
   beforeEach(() => {
     vi.resetModules()
     vi.clearAllMocks()
-    setHomeDirForTesting(mkdtempSync(join(tmpdir(), 'better-email-mcp-cli-test-')))
+    setHomeDirForTesting(mkdtempSync(join(tmpdir(), 'email-cli-test-')))
 
     process.argv = ['node', 'scripts/start-server.ts']
     process.exit = vi.fn((_code) => undefined as never) as any
@@ -110,7 +110,7 @@ describe('start-server (buildCli wiring)', { timeout: 30_000 }, () => {
     sigintHandler?.()
     await vi.waitFor(() => expect(process.exit).toHaveBeenCalled())
 
-    expect(console.error).toHaveBeenCalledWith('\nShutting down Better Email MCP Server')
+    expect(console.error).toHaveBeenCalledWith('\nShutting down email MCP Server')
     expect(process.exit).toHaveBeenCalledWith(0)
   })
 
@@ -149,7 +149,7 @@ describe('start-server (buildCli wiring)', { timeout: 30_000 }, () => {
     await import('./start-server.js')
     await vi.waitFor(() => expect(process.exit).toHaveBeenCalled())
 
-    expect(logSpy).toHaveBeenCalledWith('better-email-mcp 0.0.0-test')
+    expect(logSpy).toHaveBeenCalledWith('email 0.0.0-test')
     expect(process.exit).toHaveBeenCalledWith(0)
     expect(initServer).not.toHaveBeenCalled()
     logSpy.mockRestore()
@@ -162,9 +162,26 @@ describe('start-server (buildCli wiring)', { timeout: 30_000 }, () => {
     await import('./start-server.js')
     await vi.waitFor(() => expect(process.exit).toHaveBeenCalled())
 
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('better-email-mcp: not configured'))
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('email: not configured'))
     expect(process.exit).toHaveBeenCalledWith(0)
     expect(initServer).not.toHaveBeenCalled()
+    logSpy.mockRestore()
+  })
+
+  it('config status reads the pre-rename credential store (better-email), not one named after the command', async () => {
+    // The command is `email`, but saved credentials live under the PerPluginStore
+    // slug 'better-email' (~/.better-email-mcp). buildCli would derive 'email' from
+    // the command name; this pins the explicit pluginName so existing installs still
+    // report as configured after the rename.
+    await new PerPluginStore('better-email').save({ EMAIL_CREDENTIALS: 'user@example.com:app-password' })
+    process.argv.push('config', 'status')
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await import('./start-server.js')
+    await vi.waitFor(() => expect(process.exit).toHaveBeenCalled())
+
+    expect(logSpy).toHaveBeenCalledWith('email: configured (source: file)')
+    expect(process.exit).toHaveBeenCalledWith(0)
     logSpy.mockRestore()
   })
 })

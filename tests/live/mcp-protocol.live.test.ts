@@ -53,7 +53,7 @@ describe.skipIf(!EMAIL_CREDS)('MCP Protocol - Live Server (stdio)', () => {
     it('should connect and report server info', () => {
       const serverVersion = client.getServerVersion()
       expect(serverVersion).toBeDefined()
-      expect(serverVersion?.name).toBe('better-email-mcp')
+      expect(serverVersion?.name).toBe('email')
       expect(serverVersion?.version).toMatch(/^\d+\.\d+\.\d+/)
     })
 

@@ -1,4 +1,6 @@
-# CLAUDE.md - better-email-mcp
+# CLAUDE.md - email
+
+Ten repo/npm/image: `n24q02m/email` / `@n24q02m/email` / `n24q02m/email` (truoc day la `better-email-mcp`). CON GIU ten cu co chu dich: registry id `io.github.n24q02m/better-email-mcp`, bin alias `better-email-mcp`, data dir `~/.better-email-mcp` (PerPluginStore slug `better-email` + Outlook `tokens.json`), config namespace `better-email-mcp` (config.enc `servers[...]`, stableSub HMAC, JWT issuer/key cua `runHttpServer`), skret path `/better-email-mcp/prod`. Doi cac ten nay can option base-dir o mcp-core (G3).
 
 MCP Server cho Email (IMAP/SMTP). TypeScript, Node.js >= 24, bun, ESM.
 4 composite tools, 22 actions (messages, folders, attachments, config; outbound new/reply/forward under messages) plus config__open_relay + help. Multi-account, App Passwords, auto-discovery.

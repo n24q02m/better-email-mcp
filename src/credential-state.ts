@@ -1,5 +1,5 @@
 /**
- * Non-blocking credential state management for better-email-mcp.
+ * Non-blocking credential state management for email.
  *
  * State machine: awaiting_setup -> setup_in_progress -> configured
  * Reset: configured -> awaiting_setup (via explicit reset)
@@ -21,7 +21,12 @@
 
 import { resolveConfig } from '@n24q02m/mcp-core/storage'
 
-const SERVER_NAME = 'better-email-mcp'
+// Config namespace for mcp-core's encrypted config.enc: resolveConfig/deleteConfig key
+// servers[name] with it and derive the per-plugin store from it. Deliberately NOT renamed
+// with the server identity (SERVER_NAME = 'email' in init-server.ts): changing it would
+// orphan every saved relay config instead of moving it. It moves together with the data
+// dir once mcp-core storage has a base-dir option.
+const CONFIG_NAMESPACE = 'better-email-mcp'
 const REQUIRED_FIELDS = ['EMAIL_CREDENTIALS']
 
 export type CredentialState = 'awaiting_setup' | 'setup_in_progress' | 'configured'
@@ -82,7 +87,7 @@ export async function resolveCredentialState(): Promise<CredentialState> {
 
   // 2. Check encrypted config file
   try {
-    const result = await resolveConfig(SERVER_NAME, REQUIRED_FIELDS)
+    const result = await resolveConfig(CONFIG_NAMESPACE, REQUIRED_FIELDS)
     if (result.config !== null) {
       const { formatCredentials } = await import('./relay-setup.js')
       const credentials = formatCredentials(result.config)
@@ -132,7 +137,7 @@ export async function resetState(): Promise<void> {
   setupUrl = null
   try {
     const { deleteConfig } = await import('@n24q02m/mcp-core')
-    await deleteConfig(SERVER_NAME)
+    await deleteConfig(CONFIG_NAMESPACE)
   } catch {
     // Ignore
   }

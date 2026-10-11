@@ -1,5 +1,5 @@
 /**
- * Per-request subject scope for better-email-mcp remote-relay mode.
+ * Per-request subject scope for email remote-relay mode.
  *
  * The HTTP transport wraps each verified /mcp request in this AsyncLocalStorage
  * so tool handlers can look up the caller's own mailbox list without ever

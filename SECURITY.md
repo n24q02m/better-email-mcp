@@ -24,7 +24,7 @@ You will receive acknowledgment within 48 hours.
 
 ## Security Best Practices
 
-When using better-email-mcp:
+When using email:
 
 - **Never commit API keys** or OAuth tokens to version control
 - Use environment variables for all credentials

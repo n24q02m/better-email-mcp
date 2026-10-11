@@ -3,14 +3,14 @@
   "name": "io.github.n24q02m/better-email-mcp",
   "description": "IMAP/SMTP MCP server for Email with composite tools. Multi-account, auto-discovery.",
   "repository": {
-    "url": "https://github.com/n24q02m/better-email-mcp.git",
+    "url": "https://github.com/n24q02m/email.git",
     "source": "github"
   },
   "version": "1.41.5",
   "packages": [
     {
       "registryType": "npm",
-      "identifier": "@n24q02m/better-email-mcp",
+      "identifier": "@n24q02m/email",
       "version": "1.41.5",
       "runtimeHint": "npx",
       "transport": {
@@ -27,7 +27,7 @@
     },
     {
       "registryType": "oci",
-      "identifier": "docker.io/n24q02m/better-email-mcp:latest",
+      "identifier": "docker.io/n24q02m/email:latest",
       "runtimeHint": "docker",
       "transport": {
         "type": "stdio"

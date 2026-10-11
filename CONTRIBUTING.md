@@ -1,6 +1,6 @@
-# Contributing to better-email-mcp
+# Contributing to email
 
-Thank you for your interest in contributing to better-email-mcp! This guide will help you get started.
+Thank you for your interest in contributing to email! This guide will help you get started.
 
 ## Getting Started
 
@@ -17,8 +17,8 @@ Thank you for your interest in contributing to better-email-mcp! This guide will
 1. **Fork the repository** and clone your fork
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/better-email-mcp
-cd better-email-mcp
+git clone https://github.com/YOUR_USERNAME/email
+cd email
 ```
 
 2. **Install tools and dependencies**
@@ -156,7 +156,7 @@ bun run test:coverage # With coverage
 ## Project Structure
 
 ```text
-better-email-mcp/
+email/
 ├── src/
 │   ├── init-server.ts        # Server entry point, env validation
 │   ├── docs/                 # Markdown docs served as MCP resources

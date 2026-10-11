@@ -1,4 +1,4 @@
-# Better Email MCP - Optimized for AI Agents
+# email - Email (IMAP/SMTP) MCP server, optimized for AI agents
 # Multi-target Dockerfile: `:stdio` (default for clients) + `:http` (self-hosted daemon).
 # See spec 2026-04-30-multi-mode-stdio-http-architecture.md.
 # syntax=docker/dockerfile:1
@@ -23,20 +23,21 @@ RUN bun run build
 # Base runtime stage (shared)
 FROM node:24.21.0-alpine@sha256:be80f76cf40ec8e42b9bec49f60a55e0660f30af58d3e5a25530785b30ea67e2 AS base
 
-LABEL org.opencontainers.image.source="https://github.com/n24q02m/better-email-mcp"
+LABEL org.opencontainers.image.source="https://github.com/n24q02m/email"
 LABEL io.modelcontextprotocol.server.name="io.github.n24q02m/better-email-mcp"
 
 # Copy built package from builder stage
-COPY --from=builder /app/build /usr/local/lib/node_modules/@n24q02m/better-email-mcp/build
-COPY --from=builder /app/bin /usr/local/lib/node_modules/@n24q02m/better-email-mcp/bin
-COPY --from=builder /app/package.json /usr/local/lib/node_modules/@n24q02m/better-email-mcp/
-COPY --from=builder /app/README.md /usr/local/lib/node_modules/@n24q02m/better-email-mcp/
-COPY --from=builder /app/LICENSE /usr/local/lib/node_modules/@n24q02m/better-email-mcp/
-COPY --from=builder /app/node_modules /usr/local/lib/node_modules/@n24q02m/better-email-mcp/node_modules
+COPY --from=builder /app/build /usr/local/lib/node_modules/@n24q02m/email/build
+COPY --from=builder /app/bin /usr/local/lib/node_modules/@n24q02m/email/bin
+COPY --from=builder /app/package.json /usr/local/lib/node_modules/@n24q02m/email/
+COPY --from=builder /app/README.md /usr/local/lib/node_modules/@n24q02m/email/
+COPY --from=builder /app/LICENSE /usr/local/lib/node_modules/@n24q02m/email/
+COPY --from=builder /app/node_modules /usr/local/lib/node_modules/@n24q02m/email/node_modules
 
-# Create symlink for CLI and grant the non-root runtime user access to the
-# self-hosted HTTP credential volume.
-RUN ln -s /usr/local/lib/node_modules/@n24q02m/better-email-mcp/bin/cli.mjs /usr/local/bin/better-email-mcp \
+# Create symlinks for CLI (email + legacy better-email-mcp alias) and grant the
+# non-root runtime user access to the self-hosted HTTP credential volume.
+RUN ln -s /usr/local/lib/node_modules/@n24q02m/email/bin/cli.mjs /usr/local/bin/email \
+  && ln -s /usr/local/lib/node_modules/@n24q02m/email/bin/cli.mjs /usr/local/bin/better-email-mcp \
   && mkdir -p /data \
   && chown node:node /data
 
@@ -47,10 +48,10 @@ ENV NODE_ENV=production
 USER node
 
 # stdio target: direct MCP SDK StdioServerTransport (no daemon hop).
-# Intended for `docker run --rm -i n24q02m/better-email-mcp:stdio` from MCP clients.
+# Intended for `docker run --rm -i n24q02m/email:stdio` from MCP clients.
 FROM base AS stdio
 ENV MCP_TRANSPORT=stdio
-ENTRYPOINT ["node", "/usr/local/lib/node_modules/@n24q02m/better-email-mcp/bin/cli.mjs"]
+ENTRYPOINT ["node", "/usr/local/lib/node_modules/@n24q02m/email/bin/cli.mjs"]
 
 # http target: HTTP daemon (runLocalServer). Self-hosted deployment.
 FROM base AS http
@@ -60,4 +61,4 @@ ENV MCP_TRANSPORT=http \
     HOME=/data
 VOLUME ["/data"]
 EXPOSE 8080
-ENTRYPOINT ["node", "/usr/local/lib/node_modules/@n24q02m/better-email-mcp/bin/cli.mjs"]
+ENTRYPOINT ["node", "/usr/local/lib/node_modules/@n24q02m/email/bin/cli.mjs"]

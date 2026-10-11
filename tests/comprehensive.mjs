@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Comprehensive integration test for better-email-mcp.
+ * Comprehensive integration test for email.
  *
  * Requires at least 2 accounts (first = primary, second = forward target).
  * Usage: EMAIL_CREDENTIALS=a@gmail.com:pass1,b@gmail.com:pass2 node tests/comprehensive.mjs

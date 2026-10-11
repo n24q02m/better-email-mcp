@@ -1,5 +1,5 @@
 {
-  "name": "@n24q02m/better-email-mcp",
+  "name": "@n24q02m/email",
   "mcpName": "io.github.n24q02m/better-email-mcp",
   "keywords": [
     "email",
@@ -43,13 +43,14 @@
     "check": "biome check . && bun run type-check",
     "check:fix": "biome check --write . && bun run type-check",
     "prepublishOnly": "bun run build",
-    "docker:build": "docker build -t n24q02m/better-email-mcp:latest .",
-    "docker:push": "docker push n24q02m/better-email-mcp:latest",
-    "docker:run": "docker run --rm -i -e EMAIL_CREDENTIALS n24q02m/better-email-mcp:latest",
+    "docker:build": "docker build -t n24q02m/email:latest .",
+    "docker:push": "docker push n24q02m/email:latest",
+    "docker:run": "docker run --rm -i -e EMAIL_CREDENTIALS n24q02m/email:latest",
     "cf:dryrun": "node scripts/cf-deploy.js --dry-run",
     "cf:deploy": "node scripts/cf-deploy.js"
   },
   "bin": {
+    "email": "bin/cli.mjs",
     "better-email-mcp": "bin/cli.mjs"
   },
   "engines": {
@@ -93,11 +94,11 @@
   "main": "build/src/init-server.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/n24q02m/better-email-mcp.git"
+    "url": "https://github.com/n24q02m/email.git"
   },
   "author": "n24q02m",
   "bugs": {
-    "url": "https://github.com/n24q02m/better-email-mcp/issues"
+    "url": "https://github.com/n24q02m/email/issues"
   },
-  "homepage": "https://github.com/n24q02m/better-email-mcp#readme"
+  "homepage": "https://github.com/n24q02m/email#readme"
 }

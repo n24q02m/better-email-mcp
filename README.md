@@ -1,4 +1,4 @@
-# Better Email MCP
+# email
 
 mcp-name: io.github.n24q02m/better-email-mcp
 
@@ -6,11 +6,11 @@ mcp-name: io.github.n24q02m/better-email-mcp
 
 <!-- Badge Row 1: Status -->
 [![Mode](https://img.shields.io/badge/mode-http_remote_relay_%C2%B7_http_local_relay_%C2%B7_stdio_proxy-5C6BC0)](https://mcp.n24q02m.com/get-started/modes-overview/)
-[![CI](https://github.com/n24q02m/better-email-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/n24q02m/better-email-mcp/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/n24q02m/better-email-mcp/graph/badge.svg?token=O2GWBWCZGF)](https://codecov.io/gh/n24q02m/better-email-mcp)
-[![npm](https://img.shields.io/npm/v/@n24q02m/better-email-mcp?logo=npm&logoColor=white)](https://www.npmjs.com/package/@n24q02m/better-email-mcp)
-[![Docker](https://img.shields.io/docker/v/n24q02m/better-email-mcp?label=docker&logo=docker&logoColor=white&sort=semver)](https://hub.docker.com/r/n24q02m/better-email-mcp)
-[![License: Apache-2.0](https://img.shields.io/github/license/n24q02m/better-email-mcp)](LICENSE)
+[![CI](https://github.com/n24q02m/email/actions/workflows/ci.yml/badge.svg)](https://github.com/n24q02m/email/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/n24q02m/email/graph/badge.svg?token=O2GWBWCZGF)](https://codecov.io/gh/n24q02m/email)
+[![npm](https://img.shields.io/npm/v/@n24q02m/email?logo=npm&logoColor=white)](https://www.npmjs.com/package/@n24q02m/email)
+[![Docker](https://img.shields.io/docker/v/n24q02m/email?label=docker&logo=docker&logoColor=white&sort=semver)](https://hub.docker.com/r/n24q02m/email)
+[![License: Apache-2.0](https://img.shields.io/github/license/n24q02m/email)](LICENSE)
 
 <!-- Badge Row 2: Tech -->
 [![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](#)
@@ -88,9 +88,9 @@ The server runs in two modes: **stdio** (default, single-user, credentials from 
 ```jsonc
 {
   "mcpServers": {
-    "better-email": {
+    "email": {
       "command": "npx",
-      "args": ["--yes", "@n24q02m/better-email-mcp@latest"],
+      "args": ["--yes", "@n24q02m/email@latest"],
       "env": {
         "EMAIL_CREDENTIALS": "user@gmail.com:app-password"
       }
@@ -98,6 +98,11 @@ The server runs in two modes: **stdio** (default, single-user, credentials from 
   }
 }
 ```
+
+The package is `@n24q02m/email` (formerly `@n24q02m/better-email-mcp`; old package
+receives one final release then freezes). The MCP Registry id stays
+`io.github.n24q02m/better-email-mcp`, and the legacy `better-email-mcp` command is
+kept as an alias of `email`.
 
 Multiple accounts are comma-separated: `user1@gmail.com:pass1,user2@outlook.com:pass2`. See [Configuration](#configuration) for all env vars, and [Remote (HTTP Mode)](#remote-http-mode) to run a hosted multi-user server.
 
@@ -108,7 +113,7 @@ Most providers use an **App Password** (no OAuth setup); Outlook/Hotmail/Live us
 | Client | Install |
 |:-------|:--------|
 | Claude Code | `/plugin marketplace add n24q02m/claude-plugins` + `/plugin install better-email-mcp@n24q02m-plugins` (stdio; prompts for `EMAIL_CREDENTIALS`), or an `mcpServers` entry in `.mcp.json` / client settings |
-| Codex CLI | `[mcp_servers.better-email-mcp]` block in `~/.codex/config.toml` (stdio `command`/`args` or HTTP `type`/`url`) |
+| Codex CLI | `[mcp_servers.email]` block in `~/.codex/config.toml` (stdio `command`/`args` or HTTP `type`/`url`) |
 | OpenCode | `mcpServers` block in `opencode.json` |
 | Cursor / Windsurf / Gemini CLI / any MCP client | `mcpServers` JSON in the client's config — same shape as the example above |
 
@@ -116,27 +121,27 @@ Full per-client walkthroughs: [mcp.n24q02m.com/servers/better-email-mcp/setup/](
 
 ## CLI
 
-The package ships one binary, `better-email-mcp` (run via `npx @n24q02m/better-email-mcp`). With no arguments it starts the MCP server over stdio; it also accepts one flag and one subcommand:
+The package ships one binary, `email` (run via `npx @n24q02m/email`), also installed under its legacy name `better-email-mcp`. With no arguments it starts the MCP server over stdio; it also accepts one flag and one subcommand:
 
 | Invocation | Description |
 |:-----------|:------------|
-| `better-email-mcp` | Start the MCP server over **stdio** (default). Reads credentials from `EMAIL_CREDENTIALS`, or from `EMAIL_USER` + `EMAIL_APP_PASSWORD` |
-| `better-email-mcp --http` | Start the server in **HTTP** (multi-user, OAuth 2.1) mode. Equivalent to `MCP_TRANSPORT=http` or `TRANSPORT_MODE=http` |
-| `better-email-mcp auth [outlook] <email> [--client-id=<id>]` | Authenticate an Outlook/Hotmail/Live account via OAuth2 Device Code flow. Tokens are saved to `~/.better-email-mcp/tokens.json`. The `outlook` provider positional is optional (email has a single OAuth2 provider); `--client-id` overrides `OUTLOOK_CLIENT_ID` for a self-hosted Azure AD app |
-| `better-email-mcp logout [<email>]` | Clear the locally stored Outlook token(s). Omit `<email>` to clear every stored token |
+| `email` | Start the MCP server over **stdio** (default). Reads credentials from `EMAIL_CREDENTIALS`, or from `EMAIL_USER` + `EMAIL_APP_PASSWORD` |
+| `email --http` | Start the server in **HTTP** (multi-user, OAuth 2.1) mode. Equivalent to `MCP_TRANSPORT=http` or `TRANSPORT_MODE=http` |
+| `email auth [outlook] <email> [--client-id=<id>]` | Authenticate an Outlook/Hotmail/Live account via OAuth2 Device Code flow. Tokens are saved to `~/.better-email-mcp/tokens.json`. The `outlook` provider positional is optional (email has a single OAuth2 provider); `--client-id` overrides `OUTLOOK_CLIENT_ID` for a self-hosted Azure AD app |
+| `email logout [<email>]` | Clear the locally stored Outlook token(s). Omit `<email>` to clear every stored token |
 
 ```bash
 # stdio server (normally launched by your MCP client, not by hand)
-EMAIL_CREDENTIALS="user@gmail.com:app-password" npx @n24q02m/better-email-mcp
+EMAIL_CREDENTIALS="user@gmail.com:app-password" npx @n24q02m/email
 
 # HTTP multi-user server
-npx @n24q02m/better-email-mcp --http
+npx @n24q02m/email --http
 
 # One-off Outlook OAuth device-code sign-in
-npx @n24q02m/better-email-mcp auth user@outlook.com
+npx @n24q02m/email auth user@outlook.com
 
 # Sign out of a single account (or omit the email to clear all)
-npx @n24q02m/better-email-mcp logout user@outlook.com
+npx @n24q02m/email logout user@outlook.com
 ```
 
 `auth`/`logout` are only for Outlook/Hotmail/Live addresses -- other providers use an App Password in `EMAIL_CREDENTIALS`. See [Remote (HTTP Mode)](#remote-http-mode) for the HTTP config.
@@ -149,7 +154,7 @@ Published with a [Smithery](https://smithery.ai) config ([`smithery.yaml`](smith
 startCommand:
   type: stdio
   commandFunction: |-
-    (config) => ({ command: 'npx', args: ['-y', '@n24q02m/better-email-mcp'] })
+    (config) => ({ command: 'npx', args: ['-y', '@n24q02m/email'] })
 ```
 
 ## Documentation
@@ -162,7 +167,7 @@ Full docs at **[mcp.n24q02m.com/servers/better-email-mcp/](https://mcp.n24q02m.c
 
 **Install with AI agent** -- paste this to your AI coding agent:
 
-> Install MCP server `better-email-mcp` following the steps at
+> Install MCP server `email` following the steps at
 > https://raw.githubusercontent.com/n24q02m/claude-plugins/main/plugins/better-email-mcp/setup-with-agent.md
 
 ## Tools
@@ -199,9 +204,9 @@ surface. The old name is removed directly; there is no compatibility alias.
 
 ## Comparison
 
-How better-email-mcp stacks up against direct competitors in each pillar:
+How email stacks up against direct competitors in each pillar:
 
-| Capability | better-email-mcp | [email-mcp](https://github.com/codefuturist/email-mcp) | [Gmail-MCP-Server](https://github.com/GongRzhe/Gmail-MCP-Server) | [mcp-mail-server](https://github.com/yunfeizhu/mcp-mail-server) |
+| Capability | email | [email-mcp](https://github.com/codefuturist/email-mcp) | [Gmail-MCP-Server](https://github.com/GongRzhe/Gmail-MCP-Server) | [mcp-mail-server](https://github.com/yunfeizhu/mcp-mail-server) |
 |---|---|---|---|---|
 | IMAP/SMTP (provider-agnostic) | Yes | Yes | No (Gmail API only) | Yes |
 | Multi-account | Yes (comma-separated creds) | Yes | No (single global credential) | No (single account per instance) |
@@ -218,7 +223,7 @@ Run as a multi-user HTTP server with OAuth 2.1 authentication:
 ```jsonc
 {
   "mcpServers": {
-    "better-email": {
+    "email": {
       "type": "http",
       "url": "https://<your-host>/mcp"
     }
@@ -239,7 +244,7 @@ docker run -p 8080:8080 \
   -e HOME=/data \
   -e CREDENTIAL_SECRET="$CREDENTIAL_SECRET" \
   -v email-data:/data \
-  n24q02m/better-email-mcp:latest
+  n24q02m/email:latest
 ```
 Users provide their own email credentials through the OAuth flow / paste form. No server-side `EMAIL_CREDENTIALS` is needed. The stable `CREDENTIAL_SECRET` encrypts the local per-user credential files; the mounted `/data` volume survives container restarts. Without that volume, the container filesystem remains ephemeral. Cloudflare deployments use Workers KV instead.
 
@@ -372,8 +377,8 @@ it with `OUTLOOK_SCOPES` so the refresh does not ask for more than was granted.
 ## Build from Source
 
 ```bash
-git clone https://github.com/n24q02m/better-email-mcp.git
-cd better-email-mcp
+git clone https://github.com/n24q02m/email.git
+cd email
 bun install
 bun run dev
 ```

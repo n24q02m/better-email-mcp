@@ -1,4 +1,4 @@
-# AGENTS.md - better-email-mcp
+# AGENTS.md - email
 
 MCP Server for Email (IMAP/SMTP). TypeScript, Node.js >= 24, bun, ESM.
 

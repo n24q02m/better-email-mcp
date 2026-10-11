@@ -41,7 +41,14 @@ import { type AccountConfig, loadConfig, parseCredentials } from '../tools/helpe
 import { initiateOutlookDeviceCode, isOutlookDomain, setOutlookTokenStore } from '../tools/helpers/oauth2.js'
 import { registerTools } from '../tools/registry.js'
 
-const SERVER_NAME = 'better-email-mcp'
+const SERVER_NAME = 'email'
+// Credential namespace handed to mcp-core. Deliberately NOT renamed with SERVER_NAME:
+// runHttpServer's `serverName` seeds the stable-subject HMAC (`sub:${serverName}:<user>`),
+// the JWT issuer/audience and signing key, and the stored-config lookup, and writeConfig
+// keys config.enc `servers[name]` with it. Changing it would hand every returning user a
+// new `sub` (orphaning their per-sub credentials) and invalidate issued tokens, so it
+// moves only together with the data-dir migration.
+const CONFIG_NAMESPACE = 'better-email-mcp'
 const IMAP_CONNECT_TIMEOUT_MS = 15_000
 
 /**
@@ -260,7 +267,7 @@ function buildOptions(args: {
       console.error(`[${SERVER_NAME}] ${accounts.length} email account(s) configured for sub=${sub} (per-user scope)`)
     } else {
       try {
-        await writeConfig(SERVER_NAME, { EMAIL_CREDENTIALS: raw })
+        await writeConfig(CONFIG_NAMESPACE, { EMAIL_CREDENTIALS: raw })
       } catch (err) {
         console.error(`[${SERVER_NAME}] Failed to persist credentials: ${(err as Error).message}`)
       }
@@ -276,7 +283,7 @@ function buildOptions(args: {
   }
 
   return {
-    serverName: SERVER_NAME,
+    serverName: CONFIG_NAMESPACE,
     relaySchema: RELAY_SCHEMA,
     port,
     host,
