@@ -2,7 +2,7 @@
 
 mcp-name: io.github.n24q02m/better-email-mcp
 
-**IMAP/SMTP email for AI agents -- read, send, organize folders, and manage attachments across multiple accounts, with auto-discovery.**
+**IMAP/SMTP email for AI agents -- read, send, organize, and manage attachments across accounts.**
 
 <!-- Badge Row 1: Status -->
 [![Mode](https://img.shields.io/badge/mode-http_remote_relay_%C2%B7_http_local_relay_%C2%B7_stdio_proxy-5C6BC0)](https://mcp.n24q02m.com/get-started/modes-overview/)
